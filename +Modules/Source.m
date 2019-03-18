@@ -37,7 +37,7 @@ classdef Source < Base.Module
     end
     methods(Access=private)
         function updateCommandCenter(obj,~,~)
-            if isobject(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
+            if isstruct(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
                 i = obj.CC_dropdown.i;
                 name = strsplit(class(obj),'.');
                 short_name = strjoin(name(2:end),'.');
