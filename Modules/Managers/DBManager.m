@@ -64,8 +64,8 @@ classdef DBManager < Base.Manager
                                 gitPath = mfilename('fullpath');
                                 gitPath = fileparts(gitPath); gitPath = fileparts(gitPath); gitPath = fileparts(gitPath);
                                 data.GitInfo = getGitInfo(gitPath);
-                                data.GitInfo.status = strip(git('status'));
-                                data.GitInfo.diff = strip(git('diff'));
+                                data.GitInfo.status = strip(git(sprintf('--git-dir="%s"',fullfile(gitPath,'.git')),sprintf('--work-tree="%s"',gitPath),'status'));
+                                data.GitInfo.diff = strip(git(sprintf('--git-dir="%s"',fullfile(gitPath,'.git')),sprintf('--work-tree="%s"',gitPath),'diff'));
                             catch
                                 warning('Git inspection failed!')
                             end

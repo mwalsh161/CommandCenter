@@ -71,8 +71,8 @@ classdef Logger < handle
                 gitPath = mfilename('fullpath');
                 gitPath = fileparts(gitPath); gitPath = fileparts(gitPath);
                 GitInfo = getGitInfo(gitPath);
-                GitInfo.status = strip(git('status'));
-                GitInfo.diff = strip(git('diff'));
+                GitInfo.status = strip(git(sprintf('--git-dir="%s"',fullfile(gitPath,'.git')),sprintf('--work-tree="%s"',gitPath),'status'));
+                GitInfo.diff = strip(git(sprintf('--git-dir="%s"',fullfile(gitPath,'.git')),sprintf('--work-tree="%s"',gitPath),'diff'));
             end
             fseek(obj.fid,obj.HTTP_pointer,'bof');
             logs = fscanf(obj.fid,'%c'); % Should leave us back at EOF
