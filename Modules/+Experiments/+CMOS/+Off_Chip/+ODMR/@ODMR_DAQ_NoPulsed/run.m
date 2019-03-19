@@ -22,6 +22,43 @@ try
     %% grab DAQ
     obj.Ni = Drivers.NIDAQ.dev.instance(obj.deviceName);
     
+%%
+clc
+ni.ClearAllTasks;
+t = ni.CreateTask('pulse');
+t.ConfigurePulseTrainOut(clk,f,Nsamples);
+AI = ni.CreateTask('Analog In');
+AI.ConfigureVoltageIn(analog_in,t,Nsamples);
+DI = ni.CreateTask('Digital In');
+DI.ConfigureDigitalIn(digital_in,t,Nsamples);
+%%
+AI.Start;
+DI.Start;
+tic;
+t.Start;
+AI.WaitUntilTaskDone;
+dt = toc;
+fprintf('Should have taken %0.2f seconds, took %0.2f s.\n',Nsamples/f,dt);
+d = DI.ReadDigitalIn(Nsamples);
+a = AI.ReadVoltageIn(Nsamples);
+figure;
+yyaxis('left');
+plot((0:Nsamples-1)/f,d);
+ylabel('Digital signal (b)')
+yyaxis('right');
+plot((0:Nsamples-1)/f,a);
+ylabel('Analog signal (V)')
+xlabel('Time (s)');
+
+t.Clear;
+DI.Clear;
+AI.Clear;
+%%
+delete(ni);
+    
+    
+    
+    
     %% run ODMR experiment
     
     obj.data.raw_data = NaN(obj.number_points,obj.nAverages);
