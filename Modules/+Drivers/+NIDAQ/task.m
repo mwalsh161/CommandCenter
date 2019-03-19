@@ -289,8 +289,8 @@ classdef task < handle
             % Make sure we are within voltage limits
             for i = 1:numel(lines)
                 vs = Voltages(:,i);
-                assert(min(vs) >= min(lines(i).limits),'Trying to write %f on line %s is forbidden since its lower limit is %f',min(vs),lines(i).name,min(lines(i).limits))
-                assert(max(vs) <= max(lines(i).limits),'Trying to write %f on line %s is forbidden since its higher limit is %f',max(vs),lines(i).name,max(lines(i).limits))
+                assert(min(vs) >= min(lines(i).limits),'Trying to write %g on line %s is forbidden since its lower limit is %g',min(vs),lines(i).name,min(lines(i).limits))
+                assert(max(vs) <= max(lines(i).limits),'Trying to write %g on line %s is forbidden since its higher limit is %g',max(vs),lines(i).name,max(lines(i).limits))
             end
             
             % When the task starts and completes, we can set to NaN then the last set value
@@ -424,8 +424,8 @@ classdef task < handle
             end
             assert(numel(limits)==2,'Limits should have two elements: [min max]');
             assert(limits(1) < limits(2), 'Limits should be increasing: [min max]');
-            assert(limits(1) >= obj.dev.AnalogOutMinVoltage, sprintf('Lower limit is below device min voltage (%0.2f V)',obj.dev.AnalogInMinVoltage));
-            assert(limits(2) <= obj.dev.AnalogOutMaxVoltage, sprintf('Upper limit is above device max voltage (%0.2f V)',obj.dev.AnalogInMaxVoltage));
+            assert(limits(1) >= obj.dev.AnalogOutMinVoltage, sprintf('Lower limit is below device min voltage (%g V)',obj.dev.AnalogInMinVoltage));
+            assert(limits(2) <= obj.dev.AnalogOutMaxVoltage, sprintf('Upper limit is above device max voltage (%g V)',obj.dev.AnalogInMaxVoltage));
             
             lines = obj.dev.getLines(lineNames,obj.dev.InLines);
             clkLine = ClkTask.clock.src;
