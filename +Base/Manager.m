@@ -443,7 +443,7 @@ classdef Manager < handle
             end
             modulesTemp = obj.modules;
             for i = 1:numel(modulesTemp)
-                if isobject(modulesTemp{i})&&isvalid(modulesTemp{i})
+                if ~isempty(modulesTemp{i})&&isobject(modulesTemp{i})&&isvalid(modulesTemp{i})
                     delete(modulesTemp{i})
                 end
             end

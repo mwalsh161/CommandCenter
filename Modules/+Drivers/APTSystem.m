@@ -15,7 +15,7 @@ classdef (Sealed) APTSystem < Drivers.APT & Modules.Driver
         function obj = instance()
             mlock;
             persistent Object
-            if isobject(Object) && isvalid(Object)
+            if ~isempty(Object)&&isobject(Object) && isvalid(Object)
                 obj = Object;
                 return
             end

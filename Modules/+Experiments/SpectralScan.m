@@ -77,7 +77,7 @@ classdef SpectralScan < Modules.Experiment
     methods
         function run(obj,statusH,managers,ax)
             obj.abort_request = false;
-            assert(isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
+            assert(~isempty(obj.WinSpec)&&isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
             stage = managers.Imaging.active_module.uses_stage;
             assert(logical(managers.Stages.check_module_str(stage)),'Stage associated with active imager is not loaded.');
             managers.Stages.setActiveModule(stage); % Make the stage active

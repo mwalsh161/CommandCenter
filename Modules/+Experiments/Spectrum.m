@@ -69,7 +69,7 @@ classdef Spectrum < Modules.Experiment
     end
     methods
         function run( obj,status,managers,ax )
-            assert(isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
+            assert(~isempty(obj.WinSpec)&&isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
             set(status,'string','Connecting...');
             obj.data = [];
             drawnow;

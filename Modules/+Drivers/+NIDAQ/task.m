@@ -140,7 +140,7 @@ classdef task < handle
             temp = obj.dev.CurrentTask;
             obj.dev.CurrentTask = obj;
             varargout = {obj.dev.LibraryFunction(FunctionName,obj,line_names,varargin{:})};
-            if isa(temp,'Drivers.NIDAQ.task')&&isvalid(temp)
+            if ~isempty(temp)&&isa(temp,'Drivers.NIDAQ.task')&&isvalid(temp)
                 obj.dev.CurrentTask = temp;
             else
                 obj.dev.CurrentTask = [];
@@ -168,7 +168,7 @@ classdef task < handle
                 nargs = length(regexp(argText{1}(2:end-1),'\w+'));
                 [varargout{1:nargs-1}] = obj.dev.LibraryFunction(FunctionName,varargin{:});
             end
-            if isobject(temp)&&isvalid(temp)
+            if ~isempty(temp)&&isa(temp,'Drivers.NIDAQ.task')&&isvalid(temp)
                 obj.dev.CurrentTask = temp;
             else
                 obj.dev.CurrentTask = [];

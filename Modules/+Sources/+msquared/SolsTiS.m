@@ -140,7 +140,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         end
         function [wavelength] = getWavelength(obj)
             % Attempt to get non-error value until timeout
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             t = tic;
             while true
                 try
@@ -163,7 +163,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         function tune(obj,target)
             % This is the tuning method that interacts with hardware
             % target in nm
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(target>obj.c/max(obj.range)&&target<obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             obj.solstisHandle.set_target_wavelength(target);
             obj.target_wavelength = target;
@@ -188,7 +188,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.tune(obj.c/target);
         end
         function TunePercent(obj,target)
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(target>=0&&target<=100,'Target must be a percentage')
             % tune at a limited rate per step
             currentPercent = obj.GetPercent;
@@ -203,7 +203,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         end
         
         function WavelengthLock(obj,lock)
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(lock)||lock==0||lock==1,'lock must be true/false')
             if lock
                 strlock = 'on';
@@ -218,7 +218,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.updateStatus(); % Get resonator/etalon
         end
         function EtalonLock(obj,lock)
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(lock)||lock==0||lock==1,'lock must be true/false')
             if lock
                 lock = 'on';
@@ -263,7 +263,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         % Set methods without parent method to interact with hardware
         function set.etalon_percent(obj,val)
             if isnan(val); obj.etalon_percent = val; return; end % Short circuit on NaN
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(val>=0&&val<=100,'Value must be a percentage')
             if obj.internal_call; obj.etalon_percent = val; return; end
             obj.solstisHandle.set_etalon_percent(val);
@@ -273,7 +273,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         function set.etalon_lock(obj,val)
             % Changing etalon lock changes resonator too
             if isnan(val); obj.etalon_lock = val; return; end % Short circuit on NaN
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(val)||val==0||val==1,'Value must be true/false')
             if obj.internal_call; obj.etalon_lock = val; return; end
             if val

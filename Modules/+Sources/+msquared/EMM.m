@@ -202,7 +202,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
             % (potentially a very expensive operation if switching from
             % solstis)
             % target in nm
-            assert(isobject(obj.emmHandle) && isvalid(obj.emmHandle),'no emmHandle, check hwserver_ip')
+            assert(~isempty(obj.emmHandle)&&isobject(obj.emmHandle) && isvalid(obj.emmHandle),'no emmHandle, check hwserver_ip')
             assert(target>=obj.c/max(obj.range)&&target<=obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             err = [];
             % The EMM blocks during tuning, so message is useful until a non-blocking operation exists
@@ -235,7 +235,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         end
         
         function WavelengthLock(obj,lock)
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(lock)||lock==0||lock==1,'lock must be true/false')
             if lock
                 strlock = 'on';
@@ -265,7 +265,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         end
         function TunePercent(obj,target)
             % This is the solstis resonator
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(target>=0&&target<=100,'Target must be a percentage')
             % tune at a limited rate per step
             currentPercent = obj.GetPercent;
@@ -325,7 +325,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         end
         function set.etalon_percent(obj,val)
             if isnan(val); obj.etalon_percent = val; return; end % Short circuit on NaN
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(val>=0&&val<=100,'Value must be a percentage')
             if obj.internal_call; obj.etalon_percent = val; return; end
             obj.solstisHandle.set_etalon_percent(val);
@@ -335,7 +335,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         function set.etalon_lock(obj,val)
             % Changing etalon lock changes resonator too
             if isnan(val); obj.etalon_lock = val; return; end % Short circuit on NaN
-            assert(isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(val)||val==0||val==1,'Value must be true/false')
             if obj.internal_call; obj.etalon_lock = val; return; end
             if val
