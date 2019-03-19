@@ -302,7 +302,7 @@ classdef task < handle
             Voltages = Voltages(:);   % Make voltages linear
             
             % create analog out voltage channel(s)
-            obj.CreateChannels('DAQmxCreateAOVoltageChan',lines,'',obj.dev.AnalogOutMinVoltage, obj.dev.AnalogOutMaxVoltage,obj.dev.DAQmx_Val_Volts ,[]);
+            obj.CreateChannels('DAQmxCreateAOVoltageChan',lines,'',min(Voltages),max(Voltages),obj.dev.DAQmx_Val_Volts ,[]);
             obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkLine, Freq, obj.dev.DAQmx_Val_Rising, mode ,NVoltagesPerLine);
             
             AutoStart = 0; % wait until user starts task
@@ -410,20 +410,30 @@ classdef task < handle
             obj.clock = struct('src',clkLine,'freq','ext');
             obj.Verify
         end
-        function ConfigureVoltageIn(obj,lineNames,ClkTask,NSamples)
+        function ConfigureVoltageIn(obj,lineNames,ClkTask,NSamples,limits)
+            % The last input is optional, if supplied should be a 1x2
+            % vector: [min max] strictly increasing
+            if nargin < 5
+                limits = [obj.dev.AnalogOutMinVoltage obj.dev.AnalogOutMaxVoltage];
+            end
             if ~isa(ClkTask.clock.src,'Drivers.NIDAQ.out')
                 error('ClkTask requires DAQout object for clock.src')
             end
             if ~iscell(lineNames)
                 lineNames = {lineNames};
             end
+            assert(numel(limits)==2,'Limits should have two elements: [min max]');
+            assert(limits(1) < limits(2), 'Limits should be increasing: [min max]');
+            assert(limits(1) >= obj.dev.AnalogOutMinVoltage, sprintf('Lower limit is below device min voltage (%0.2f V)',obj.dev.AnalogInMinVoltage));
+            assert(limits(2) <= obj.dev.AnalogOutMaxVoltage, sprintf('Upper limit is above device max voltage (%0.2f V)',obj.dev.AnalogInMaxVoltage));
+            
             lines = obj.dev.getLines(lineNames,obj.dev.InLines);
             clkLine = ClkTask.clock.src;
             % Set the frequency of this guy slightly above the expected clock frequency
             Freq = 1.1*ClkTask.clock.freq;
 
             % create an analog out voltage channel
-            obj.CreateChannels('DAQmxCreateAIVoltageChan',lines,'',obj.dev.DAQmx_Val_Cfg_Default,obj.dev.AnalogInMinVoltage, obj.dev.AnalogInMaxVoltage,obj.dev.DAQmx_Val_Volts ,[]);
+            obj.CreateChannels('DAQmxCreateAIVoltageChan',lines,'',obj.dev.DAQmx_Val_Cfg_Default,limits(1), limits(2),obj.dev.DAQmx_Val_Volts ,[]);
             obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkLine, Freq, obj.dev.DAQmx_Val_Rising, obj.dev.DAQmx_Val_FiniteSamps,NSamples);
             obj.clock = struct('src',clkLine,'freq','ext');
             obj.Verify
