@@ -14,13 +14,13 @@ classdef SourcesManager < Base.Manager
         
         % Callback to turn laser on
         function turn_on(obj,varargin)
-            obj.active_module_method('on');
+            obj.sandboxed_function({obj.active_module,'on'});
             obj.state_toggle;
             obj.log('%s turned on.',class(obj.active_module))
         end
         % Callback to turn laser off
         function turn_off(obj,varargin)
-            obj.active_module_method('off');
+            obj.sandboxed_function({obj.active_module,'off'});
             obj.state_toggle;
             obj.log('%s turned off.',class(obj.active_module))
         end

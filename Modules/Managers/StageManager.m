@@ -50,7 +50,7 @@ classdef StageManager < Base.Manager
             handles = {obj.listeners obj.CamOrbit obj.fig};
             for i = 1:numel(handles)
                 for j = 1:numel(handles{i})
-                    if ~isempty(obj.fig)&&isvalid(obj.fig)
+                    if ~isempty(obj.fig)&&isobject(obj.fig)&&isvalid(obj.fig)
                         delete(handles{i}(j))
                     end
                 end
@@ -151,7 +151,7 @@ classdef StageManager < Base.Manager
                     msg = sprintf('Stage %s position received %i of the 3 axes only',class(obj.stages{i}),numel(global_loc));
                     obj.error(msg,true);
                 end
-                if ~isempty(obj.ax)&&isvalid(obj.ax)
+                if ~isempty(obj.ax)&&isobject(obj.ax)&&isvalid(obj.ax)
                     obj.updateAx(i,pos,rel_pos);
                 end
                 pos = pos + rel_pos;
@@ -161,7 +161,7 @@ classdef StageManager < Base.Manager
             else
                 obj.position = pos;
             end
-            if ~isempty(obj.ax)&&isvalid(obj.ax)
+            if ~isempty(obj.ax)&&isobject(obj.ax)&&isvalid(obj.ax)
                 set(obj.currentPos,'xdata',pos(1),'ydata',pos(2),'zdata',pos(3));
                 set(obj.ax,'CameraTarget',pos)
             end
@@ -171,7 +171,7 @@ classdef StageManager < Base.Manager
         function initAx(obj)
             obj.ax = axes('parent',obj.fig);
             axis(obj.ax,'image')
-            if ~isempty(obj.CamOrbit)&&isvalid(obj.CamOrbit)
+            if ~isempty(obj.CamOrbit)&&isobject(obj.CamOrbit)&&isvalid(obj.CamOrbit)
                 delete(obj.CamOrbit)
             end
             obj.CamOrbit = Base.CamOrbit(obj.fig,obj.ax);
@@ -303,7 +303,7 @@ classdef StageManager < Base.Manager
             % Clean up timers if necessary (not this shouldn't be necessary, but makes for debugging issues easier!)
             delete(timerfindall('tag',mfilename))
             delete(obj.listeners)
-            if ~isempty(obj.fig)&&isvalid(obj.fig)
+            if ~isempty(obj.fig)&&isobject(obj.fig)&&isvalid(obj.fig)
                 delete(obj.fig)
             end
         end
@@ -323,7 +323,7 @@ classdef StageManager < Base.Manager
         end
         
         function show(obj,varargin)
-            if ~isempty(obj.fig)&&isvalid(obj.fig)
+            if ~isempty(obj.fig)&&isobject(obj.fig)&&isvalid(obj.fig)
                 figure(obj.fig)
                 return
             end
@@ -402,7 +402,7 @@ classdef StageManager < Base.Manager
                     new_pos{i} = [];
                 end
             end
-            obj.active_module_method('move',new_pos{:});
+            obj.sandboxed_function({obj.active_module,'move'},new_pos{:});
         end
         function jog(obj,delta)
             cal = obj.get_cal;
@@ -415,7 +415,7 @@ classdef StageManager < Base.Manager
                     new_pos{i} = [];
                 end
             end
-            obj.active_module_method('move',new_pos{:});
+            obj.sandboxed_function({obj.active_module,'move'},new_pos{:});
         end
         
         % Active Stage Commands, but also possible callbacks
@@ -497,7 +497,7 @@ classdef StageManager < Base.Manager
             if isempty(obj.modules)
                 set([obj.handles.stage_x,obj.handles.stage_y,obj.handles.stage_z],'String',sprintf('%0.2f',NaN));
                 set([obj.handles.global_x,obj.handles.global_y,obj.handles.global_z,obj.handles.GlobalPosition],'visible','off')
-                if ~isempty(obj.fig)&&isvalid(obj.fig)
+                if ~isempty(obj.fig)&&isobject(obj.fig)&&isvalid(obj.fig)
                     close(obj.fig)
                 end
             else

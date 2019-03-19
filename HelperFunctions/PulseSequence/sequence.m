@@ -372,7 +372,7 @@ classdef sequence < handle
             [~,~,ext] = fileparts(FileName);
             assert(boolean(sum(strcmp(ext,{'.mat','.png'}))),'Only supports .mat and .png')
             if strcmp(ext,'.png')
-                assert(~isempty(obj.editorH) && isvalid(obj.editorH),'No valid figure.')
+                assert(~isempty(obj.editorH)&&isobject(obj.editorH) && isvalid(obj.editorH),'No valid figure.')
                 saveas(obj.editorH,fullfile(PathName,FileName))
                 return
             end

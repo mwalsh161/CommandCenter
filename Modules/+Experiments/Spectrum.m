@@ -1,7 +1,6 @@
 classdef Spectrum < Modules.Experiment
     %Spectrum Experimental wrapper for Drivers.WinSpec
     
-    
     properties(SetObservable,AbortSet)
         data
         ip = 'No Server';
@@ -18,6 +17,7 @@ classdef Spectrum < Modules.Experiment
     end
     methods(Access=private)
         function obj = Spectrum()
+            obj.path = 'spectrometer';
             obj.grating = NaN;
             try
                 obj.loadPrefs; % Load prefs should setWinSpec
@@ -69,7 +69,7 @@ classdef Spectrum < Modules.Experiment
     end
     methods
         function run( obj,status,managers,ax )
-            assert(~isempty(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
+            assert(~isempty(obj.WinSpec)&&isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
             set(status,'string','Connecting...');
             obj.data = [];
             drawnow;
@@ -96,6 +96,7 @@ classdef Spectrum < Modules.Experiment
         end
         function delete(obj)
             delete(obj.listeners)
+            delete(obj.WinSpec)
         end
         function abort(obj)
             obj.WinSpec.abort;

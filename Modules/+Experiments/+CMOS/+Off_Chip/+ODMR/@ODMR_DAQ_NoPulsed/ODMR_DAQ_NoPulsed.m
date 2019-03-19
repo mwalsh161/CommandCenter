@@ -9,7 +9,7 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
         RF
         prefs = {'nAverages','start_freq','stop_freq','number_points',...
             'freq_step_size','IntegrationTime','waitSGSwitch','deviceName',...
-           'channelName','MinVoltage','MaxVoltage'}
+           'channelName'}
     end
  
    properties(SetObservable)
@@ -22,8 +22,6 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
         deviceName = 'dev1';
         channelName = 'AI8';
         IntegrationTime = 10; %milliseconds
-        MinVoltage = 0; %volts
-        MaxVoltage = 1; %volts
     end
     
     methods(Access=private)

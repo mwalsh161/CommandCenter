@@ -9,7 +9,7 @@ if nargin < 2
 end
 
 f = UseFigure(mfilename,'name','Wavemeter Monitor','NumberTitle','off','MenuBar','none');
-if ~isempty(f.UserData) && isvalid(f.UserData.timer) % Means currently running version
+if ~isempty(f.UserData) && isfield(f.UserData,'timer') && isvalid(f.UserData.timer) % Means currently running version
     stop(f.UserData.timer);
     clf(f,'reset');
 end

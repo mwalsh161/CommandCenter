@@ -23,6 +23,7 @@ classdef Galvo < Modules.Imaging
     methods(Access=private)
         function obj = Galvo()
             obj.uses_stage = 'Stages.Galvos';
+            obj.path = 'APD1';
             obj.loadPrefs;
             if obj.use_z
                 try

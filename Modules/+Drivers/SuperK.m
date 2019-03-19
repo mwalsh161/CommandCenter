@@ -18,14 +18,15 @@ classdef SuperK < Modules.Driver
             if isempty(Objects)
                 Objects = Drivers.SuperK.empty(1,0);
             end
+            [~,resolvedIP] = resolvehost(ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(ip,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
             obj = Drivers.SuperK(ip);
-            obj.singleton_id = ip;
+            obj.singleton_id = resolvedIP;
             Objects(end+1) = obj;
         end
     end

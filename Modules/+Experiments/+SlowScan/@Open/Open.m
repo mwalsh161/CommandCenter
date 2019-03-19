@@ -12,7 +12,12 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
         tune_coarse = true;
         percents = 'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
     end
-    
+    properties 
+        resonatorInitialPosition = 50;
+    end
+    properties(Constant)
+        xlabel = 'Percent (%)';
+    end
     methods(Static)
         % Static instance method is how to call this experiment
         % This is a separate file
@@ -30,39 +35,23 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
         function s = BuildPulseSequence(obj,freqIndex)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
             %collection during resonant driving
-            
-            %set resonant laser frequency and read result
-            obj.resLaser.TunePercent(obj.scan_points(freqIndex));
+            tunePoint = obj.scan_points(freqIndex) - (50-obj.resonatorInitialPosition);
+            s = false;
+            if tunePoint < 0 || tunePoint > 100
+                return % Skip point by returning false
+            end
+            obj.resLaser.TunePercent(tunePoint);
             s = BuildPulseSequence@Experiments.SlowScan.SlowScan_invisible(obj,freqIndex);
         end
-        function prep_plot(obj,ax)
+        function PreRun(obj,~,managers,ax)
             if obj.tune_coarse
                 obj.resLaser.TuneCoarse(obj.freq_THz);
+                obj.resonatorInitialPosition = obj.resLaser.GetPercent;
+            else
+                obj.resonatorInitialPosition = 50;
             end
-            
-            yyaxis(ax,'left');
-            % plot signal
-            plotH = plot(ax,obj.scan_points,obj.data.meanCounts(1,:,1),'color','b');
-            % plot errors
-            plotH(2) = plot(ax,obj.scan_points,obj.data.meanCounts(1,:,1)+obj.data.stdCounts(1,:,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
-            plotH(3) = plot(ax,obj.scan_points,obj.data.meanCounts(1,:,1)-obj.data.stdCounts(1,:,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
-            ylabel(ax,'Intensity');
-            yyaxis(ax,'right');
-            plotH(4) = plot(ax,obj.scan_points,obj.data.freqs_measured(1,:),'color','r');
-
-            xlabel(ax,'Scan Percentage');
-            % Store for UpdateRun
-            ax.UserData.plots = plotH;
-        end
-        function update_plot(obj,ax,ydata,std)
-            %grab handles to data from axes plotted in PreRun
-            ax.UserData.plots(1).YData = ydata(1,:);
-            ax.UserData.plots(2).YData = ydata(1,:) + std(1,:);
-            ax.UserData.plots(3).YData = ydata(1,:) - std(1,:);
-            ax.UserData.plots(4).YData = nanmean(obj.data.freqs_measured,1);
-            drawnow limitrate;
-        end
-        
+            PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
+        end  
         function set.percents(obj,val)
             obj.scan_points = eval(val);
             obj.percents = val;

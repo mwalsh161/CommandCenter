@@ -20,10 +20,10 @@ classdef WinSpec < Modules.Driver
         running = false;
     end
     properties(Hidden)
-        prefs = {'grating','position','exposure','calibration'};
+        prefs = {'grating','position','exposure','cal_local'};
     end
     properties(SetAccess={?Base.Module},Hidden)
-        calibration = struct('nm2THz',[],'gof',[],'datetime',[],'source',[],'expired',{}); %calibration data for going from nm to THz
+        cal_local = struct('nm2THz',[],'gof',[],'datetime',[],'source',[],'expired',{}); %local-only calibration data for going from nm to THz
     end
     properties(SetAccess=private,Hidden)
         connection
@@ -40,14 +40,15 @@ classdef WinSpec < Modules.Driver
             if isempty(Objects)
                 Objects = Drivers.WinSpec.empty(1,0);
             end
+            [~,resolvedIP] = resolvehost(ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(ip,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
             obj = Drivers.WinSpec(ip);
-            obj.singleton_id = ip;
+            obj.singleton_id = resolvedIP;
             Objects(end+1) = obj;
         end
     end
@@ -56,7 +57,7 @@ classdef WinSpec < Modules.Driver
             obj.grating = uint8(1); % Default
             % Build TCP connection
             obj.connection = tcpip(ip,36577,'OutputBufferSize',1024,'InputBufferSize',1024);
-            obj.connection.Timeout = 5;
+            obj.connection.Timeout = 10;
             obj.connection.Terminator = 'LF';
             obj.loadPrefs;
             % Verify current state
@@ -240,46 +241,90 @@ classdef WinSpec < Modules.Driver
             out = obj.com('getGratingAndExposure');
             N = uint8(out(1)); pos = out(2); exp = out(3);
         end
-        function calibrate(obj,laser,exposure) %when fed a tunable laser, will sweep the laser's range to calibrate itself, outputting a calibration function
-            obj.setExposure(exposure); %exposure is in seconds
-            setpoints = linspace(laser.range(1),laser.range(2),10); %take 10 points across the range of the laser
-            specloc = NaN(1,points);
-            laserloc = NaN(1,points);
-            laser.on;
-            for i=1:length(setpoints)
-                obj.laser.TuneCoarse(setpoints(i));
-                laserspec = obj.acquire;
-                specpeaks = SpecPeak(laserspec,laser.range);
-                assert(length(specpeaks) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specpeaks)));
-                specloc(i) = specpeaks;
-                laserloc(i) = obj.laser.getFrequency;
+        function calibrate(obj,laser,range,exposure,ax) %when fed a tunable laser, will sweep the laser's range to calibrate itself, outputting a calibration function
+            assert(isvalid(laser),'Invalid laser handle passed to Winspec calibration')
+            assert(isnumeric(range) && length(range)==2,'Laser range for calibration should be array [min,max] in units of THz')
+            f = [];
+            if nargin < 5
+                f = figure;
+                ax = axes('parent',f);
             end
-            fit_type = fittype('a/(x-b)+c');
-            options = fitoptions(fit_type);
-            options.Start = [obj.c,0,0];
-            [temp.nm2THz,temp.gof] = fit(specloc',laserloc',fit_type,options);
-            temp.source = class(laser);
-            temp.datetime = datetime;
-            obj.calibration = temp;
+            err = [];
+            try
+                oldExposure = obj.exposure;
+                obj.setExposure(exposure); %exposure is in seconds
+                setpoints = linspace(range(1),range(2),5); %take 10 points across the range of the laser
+                specloc = NaN(1,length(setpoints));
+                laserloc = NaN(1,length(setpoints));
+                laser.on;
+                xlabel(ax,'Wavelength (nm)')
+                title(ax,'Calibrating spectrometer')
+                for i=1:length(setpoints)
+                    laser.TuneCoarse(setpoints(i));
+                    laserspec = obj.acquire;
+                    plot(ax,laserspec.x,laserspec.y);drawnow;
+                    specfit = fitpeaks(laserspec.x,laserspec.y,'gauss');
+                    assert(length(specfit.locations) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
+                    specloc(i) = specfit.locations;
+                    laserloc(i) = laser.getFrequency;
+                end
+                fit_type = fittype('a/(x-b)+c');
+                options = fitoptions(fit_type);
+                options.Start = [obj.c,0,0];
+                [temp.nm2THz,temp.gof] = fit(specloc',laserloc',fit_type,options);
+                temp.source = class(laser);
+                temp.datetime = datetime;
+                obj.cal_local = temp;
+            catch err
+            end
+            laser.off;
+            delete(f);
+            obj.setExposure(oldExposure) %reset exposure
+            if ~isempty(err)
+                rethrow(err)
+            end
         end
         
-        function cal = get.calibration(obj)
-            if isempty(obj.calibration)
+        function cal = calibration(obj,varargin)
+            %get the calibration of the spectrometer; this is stored as 
+            %cal_local. This can be called with additional inputs
+            %(laser,range,exposure,ax), in which case the user will be
+            %prompted to calibrate now if the calibration is expired or
+            %does not exist.
+            if isempty(obj.cal_local)
                 % If called in savePref method, ignore and return default
                 st = dbstack;
                 if length(st) > 1 && strcmp(st(2).name,'Module.savePrefs')
-                    mp = findprop(obj,'calibration');
+                    mp = findprop(obj,'cal_local');
                     cal = mp.DefaultValue;
                     return
+                elseif ~isempty(varargin)
+                    answer = questdlg('No WinSpec calibration found; calibrate now?','No WinSpec Calibration','Yes','No','No');
+                    if strcmp(answer,'Yes')
+                        obj.calibrate(varargin{:})
+                    else
+                        error('No spectrometer calibration found; calibrate using WinSpec.calibrate(tunable laser handle, exposure time in seconds)');
+                    end
+                else
+                    error('No spectrometer calibration found; calibrate using WinSpec.calibrate(tunable laser handle, exposure time in seconds)');
                 end
-                error('No spectrometer calibration found; calibrate using WinSpec.calibrate(tunable laser handle, exposure time in seconds)');
             end
-            obj.calibration.expired = false;
-            if days(datetime-obj.calibration.datetime) >= obj.calibration_timeout
-                warning('Calibration not performed since %s. Recommend recalibrating by running WinSpec.calibrate(tunable laser handle, exposure time in seconds).',datestr(obj.calibration.datetime));
-                obj.calibration.expired = true;
+            obj.cal_local.expired = false;
+            if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout
+                warnstring = sprintf('Calibration not performed since %s. Recommend recalibrating by running WinSpec.calibrate.',datestr(obj.cal_local.datetime));
+                if ~isempty(varargin) %with additional inputs, option to calibrate now
+                    answer = questdlg([warnstring, ' Calibrate now?'],'WinSpec Calibration Expired','Yes','No','No');
+                    if strcmp(answer,'Yes')
+                        obj.calibrate(varargin{:})
+                    else
+                        obj.cal_local.expired = true;
+                    end
+                else
+                    warning(warnstring)
+                    obj.cal_local.expired = true;
+                end
             end
-            cal = obj.calibration; 
+            cal = obj.cal_local;
         end
     end
 end

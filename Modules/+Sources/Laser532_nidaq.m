@@ -1,4 +1,4 @@
-classdef Laser532_nidaq < Modules.Source
+classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
 
@@ -13,12 +13,20 @@ classdef Laser532_nidaq < Modules.Source
         end
     end
     methods
+        function tasks = inactive(obj)
+            tasks = inactive@Sources.Verdi_invisible(obj);
+        end
         function delete(obj)
         end
        
-        % Settings and Callbacks
-        function settings(obj,panelH)
-            
+        function update(obj,varargin)
+            line = obj.ni.getLines('532 Laser','out');
+            obj.source_on = boolean(line.state);
+            if obj.source_on
+                obj.on;
+            else
+                obj.off;
+            end
         end
     end
 end

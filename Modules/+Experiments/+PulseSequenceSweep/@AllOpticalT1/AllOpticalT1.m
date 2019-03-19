@@ -2,8 +2,8 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
     %AllOpticalT1 Characterizes T1 by optically repumping then resonantly addressing with a swept time delay
 
     properties(SetObservable,AbortSet)
-        resLaser = Modules.Source.empty; % Allow selection of source
-        repumpLaser = Modules.Source.empty;
+        resLaser = Modules.Source.empty(1,0); % Allow selection of source
+        repumpLaser = Modules.Source.empty(1,0);
         APDline = 3;
         repumpTime_us = 1; %us
         resOffset_us = 0.1;
@@ -36,15 +36,15 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
             %prepare axes for plotting
             hold(ax,'on');
             %plot data bin 1
-            plotH = plot(ax,obj.tauTimes,obj.data.meanCounts(:,1,1),'color','b');
+            plotH = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1),'color','b');
             %plot data bin 1 errors
-            plotH(2) = plot(ax,obj.tauTimes,obj.data.meanCounts(:,1,1)+obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
-            plotH(3) = plot(ax,obj.tauTimes,obj.data.meanCounts(:,1,1)-obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
+            plotH(2) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1)+obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
+            plotH(3) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1)-obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
             %plot data bin 2
-            plotH(4) = plot(ax,obj.tauTimes,obj.data.meanCounts(:,2,1),'color','b');
+            plotH(4) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,2,1),'color','b');
             %plot data bin 2 errors
-            plotH(5) = plot(ax,obj.tauTimes,obj.data.meanCounts(:,2,1)+obj.data.stdCounts(:,2,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
-            plotH(6) = plot(ax,obj.tauTimes,obj.data.meanCounts(:,2,1)-obj.data.stdCounts(:,2,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
+            plotH(5) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,2,1)+obj.data.stdCounts(:,2,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
+            plotH(6) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,2,1)-obj.data.stdCounts(:,2,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
             ax.UserData.plots = plotH;
             ylabel(ax,'Normalized PL');
             xlabel(ax,'Delay Time \tau (\mus)');
@@ -54,10 +54,10 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
         
         function UpdateRun(obj,~,~,ax,~,~)
             if obj.averages > 1
-                averagedData = squeeze(nanmean(obj.data.meanCounts,3));
+                averagedData = squeeze(nanmean(obj.data.sumCounts,3));
                 meanError = squeeze(nanmean(obj.data.stdCounts,3));
             else
-                averagedData = obj.data.meanCounts;
+                averagedData = obj.data.sumCounts;
                 meanError = obj.data.stdCounts;
             end
             
@@ -69,11 +69,6 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
             ax.UserData.plots(5).YData = averagedData(:,2) + meanError(:,2);
             ax.UserData.plots(6).YData = averagedData(:,2) - meanError(:,2);
             drawnow;
-        end
-        
-        function abort(obj)
-            % Callback for when user presses abort in CC
-            obj.abort_request = true;
         end
         
         function set.tauTimes_us(obj,val)

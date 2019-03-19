@@ -1,4 +1,4 @@
-function menu = uimenu( varargin )
+function varargout = uimenu( varargin )
 %uimenu wrapper to account for old uimenu not having "Text" property
 
 if verLessThan('matlab','9.3') %"Text" introduced in 2017b
@@ -9,4 +9,5 @@ if verLessThan('matlab','9.3') %"Text" introduced in 2017b
     end
 end
 
-menu = builtin('uimenu',varargin{:});
+varargout = {builtin('uimenu',varargin{:})};
+varargout = varargout(1:nargout);

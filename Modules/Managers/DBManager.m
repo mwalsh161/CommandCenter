@@ -64,8 +64,8 @@ classdef DBManager < Base.Manager
                                 gitPath = mfilename('fullpath');
                                 gitPath = fileparts(gitPath); gitPath = fileparts(gitPath); gitPath = fileparts(gitPath);
                                 data.GitInfo = getGitInfo(gitPath);
-                                data.GitInfo.status = strip(git('status'));
-                                data.GitInfo.diff = strip(git('diff'));
+                                data.GitInfo.status = strip(git(sprintf('--git-dir="%s"',fullfile(gitPath,'.git')),sprintf('--work-tree="%s"',gitPath),'status'));
+                                data.GitInfo.diff = strip(git(sprintf('--git-dir="%s"',fullfile(gitPath,'.git')),sprintf('--work-tree="%s"',gitPath),'diff'));
                             catch
                                 warning('Git inspection failed!')
                             end
@@ -77,14 +77,14 @@ classdef DBManager < Base.Manager
                             catch
                                 warning('Computer info inspection failed!')
                             end
-                            obj.module_method(active_module,type,data,ax,module,notes);
+                            obj.sandboxed_function({active_module,type},data,ax,module,notes);
                             obj.log('%s to <a href="matlab: opentoline(%s,1)">%s</a>',type,which(class_str),class_str)
                         catch err
                             obj.error('Some saves failed. Should never get here!! Seek help at commandcenter-dev.slack.com\n%s',err.message)
                         end
                     end
                 end
-                if ~obj.last_module_method_eval_success
+                if ~obj.last_sandboxed_fn_eval_success
                     obj.last_save_success = false;
                 end
                 obj.enable;
@@ -119,7 +119,8 @@ classdef DBManager < Base.Manager
             h.KeyPressFcn='';  % Prevent esc from closing window
             % Remove the OKButton
             delete(findall(h,'tag','OKButton')); drawnow;
-            temp = obj.handles.Managers.Experiment.active_module_method('GetData',obj.handles.Managers.Stages,obj.handles.Managers.Imaging);
+            temp = obj.handles.Managers.Experiment.sandboxed_function({obj.handles.Managers.Experiment.active_module,'GetData'},...
+                                            obj.handles.Managers.Stages,obj.handles.Managers.Imaging);
             delete(h);
             if isempty(temp)
                 obj.error(sprintf('No data returned by %s',class(obj.handles.Managers.Experiment.active_module)));
@@ -128,15 +129,6 @@ classdef DBManager < Base.Manager
             ax = obj.handles.axExp;
             data.data = temp;
             obj.Save('SaveExp',data,auto,ax,obj.handles.Managers.Experiment.active_module)
-        end
-    end
-    methods(Access=protected)
-        function modules_changed(obj,varargin)
-            for i = 1:numel(obj.modules)
-                if ismethod(obj.modules{i},'requestManager')
-                    obj.module_method(obj.modules{i},'requestManager',obj)
-                end
-            end
         end
     end
 end

@@ -27,6 +27,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         range = Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
     end
     properties(SetObservable,AbortSet)
+        resonatorVoltageToPercentCalibration = [-0.000425732939240   0.599558121753631  -5.361161084160642]; %second order polynomial
         tuning = false;
         hwserver_ip = Sources.msquared.SolsTiS.no_server;
         etalon_percent = 0;  % Settable
@@ -37,6 +38,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         target_wavelength = 0; % nm settable
         wavelength_lock = false; % Settable
         PBline = 1; % Indexed from 1
+        resonator_tune_speed = 2; % percent per step
         pb_ip = Sources.msquared.SolsTiS.no_server;
         prefs = {'hwserver_ip','PBline','pb_ip'};
         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage','etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip'};
@@ -95,6 +97,10 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     methods
+        function resonatorPercent = resonatorVoltageToPercent(obj,voltage)
+            resonatorPercent = obj.resonatorVoltageToPercentCalibration(1)*voltage^2 ...
+            +obj.resonatorVoltageToPercentCalibration(2)*voltage+obj.resonatorVoltageToPercentCalibration(3);
+        end
         function updateStatus(obj)
             % Get status report from laser and update a few fields
             if strcmp(obj.hwserver_ip,obj.no_server)
@@ -123,7 +129,10 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.source_on = false;
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
-        
+        function percent = GetPercent(obj)
+                obj.updateStatus();
+                percent =  obj.resonatorVoltageToPercent(obj.resonator_voltage);
+        end
         function delete(obj)
             if ~isempty(obj.solstisHandle)
                 delete(obj.solstisHandle);
@@ -131,7 +140,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         end
         function [wavelength] = getWavelength(obj)
             % Attempt to get non-error value until timeout
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             t = tic;
             while true
                 try
@@ -154,7 +163,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         function tune(obj,target)
             % This is the tuning method that interacts with hardware
             % target in nm
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(target>obj.c/max(obj.range)&&target<obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             obj.solstisHandle.set_target_wavelength(target);
             obj.target_wavelength = target;
@@ -179,15 +188,22 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.tune(obj.c/target);
         end
         function TunePercent(obj,target)
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(target>=0&&target<=100,'Target must be a percentage')
+            % tune at a limited rate per step
+            currentPercent = obj.GetPercent;
+            numberSteps = mod(abs(currentPercent-target),obj.resonator_tune_speed);
+            direction = sign(target-currentPercent);
+            for i = 1:numberSteps
+                obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
+            end
             obj.solstisHandle.set_resonator_percent(target);
             obj.resonator_percent = target;
             obj.updateStatus(); % Get voltage
         end
         
         function WavelengthLock(obj,lock)
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(lock)||lock==0||lock==1,'lock must be true/false')
             if lock
                 strlock = 'on';
@@ -202,7 +218,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.updateStatus(); % Get resonator/etalon
         end
         function EtalonLock(obj,lock)
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(lock)||lock==0||lock==1,'lock must be true/false')
             if lock
                 lock = 'on';
@@ -247,7 +263,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         % Set methods without parent method to interact with hardware
         function set.etalon_percent(obj,val)
             if isnan(val); obj.etalon_percent = val; return; end % Short circuit on NaN
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(val>=0&&val<=100,'Value must be a percentage')
             if obj.internal_call; obj.etalon_percent = val; return; end
             obj.solstisHandle.set_etalon_percent(val);
@@ -257,7 +273,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         function set.etalon_lock(obj,val)
             % Changing etalon lock changes resonator too
             if isnan(val); obj.etalon_lock = val; return; end % Short circuit on NaN
-            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(val)||val==0||val==1,'Value must be true/false')
             if obj.internal_call; obj.etalon_lock = val; return; end
             if val

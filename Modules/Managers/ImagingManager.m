@@ -197,7 +197,7 @@ classdef ImagingManager < Base.Manager
                 if ~isempty(obj.active_module.path) %if path defined, select path
                     obj.handles.Managers.Path.select_path(obj.active_module.path);
                 end
-                obj.active_module_method('snap',temp);
+                obj.sandboxed_function({obj.active_module,'snap'},temp);
                 imPixels = get(temp,'cdata');
                 % Use ImageManager default for obj.dumbimage.  This could be queried directly in SmartImage if that is better
                 obj.current_image = Base.SmartImage(imPixels,obj.handles.axImage,obj.handles.Managers.Stages,obj,obj.dumbimage);
@@ -240,7 +240,7 @@ classdef ImagingManager < Base.Manager
         end
         function startVideo(obj,varargin)
             assert(~isempty(obj.active_module),'No module loaded.')
-            % This counts as activitiy (override module_method)
+            % This counts as activitiy (override sandboxed_function)
             timerH = obj.handles.inactivity_timer;
             managers = timerH.UserData;
             managers.inactivity = false;
@@ -270,12 +270,12 @@ classdef ImagingManager < Base.Manager
                 set(obj.handles.axImage,'clim',[low high])
             end
             obj.log('%s starting video.',class(obj.active_module))
-            obj.active_module_method('startVideo',hImage);
+            obj.sandboxed_function({obj.active_module,'startVideo'},hImage);
             axis(obj.handles.axImage,'image')
         end
         function stopVideo(obj,varargin)
             delete(obj.video_controls)
-            obj.active_module_method('stopVideo');
+            obj.sandboxed_function({obj.active_module,'stopVideo'});
             obj.log('%s stopped video.',class(obj.active_module))
             
             % Restart activity
@@ -313,7 +313,7 @@ classdef ImagingManager < Base.Manager
             err = [];
             try
                 strt=tic;
-                metric = obj.active_module_method('focus',obj.handles.axImage,obj.handles.Managers);
+                metric = obj.sandboxed_function({obj.active_module,'focus'},obj.handles.axImage,obj.handles.Managers);
                 time = toc(strt);
             catch err
             end

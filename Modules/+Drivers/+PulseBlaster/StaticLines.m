@@ -1,11 +1,17 @@
 classdef StaticLines < Modules.Driver
     %STATICLINES Control all chanels of pulseblaster
+    %   StaticLines(host_ip); % Default interactive = true
+    %   StaticLines(__,interactive)
+    %
     %   Creates a continuous loop with the correct channel values.
     %   Does not use a stop command, so it is clear when something else
     %   tries to take over.
     %
     %   Set the lines(index) of the line you want to 0 for off and 1 for
     %   on.
+    %
+    %   If interactive is true, will prompt user to reset another client's
+    %   connection if needed
     
     properties
         lines = zeros(1,21);    % State of each HW channel when running (meaningless if not running)
@@ -18,29 +24,47 @@ classdef StaticLines < Modules.Driver
     end
     
     methods(Static)
-        function obj = instance(host_ip)
+        function obj = instance(host_ip,interactive)
+            if nargin < 2
+                interactive = true;
+            end
             mlock;
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.PulseBlaster.StaticLines.empty(1,0);
             end
+            [~,resolvedIP] = resolvehost(host_ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(host_ip,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
-            obj = Drivers.PulseBlaster.StaticLines(host_ip);
-            obj.singleton_id = host_ip;
+            obj = Drivers.PulseBlaster.StaticLines(host_ip,interactive);
+            obj.singleton_id = resolvedIP;
             Objects(end+1) = obj;
         end
     end
     methods(Access=private)
-        function obj = StaticLines(host_ip)
+        function obj = StaticLines(host_ip,interactive)
             obj.HW = Drivers.PulseBlaster.Remote.instance(host_ip);
             addlistener(obj.HW,'ObjectBeingDestroyed',@(~,~)obj.delete);
             addlistener(obj.HW,'running','PostSet',@(~,~)obj.updateRunning);
-            obj.HW.open;
+            try
+                obj.HW.open;
+            catch err
+                if interactive && contains(err.message,'Another client is in session')
+                    response = questdlg(err.message,mfilename,'Reset','Cancel','Cancel');
+                    if strcmp(response,'Reset')
+                        obj.HW.reset;
+                        obj.HW.open;
+                    else
+                        error('Aborting construction due to another user in session.');
+                    end
+                else
+                    rethrow(err);
+                end
+            end
             obj.start;
         end
     end

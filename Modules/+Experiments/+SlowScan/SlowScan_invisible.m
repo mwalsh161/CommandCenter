@@ -6,8 +6,8 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
     %   Given the calculated ydata, update plots generated in prep_plot
 
     properties(SetObservable,AbortSet)
-        resLaser = Modules.Source.empty; % Allow selection of source
-        repumpLaser = Modules.Source.empty;
+        resLaser = Modules.Source.empty(1,0); % Allow selection of source
+        repumpLaser = Modules.Source.empty(1,0);
         APDline = 1;  % Indexed from 1
         repumpTime_us = 1; %us
         resTime_us = 0.1;
@@ -22,12 +22,12 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
         vars = {'scan_points'}; %names of variables to be swept
     end
 
-    methods(Abstract)
-        prep_plot(obj,ax);  % ONLY for plot commands and xlabel
-        update_plot(obj,ydata);
+    properties(Abstract,Constant)
+        xlabel; % For plotting data
     end
     methods
         function obj = SlowScan_invisible()
+            obj.path = 'APD1';
             obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','repumpTime_us','resTime_us'}]; %additional preferences not in superclass
         end
         function s = BuildPulseSequence(obj,freqIndex)
@@ -52,29 +52,49 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
             end
         end
         
-        function PreRun(obj,~,~,ax)
+        function PreRun(obj,~,managers,ax)
             %prepare frequencies
             obj.data.freqs_measured = NaN(obj.averages,length(obj.scan_points));
             %prepare axes for plotting
             hold(ax,'on');
             %plot data
-            obj.prep_plot(ax);
+            yyaxis(ax,'left');
+            colors = lines(2);
+            % plot signal
+            plotH{1} = errorfill(obj.scan_points,...
+                              obj.data.sumCounts(1,:,1),...
+                              obj.data.stdCounts(1,:,1),...
+                              'parent',ax,'color',colors(1,:));
+            ylabel(ax,'Intensity (a.u.)');
+            yyaxis(ax,'right');
+            plotH{2} = plot(ax,obj.scan_points,obj.data.freqs_measured(1,:),'color',colors(2,:));
+            ylabel(ax,'Measured Frequency (THz)');
+            xlabel(ax,obj.xlabel); %#ok<CPROPLC>
+            
+            % Store for UpdateRun
+            ax.UserData.plots = plotH;
             hold(ax,'off');
             set(ax,'xlimmode','auto','ylimmode','auto','ytickmode','auto')
         end
-        
         function UpdateRun(obj,~,~,ax,average,freqIndex)
             %pull frequency that latest sequence was run at
             obj.data.freqs_measured(average,freqIndex) = obj.resLaser.getFrequency;
             
             if obj.averages > 1
-                averagedData = squeeze(nanmean(obj.data.meanCounts,3));
-                meanError = squeeze(nanmean(obj.data.stdCounts,3));
+                averagedData = squeeze(nanmean(obj.data.sumCounts,3));
+                meanError = squeeze(nanmean(obj.data.stdCounts,3))*sqrt(obj.samples);
             else
-                averagedData = obj.data.meanCounts;
-                meanError = obj.data.stdCounts;
+                averagedData = obj.data.sumCounts;
+                meanError = obj.data.stdCounts*sqrt(obj.samples);
             end
-            obj.update_plot(ax, averagedData, meanError);
+            
+            %grab handles to data from axes plotted in PreRun
+            ax.UserData.plots{1}.YData = averagedData(1,:);
+            ax.UserData.plots{1}.YNegativeDelta = meanError(1,:);
+            ax.UserData.plots{1}.YPositiveDelta = meanError(1,:);
+            ax.UserData.plots{1}.update;
+            ax.UserData.plots{2}.YData = nanmean(obj.data.freqs_measured,1);
+            drawnow limitrate;
         end
     end
 end
