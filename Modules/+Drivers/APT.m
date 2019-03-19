@@ -106,7 +106,7 @@ classdef APT < handle
 
             % see if we can't find this component open already
             h = findall(0,'Tag',[progID,num2str(serialNum)]);
-            if all(isgraphics(h)) && all(isvalid(h))
+            if ~isempty(h) && all(isvalid(h))
                 close(h,'force');
             end
 

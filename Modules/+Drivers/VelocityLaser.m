@@ -25,15 +25,14 @@ classdef VelocityLaser < Modules.Driver
             if isempty(Objects)
                 Objects = Drivers.VelocityLaser.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(ip,Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
             obj = Drivers.VelocityLaser(ip);
-            obj.singleton_id = resolvedIP;
+            obj.singleton_id = ip;
             Objects(end+1) = obj;
         end
     end
@@ -100,6 +99,7 @@ classdef VelocityLaser < Modules.Driver
             obj.ConstantPowerMode = val;
         end
         function set.Wavelength(obj,val)
+            assert(val>635 && val < 640,'Laser wavelength must be in range [635 640].')
             obj.com('setWavelength',val);
             obj.Wavelength = val;
             if strcmpi(obj.TrackMode,'off')

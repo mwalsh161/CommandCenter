@@ -1,0 +1,6 @@
+[submodule "VerdiClient"]
+	path = VerdiClient
+	url = git@github.mit.edu:mpwalsh/VerdiClient.git
+[submodule "slackAPI"]
+	path = slackAPI
+	url = git@github.mit.edu:mpwalsh/slackAPI.git

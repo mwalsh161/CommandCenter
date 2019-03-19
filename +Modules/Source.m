@@ -21,23 +21,10 @@ classdef Source < Base.Module
         function obj = Source
             addlistener(obj,'source_on','PostSet',@obj.updateCommandCenter);
         end
-        function arm(obj)
-            %this method should "arm" the source, doing whatever is
-            %necessary such that a call of the "on" method will yield the
-            %desired emissions from the source; for example, this may
-            %include powering on a source
-            warning('SOURCE:notimplemented','arm method not implemented for %s',class(obj))
-        end
-        function blackout(obj)
-            %this method should do whatever is necessary to completely
-            %block emissions from the source; for example, this may include
-            %powering off a source
-            warning('SOURCE:notimplemented','blackout method not implemented for %s',class(obj))
-        end
     end
     methods(Access=private)
         function updateCommandCenter(obj,~,~)
-            if isstruct(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
+            if ~isempty(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
                 i = obj.CC_dropdown.i;
                 name = strsplit(class(obj),'.');
                 short_name = strjoin(name(2:end),'.');

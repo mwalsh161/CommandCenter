@@ -30,24 +30,20 @@ classdef Wavemeter < Modules.Driver
         channel;
     end
     methods(Static)
-        function obj = instance(ip,channel,interactive)
-            if nargin < 3
-                interactive = true;
-            end
+        function obj = instance(ip,channel)
             mlock;
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.Wavemeter.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal({resolvedIP,channel},Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal({ip,channel},Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
-            obj = Drivers.Wavemeter(ip,channel,interactive);
-            obj.singleton_id = {resolvedIP,channel};
+            obj = Drivers.Wavemeter(ip,channel);
+            obj.singleton_id = {ip,channel};
             Objects(end+1) = obj;
         end
         
@@ -62,53 +58,20 @@ classdef Wavemeter < Modules.Driver
         stream(ip,dt)
     end
     methods(Access=private)
-        function obj = Wavemeter(ip,channel,interactive)
+        function obj = Wavemeter(ip,channel)
             obj.connection = hwserver(ip);
             obj.channel = channel;
             if ~obj.com('GetSwitcherMode',0)
-                if interactive
-                    answer = questdlg('Turn wavemeter to switcher mode now?',mfilename,'Yes','No','No');
-                    if strcmp(answer,'Yes')
-                        obj.com('SetSwitcherMode',1);
-                    else
-                        error('User aborted.');
-                    end
+                answer = questdlg('Turn wavemeter to switcher mode now?','Wavemeter','Yes','No','No');
+                if strcmp(answer,'Yes')
+                    obj.com('SetSwitcherMode',1);
                 else
                     error('Wavemeter is not in switcher mode.');
                 end
             end
-            % Look for existing low signals on other channels
-            if interactive
-                other_chans = obj.com('GetSummary');
-                if ~isempty(other_chans)
-                    errored_chans = [other_chans.wavelength]<0;
-                    if any(errored_chans)
-                        error_code = [other_chans(errored_chans).wavelength];
-                        errored_chans = [other_chans(errored_chans).channel];
-                        errors = cell(1,length(error_code));
-                        for i = 1:length(errors)
-                            errors{i} = sprintf('Channel %i: error code %i',errored_chans(i),error_code(i));
-                        end
-                        errors = strjoin(errors,'\n  ');
-                        warndlg(sprintf('Following channels have error states (likely underexposed):\n  %s',errors));
-                    end
-                end
-            end
             chON = obj.GetSwitcherSignalState;
             if chON
-                if interactive
-                    answer = questdlg('Wavemeter chan in use. Open in readonly?',mfilename,'Yes','Override','Yes');
-                    if strcmp(answer,'Yes') % Confirm with user
-                        obj.readonly = true;
-                    else % Double check that we should continue
-                        answer = questdlg('This could hurt another client''s experiment. Continue?',mfilename,'Yes','Cancel','Cancel');
-                        if strcmp(answer,'Cancel') % Double check by flipping logic around
-                            error('User aborted')
-                        end
-                    end
-                else % Default to readonly
-                    obj.readonly = true;
-                end
+                obj.readonly = true;
             else
                 obj.SetSwitcherSignalState(1); % No issue if already active
             end
@@ -118,6 +81,14 @@ classdef Wavemeter < Modules.Driver
                 assert(~obj.readonly, 'Instantiated in readonly mode due to another instance using this channel.')
             end
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
+        end
+        function SetSwitcherSignalState(obj,use) % User should not be able to alter this
+            % Turns switch channels on/off (e.g. measurement status)
+            % Important to turn off when not in use (health of switch and
+            %    speed of PID update for active channels
+            obj.com('SetSwitcherSignalStates',obj.channel,use,0);
+            % The last argument of SetSwitcherSignalStates is to show the
+            % interferometer signal (no need to ever do this)
         end
         function output = measure(obj,cmd)
             tstart = tic;
@@ -151,15 +122,6 @@ classdef Wavemeter < Modules.Driver
             if ~isempty(err)
                 rethrow(err);
             end
-        end
-        %% Switch state
-        function SetSwitcherSignalState(obj,use)
-            % Turns switch channels on/off (e.g. measurement status)
-            % Important to turn off when not in use (health of switch and
-            %    speed of PID update for active channels
-            obj.com('SetSwitcherSignalStates',obj.channel,use,0);
-            % The last argument of SetSwitcherSignalStates is to show the
-            % interferometer signal (no need to ever do this)
         end
         %% Measurement
         function output = getWavelength(obj)
@@ -209,7 +171,7 @@ classdef Wavemeter < Modules.Driver
             if ~obj.getDeviationChannel
                 warning('DAC Channel currently disabled. Use setDeviationChannel(true) to turn on.')
             end
-            obj.com('SetPIDCourseNum',obj.channel,num2str(val,'%0.7f')); %set with 0.1 MHz precision
+            obj.com('SetPIDCourseNum',obj.channel,num2str(val));
         end
         function units = getPIDunits(obj)
             unit_types = {'nm','nm_air','THz','1/cm','eV'};

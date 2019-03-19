@@ -6,12 +6,10 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     %   ps = BuildPulseSequence(index1,index2,...)
     %       number of indices determined by vars
     %       superclass will take care of setting "ps.repeat = obj.samples" to
-    %       assure it gets done properly.
-    %       Returning the logical false value will be interpretted as
-    %       skipping that point in the sequence (leaving a NaN in the data)
+    %       assure it gets done properly
     % And optionally:
     %   PreRun(status,managers,ax) -> Useful to make plot and store handle
-    %       locally (this is called after obj.data.sumCounts and stdCounts
+    %       locally (this is called after obj.data.meanCounts and stdCounts
     %       are intialized to NaN
     %   UpdateRun(status,managers,ax,current_average,index1,index2,...) -> Useful 
     %       to update plot data
@@ -22,7 +20,7 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     % The superclass will require a NIDAQ.dev and PulseBlaster.Remote
     %
     % obj.data looks like: max(indices) is 1xlength(vars)
-    %   obj.data.sumCounts = NaN([max(indices),obj.nCounterBins,obj.averages]);
+    %   obj.data.meanCounts = NaN([max(indices),obj.nCounterBins,obj.averages]);
     %   obj.data.stdCounts = NaN([max(indices),obj.nCounterBins,obj.averages]);
     
     properties(Constant,Abstract)

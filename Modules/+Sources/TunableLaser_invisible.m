@@ -53,33 +53,6 @@ classdef TunableLaser_invisible < handle
         function TuneSetpoint(~,varargin)
             error('Method TuneSetpoint not defined')
         end
-        function percent = GetPercent(~,varargin)
-            error('Method GetPercent not defined')
-        end
-        function SpecSafeMode(obj,danger_zone)
-            %will tune the laser as far away as possible from the given
-            %range; will error if the range covers the entirety of the
-            %tunable range. This can be overwritten if a power-off method
-            %exists, which may be safer
-            assert(min(danger_zone)>min(obj.range)||max(danger_zone)<max(obj.range),'No safe tuning point for given range')
-            try
-                if min(danger_zone) <= obj.setpoint && max(danger_zone) >= obj.setpoint %check if currently in danger zone
-                    if (min(danger_zone)-min(obj.range)) > (max(obj.range)-max(danger_zone))
-                        obj.TuneCoarse(min(obj.range))
-                    else
-                        obj.TuneCoarse(max(obj.range))
-                    end
-                end
-            catch err
-                msg = sprintf('Error in making laser safe for spectra: %s. Laser may interfere with desired spectrum measurements in range [%g,%g]. Continue regardless?',err.message,min(danger_zone),max(danger_zone));
-                answer = questdlg(msg, ...
-                    'Laser unsafe for spectra', ...
-                    'Yes','No','No');
-                if strcmp(answer,'No')
-                    rethrow(err)
-                end
-            end
-        end
     end
     methods(Abstract)
         freq = getFrequency(~,varargin)

@@ -200,7 +200,7 @@ classdef node < handle
                 return
             end
             if nargin<3 || eventdata.Button==1 % Left click or called manually (no eventdata)
-            if ~isempty(obj.lineH)&&isobject(obj.lineH)&&isvalid(obj.lineH)
+            if ~isempty(obj.lineH)&&isvalid(obj.lineH)
                 thisP = obj.lineH;
                 prevP = obj.previous.lineH;
                 if state

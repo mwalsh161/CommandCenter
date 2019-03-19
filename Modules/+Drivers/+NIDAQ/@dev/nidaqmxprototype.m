@@ -57,8 +57,6 @@ fcns.thunkname{fcnNum}='longvoidPtrulongdoubledoublevoidPtrThunk';fcns.name{fcnN
 fcns.thunkname{fcnNum}='longvoidPtrlongulongdoubleulongvoidPtrvoidPtrvoidPtrThunk';fcns.name{fcnNum}='DAQmxWriteAnalogF64'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'long', 'ulong', 'double', 'ulong', 'doublePtr', 'longPtr', 'ulongPtr'};fcnNum=fcnNum+1;
 % int32 __stdcall DAQmxSetDOOutputDriveType ( TaskHandle taskHandle , const char channel [], int32 data ); 
 fcns.thunkname{fcnNum}='longvoidPtrcstringlongThunk';fcns.name{fcnNum}='DAQmxSetDOOutputDriveType'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'cstring', 'long'};fcnNum=fcnNum+1;
-% int32 __stdcall DAQmxCreateDIChan ( TaskHandle taskHandle , const char lines [], const char nameToAssignToLines [], int32 lineGrouping ); 
-fcns.thunkname{fcnNum}='longvoidPtrcstringcstringlongThunk';fcns.name{fcnNum}='DAQmxCreateDIChan'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'cstring', 'cstring', 'long'};fcnNum=fcnNum+1;
 
 %% Pin Read
 % int32 __stdcall DAQmxCreateAIVoltageChan ( TaskHandle taskHandle , const char physicalChannel [], const char nameToAssignToChannel [], int32 terminalConfig , float64 minVal , float64 maxVal , int32 units , const char customScaleName []); 
@@ -73,8 +71,6 @@ fcns.thunkname{fcnNum}='longvoidPtrdoublevoidPtrvoidPtrThunk';fcns.name{fcnNum}=
 fcns.thunkname{fcnNum}='longvoidPtrvoidPtrThunk';fcns.name{fcnNum}='DAQmxGetReadAvailSampPerChan'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'ulongPtr'};fcnNum=fcnNum+1;
 % int32 __stdcall DAQmxReadCounterU32 ( TaskHandle taskHandle , int32 numSampsPerChan , float64 timeout , uInt32 readArray [], uInt32 arraySizeInSamps , int32 * sampsPerChanRead , bool32 * reserved ); 
 fcns.thunkname{fcnNum}='longvoidPtrlongdoublevoidPtrulongvoidPtrvoidPtrThunk';fcns.name{fcnNum}='DAQmxReadCounterU32'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'long', 'double', 'ulongPtr', 'ulong', 'longPtr', 'ulongPtr'};fcnNum=fcnNum+1;
-% int32 __stdcall DAQmxReadDigitalLines ( TaskHandle taskHandle , int32 numSampsPerChan , float64 timeout , bool32 fillMode , uInt8 readArray [], uInt32 arraySizeInBytes , int32 * sampsPerChanRead , int32 * numBytesPerSamp , bool32 * reserved ); 
-fcns.thunkname{fcnNum}='longvoidPtrlongdoubleulongvoidPtrulongvoidPtrvoidPtrvoidPtrThunk';fcns.name{fcnNum}='DAQmxReadDigitalLines'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'long', 'double', 'ulong', 'uint8Ptr', 'ulong', 'longPtr', 'longPtr', 'ulongPtr'};fcnNum=fcnNum+1;
 
 %% Clock/Counter
 % int32 __stdcall DAQmxCfgSampClkTiming ( TaskHandle taskHandle , const char source [], float64 rate , int32 activeEdge , int32 sampleMode , uInt64 sampsPerChan ); 

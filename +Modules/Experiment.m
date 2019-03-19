@@ -41,7 +41,7 @@ classdef Experiment < Base.Module
             assert(~exist(fullfile(root,'..',[experiment_name '.m']),'file'),'Experiment with this name exists!')
             % Validate filename by trying to make variable with it
             try % Use struct to "sandbox" and make sure no variables are overwritten
-                eval(sprintf('test.%s=[];',experiment_name));
+                eval(sprintf('test.%s=[]',experiment_name));
             catch err
                 errordlg('Not a valid MATLAB class name!','New Experiment');
                 return;

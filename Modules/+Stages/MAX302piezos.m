@@ -1,18 +1,26 @@
 classdef MAX302piezos < Modules.Stage
     %MAX302piezos Control the piezos of this stage.
+   
+    properties
+        calibration = [1 1 1];
+    end
     
     properties(SetAccess=private,SetObservable,AbortSet)
         Moving              % Track this to update position
     end
+    
     properties(SetAccess=private)
         position
     end
+    
     properties(Access = private)
         listeners
     end
+    
     properties(SetAccess=immutable)
         piezoDriver
     end
+    
     properties(Constant)
         xRange = [-10 10]; % um
         yRange = [-10 10]; % um

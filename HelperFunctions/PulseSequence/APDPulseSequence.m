@@ -29,7 +29,6 @@ classdef APDPulseSequence < handle
                 end
             end
             if ~isempty(msg)
-                obj.ni.view;
                 error('Add lines below, and load again.\n%s',strjoin(msg,'\n'))
             end
         end
@@ -49,7 +48,7 @@ classdef APDPulseSequence < handle
                     case 'start'
                         [nsamples,j] = obj.count_bins(nodes(2:end),GateLineName,nsamples);
                         i = i + j - 1;
-                        nodes(1:i) = [];
+                        nodes(2:i) = [];
                     case 'end'
                         nsamples = nsamples*node.data;  % Number of loops
                         assert(nsamples==round(nsamples),'Loop found with odd number of transitions!')

@@ -34,14 +34,13 @@ classdef solstis < Modules.Driver
             if isempty(Objects)
                 Objects = Drivers.msquared.solstis.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(ip,Objects(i).singleton_id)
                     error('%s driver is already instantiated!',mfilename)
                 end
             end
             obj = Drivers.msquared.solstis(ip);
-            obj.singleton_id = resolvedIP;
+            obj.singleton_id = ip;
             Objects(end+1) = obj;
         end
     end
@@ -55,8 +54,7 @@ classdef solstis < Modules.Driver
         end
      end
     methods
-        
-        
+
         function status = getStatus(obj)
             status = obj.com('status');
         end
@@ -82,7 +80,7 @@ classdef solstis < Modules.Driver
                     tuning = true;
             end
         end
-
+        
 
         % removed method for 'set target wavelength', restarting
         % tuning/active wavemeter locking

@@ -7,7 +7,7 @@ classdef sequence < handle
     properties
         name;            % Name of sequence (used when saving)
         resolution = 2;  % ns
-        minDuration = 10;% Minimum duration in ns
+        minDuration = 14;% Minimum duration in ns
         channelOrder = channel.empty(0);     % Channel Order for edit
         repeat = 1;      % How to handle entire sequence
     end
@@ -18,11 +18,86 @@ classdef sequence < handle
     properties(SetAccess=private,Hidden)
         allNodes = [];  % Used for saving and loading a sequence
     end
-
+    
     methods(Static)
         function obj = loadobj(obj)
             obj.allNodes = [];
         end
+        
+        function pause_time=determine_length_of_sequence(program)
+            %this method determines the length of a sequence in seconds. 
+            pause_time=0;
+            time=0;
+            end_index=0;
+            for index=1:length(program)-1
+                cell_string= program{index};
+                strings=strsplit(cell_string,' ');
+                if index<=end_index
+                    continue
+                end
+                
+                if numel(strings)>6
+                    if strcmp(strings{6},'LOOP,')
+                        samples=str2num(strings{7});
+                        [time,end_index]= sequence.time_within_loop(program,samples,index); %call static method
+                    end
+                else
+                    time=str2num(strings{4});
+                end
+                pause_time=pause_time+time;
+            end
+            pause_time=pause_time/1e9;%convert to seconds
+        end
+        
+        function [loop_time,end_index_loop]=time_within_loop(program,samples_loop,begin_index)
+            %this function is recursive and is called to determine the time
+            %needed to complete a for loop within a compiled sequence. 
+            cell_string_initial= program{begin_index};
+            strings=strsplit(cell_string_initial,' ');
+            loop_time=str2num(strings{4});
+            end_index=begin_index;
+            for index=begin_index+1:length(program)-1
+                cell_string= program{index};
+                strings=strsplit(cell_string,' ');
+                if index<=end_index
+                    continue
+                end
+                if numel(strings)>6
+                    if strcmp(strings{6},'LOOP,')
+                        samples=str2num(strings{7});
+                        [time,end_index]=sequence.time_within_loop(program,samples,index);
+                        time=time*samples;
+                        loop_time=loop_time+time;
+                        continue
+                    end
+                    if strcmp(strings{6},'END_LOOP')
+                        time=str2num(strings{4});%in ns
+                        loop_time=loop_time+time;
+                        loop_time=loop_time*samples_loop;
+                        end_index_loop=index;
+                        break
+                    end
+                end
+                time=str2num(strings{4});%in ns
+                loop_time=loop_time+time;
+            end
+        end
+        
+        function program=add_fixed_line(program,hw_line)
+            %this function adds a fixed line to be constant throughout the sequence. HW
+            %line is indexed from zero.
+            for index=1:length(program)-2
+                instruction=program{index};
+                strings=strsplit(instruction,' ');
+                strings_flags=strings{3};
+                strings_flags(end-hw_line-1)='1';
+                strings{3}=strings_flags;
+                instruction_new = strjoin(strings,' ');
+                program{index}=instruction_new;
+            end
+            
+        end 
+        
     end
     methods
         function obj = sequence(name)
@@ -38,7 +113,7 @@ classdef sequence < handle
             end
             obj.repeat = val;
         end
-
+        
         function out = walkSequenceTree(obj,todo)
             % Breadth first walk
             % todo should take a node. Return values go into cell array
@@ -109,7 +184,7 @@ classdef sequence < handle
         function ts = processSequenceN(obj,varargin)
             % Breadth first walk to evaluate times at loop(s) n
             % n should be cell array {loop var1, val1, var2, val2...}
-
+            
             % Prepare loop info
             loops = obj.getSequenceLoops;
             if nargin < 2
@@ -134,7 +209,7 @@ classdef sequence < handle
                 pos = find(strcmp(varName,loops))+1;
                 assert(iters <= loops{pos},sprintf('Loop %s exceeds maximum iterations.',varName))
             end
-
+            
             % Walk through tree evaluating times
             obj.StartNode.t = 0;     % Always should be 0
             ts = cell2mat(obj.walkSequenceTree(@(curNode)curNode.processTime(n)));
@@ -203,7 +278,7 @@ classdef sequence < handle
             ts = obj.processSequenceN(varargin{:});
             maxT = max(ts)*1.1;
             minT = min([0 ts]);
-
+            
             if isempty(maxT) || maxT == 0
                 maxT = 1;
             end
@@ -286,7 +361,7 @@ classdef sequence < handle
             obj.editorH = [];
             delete(f)
         end
-
+        
         function save(obj,PathName,FileName)
             if nargin < 2
                 [FileName,PathName] = uiputfile({'*.mat','Pulse Sequence';'*.png','Image'},'Save Sequence',obj.name);
@@ -297,7 +372,7 @@ classdef sequence < handle
             [~,~,ext] = fileparts(FileName);
             assert(boolean(sum(strcmp(ext,{'.mat','.png'}))),'Only supports .mat and .png')
             if strcmp(ext,'.png')
-                assert(~isempty(obj.editorH)&&isobject(obj.editorH) && isvalid(obj.editorH),'No valid figure.')
+                assert(~isempty(obj.editorH) && isvalid(obj.editorH),'No valid figure.')
                 saveas(obj.editorH,fullfile(PathName,FileName))
                 return
             end
@@ -461,8 +536,8 @@ classdef sequence < handle
                 active = [active.node];
                 chans = [];
                 types = struct('transition',node.empty(0),...
-                                    'start',node.empty(0),...
-                                      'end',node.empty(0)); % Tally number of each type
+                    'start',node.empty(0),...
+                    'end',node.empty(0)); % Tally number of each type
                 for i = 1:numel(active)
                     types.(active(i).type)(end+1) = active(i);
                     if isa(active(i).data,'channel')

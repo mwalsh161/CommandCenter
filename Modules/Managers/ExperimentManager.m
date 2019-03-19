@@ -28,8 +28,16 @@ classdef ExperimentManager < Base.Manager
             if strcmp(get(obj.handles.panel_exp,'visible'),'off')
                 CommandCenter('axes_exp_only_Callback',obj.handles.axes_exp_only,[],guidata(obj.handles.axes_exp_only))
             end
-            [textH,h] = obj.abortBox(class(obj.active_module),@obj.abort);
+            h = msgbox('Experiment Started',sprintf('%s running',class(obj.active_module)),'help','modal');
+            h.KeyPressFcn='';  % Prevent esc from closing window
+            h.CloseRequestFcn = @obj.abort;
+            % Repurpose the OKButton
+            button = findall(h,'tag','OKButton');
+            set(button,'tag','AbortButton','string','Abort',...
+                'callback',@obj.abort)
             drawnow;
+            textH = findall(h,'tag','MessageBox');
+            l = addlistener(textH,'String','PostSet',@obj.resizeMsgBox);
             err = [];
             try
                 if ~isempty(obj.active_module.path) %if path defined, select path
@@ -41,7 +49,7 @@ classdef ExperimentManager < Base.Manager
                     delete(allchild(obj.handles.panel_exp));  % Potential memory leak if user doesn't have delete callback to clean up listeners
                     obj.handles.axExp = axes('parent',obj.handles.panel_exp,'tag','axExp');
                 end
-                obj.sandboxed_function({obj.active_module,'run'},textH,obj.handles.Managers,obj.handles.axExp);
+                obj.active_module_method('run',textH,obj.handles.Managers,obj.handles.axExp);
                 if ~obj.aborted
                     notify(obj,'experiment_finished')
                 end
@@ -49,7 +57,7 @@ classdef ExperimentManager < Base.Manager
             end
             obj.handles.Managers.Imaging.dumbimage = last_dumbimage;
             obj.enable;
-            delete(h);
+            delete(l); delete(h);
             if ~isempty(err)
                 rethrow(err)
             end
@@ -57,7 +65,7 @@ classdef ExperimentManager < Base.Manager
         end
         function abort(obj,varargin)
             obj.aborted = true;
-            obj.sandboxed_function({obj.active_module,'abort'});
+            obj.active_module_method('abort');
             obj.log('%s aborted experiment.',class(obj.active_module))
         end
         
@@ -75,18 +83,6 @@ classdef ExperimentManager < Base.Manager
             end
         end
     end
-    methods(Static)
-        function [textH,h] = abortBox(name,abort_callback)
-            h = msgbox('Experiment Started',sprintf('%s running',name),'help','modal');
-            h.KeyPressFcn='';  % Prevent esc from closing window
-            h.CloseRequestFcn = abort_callback;
-            % Repurpose the OKButton
-            button = findall(h,'tag','OKButton');
-            set(button,'tag','AbortButton','string','Abort',...
-                'callback',abort_callback)
-            textH = findall(h,'tag','MessageBox');
-            addlistener(textH,'String','PostSet',@Base.Manager.resizeMsgBox);
-        end
-    end
+    
 end
 

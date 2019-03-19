@@ -401,9 +401,9 @@ classdef prologix < handle
             varargout = {A,count};
         end
         function varargout = query(obj,varargin)  % Special behavior
-            fprintf(obj.serial,'++auto 1');tic
+            fprintf(obj.serial,'++auto 1')
             [out,count,err] = query(obj.serial,varargin{:});
-            fprintf(obj.serial,'++auto 0');toc
+            fprintf(obj.serial,'++auto 0');
             varargout = {out,count,err};
         end
         function varargout = scanstr(obj,varargin)  % Special behavior

@@ -18,13 +18,14 @@ classdef Imaging < Base.Module
         %   Format should be [xMin xMax; yMin yMax]
         %   Note, pixels are the unit for a CCD, voltage for galvos
         ROI
-        % Resolution in pixels (used to reset ROI)
-        %   Format should be [x y]
-        resolution
         continuous      % Boolean specifiying if continuous acquisition is active
+        
     end
     properties(Abstract)
         maxROI
+        % Resolution in pixels (used to reset ROI)
+        %   Format should be [x y]
+        resolution
     end
     properties(Access=private)
         namespace
@@ -69,6 +70,5 @@ classdef Imaging < Base.Module
         % Stop previewing frames
         stopVideo(obj)
     end
-    
 end
 

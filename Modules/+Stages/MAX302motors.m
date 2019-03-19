@@ -7,7 +7,7 @@ classdef MAX302motors < Modules.Stage
     %
     %   Home is -2,-2,-2
     
-    properties
+    properties    
         prefs = {'X_Motor','Y_Motor','Z_Motor','direction'};
     end
     properties(SetObservable,AbortSet)
@@ -21,10 +21,12 @@ classdef MAX302motors < Modules.Stage
         Homed = false;
         Moving = false;              % Track this to update position
     end
+    
     properties(SetAccess=private)
         position
         motors = cell(1,3); % A cell array for the 3 motors {X,Y,Z} (list would require having "null" objects)
     end
+    
     properties(Constant)
         xRange = [-2 2]*1000;
         yRange = [-2 2]*1000;
@@ -61,7 +63,7 @@ classdef MAX302motors < Modules.Stage
         function homedCallback(obj,varargin)
             homed = false(1,3);
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     homed(i) = obj.motors{i}.Homed;
                 end
             end
@@ -70,7 +72,7 @@ classdef MAX302motors < Modules.Stage
         function movingCallback(obj,varargin)
             moving = false(1,3);
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     moving(i) = obj.motors{i}.Moving;
                 end
             end
@@ -87,7 +89,7 @@ classdef MAX302motors < Modules.Stage
             pos = NaN(1,3);
             range = [obj.xRange;obj.yRange;obj.zRange];
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     pos(i) = obj.motors{i}.Position*1000+min(range(i,:));
                 end
             end
@@ -99,7 +101,7 @@ classdef MAX302motors < Modules.Stage
             new_pos = {x,y,z}; % Allow for empty inputs in for loop below
             for i = 1:length(obj.motors)
                 if ~isempty(new_pos{i}) && new_pos{i}~=pos(i) && ~isnan(new_pos{i})
-                    if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                    if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                         new_pos{i} = (new_pos{i}*obj.direction(1) - min(range(i,:)))/1000;
                         obj.motors{i}.move(new_pos{i})
                     else
@@ -112,7 +114,7 @@ classdef MAX302motors < Modules.Stage
         function enable(obj)
             %Method to enable motors drive
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     obj.motors{i}.enable();
                 end
             end
@@ -121,7 +123,7 @@ classdef MAX302motors < Modules.Stage
         function disable(obj)
             %Method to disable motors drive
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     obj.motors{i}.disable();
                 end
             end
@@ -130,7 +132,7 @@ classdef MAX302motors < Modules.Stage
         function home(obj)
             %Method to home/zero the motors
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     obj.motors{i}.home();
                 end
             end
@@ -139,7 +141,7 @@ classdef MAX302motors < Modules.Stage
         function abort(obj,varargin)
             %Method to try and stop the motors
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     obj.motors{i}.abort(varargin{:});
                 end
             end
@@ -172,7 +174,7 @@ classdef MAX302motors < Modules.Stage
         end
         function motorSettings(obj,hObj,~)
             axis = hObj.UserData;
-            if ~isempty(obj.motors{axis})&&isobject(obj.motors{axis}) && isvalid(obj.motors{axis})
+            if ~isempty(obj.motors{axis}) && isvalid(obj.motors{axis})
                 obj.motors{axis}.settings;
             else
                 error('No motor is loaded for this axis!')
@@ -191,7 +193,7 @@ classdef MAX302motors < Modules.Stage
             obj.motors{axis} = [];
             inuse = false;
             for i = 1:length(obj.motors)
-                if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
+                if ~isempty(obj.motors{i}) && isvalid(obj.motors{i})
                     if obj.motors{i} == motorOld
                         inuse = true; break
                     end

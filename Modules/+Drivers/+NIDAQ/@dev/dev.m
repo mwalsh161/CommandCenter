@@ -182,9 +182,6 @@ classdef dev < Modules.Driver
             if(ErrorCode ~= 0)
                 BufferSize = 0;
                 [BufferSize] = calllib(obj.LibraryName,'DAQmxGetExtendedErrorInfo',[],BufferSize);
-                if BufferSize < 0
-                    obj.CheckErrorStatus(BufferSize);
-                end
                 % create a string of spaces
                 ExtendedString = char(32*ones(1,BufferSize));
                 % now get the actual string

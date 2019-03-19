@@ -36,8 +36,8 @@ classdef stitchVelRingScans < Modules.Experiment
             
             obj.galEx = Stages.Galvos.instance();
             obj.galCo = Stages.CollectionGalvos.instance();
-            obj.trackerEx = Drivers.Tracker.instance(obj.galEx,obj.galEx.galvoDriver);
-            obj.trackerCo = Drivers.Tracker.instance(obj.galCo,obj.galCo.galvoDriver);
+            obj.trackerEx = Drivers.TrackerRings.instance(obj.galEx,obj.galEx.galvoDriver);
+            obj.trackerCo = Drivers.TrackerRings.instance(obj.galCo,obj.galCo.galvoDriver);
             obj.trackerEx.thresh=2;
             obj.trackerEx.thresh=2;
             

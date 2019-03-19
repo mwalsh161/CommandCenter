@@ -3,22 +3,26 @@ classdef Stage < Base.Module
     %   Stages should be calibrated as possible when coming in.
     %   Stages should not require input arguments.
     
-    properties
+    properties(Abstract)
         % Calibration set and used by CommandCenter when imaging device has uses_stage=true (um/#).
         %   Will only update x and y.
-        calibration = [1 1 1];
+        calibration;
     end
+    
     properties(Abstract,SetAccess=private)
         position                % Current position of the stage in um
     end
+    
     properties(Abstract,SetAccess=private,SetObservable)
         Moving                  % Boolean specifying whether stage in motion
     end
+    
     properties(Abstract,Constant)
         xRange                  % Range in um of x axis
         yRange                  % Range in um of x axis
         zRange                  % Range in um of x axis
     end
+    
     properties(Access=private)
         namespace
     end
@@ -35,9 +39,10 @@ classdef Stage < Base.Module
         
         % Stop motion.
         %   If immediate is true, force stop. Otherwise, stop in a
-        %   controlled way (to maintain knowledge of locatin)
+        %   controlled way (to maintain knowledge of location)
         abort(obj,immediate)
     end
+    
     methods
         function obj = Stage()
 %             d = dbstack('-completenames');

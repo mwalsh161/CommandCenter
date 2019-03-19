@@ -2,6 +2,10 @@ classdef Piezo < Modules.Stage
     %GALVOS Summary of this class goes here
     %   Detailed explanation goes here
     
+    properties
+        calibration = [1 1 1];
+    end
+    
     properties(SetAccess=private)
         position
     end

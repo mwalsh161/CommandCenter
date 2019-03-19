@@ -253,7 +253,7 @@ classdef stage < Modules.Driver
         end
         function StreamToImage(obj,imObj)
             assert(isvalid(imObj),'Invalid imObj handle')
-            assert(~isempty(obj.taskPulseTrain)&&isobject(obj.taskPulseTrain)&&isvalid(obj.taskPulseTrain),'No scan setup!')
+            assert(~isempty(obj.taskPulseTrain)&&isvalid(obj.taskPulseTrain),'No scan setup!')
             numpoints = max(length(obj.xVals),1)*max(length(obj.yVals),1);
             CounterRawData = NaN(numpoints+1,1);
             ii = 0;

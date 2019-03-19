@@ -1,46 +1,21 @@
-classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
+classdef Laser532_PB < Modules.Source
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
-    
-    properties(SetObservable)
-        PBline = 1;               % Pulse Blaster flag bit (indexed from 1)
-        ip = 'No Server';         % ip of host computer (with PB)
-        readonly_prefs = {'running'};
-    end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-        running = false;          % Boolean specifying if StaticLines program running
-    end
-    properties(Access=private)
-        listeners
-    end
-    properties(SetAccess=private)
-        PulseBlaster                 % Hardware handle
-    end
+
     methods(Access=protected)
         function obj = Laser532_PB()
-            obj.prefs = [{'PBline','ip'} obj.prefs];
-            obj.show_prefs = [{'running','PBline','ip'} obj.show_prefs];
-            obj.loadPrefs; % note that this calls set.ip
         end
     end
     methods(Static)
         function obj = instance()
-            mlock;
-            persistent Object
-            if isempty(Object) || ~isvalid(Object)
-                Object = Sources.Laser532_PB();
-            end
-            obj = Object;
+            error('Sources.Laser532_PB no longer exists. It has been moved to Sources.Green_532Laser.Laser532_PB.Please change Sources.Laser532_PB to Sources.Green_532Laser.Laser532_PB.')
         end
     end
     methods
-        function tasks = inactive(obj)
-            tasks = inactive@Sources.Verdi_invisible(obj);
-        end
         function delete(obj)
             delete(obj.listeners)
         end
+
         function set.ip(obj,val) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
@@ -78,8 +53,10 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
         
-        function isRunning(obj,varargin)
-            obj.running = obj.PulseBlaster.running;
+        % Settings and Callbacks
+        function settings(obj,panelH)
+         
         end
+        
     end
 end

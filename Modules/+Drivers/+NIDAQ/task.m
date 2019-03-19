@@ -140,7 +140,7 @@ classdef task < handle
             temp = obj.dev.CurrentTask;
             obj.dev.CurrentTask = obj;
             varargout = {obj.dev.LibraryFunction(FunctionName,obj,line_names,varargin{:})};
-            if ~isempty(temp)&&isa(temp,'Drivers.NIDAQ.task')&&isvalid(temp)
+            if ~isempty(temp)&&~isnan(temp)&&isvalid(temp)
                 obj.dev.CurrentTask = temp;
             else
                 obj.dev.CurrentTask = [];
@@ -154,8 +154,8 @@ classdef task < handle
             FunctionProto = libfunctions(obj.dev.LibraryName,'-full');
             % find the matching name
             A = strfind(FunctionProto,FunctionName);
-            for k=1:length(A)
-                if ~isempty(A{k})
+            for k=1:length(A),
+                if ~isempty(A{k}),
                     fIndex = k;
                     break
                 end
@@ -168,7 +168,7 @@ classdef task < handle
                 nargs = length(regexp(argText{1}(2:end-1),'\w+'));
                 [varargout{1:nargs-1}] = obj.dev.LibraryFunction(FunctionName,varargin{:});
             end
-            if ~isempty(temp)&&isa(temp,'Drivers.NIDAQ.task')&&isvalid(temp)
+            if ~isempty(temp)&&isvalid(temp)
                 obj.dev.CurrentTask = temp;
             else
                 obj.dev.CurrentTask = [];
@@ -438,24 +438,6 @@ classdef task < handle
             obj.clock = struct('src',clkLine,'freq','ext');
             obj.Verify
         end
-        function ConfigureDigitalIn(obj,lineNames,ClkTask,NSamples)
-            if ~isa(ClkTask.clock.src,'Drivers.NIDAQ.out')
-                error('ClkTask requires DAQout object for clock.src')
-            end
-            if ~iscell(lineNames)
-                lineNames = {lineNames};
-            end
-            lines = obj.dev.getLines(lineNames,obj.dev.InLines);
-            clkLine = ClkTask.clock.src;
-            % Set the frequency of this guy slightly above the expected clock frequency
-            Freq = 1.1*ClkTask.clock.freq;
-
-            % create an analog out voltage channel
-            obj.CreateChannels('DAQmxCreateDIChan',lines,'',obj.dev.DAQmx_Val_ChanPerLine);
-            obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkLine, Freq, obj.dev.DAQmx_Val_Rising, obj.dev.DAQmx_Val_FiniteSamps,NSamples);
-            obj.clock = struct('src',clkLine,'freq','ext');
-            obj.Verify
-        end
 
         %% Read
         function count = AvailableSamples(obj)
@@ -489,7 +471,7 @@ classdef task < handle
                     NLines = NLines + 1;
                 end
             end
-            assert(logical(NLines),'Task requires analog in lines')
+            assert(NLines,'Task requires analog in lines')
 
             % size of buffer
             Data = zeros(NLines,NSamples);
@@ -497,31 +479,6 @@ classdef task < handle
             pRead = libpointer('int32Ptr',0);
             
             [~,Data,nRead,~] = obj.LibraryFunction('DAQmxReadAnalogF64',obj, NSamples,obj.dev.ReadTimeout, obj.dev.DAQmx_Val_GroupByChannel, Data, SizeOfBuffer, pRead,[]);
-            if nRead ~= NSamples
-                warning('Read %i samples instead of %i',nRead,NSamples)
-            end
-        end
-        function [Data,nRead] = ReadDigitalIn(obj,NSamples)
-            if nargin < 2
-                NSamples = 1;
-            end
-            % Determine number of analog input lines
-            NLines = 0;
-            for i = 1:length(obj.lines)
-                line = obj.lines{i};
-                if strcmp(line.type,'digital')&&isa(line,'Drivers.NIDAQ.in')
-                    NLines = NLines + 1;
-                end
-            end
-            assert(logical(NLines),'Task requires analog in lines')
-
-            % size of buffer
-            Data = uint8(zeros(NLines,NSamples));
-            SizeOfBuffer = uint32(NLines*NSamples);
-            pRead = libpointer('int32Ptr',0);
-            pBytesPerSamp = libpointer('int32Ptr',0); % ConfigureDigitalIn doesn't allow flexibility here
-            
-            [~,Data,nRead,nBytesPerSamp,~] = obj.LibraryFunction('DAQmxReadDigitalLines',obj, NSamples,obj.dev.ReadTimeout, obj.dev.DAQmx_Val_GroupByChannel, Data, SizeOfBuffer, pRead, pBytesPerSamp, []);
             if nRead ~= NSamples
                 warning('Read %i samples instead of %i',nRead,NSamples)
             end

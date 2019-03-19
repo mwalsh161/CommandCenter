@@ -29,7 +29,7 @@ for i = 1:numVars
     varLength(i) = length(obj.(obj.vars{i}));
 end
 
-obj.data.sumCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
+obj.data.meanCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
 obj.data.stdCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
 
 obj.meta.prefs = obj.prefs2struct;
@@ -50,7 +50,8 @@ try
     % Not only will this be faster than constructing many times,
     % APDPulseSequence upon deletion closes PulseBlaster connection
     indices = num2cell(ones(1,numVars));
-    apdPS = APDPulseSequence(obj.nidaqH,obj.pbH,sequence('placeholder')); %create an instance of apdpulsesequence to avoid recreating in loop
+    pulseSeq = BuildPulseSequence(obj,indices{:}); % Use to initialize APDPulseSequence (will be repeated on first iteration)
+    apdPS = APDPulseSequence(obj.nidaqH,obj.pbH,pulseSeq);
     statusString = cell(1,numVars);
     for j = 1:obj.averages
         for i = 1:prod(varLength)
@@ -63,15 +64,14 @@ try
             
             % BuildPulseSequence must take in vars in the order listed
             pulseSeq = obj.BuildPulseSequence(indices{:});
-            if pulseSeq ~= false % Interpret a return of false as skip this one (leaving in NaN)
-                pulseSeq.repeat = obj.samples;
-                apdPS.seq = pulseSeq;
-                
-                apdPS.start(1000); % hard coded
-                apdPS.stream(p);
-                obj.data.sumCounts(j,indices{:},:) = sum(p.YData);
-                obj.data.stdCounts(j,indices{:},:) = std(p.YData);
-            end
+            pulseSeq.repeat = obj.samples;
+            apdPS.seq = pulseSeq;
+            
+            apdPS.start(1000); % hard coded
+            apdPS.stream(p);
+            obj.data.meanCounts(j,indices{:},:) = nanmean(p.YData);
+            obj.data.stdCounts(j,indices{:},:) = nanstd(p.YData)/sqrt(pulseSeq.repeat);
+
             obj.UpdateRun(status,managers,ax,j,indices{:});
         end
     end

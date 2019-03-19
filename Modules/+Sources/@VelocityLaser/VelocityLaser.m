@@ -10,32 +10,17 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %
     %   Power to the laser can be controlled through the serial object
     %   - obj.serial.on()/off() - however, time consuming calls!
-    %   
-    %   The laser tuning is controlled by the methods required by the
-    %   TunableLaser_invisible superclass. In particular, the TuneCoarse
-    %   method of this source class is recommended over directly calling
-    %   the driver class equivalent (set.Wavelength), as the source method
-    %   uses a calibration function to improve the accuracy of wavelength
-    %   setting
     
     properties
         TuningTimeout = 60; % Timeout for all tune methods
     end
     properties(SetObservable,AbortSet)
-        tuning = false;
-        prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel','cal_local'};
-        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip','velocity_ip','wavemeter_channel','wavemeter_ip'};
-        readonly_prefs = {'PB_status','tuning'};
-    end
-    properties(SetAccess={?Base.Module},Hidden)
-        cal_local = struct('THz2nm',[],'gof',[],'datetime',[],'expired',{}); %calibration data for going from nm to THz
-    end
-    properties(Constant,Hidden)
-        calibration_timeout = 7; %duration in days after which velocity will give warning to recalibrate
-        set_range = [634.8,639.4]; %the range of valid inputs for the driver's set.Wavelength method (in nm)
+        prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel'};
+        show_prefs = {'status','diode_on','PBline','pb_ip','velocity_ip','wavemeter_channel','wavemeter_ip'};
+        readonly_prefs = {'status'};
     end
     properties(SetAccess=protected)
-        range = 299792./[635.4,640.1]; %tunable range in THz
+        range = 299792./[635,640]; %tunable range in THz
         Vrange = [-2.3, 2.3]; %setting the piezo percentage maps (0,100)
         resolution = 0.01; %frequency tuning resolution in THz
     end
@@ -46,13 +31,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_ip = 'No Server';
         wavemeter_channel = 3;              % Pulse Blaster flag bit (indexed from 1)
         diode_on = false;         % Power state of diode (on/off); assume off everytime because we cant check easily
-        wavemeter_active = false; % Wavemeter channel active
-        percent_setpoint = NaN; %local memory of tuning percent as applied by the wavemeter
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
         running                      % Boolean specifying if StaticLines program running
-        PB_status
+        status
     end
     properties(Access=private)
         listeners
@@ -80,31 +63,14 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     end
     methods
         function task = inactive(obj)
-            task = 'Turning diode power off and wavemeter switch channel';
-            obj.deactivate;
-        end
-        function activate(obj)
-            % Will error if not able to
-            assert(~isempty(obj.wavemeter)&&~isempty(obj.serial),'Wavemeter and velocity do not exist')
-            obj.diode_on = true;
-            obj.wavemeter_active = true;
-        end
-        function deactivate(obj)
-            % Deactivate where we can
-            if ~isempty(obj.wavemeter)
-                obj.wavemeter_active = false;
-            else
-                warning('Wavemeter not hooked up!');
-            end
+            task = '';
             if ~isempty(obj.serial)
-                obj.diode_on = false;
-            else
-                warning('Velocity hwserver not connected!');
+                task = 'Turning diode power off';
+                obj.serial.off;
             end
         end
         function delete(obj)
             delete(obj.listeners)
-            obj.deactivate; % Close up
         end
         function err = connect_driver(obj,propname,drivername,varargin)
             err = [];
@@ -126,9 +92,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if isempty(obj.serial) %#ok<*MCSUP>
                 obj.velocity_ip = 'No Server';
                 obj.diode_on = NaN;
-                if ~isempty(err)
-                    rethrow(err)
-                end
                 return
             end
             if ~isempty(err)
@@ -139,14 +102,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function set.pb_ip(obj,val)
             err = obj.connect_driver('PulseBlaster','PulseBlaster.StaticLines',val);
-            obj.isRunning;
             if isempty(obj.PulseBlaster)
                 obj.pb_ip = 'No Server';
-                if ~isempty(err)
-                    rethrow(err)
-                end
                 return
             end
+            obj.isRunning;
             if ~isempty(err)
                 rethrow(err)
             end
@@ -165,17 +125,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         function set.wavemeter_ip(obj,val)
             err = obj.connect_driver('wavemeter','Wavemeter',val,obj.wavemeter_channel);
             if isempty(obj.wavemeter)
-                if ~isempty(err)
-                    rethrow(err)
-                end
                 obj.wavemeter_ip = 'No Server';
-                obj.wavemeter_active = NaN;
-                return
             end
             if ~isempty(err)
                 rethrow(err)
             end
-            obj.wavemeter_active = obj.wavemeter.GetSwitcherSignalState;
             obj.wavemeter_ip = val;
         end
         function set.wavemeter_channel(obj,val)
@@ -190,8 +144,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if isnan(val);obj.diode_on=false;return;end %short-circuit if set to nan but keep false for settings method
             assert(~isempty(obj.serial),'No Velocity Laser connected');
             % This requires some time, so have msgbox appear
-            st = dbstack(1);
-            if ~any(strcmpi({st.name},'VelocityLaser.set.velocity_ip'))
+            st = dbstack;
+            if ~any(strcmpi(extractfield(st,'name'),'VelocityLaser.set.velocity_ip'))
                 if val
                     f = msgbox('Turning laser diode on, please wait...');
                     obj.serial.on;
@@ -203,20 +157,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
             obj.diode_on = val;
         end
-        function set.wavemeter_active(obj,val)
-            if isnan(val);obj.wavemeter_active=false;return;end %short-circuit if set to nan but keep false for settings method
-            assert(~isempty(obj.wavemeter),'No wavemeter connected');
-            st = dbstack(1);
-            if ~any(strcmpi({st.name},'VelocityLaser.set.wavemeter_ip'))
-                obj.wavemeter.SetSwitcherSignalState(val);
-            end
-            obj.wavemeter_active = obj.wavemeter.GetSwitcherSignalState;
-        end
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
-            if ~obj.diode_on
-                obj.activate;
-            end
             obj.PulseBlaster.lines(obj.PBline) = true;
             obj.source_on = true;
         end
@@ -225,112 +167,29 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.source_on = false;
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
-        function arm(obj)
-            if ~obj.diode_on
-                obj.diode_on = true;
-            end
-        end
-        function blackout(obj)
-            if obj.diode_on
-                obj.diode_on = false;
-            end
-        end
         function val = getFrequency(obj)
             val = obj.wavemeter.getFrequency();
         end
         function isRunning(obj,varargin)
             if isempty(obj.PulseBlaster)
-                obj.PB_status = 'Not Connected';
+                obj.status = 'Not Connected';
             else
                 obj.running = obj.PulseBlaster.running;
                 if obj.running
-                    obj.PB_status = 'Running';
+                    obj.status = 'Running';
                 else
-                    obj.PB_status = 'Unknown State, to update, change state.';
+                    obj.status = 'Unknown State, to update, change state.';
                 end
             end
         end
         function RangeCheck(obj,val)
-            %checks if frequency is in tunable range of laser
-            assert(val >= min(obj.range) && val <= max(obj.range),...
-                sprintf('Laser frequency must be in range [%g,%g] THz',obj.range(1),obj.range(2)))
-        end
-        function calibrate(obj) 
-            %calibrates the frequency as read by the wavemeter to the 
-            %wavelength as set by the diode motor
-            if ~obj.diode_on
-                answer = questdlg('Diode off; turn diode on for calibration?','Diode off', 'Yes','No','No');
-                switch answer
-                    case 'No'
-                        error('Diode must be on for wavelength calibration');
-                    case 'Yes'
-                        obj.diode_on = true;
-                end
+            %checks if value is in range
+            err = [];
+            if val < min(obj.range) || val > max(obj.range)
+                err = sprintf('Laser wavelength must be in range [%g,%g] THz',obj.range(1),obj.range(2));
             end
-            setpoints = linspace(obj.set_range(1),obj.set_range(end),10); %take 10 points across the range of the laser
-            wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
-            for i=1:length(setpoints)
-                obj.serial.Wavelength = setpoints(i); pause(1); %allow to settle
-                wavelocs(i) = obj.getFrequency;
-            end
-            fit_type = fittype('a/(x-b)+c');
-            options = fitoptions(fit_type);
-            options.Start = [obj.c,0,0];
-            [temp.THz2nm,temp.gof] = fit(wavelocs',setpoints',fit_type,options);
-            temp.datetime = datetime;
-            obj.cal_local = temp;
-        end
-        function cal = calibration(obj)
-            %get the calibration of the frequency as read by the wavemeter
-            %to the wavelength as set by the diode motor; this is stored as
-            %cal_local
-            if isempty(obj.cal_local)
-                % If called in savePref method, ignore and return default
-                st = dbstack;
-                if length(st) > 1 && strcmp(st(2).name,'Module.savePrefs')
-                    mp = findprop(obj,'cal_local');
-                    cal = mp.DefaultValue;
-                    return
-                else
-                    answer = questdlg('No VelocityLaser calibration found; calibrate now?','No VelocityLaser Calibration','Yes','No','No');
-                    if strcmp(answer,'Yes')
-                        obj.calibrate;
-                    else
-                        error('No VelocityLaser calibration found; calibrate using VelocityLaser.calibrate(tunable laser handle, exposure time in seconds)');
-                    end
-                end
-            end
-            obj.cal_local.expired = false;
-            if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout
-                warnstring = sprintf('Calibration not performed since %s. Recommend recalibrating by running VelocityLaser.calibrate.',datestr(obj.cal_local.datetime));
-                answer = questdlg([warnstring, ' Calibrate now?'],'VelocityLaser Calibration Expired','Yes','No','No');
-                if strcmp(answer,'Yes')
-                    obj.calibrate
-                else
-                    obj.cal_local.expired = true;
-                end
-            end
-            cal = obj.cal_local;
-        end
-        function setMotorFrequency(obj,val)
-            %internal method for setting the frequency using the motor;
-            %talks to the driver and uses the internal calibration function
-            %to send a wavelength command to the motor
-            cal = obj.calibration; %grab the calibration function
-            obj.serial.Wavelength = cal.THz2nm(val); %convert THz on wavemeter to nm in laser's hardware
-            obj.serial.TrackMode = 'off'; %obj.serial.Wavelength turns TrackMode on, so turn back off
-        end
-        function SpecSafeMode(obj,~)
-            %turns the diode of the laser off to make it safe for taking
-            %spectra
-            obj.blackout;
-        end
-        function percent = GetPercent(obj)
-            if obj.wavemeter.getDeviationChannel
-                voltage = obj.wavemeter.getDeviationVoltage;
-                percent = (obj.Vrange(2)-voltage)*100/diff(obj.Vrange);
-            else %if DeviationChannel == false, can't read voltage, so return latest setpoint
-                percent = obj.percent_setpoint;
+            if ~isempty(err)
+                error(err)
             end
         end
     end

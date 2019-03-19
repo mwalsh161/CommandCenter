@@ -15,18 +15,17 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
     % NOTE: might be a way to inherit Sources.msquared.SolsTiS and cut way
     % back on redundant code. Would need to consider how to overload
     % setmethods in this subclass and consider where prefs get loaded
-    
+        
     properties(SetObservable,SetAccess=private)
         source_on = false;  % Always assume on (cant be changed here)
     end
     properties(SetAccess=protected)
         % total tunable range in THz (should be updated when crystal changed; see obj.fitted_oven)
-        range = Sources.TunableLaser_invisible.c./[580,661];
+        range = Sources.TunableLaser_invisible.c./[515,661];
     end
     properties(SetObservable,AbortSet)
         tuning = false;
         hwserver_ip = Sources.msquared.EMM.no_server;
-        resonatorVoltageToPercentCalibration = [-0.000425732939240   0.599558121753631  -5.361161084160642]; %second order polynomial
         fitted_oven = 1;        % Readable (crystal being used: 1,2,3). This also sets range
         etalon_percent = 0;  % Settable
         etalon_voltage = 0;  % Readable
@@ -35,11 +34,10 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         resonator_voltage = 0;  % Readable
         target_wavelength = 0; % nm settable
         wavelength_lock = false; % settable (so this is necessary ontop of "locked")
-        resonator_tune_speed = 0.5; % percent per step
         PBline = 1; % Indexed from 1
         pb_ip = Sources.msquared.EMM.no_server;
-        prefs = {'hwserver_ip','PBline','pb_ip','resonator_tune_speed'};
-        show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','fitted_oven','resonator_percent','resonator_voltage','etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip','resonator_tune_speed'};
+        prefs = {'hwserver_ip','PBline','pb_ip'};
+        show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','fitted_oven','resonator_percent','resonator_voltage','etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip'};
         readonly_prefs = {'tuning','fitted_oven','resonator_voltage','etalon_voltage'};
     end
     properties(Access=private)
@@ -192,21 +190,16 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
             obj.wavelength_lock = lock;
             obj.locked = lock;
         end
-        
-        function resonatorPercent = resonatorVoltageToPercent(obj,voltage)
-            resonatorPercent = obj.resonatorVoltageToPercentCalibration(1)*voltage^2 ...
-                +obj.resonatorVoltageToPercentCalibration(2)*voltage+obj.resonatorVoltageToPercentCalibration(3);
-        end
         function tune(obj,target)
             % This is the tuning method that interacts with hardware
             % (potentially a very expensive operation if switching from
             % solstis)
             % target in nm
-            assert(~isempty(obj.emmHandle)&&isobject(obj.emmHandle) && isvalid(obj.emmHandle),'no emmHandle, check hwserver_ip')
-            assert(target>=obj.c/max(obj.range)&&target<=obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
+            assert(~isempty(obj.emmHandle) && isvalid(obj.emmHandle),'no emmHandle, check hwserver_ip')
+            assert(target>obj.c/max(obj.range)&&target<obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             err = [];
             % The EMM blocks during tuning, so message is useful until a non-blocking operation exists
-            dlg = msgbox('Please wait while EMM tunes to target wavelength.',mfilename,'modal');
+            dlg = msgbox('Please wait while EMM tunes to taget wavelength.',mfilename,'modal');
             textH = findall(dlg,'tag','MessageBox');
             delete(findall(dlg,'tag','OKButton'));
             drawnow;
@@ -217,7 +210,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
                 textH.String = 'Please wait while EMM tunes to taget wavelength.'; drawnow;
                 obj.emmHandle.set_wavelength(target);
                 obj.target_wavelength = target;
-                obj.trackFrequency; % Will block until obj.tuning = false (calling obj.getFrequency)
+                % obj.trackFrequency; % Will block until obj.tuning = false (calling obj.getFrequency)
             catch err
             end
             delete(dlg);
@@ -235,7 +228,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         end
         
         function WavelengthLock(obj,lock)
-            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(lock)||lock==0||lock==1,'lock must be true/false')
             if lock
                 strlock = 'on';
@@ -265,20 +258,13 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         end
         function TunePercent(obj,target)
             % This is the solstis resonator
-            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(target>=0&&target<=100,'Target must be a percentage')
-            % tune at a limited rate per step
-            currentPercent = obj.GetPercent;
-            numberSteps = mod(abs(currentPercent-target),obj.resonator_tune_speed);
-            direction = sign(target-currentPercent);
-            for i = 1:numberSteps
-                obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
-            end
             obj.solstisHandle.set_resonator_percent(target);
             obj.resonator_percent = target;
             obj.updateStatus(); % Get voltage of resonator
         end
-        
+
         % Set methods
         function set.hwserver_ip(obj,ip)
             % solstis
@@ -309,10 +295,6 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
             if obj.internal_call; obj.target_wavelength = val; return; end
             obj.tune(val);
         end
-        function percent = GetPercent(obj)
-                obj.updateStatus();
-                percent =  obj.resonatorVoltageToPercent(obj.resonator_voltage);
-        end
         function set.wavelength_lock(obj,val)
             if isnan(val); obj.wavelength_lock = val; return; end % Short circuit on NaN
             if obj.internal_call; obj.wavelength_lock = val; return; end
@@ -325,7 +307,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         end
         function set.etalon_percent(obj,val)
             if isnan(val); obj.etalon_percent = val; return; end % Short circuit on NaN
-            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(val>=0&&val<=100,'Value must be a percentage')
             if obj.internal_call; obj.etalon_percent = val; return; end
             obj.solstisHandle.set_etalon_percent(val);
@@ -335,7 +317,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         function set.etalon_lock(obj,val)
             % Changing etalon lock changes resonator too
             if isnan(val); obj.etalon_lock = val; return; end % Short circuit on NaN
-            assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
+            assert(~isempty(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_ip')
             assert(islogical(val)||val==0||val==1,'Value must be true/false')
             if obj.internal_call; obj.etalon_lock = val; return; end
             if val
@@ -361,18 +343,6 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
             end
             
         end
-        function updateCalibration(obj,range)
-            for i = 1:length(range)
-                obj.TunePercent(range(i));
-                pause(0.1)
-                obj.updateStatus;
-                voltages(i) = obj.resonator_voltage;
-            end
-            ft = fittype( 'poly2' );
-            opts = fitoptions( 'Method', 'LinearLeastSquares' );
-            [fitresult, gof] = fit( voltages, range, ft, opts );
-            obj.resonatorVoltageToPercentCalibration = coeffvalues(fitresult);
-        end
         
         %PB methods
         function set.pb_ip(obj,ip)
@@ -395,7 +365,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
                 obj.source_on = obj.PulseBlaster.lines(obj.PBline);
             end
         end
-        
+
     end
 end
 

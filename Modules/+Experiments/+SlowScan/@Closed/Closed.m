@@ -6,9 +6,6 @@ classdef Closed < Experiments.SlowScan.SlowScan_invisible
     properties(SetObservable,AbortSet)
         freqs_THz = '470+linspace(-10,10,101)'; %eval(freqs_THz) will define freqs [scan_points]
     end
-    properties(Constant)
-        xlabel = 'Frequency (THz)';
-    end
 
     methods(Static)
         % Static instance method is how to call this experiment
@@ -32,11 +29,28 @@ classdef Closed < Experiments.SlowScan.SlowScan_invisible
             obj.resLaser.TuneSetpoint(obj.scan_points(freqIndex));
             s = BuildPulseSequence@Experiments.SlowScan.SlowScan_invisible(obj,freqIndex);
         end
-        function PreRun(obj,~,managers,ax)
+        function prep_plot(obj,ax)
             % Tune to first point in preparation
-            obj.resLaser.TuneCoarse(mean(obj.scan_points));
-            PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
+            obj.resLaser.TuneCoarse(obj.scan_points(1));
+            % plot signal
+            plotH = plot(ax,obj.scan_points,obj.data.meanCounts(:,1,1),'color','b');
+            % plot errors
+            plotH(2) = plot(ax,obj.scan_points,obj.data.meanCounts(:,1,1)+obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
+            plotH(3) = plot(ax,obj.scan_points,obj.data.meanCounts(:,1,1)-obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
+            
+            ylabel(ax,'Intensity');
+            xlabel(ax,'Frequency (THz)');
+            % Store for UpdateRun
+            ax.UserData.plots = plotH;
         end
+        function update_plot(obj,ax,ydata,std)
+            %grab handles to data from axes plotted in PreRun
+            ax.UserData.plots(1).YData = ydata(:,1);
+            ax.UserData.plots(2).YData = ydata(:,1) + std(:,1);
+            ax.UserData.plots(3).YData = ydata(:,1) - std(:,1);
+            drawnow limitrate;
+        end
+        
         function set.freqs_THz(obj,val)
             obj.scan_points = eval(val);
             obj.freqs_THz = val;

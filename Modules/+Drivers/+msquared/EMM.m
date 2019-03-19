@@ -27,15 +27,14 @@ classdef EMM < Modules.Driver
             if isempty(Objects)
                 Objects = Drivers.msquared.EMM.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(ip,Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
             obj = Drivers.msquared.EMM(ip);
-            obj.singleton_id = resolvedIP;
+            obj.singleton_id = ip;
             Objects(end+1) = obj;
         end
     end

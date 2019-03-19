@@ -2,15 +2,22 @@ classdef CollectionGalvos < Modules.Stage
     %GALVOS Summary of this class goes here
     %   Detailed explanation goes here
     
+    properties
+        calibration = [1 1 1];
+    end
+    
     properties(SetAccess=private)
         position
     end
+    
     properties(SetAccess=private,SetObservable)
         Moving = false;
     end
+    
     properties(SetAccess=immutable,Hidden)
         galvoDriver
     end
+    
     properties(Constant)
         xRange = [-3 3];
         yRange = [-3 3];

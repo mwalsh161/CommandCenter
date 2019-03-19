@@ -5,16 +5,21 @@ classdef Galvos < Modules.Stage
     properties
         use_z = true;
         prefs = {'use_z'}
+        calibration = [1 1 1];
     end
+    
     properties(SetAccess=private)
         position
     end
+    
     properties(SetAccess=private,SetObservable)
         Moving = false;
     end
+    
     properties(SetAccess=immutable,Hidden)
         galvoDriver
     end
+    
     properties(Constant)
         xRange = [-3 3];
         yRange = [-3 3];

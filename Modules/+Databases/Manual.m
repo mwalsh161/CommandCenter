@@ -52,10 +52,12 @@ classdef Manual < Modules.Database
         function SaveExp(obj,data,~,module,notes)
             exp = strrep(class(module),'.','_');
             [fname,path] = uiputfile('*.mat','Save Experiment Data As',fullfile(obj.ExpPath,[exp datestr(now,'yyyy_mm_dd_HH_MM_ss') '.mat']));
+            drawnow,pause(1)
             if fname
                 obj.ExpPath = path;
                 data.notes = notes;  % Add in notes string
                 save(fullfile(path,fname),'data','-v7.3')  % v7.3 flag compresses and allows huge files
+
             end
         end
         
