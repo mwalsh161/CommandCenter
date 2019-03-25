@@ -6,7 +6,6 @@ try
     message = [];
     obj.data = [];
     
-    
     %% set the control voltages
     modules = managers.Sources.modules;
     obj.ChipControl = obj.find_active_module(modules,'CMOS_Chip_Control');
@@ -17,11 +16,12 @@ try
     obj.RF = obj.find_active_module(modules,'CMOS_SG');
     freq_list = obj.determine_freq_list;
     obj.RF.MWFrequency = freq_list(1);
-    pause(5);
+    pause(5);% let SG warm up
     
     %% grab DAQ
-    obj.Ni = Drivers.NIDAQ.dev.instance(obj.deviceName);
     
+    obj.Ni = Drivers.NIDAQ.dev.instance(obj.deviceName);
+
     %% run ODMR experiment
     
     obj.data.raw_data = NaN(obj.number_points,obj.nAverages);
@@ -36,7 +36,7 @@ try
             
             pause(obj.waitSGSwitch)
             
-            obj.data.raw_data(freq,cur_nAverage) = obj.Ni.ReadAILine(obj.channelName);%Get voltage from DAQ channel
+            obj.data.raw_data(freq,cur_nAverage) = obj.Ni.ReadAILine(obj.channelName,[obj.MinVoltage,obj.MaxVoltage]);%Get voltage from DAQ channel
             
             obj.data.dataVector = nanmean(obj.data.raw_data,2);
             obj.data.dataVectorError = nanstd(obj.data.raw_data,0,2)./sqrt(cur_nAverage);

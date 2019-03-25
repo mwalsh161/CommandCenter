@@ -1,6 +1,9 @@
-classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
+classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
     
     properties
+        Pulseblaster
+        laser
+        Nsamples
         listeners
         data;
         abort_request = false;  % Request flag for abort
@@ -9,7 +12,9 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
         RF
         prefs = {'nAverages','start_freq','stop_freq','number_points',...
             'freq_step_size','waitSGSwitch','deviceName',...
-            'channelName','MinVoltage','MaxVoltage'}
+            'AnalogChannelName','DigitalChannelName','CounterSyncName',...
+            'MinVoltage','MaxVoltage','LaserOnTime','MWOnTime','DelayTime'...
+            'dummyTime','MWPulsed','DAQSamplingFrequency'}
     end
     
     properties(SetObservable)
@@ -20,13 +25,21 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
         freq_step_size = 1e6;
         waitSGSwitch = 1; %time to wait for SG to step in freq after triggering
         deviceName = 'dev1';
-        channelName = 'AI8';
+        AnalogChannelName = 'AI';
+        DigitalChannelName = 'DI';
+        CounterSyncName = 'CounterSync';
         MinVoltage = 0; %Volts
         MaxVoltage = 1; %Volts
+        LaserOnTime = 1000; %us
+        MWTime = 1000; %us
+        DelayTime = 1000; %us
+        dummyTime = 1; %us
+        MWPulsed = {'yes','no'}
+        DAQSamplingFrequency = 1/(0.9e-6);%in Hz
     end
     
     methods(Access=private)
-        function obj = ODMR_DAQ_NoPulsed()
+        function obj = ODMR_DAQ_Pulsed()
             obj.loadPrefs;
             obj.listeners = addlistener(obj,'start_freq','PostSet',@obj.update_freq_step);
             obj.listeners(end+1) = addlistener(obj,'stop_freq','PostSet',@obj.update_freq_step);
@@ -39,7 +52,7 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Experiments.CMOS.Off_Chip.ODMR.ODMR_DAQ_NoPulsed();
+                Object = Experiments.CMOS.Off_Chip.ODMR.ODMR_DAQ_Pulsed();
             end
             obj = Object;
         end
