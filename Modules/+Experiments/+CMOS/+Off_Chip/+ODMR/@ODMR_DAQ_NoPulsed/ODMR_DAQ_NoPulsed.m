@@ -8,7 +8,7 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
         ChipControl
         RF
         prefs = {'nAverages','start_freq','stop_freq','number_points',...
-            'freq_step_size','waitSGSwitch','deviceName',...
+            'normFreq','freq_step_size','waitSGSwitch','deviceName',...
             'channelName','MinVoltage','MaxVoltage'}
     end
     
@@ -17,6 +17,7 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
         start_freq = 2.84e9;
         stop_freq = 2.9e9;
         number_points = 61; %number of frequency points desired
+        normFreq = 2e9;
         freq_step_size = 1e6;
         waitSGSwitch = 1; %time to wait for SG to step in freq after triggering
         deviceName = 'dev1';
@@ -48,7 +49,10 @@ classdef ODMR_DAQ_NoPulsed < Experiments.CMOS.CMOS_invisible
     methods(Access=protected)
         
         function freq_list=determine_freq_list(obj)
-            freq_list = linspace(obj.start_freq,obj.stop_freq,obj.number_points);
+            freq_list1 = linspace(obj.start_freq,obj.stop_freq,obj.number_points);
+            freq_list = zeros(1,2*obj.number_points);
+            freq_list(1:2:end) = freq_list1;
+            freq_list(2:2:end) = obj.normFreq;
         end
         
         function module_handle = find_active_module(obj,modules,active_class_to_find)
