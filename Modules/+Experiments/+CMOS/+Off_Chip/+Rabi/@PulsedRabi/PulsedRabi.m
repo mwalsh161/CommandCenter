@@ -9,7 +9,8 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
         laser
         ChipControl
         prefs = {'CW_freq','nAverages','start_time','stop_time','number_points','time_step_size'...
-            'LaseronTime','deadTime','padding','dummyLine','deviceName','channelName'}    
+            'LaseronTime','deadTime','padding','dummyLine','deviceName','channelName','CounterSyncName'...
+            'MinVoltage','MaxVoltage','DAQSamplingFrequency'}    
     end
  
     properties(SetObservable)
@@ -24,7 +25,11 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
         deadTime = 100; %ns
         dummyLine = 10; %indexed from 1
         deviceName = 'dev1';
-        channelName = 'AI8';
+        channelName = 'AI';    
+        CounterSyncName = 'CounterSync';
+        MinVoltage = 0; %Volts
+        MaxVoltage = 1; %Volts
+        DAQSamplingFrequency = 1/(0.9e-6);%in Hz
     end
     
     properties(Constant)
@@ -148,10 +153,13 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
             data.RF.CW_freq = obj.CW_freq;
             
             data.ChipControl = obj.ChipControl;
-                        
+            
             data.DAQ.deviceName = obj.deviceName;
             data.DAQ.channelName = obj.channelName;
-            
+            data.DAQ.CounterSyncName = obj.CounterSyncName;
+            data.DAQ.MinVoltage = obj.MinVoltage;
+            data.DAQ.MaxVoltage = obj.MaxVoltage;
+            data.DAQ.DAQSamplingFrequency = obj.DAQSamplingFrequency;
             
         end
-end
+    end

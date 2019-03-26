@@ -22,7 +22,20 @@ try
     obj.RF.MWFrequency = obj.CW_freq;
     obj.RF.SGref.on; %turn on SG but not the switch
     pause(5);
-  
+    
+   %% grab DAQ
+    obj.Ni = Drivers.NIDAQ.dev.instance(obj.deviceName);
+    obj.Ni.ClearAllTasks; %if the DAQ had open tasks kill them
+    
+    obj.Nsamples = round((obj.LaserOnTime + obj.MWTime + obj.DelayTime + obj.dummyTime)*1e-6*(obj.DAQSamplingFrequency)*2) ;
+    
+    obj.Ni.ClearAllTasks;
+    t = obj.Ni.CreateTask('pulse');
+    t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
+    AI = obj.Ni.CreateTask('Analog In');
+%     AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
+    AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
+    
     %% start sequence
     time_list = obj.determine_time_list;
    [s,program] = obj.updatePulseSequence(time_list(1));
@@ -35,14 +48,27 @@ try
        
         for timeIndex = 1:obj.number_points
             
+            drawnow;
             assert(~obj.abort_request,'User aborted');
+            
+            obj.Ni.ClearAllTasks;
+            t = obj.Ni.CreateTask('pulse');
+            t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
+            AI = obj.Ni.CreateTask('Analog In');
+            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
             
             obj.pulseblaster.stop;
             obj.updatePulseSequence(time_list(timeIndex));
             obj.pulseblaster.start;
+            AI.Start;
+            t.Start;
+            AI.WaitUntilTaskDone;
+
             pause(obj.waitTime)
             
-            obj.data.raw_data(freq,cur_nAverage) = obj.Ni.ReadAILine(obj.channelName);%Get voltage from DAQ channel
+            a = AI.ReadVoltageIn(obj.Nsamples);
+
+            obj.data.raw_data(freq,cur_nAverage) = mean(a);%Get voltage from DAQ channel
 
             obj.data.dataVector = nanmean(obj.data.raw_data,2);
             obj.data.dataVectorError = nanstd(obj.data.raw_data,0,2)./sqrt(cur_nAverage);
