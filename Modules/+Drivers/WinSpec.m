@@ -22,7 +22,7 @@ classdef WinSpec < Modules.Driver
     properties(Hidden)
         prefs = {'grating','position','exposure','cal_local'};
     end
-    properties(SetAccess={?Base.Module},Hidden)
+    properties(Access={?Base.Module},Hidden) % Allow Base.Module for set/get prefs
         cal_local = struct('nm2THz',[],'gof',[],'datetime',[],'source',[],'expired',{}); %local-only calibration data for going from nm to THz
     end
     properties(SetAccess=private,Hidden)
@@ -290,7 +290,7 @@ classdef WinSpec < Modules.Driver
             %cal_local. This can be called with additional inputs
             %(laser,range,exposure,ax), in which case the user will be
             %prompted to calibrate now if the calibration is expired or
-            %does not exist.
+            %does not exist. Otherwise, it will error.
             if isempty(obj.cal_local)
                 % If called in savePref method, ignore and return default
                 st = dbstack;
