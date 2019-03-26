@@ -10,7 +10,7 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
         Ni   % NIDAQ
         ChipControl
         RF
-        prefs = {'nAverages','start_freq','stop_freq','number_points',...
+        prefs = {'nAverages','start_freq','stop_freq','number_points','normFreq'...
             'freq_step_size','waitSGSwitch','deviceName',...
             'AnalogChannelName','DigitalChannelName','CounterSyncName',...
             'MinVoltage','MaxVoltage','LaserOnTime','MWOnTime','DelayTime'...
@@ -22,6 +22,7 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
         start_freq = 2.84e9;
         stop_freq = 2.9e9;
         number_points = 61; %number of frequency points desired
+        normFreq = 2e9;
         freq_step_size = 1e6;
         waitSGSwitch = 1; %time to wait for SG to step in freq after triggering
         deviceName = 'dev1';
@@ -34,7 +35,7 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
         MWTime = 1000; %us
         DelayTime = 1000; %us
         dummyTime = 1; %us
-        MWPulsed = {'yes','no'}
+        MWPulsed = {'yes','no','off'}
         DAQSamplingFrequency = 1/(0.9e-6);%in Hz
     end
     
@@ -61,7 +62,10 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
     methods(Access=protected)
         
         function freq_list=determine_freq_list(obj)
-            freq_list = linspace(obj.start_freq,obj.stop_freq,obj.number_points);
+            freq_list1 = linspace(obj.start_freq,obj.stop_freq,obj.number_points);
+            freq_list = zeros(1,2*obj.number_points);
+            freq_list(1:2:end) = freq_list1;
+            freq_list(2:2:end) = obj.normFreq;
         end
         
         function module_handle = find_active_module(obj,modules,active_class_to_find)
@@ -145,7 +149,11 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
             data.data = obj.data;
             
             data.DAQ.deviceName = obj.deviceName;
-            data.DAQ.channelName = obj.channelName;
+            data.DAQ.AnalogChannelName = obj.AnalogChannelName;
+            data.DAQ.DigitalChannelName = obj.DigitalChannelName;
+            data.DAQ.CounterSyncName = obj.CounterSyncName;
+            data.DAQ.DAQSamplingFrequency = obj.DAQSamplingFrequency;
+
             data.DAQ.MinVoltage = obj.MinVoltage; %Volts
             data.DAQ.MaxVoltage = obj.MaxVoltage; %Volts
             
@@ -158,6 +166,12 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
             data.ChipControl.VDDCP = obj.ChipControl.VDDCP;
             data.ChipControl.VDDPLL = obj.ChipControl.VDDPLL;
             
+            data.PulseBlaster.LaserOnTime = obj.LaserOnTime;
+            data.PulseBlaster.MWTime = obj.MWTime;
+            data.PulseBlaster.DelayTime = obj.DelayTime;
+            data.PulseBlaster.dummyTime = obj.dummyTime;
+            data.PulseBlaster.MWPulsed = obj.MWPulsed;
+
         end
         
     end
