@@ -53,7 +53,7 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
             PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
         end  
         function set.percents(obj,val)
-            obj.scan_points = eval(val);
+            obj.scan_points = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
             obj.percents = val;
         end
     end

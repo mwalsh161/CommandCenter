@@ -97,7 +97,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.imaging_source.off;
 
             params = struct('freq_THz',{}); %structure of params beings assigned
-            specs = site.experiments(strcmpi([{site.experiments.name}],'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
+            specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
             for i=1:length(specs)
                 spec = specs(i); %grab ith spectrum experiment
                 if isempty(spec.data)
@@ -117,8 +117,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.experiments(2).resLaser.arm;
         end
         function params = Open2Closed(obj,site)
-            params = struct('scan_points',{}); %structure of params beings assigned
-            scans = site.experiments(strcmpi([{site.experiments.name}],'Experiments.SlowScan.Open')); %get all experiments named 'SlowScan_Open' associated with site
+            params = struct('freqs_THz',{}); %structure of params beings assigned
+            scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Open')); %get all experiments named 'SlowScan_Open' associated with site
             composite.freqs = [];
             composite.counts = [];
             for i=1:length(scans) %compile all scans
@@ -133,7 +133,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 scanfit = fitpeaks(composite.freqs',composite.counts','gauss');
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
                 for i=1:length(regions)
-                    params(end+1).scan_points = regions{i};
+                    params(end+1).freqs_THz = num2str(regions{i}); % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x)
                 end
             end
             obj.experiments(3).resLaser.arm;
