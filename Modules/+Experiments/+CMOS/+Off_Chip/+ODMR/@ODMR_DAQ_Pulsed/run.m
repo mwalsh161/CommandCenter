@@ -24,48 +24,20 @@ try
     obj.laser = obj.find_active_module(modules,'Green_532Laser');
     obj.laser.off;
     
-     %% get hw lines for different pieces of equipment(subtract 1 because PB is indexed from 0)
-    laser_hw = obj.laser.PBline-1;
-    MW_switch_hw = obj.RF.MW_switch_PB_line-1;
-    if strcmpi(obj.MWPulsed,'no')
-        dummy_hw = MW_switch_hw; %if you dont want to pulse the MW set it to the dummy 
-        MW_switch_hw = 10;
-    else
-        dummy_hw = 10;
-    end
-    %% setup pulseblaster
-    assert(~obj.abort_request,'User aborted');
-    obj.Pulseblaster = Drivers.PulseBlaster.Remote.instance(obj.RF.ip);
-       
-    % Make some channels
-    cLaser = channel('laser','color','g','hardware',laser_hw);
-    cMWswitch = channel('MWswitch','color','k','hardware',MW_switch_hw);
-    cDummy = channel('dummy','color','b','hardware',dummy_hw');
-    
     %% setup sequence
     
     [program,s] = obj.setupSequence; %setup pulseblaster sequence
 
     %% grab DAQ
+    assert(~obj.abort_request,'User aborted');
     obj.Ni = Drivers.NIDAQ.dev.instance(obj.deviceName);
     obj.Ni.ClearAllTasks; %if the DAQ had open tasks kill them
     
-    obj.Nsamples = round((obj.LaserOnTime + obj.MWTime + obj.DelayTime + obj.dummyTime)*1e-6*(obj.DAQSamplingFrequency)) ;
-    
-    obj.Ni.ClearAllTasks;
-    t = obj.Ni.CreateTask('pulse');
-    t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
-    AI = obj.Ni.CreateTask('Analog In');
-%     AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
-    AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
-    DI = obj.Ni.CreateTask('Digital In');
-    DI.ConfigureDigitalIn(obj.DigitalChannelName,t,obj.Nsamples);
     %% run ODMR experiment
-    
+    assert(~obj.abort_request,'User aborted');
     obj.data.raw_data = NaN(obj.number_points,obj.nAverages);
     obj.data.norm_data = obj.data.raw_data;
     timeDomain = (0:obj.Nsamples-1)/obj.DAQSamplingFrequency;
-    freq_list(2:2:end) = [];
     
     for cur_nAverage = 1:obj.nAverages
         for freq = 1:obj.number_points
@@ -75,64 +47,67 @@ try
             
             %% do data frequency
 
-            obj.RF.MWFrequency = freq_list(freq);
+            obj.RF.MWFrequency = freq_list(2*(freq-1) + 1);
            
             pause(obj.waitSGSwitch)
 
-            obj.Ni.ClearAllTasks;
             t = obj.Ni.CreateTask('pulse');
             t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
             AI = obj.Ni.CreateTask('Analog In');
-            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
+            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
             DI = obj.Ni.CreateTask('Digital In');
             DI.ConfigureDigitalIn(obj.DigitalChannelName,t,obj.Nsamples);
             
-           
-            obj.Pulseblaster.start;
             AI.Start;
             DI.Start;
             t.Start;
+            obj.Pulseblaster.start;
             AI.WaitUntilTaskDone;
-            
-            pause((obj.LaserOnTime + obj.MWTime + obj.DelayTime + obj.dummyTime)*1e-6)
-            
-            d = DI.ReadDigitalIn(obj.Nsamples);
-            a = AI.ReadVoltageIn(obj.Nsamples);
-            
             obj.Pulseblaster.stop;
-
-            obj.data.raw_data(freq,cur_nAverage) = mean(a);
             
-%             %% do normalization frequency
-%             
-%             obj.RF.MWFrequency = freq_list(freq + 1); 
-%             pause(obj.waitSGSwitch)
-%             
-%             obj.Ni.ClearAllTasks;
-%             t = obj.Ni.CreateTask('pulse');
-%             t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
-%             AI = obj.Ni.CreateTask('Analog In');
-%             AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
-%             DI = obj.Ni.CreateTask('Digital In');
-%             DI.ConfigureDigitalIn(obj.DigitalChannelName,t,obj.Nsamples);
-%             
-%             AI.Start;
-%             DI.Start;
-%             t.Start;
-%             AI.WaitUntilTaskDone;
-%             obj.Pulseblaster.start;
-%             
-%             d = DI.ReadDigitalIn(obj.Nsamples);
-%             a = AI.ReadVoltageIn(obj.Nsamples);
-%             
-%             obj.data.norm_data(freq,cur_nAverage) = mean(a);
-             obj.data.norm_data(freq,cur_nAverage) = 1;
+            a = AI.ReadVoltageIn(obj.Nsamples);
+            d = DI.ReadDigitalIn(obj.Nsamples);
+            
+            t.Clear;
+            DI.Clear;
+            AI.Clear;
+
+            obj.data.raw_data(freq,cur_nAverage) = sum(a(a<mean(a)));
+            
+            %% do normalization frequency
+             
+            obj.RF.MWFrequency = freq_list(2*(freq-1) + 2); 
+            pause(obj.waitSGSwitch)
+            
+            t = obj.Ni.CreateTask('pulse');
+            t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
+            AI = obj.Ni.CreateTask('Analog In');
+            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
+            DI = obj.Ni.CreateTask('Digital In');
+            DI.ConfigureDigitalIn(obj.DigitalChannelName,t,obj.Nsamples);
+            
+            AI.Start;
+            DI.Start;
+            t.Start;
+            obj.Pulseblaster.start;
+            AI.WaitUntilTaskDone;
+            obj.Pulseblaster.stop;
+            
+            a = AI.ReadVoltageIn(obj.Nsamples);
+            d = DI.ReadDigitalIn(obj.Nsamples);
+            
+            t.Clear;
+            DI.Clear;
+            AI.Clear;
+
+            obj.data.norm_data(freq,cur_nAverage) = sum(a(a<mean(a)));
+            
             %% do data analysis
 
             obj.data.dataVector = nanmean(obj.data.raw_data./obj.data.norm_data,2);
             obj.data.dataVectorError = nanstd(obj.data.raw_data./obj.data.norm_data,0,2)./sqrt(cur_nAverage);
             
-            errorbar(freq_list./1e9,obj.data.dataVector,obj.data.dataVectorError,'r*--','parent',ax)
+            errorbar(freq_list(1:2:end)./1e9,obj.data.dataVector,obj.data.dataVectorError,'r*--','parent',ax)
             ylabel(ax,'Voltage (V)')
             
             legend(ax,'Data')
@@ -140,7 +115,6 @@ try
             xlabel(ax,'Microwave Frequency (GHz)')
             title(ax,sprintf('Performing Average %i of %i and frequency %i of %i',cur_nAverage,obj.nAverages,freq,obj.number_points))
             
-            obj.Pulseblaster.stop;
         end
         
     end
@@ -148,9 +122,6 @@ try
 catch message
 end
 %% cleanup
-t.Clear;
-DI.Clear;
-AI.Clear;
 obj.laser.off;
      
             

@@ -29,23 +29,24 @@ function [program,s] = setupSequence(obj)
     s = sequence('Pulsed_Freq_Sweep_sequence');
     s.channelOrder = [cLaser,cMWswitch,cDummy];
     
-    nloop = node(s.StartNode,'Loop the number of samples for averaging','type','start','delta',0,'units','us');
 
      %dummy line
      
     n_dummy = node(s.StartNode,cDummy,'delta',0,'units','us');
-    n_dummy = node(n_dummy,cDummy,'delta',obj.LaserOnTime + obj.MWTime + obj.DelayTime + 2*obj.dummyTime,'units','us');
+    n_dummy = node(n_dummy,cDummy,'delta',obj.LaserOnTime + obj.MWOnTime + obj.DelayTime + 2*obj.dummyTime,'units','us');
     
     % MW gate duration
     n_MW = node(s.StartNode,cMWswitch,'delta',obj.dummyTime,'units','us');
-    n_MW_on = node(n_MW,cMWswitch,'delta',obj.MWTime,'units','us');
+    n_MW_on = node(n_MW,cMWswitch,'delta',obj.MWOnTime,'units','us');
     
     % Laser duration
     n_LaserStart = node(n_MW_on,cLaser,'delta',obj.DelayTime,'units','us');
     n_LaserEnd = node(n_LaserStart,cLaser,'delta',obj.LaserOnTime,'units','us');
      
-    nloop = node(n_LaserEnd,1000,'type','end','delta',0,'units','us');
-    s.repeat = 10000;
+    %% determine number of repeats
+    repeats = round(obj.IntegrationTime./(obj.LaserOnTime*1e-6));
+    
+    s.repeat = repeats;
     
     %%
     [program,~] = s.compile;

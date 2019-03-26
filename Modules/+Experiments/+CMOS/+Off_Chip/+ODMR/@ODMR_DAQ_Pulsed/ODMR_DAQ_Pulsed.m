@@ -3,7 +3,6 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
     properties
         Pulseblaster
         laser
-        Nsamples
         listeners
         data;
         abort_request = false;  % Request flag for abort
@@ -14,7 +13,7 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
             'freq_step_size','waitSGSwitch','deviceName',...
             'AnalogChannelName','DigitalChannelName','CounterSyncName',...
             'MinVoltage','MaxVoltage','LaserOnTime','MWOnTime','DelayTime'...
-            'dummyTime','MWPulsed','DAQSamplingFrequency'}
+            'dummyTime','MWPulsed','DAQSamplingFrequency','Nsamples','IntegrationTime'}
     end
     
     properties(SetObservable)
@@ -32,11 +31,13 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
         MinVoltage = 0; %Volts
         MaxVoltage = 1; %Volts
         LaserOnTime = 1000; %us
-        MWTime = 1000; %us
+        MWOnTime = 1000; %us
         DelayTime = 1000; %us
         dummyTime = 1; %us
         MWPulsed = {'yes','no','off'}
         DAQSamplingFrequency = 1/(0.9e-6);%in Hz
+        Nsamples = 1e6;
+        IntegrationTime = 1; %seconds
     end
     
     methods(Access=private)
@@ -153,6 +154,7 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
             data.DAQ.DigitalChannelName = obj.DigitalChannelName;
             data.DAQ.CounterSyncName = obj.CounterSyncName;
             data.DAQ.DAQSamplingFrequency = obj.DAQSamplingFrequency;
+            data.DAQ.Nsamples = obj.Nsamples;
 
             data.DAQ.MinVoltage = obj.MinVoltage; %Volts
             data.DAQ.MaxVoltage = obj.MaxVoltage; %Volts
@@ -167,10 +169,11 @@ classdef ODMR_DAQ_Pulsed < Experiments.CMOS.CMOS_invisible
             data.ChipControl.VDDPLL = obj.ChipControl.VDDPLL;
             
             data.PulseBlaster.LaserOnTime = obj.LaserOnTime;
-            data.PulseBlaster.MWTime = obj.MWTime;
+            data.PulseBlaster.MWTime = obj.MWOnTime;
             data.PulseBlaster.DelayTime = obj.DelayTime;
             data.PulseBlaster.dummyTime = obj.dummyTime;
             data.PulseBlaster.MWPulsed = obj.MWPulsed;
+            data.PulseBlaster.IntegrationTime = obj.IntegrationTime;
 
         end
         
