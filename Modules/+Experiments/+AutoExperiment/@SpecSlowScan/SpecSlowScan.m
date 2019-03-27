@@ -133,7 +133,9 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss');
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
                 for i=1:length(regions)
-                    params(end+1).freqs_THz = num2str(regions{i}); % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x)
+                    % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x).
+                    % Same precision as wavemeter driver: 0.1 MHz
+                    params(end+1).freqs_THz = num2str(regions{i},7);
                 end
             end
             obj.experiments(3).resLaser.arm;
