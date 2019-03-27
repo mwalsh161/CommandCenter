@@ -21,7 +21,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
-%           "empirical" (default): uses the std of the residuals for all values
+%           "empirical" (default): uses the variance of the residuals for all values
 %           "shot": use val for each val in y
 % Outputs (each field is Mx1, M being number of peaks fit):
 %   vals: struct with "locations", "amplitudes", "widths", "SNRs" of fit results
@@ -201,7 +201,7 @@ assert(isequal(size(noise),size(y)),'Noise model function returned a matrix of s
 end
 function noise = empirical_noise(~,observed_y,modeled_y)
     residuals = observed_y - modeled_y;
-    noise = std(residuals)*ones(size(residuals));
+    noise = std(residuals)^2*ones(size(residuals));
 end
 function noise = shot_noise(~,~,modeled_y)
     noise = modeled_y;
