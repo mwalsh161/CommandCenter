@@ -8,14 +8,13 @@ try
     
     %% set the control voltages
     modules = managers.Sources.modules;
-    obj.ChipControl = obj.find_active_module(modules,'CMOS_Chip_Control');
-    %turn on all control channels
+    obj.ChipControl = obj.find_active_module(modules,'CMOS_Chip_Control'); %channels should be on
     
     %% setup SG
     assert(~obj.abort_request,'User aborted');
     obj.RF = obj.find_active_module(modules,'CMOS_SG');
     freq_list = obj.determine_freq_list;
-    obj.RF.MWFrequency = freq_list(1);
+    obj.RF.MWFrequency = freq_list(1);%SG should be on already
     pause(5);% let SG warm up
     
     %% grab Laser Handle
