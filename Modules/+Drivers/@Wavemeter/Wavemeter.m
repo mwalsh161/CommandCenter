@@ -209,7 +209,7 @@ classdef Wavemeter < Modules.Driver
             if ~obj.getDeviationChannel
                 warning('DAC Channel currently disabled. Use setDeviationChannel(true) to turn on.')
             end
-            obj.com('SetPIDCourseNum',obj.channel,num2str(val,7)); %set with 0.1 MHz precision
+            obj.com('SetPIDCourseNum',obj.channel,num2str(val,'%0.7f')); %set with 0.1 MHz precision
         end
         function units = getPIDunits(obj)
             unit_types = {'nm','nm_air','THz','1/cm','eV'};

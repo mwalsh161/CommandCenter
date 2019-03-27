@@ -135,7 +135,13 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 for i=1:length(regions)
                     % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x).
                     % Same precision as wavemeter driver: 0.1 MHz
-                    params(end+1).freqs_THz = num2str(regions{i},7);
+                    vals = num2str(regions{i},'%0.7f ');
+                    test = str2num(vals); % Truncated precision
+                    vals = num2str(unique(test),'%0.7f '); % Remove duplicates caused by truncated precision
+                    if length(test)~=length(vals)
+                        warning('7 digit precision in freqs_THz caused removal of duplicate points');
+                    end
+                    params(end+1).freqs_THz = vals;
                 end
             end
             obj.experiments(3).resLaser.arm;

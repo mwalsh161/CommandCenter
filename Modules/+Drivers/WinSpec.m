@@ -242,6 +242,7 @@ classdef WinSpec < Modules.Driver
             N = uint8(out(1)); pos = out(2); exp = out(3);
         end
         function calibrate(obj,laser,range,exposure,ax) %when fed a tunable laser, will sweep the laser's range to calibrate itself, outputting a calibration function
+            assert(~isempty(laser),'No laser supplied to Winspec calibration');
             assert(isvalid(laser),'Invalid laser handle passed to Winspec calibration')
             assert(isnumeric(range) && length(range)==2,'Laser range for calibration should be array [min,max] in units of THz')
             f = [];
