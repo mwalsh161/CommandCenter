@@ -5,6 +5,7 @@ laser_hw = obj.laser.PBline-1;
 MW_switch_hw = obj.RF.MW_switch_PB_line-1;
 photodiode_hw = obj.Photodiode.PBline-1;
 
+
 %% setup pulseblaster
 
 assert(~obj.abort_request,'User aborted');
