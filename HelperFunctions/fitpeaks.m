@@ -7,7 +7,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   y: vector of y values Nx1
 %   [FitType]: "gauss" or "lorentz" (default "gauss")
 %   [Span]: The span of the moving average used to calculate "init" (default 5)
-%   [Width]: Width limits to impose on the fitted peak properties.
+%   [Width]: FWHM width limits to impose on the fitted peak properties.
 %       Default [3.*min(diff(x)), (max(x)-min(x))] (min FWHM of 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
