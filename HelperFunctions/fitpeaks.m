@@ -95,10 +95,11 @@ init.locs = init.locs(I);
 init.wids = init.wids(I);
 
 fit_results = {[]};
-% Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is mean(y))
-se = (y-mean(y)).^2; % square error
+% Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
+f = median(y);
+se = (y-f).^2; % square error
 dfe = length(y) - 1; % degrees of freedom
-noise = noise_model(x,y,mean(y),p.NoiseModel);
+noise = noise_model(x,y,f,p.NoiseModel);
 gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
               'rmse',sqrt(mean(se)),'rsquare',NaN,'adjrsquare',NaN); % can't calculate rsquared for flat line
 stop_condition = NaN;
