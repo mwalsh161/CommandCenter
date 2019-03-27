@@ -22,6 +22,9 @@ classdef Verdi_invisible < handle
         function delete(obj)
             obj.inactive;
         end
+        function arm(obj)
+            obj.enabled = true;
+        end
         function task = inactive(obj)
             task = '';
             if ~isempty(obj.Secret_Key_path)

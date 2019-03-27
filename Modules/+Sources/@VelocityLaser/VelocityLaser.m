@@ -229,6 +229,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~obj.diode_on
                 obj.diode_on = true;
             end
+            if ~obj.wavemeter_active
+                obj.wavemeter_active = true;
+            end
         end
         function blackout(obj)
             if obj.diode_on

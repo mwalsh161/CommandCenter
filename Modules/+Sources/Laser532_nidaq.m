@@ -42,6 +42,9 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
         function tasks = inactive(obj)
             tasks = inactive@Sources.Verdi_invisible(obj);
         end
+        function arm(obj)
+            arm@Sources.Verdi_invisible(obj);
+        end
         function delete(obj)
             delete(obj.listeners)
         end
