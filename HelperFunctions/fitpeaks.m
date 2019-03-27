@@ -21,7 +21,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
-%           "imperical" (default): uses the std of the residuals for all values
+%           "empirical" (default): uses the std of the residuals for all values
 %           "shot": use val for each val in y
 % Outputs (each field is Mx1, M being number of peaks fit):
 %   vals: struct with "locations", "amplitudes", "widths", "SNRs" of fit results
@@ -66,7 +66,7 @@ addParameter(p,'Width',[3*dx, (max(x)-min(x))],validLimit);
 addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
-addParameter(p,'NoiseModel','imperical');
+addParameter(p,'NoiseModel','empirical');
 parse(p,x,y,varargin{:});
 p = p.Results;
 % Further validation
@@ -82,8 +82,8 @@ if ~isa(p.NoiseModel,'function_handle')
     switch lower(p.NoiseModel)
         case 'shot'
             p.NoiseModel = @shot_noise;
-        case 'imperical'
-            p.NoiseModel = @imperical_noise;
+        case 'empirical'
+            p.NoiseModel = @empirical_noise;
     end
 end
 
@@ -199,7 +199,7 @@ function noise = noise_model(x,y,modeled_y,fn)
 noise = fn(x,y,modeled_y);
 assert(isequal(size(noise),size(y)),'Noise model function returned a matrix of size: ');
 end
-function noise = imperical_noise(~,observed_y,modeled_y)
+function noise = empirical_noise(~,observed_y,modeled_y)
     residuals = observed_y - modeled_y;
     noise = std(residuals)*ones(size(residuals));
 end
