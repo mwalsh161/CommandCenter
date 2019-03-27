@@ -7,10 +7,10 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   y: vector of y values Nx1
 %   [FitType]: "gauss" or "lorentz" (default "gauss")
 %   [Span]: The span of the moving average used to calculate "init" (default 5)
-%   [UserLimits]: Any limits to impose on the fitted peak properties. Should be a
-%       struct with any combination of fields (each an array of [min max]):
-%       amplitudes: default [0, Inf]
-%       widths: default [3.*min(diff(x)), (max(x)-min(x))] (min FWHM of 3 points)
+%   [Width]: Width limits to impose on the fitted peak properties.
+%       Default [3.*min(diff(x)), (max(x)-min(x))] (min FWHM of 3 points)
+%   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
+%       Default: [0, Inf].
 %   [ConfLevel]: confidence interval level (default 0.95)
 %   [StopMetric]: a string indicating what metric to check for stopping options (case insensiive):
 %       r: only use rsquared (this means there can't be a test for no peaks
@@ -48,12 +48,22 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 % NOTE: Meaning of widths will depend on lorentz (FWHM) or gauss (sigma)
 
 p = inputParser;
-validNumericArray = @(x) isnumeric(x) && ismatrix(x) && size(x,2)==1;
-addRequired(p,'x',validNumericArray)
-addRequired(p,'y',validNumericArray)
+validNumericArray = @(x) isnumeric(x) && ismatrix(x);
+validColumnArray = @(x) size(x,2)==1;
+validLimit = @(x)assert(validNumericArray(x)&&length(x)==2,...
+                 'Limit should be numeric array with [lower,upper]');
+addRequired(p,'x',@(x)validNumericArray(x)&&validColumnArray(x))
+addRequired(p,'y',@(x)validNumericArray(x)&&validColumnArray(x))
+parse(p,x,y);
+% Order data
+[x,I] = sort(x);
+y = y(I);
+dx = min(diff(x));
+
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
-addParameter(p,'UserLimits',struct(),@isstruct);
+addParameter(p,'Width',[3*dx, (max(x)-min(x))],validLimit);
+addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
 addParameter(p,'NoiseModel','imperical');
@@ -61,26 +71,15 @@ parse(p,x,y,varargin{:});
 p = p.Results;
 % Further validation
 assert(length(x)==length(y),'x and y must be same length');
-% Order data
-[x,I] = sort(x);
-y = y(I);
-dx = min(diff(x));
-p.StopMetric = lower(p.StopMetric); % Case insensitive
-% Grab in p.UserLimits supplied and assign to limits
-limits.amplitudes = [0, Inf];
-limits.widths = [3*dx, (max(x)-min(x))];
-if isfield(p.UserLimits,'amplitudes')
-    assert(length(p.UserLimits.amplitudes)==2,'Amplitudes should be array with [lower,upper]')
-    limits.amplitudes = p.UserLimits.amplitudes;
-end
-if isfield(p.UserLimits,'widths')
-    assert(length(p.UserLimits.widths)==2,'Widths should be array with [lower,upper]')
-    limits.widths = p.UserLimits.widths;
-end
-p.FitType = lower(p.FitType); % Case insensitive
+% Case insensitive stuff
+p.StopMetric = lower(p.StopMetric);
+p.FitType = lower(p.FitType);
+% Setup limits struct
+limits.amplitudes = p.Amplitude;
+limits.widths = p.Width;
+% Setup noise model if string specified
 if ~isa(p.NoiseModel,'function_handle')
-    p.NoiseModel = validatestring(p.NoiseModel,{'shot','imperical'});
-    switch p.NoiseModel
+    switch lower(p.NoiseModel)
         case 'shot'
             p.NoiseModel = @shot_noise;
         case 'imperical'
