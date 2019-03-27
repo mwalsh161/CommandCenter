@@ -8,7 +8,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [FitType]: "gauss" or "lorentz" (default "gauss")
 %   [Span]: The span of the moving average used to calculate "init" (default 5)
 %   [Width]: FWHM width limits to impose on the fitted peak properties.
-%       Default [3.*min(diff(x)), (max(x)-min(x))] (min FWHM of 3 points)
+%       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
 %   [ConfLevel]: confidence interval level (default 0.95)
@@ -62,7 +62,7 @@ dx = min(diff(x));
 
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
-addParameter(p,'Width',[3*dx, (max(x)-min(x))],validLimit);
+addParameter(p,'Width',[2*dx, (max(x)-min(x))],validLimit);
 addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
