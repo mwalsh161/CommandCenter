@@ -62,7 +62,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
             f = figure;
             ax_temp = axes('parent',f);
             imH = imagesc(sites.image.ROI(1,:),sites.image.ROI(2,:),sites.image.image,'parent',ax_temp);
-            colormap(ax_temp,'bone');
+            colormap(ax_temp,managers.Imaging.set_colormap);
             set(ax_temp,'ydir','normal')
             axis(ax_temp,'image') 
             switch site_selection
