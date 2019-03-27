@@ -20,30 +20,23 @@ try
     assert(~obj.abort_request,'User aborted');
     obj.RF = obj.find_active_module(modules,'CMOS_SG');
     obj.RF.MWFrequency = obj.CW_freq;
-    obj.RF.SGref.on; %turn on SG but not the switch
     pause(5);
     
-   %% grab DAQ
+    %% grab DAQ
+    assert(~obj.abort_request,'User aborted');
     obj.Ni = Drivers.NIDAQ.dev.instance(obj.deviceName);
     obj.Ni.ClearAllTasks; %if the DAQ had open tasks kill them
     
-    obj.Nsamples = round((obj.LaserOnTime + obj.MWTime + obj.DelayTime + obj.dummyTime)*1e-6*(obj.DAQSamplingFrequency)*2) ;
-    
-    obj.Ni.ClearAllTasks;
-    t = obj.Ni.CreateTask('pulse');
-    t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
-    AI = obj.Ni.CreateTask('Analog In');
-%     AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
-    AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
-    
-    %% start sequence
+    %% start get time list
     time_list = obj.determine_time_list;
-   [s,program] = obj.updatePulseSequence(time_list(1));
    
     %% run ODMR experiment
+    assert(~obj.abort_request,'User aborted');
     
     obj.data.raw_data = NaN(obj.number_points,obj.nAverages);
-    
+    obj.data.norm_data = obj.data.raw_data;
+    timeDomain = (0:obj.Nsamples-1)/obj.DAQSamplingFrequency;
+        
     for cur_nAverage = 1:obj.nAverages
        
         for timeIndex = 1:obj.number_points
@@ -51,40 +44,62 @@ try
             drawnow;
             assert(~obj.abort_request,'User aborted');
             
-            obj.Ni.ClearAllTasks;
+            %% data
+            
+            [s,program] = obj.updatePulseSequence(time_list(timeIndex),true); %this steps the MW time on and loads sequence into pulseblaster
+            
             t = obj.Ni.CreateTask('pulse');
             t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
             AI = obj.Ni.CreateTask('Analog In');
-            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples);
-            
-            obj.pulseblaster.stop;
-            obj.updatePulseSequence(time_list(timeIndex));
-            obj.pulseblaster.start;
-            AI.Start;
+            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
+          
+            AI.Start;%start DAQ first
             t.Start;
-            AI.WaitUntilTaskDone;
-
-            pause(obj.waitTime)
+            obj.pulseblaster.start;
+            AI.WaitUntilTaskDone;%holding action till DAQ has correct number of samples
+            obj.pulseblaster.stop;
             
-            a = AI.ReadVoltageIn(obj.Nsamples);
+            a = AI.ReadVoltageIn(obj.Nsamples);%read out DAQ channel
+            
+            %clear tasks from DAQ
+            t.Clear;
+            AI.Clear;
+            
+            obj.data.raw_data(timeIndex,cur_nAverage) = sum(a(a<mean(a)));
+            
+            %% normalization
+            
+            [s,program] = obj.updatePulseSequence(time_list(timeIndex),false); %this turns off the MW for normalization but keeps the sequence the same otherwise
 
-            obj.data.raw_data(freq,cur_nAverage) = mean(a);%Get voltage from DAQ channel
-
-            obj.data.dataVector = nanmean(obj.data.raw_data,2);
-            obj.data.dataVectorError = nanstd(obj.data.raw_data,0,2)./sqrt(cur_nAverage);
+            t = obj.Ni.CreateTask('pulse');
+            t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
+            AI = obj.Ni.CreateTask('Analog In');
+            AI.ConfigureVoltageIn(obj.AnalogChannelName,t,obj.Nsamples,[obj.MinVoltage,obj.MaxVoltage]);
+          
+            AI.Start;%start DAQ first
+            t.Start;
+            obj.pulseblaster.start;
+            AI.WaitUntilTaskDone; %holding action till DAQ has correct number of samples
+            obj.pulseblaster.stop;
+            
+            a = AI.ReadVoltageIn(obj.Nsamples); %read out DAQ channel
+            
+            %clear tasks from DAQ
+            t.Clear;
+            AI.Clear;
+            
+            obj.data.norm_data(timeIndex,cur_nAverage) = sum(a(a<mean(a)));
+            
+            %% data analysis
+            
+            obj.data.dataVector = nanmean(obj.data.raw_data./obj.data.norm_data,2);
+            obj.data.dataVectorError = nanstd(obj.data.raw_data./obj.data.norm_data,0,2)./sqrt(cur_nAverage);
            
             plot(time_list,obj.data.dataVector,'r*--','parent',ax)
             hold(ax,'on')
             plot(time_list(timeIndex),obj.data.dataVector(timeIndex),'b*','MarkerSize',10,'parent',ax)
             hold(ax,'off')
-            switch obj.Mode
-                case 'voltage'
-                    ylabel(ax,'Voltage (V)')
-                case 'current'
-                    ylabel(ax,'Current (A)')
-                otherwise
-                    error('Unknown Mode')
-            end
+            ylabel(ax,'Voltage (V)')
             legend(ax,'Data')
             xlim(ax,time_list([1,end]));
             xlabel(ax,'Time (ns)')
@@ -95,10 +110,10 @@ try
     
 catch message
 end
+
 %% cleanup
-obj.pulseblaster.stop;
 obj.laser.off;
-delete(obj.listeners);
+
 %%
 if ~isempty(message)
     rethrow(message)

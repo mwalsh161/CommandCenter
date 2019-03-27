@@ -1,6 +1,7 @@
 classdef PulsedRabi < Experiments.CMOS.CMOS_invisible 
     
     properties
+        Ni
         pulseblaster
         listeners
         RF
@@ -9,8 +10,8 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
         laser
         ChipControl
         prefs = {'CW_freq','nAverages','start_time','stop_time','number_points','time_step_size'...
-            'LaseronTime','deadTime','padding','dummyLine','deviceName','channelName','CounterSyncName'...
-            'MinVoltage','MaxVoltage','DAQSamplingFrequency'}    
+            'LaseronTime','deadTime','padding','dummyLine','deviceName','AnalogChannelName','CounterSyncName'...
+            'MinVoltage','MaxVoltage','DAQSamplingFrequency','Nsamples','IntegrationTime','MWDummy'}    
     end
  
     properties(SetObservable)
@@ -25,11 +26,14 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
         deadTime = 100; %ns
         dummyLine = 10; %indexed from 1
         deviceName = 'dev1';
-        channelName = 'AI';    
+        AnalogChannelName = 'AI';    
         CounterSyncName = 'CounterSync';
         MinVoltage = 0; %Volts
         MaxVoltage = 1; %Volts
         DAQSamplingFrequency = 1/(0.9e-6);%in Hz
+        Nsamples = 1e6; %
+        IntegrationTime = 0.1; %seconds
+        MWDummy = 13;
     end
     
     properties(Constant)
@@ -140,7 +144,6 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
             data = [];
             
             data.averages = obj.nAverages;
-            data.waitTime = obj.waitTime;
             
             data.data = obj.data;
             
@@ -149,17 +152,21 @@ classdef PulsedRabi < Experiments.CMOS.CMOS_invisible
             data.pulseblaster.padding = obj.padding;
             data.pulseblaster.dummyLine = obj.dummyLine;
             data.pulseblaster.LaseronTime = obj.LaseronTime;
-            
+            data.pulseblaster.IntegrationTime = obj.IntegrationTime;
+            data.pulseblaster.MWDummy = obj.MWDummy;
+
             data.RF.CW_freq = obj.CW_freq;
             
             data.ChipControl = obj.ChipControl;
             
             data.DAQ.deviceName = obj.deviceName;
-            data.DAQ.channelName = obj.channelName;
+            data.DAQ.channelName = obj.AnalogChannelName;
             data.DAQ.CounterSyncName = obj.CounterSyncName;
             data.DAQ.MinVoltage = obj.MinVoltage;
             data.DAQ.MaxVoltage = obj.MaxVoltage;
             data.DAQ.DAQSamplingFrequency = obj.DAQSamplingFrequency;
-            
+            data.DAQ.Nsamples = obj.Nsamples;
+
         end
     end
+end
