@@ -12,7 +12,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
 %   [ConfLevel]: confidence interval level (default 0.95)
-%   [StopMetric]: a string indicating what metric to check for stopping options (case insensiive):
+%   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
 %       r: only use rsquared (this means there can't be a test for no peaks
 %       chi: only use chisquared (assuming poisson noise)
 %       rANDchi (default): use both rsquared or chisquared at every step
