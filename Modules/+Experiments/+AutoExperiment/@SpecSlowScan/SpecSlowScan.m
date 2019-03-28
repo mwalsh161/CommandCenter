@@ -138,7 +138,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                     vals = num2str(regions{i},'%0.7f ');
                     test = str2num(vals); % Truncated precision
                     vals = num2str(unique(test),'%0.7f '); % Remove duplicates caused by truncated precision
-                    if length(test)~=length(vals)
+                    if length(test)~=length(regions{i})
                         warning('7 digit precision in freqs_THz caused removal of duplicate points');
                     end
                     params(end+1).freqs_THz = vals;
