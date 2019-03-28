@@ -7,12 +7,12 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   y: vector of y values Nx1
 %   [FitType]: "gauss" or "lorentz" (default "gauss")
 %   [Span]: The span of the moving average used to calculate "init" (default 5)
-%   [Width]: Width limits to impose on the fitted peak properties.
-%       Default [3.*min(diff(x)), (max(x)-min(x))] (min FWHM of 3 points)
+%   [Width]: FWHM width limits to impose on the fitted peak properties.
+%       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
 %   [ConfLevel]: confidence interval level (default 0.95)
-%   [StopMetric]: a string indicating what metric to check for stopping options (case insensiive):
+%   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
 %       r: only use rsquared (this means there can't be a test for no peaks
 %       chi: only use chisquared (assuming poisson noise)
 %       rANDchi (default): use both rsquared or chisquared at every step
@@ -21,7 +21,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
-%           "imperical" (default): uses the std of the residuals for all values
+%           "empirical" (default): uses the variance of the residuals for all values
 %           "shot": use val for each val in y
 % Outputs (each field is Mx1, M being number of peaks fit):
 %   vals: struct with "locations", "amplitudes", "widths", "SNRs" of fit results
@@ -68,11 +68,11 @@ assert(dx>0,'dx calculated to be <= 0');
 
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
-addParameter(p,'Width',[3*dx, (max(x)-min(x))],validLimit);
+addParameter(p,'Width',[2*dx, (max(x)-min(x))],validLimit);
 addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
-addParameter(p,'NoiseModel','imperical');
+addParameter(p,'NoiseModel','empirical');
 parse(p,x,y,varargin{:});
 p = p.Results;
 % Further validation
@@ -88,8 +88,8 @@ if ~isa(p.NoiseModel,'function_handle')
     switch lower(p.NoiseModel)
         case 'shot'
             p.NoiseModel = @shot_noise;
-        case 'imperical'
-            p.NoiseModel = @imperical_noise;
+        case 'empirical'
+            p.NoiseModel = @empirical_noise;
     end
 end
 
@@ -99,10 +99,11 @@ init.locs = init.locs(I);
 init.wids = init.wids(I);
 
 fit_results = {[]};
-% Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is mean(y))
-se = (y-mean(y)).^2; % square error
+% Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
+f = median(y);
+se = (y-f).^2; % square error
 dfe = length(y) - 1; % degrees of freedom
-noise = noise_model(x,y,mean(y),p.NoiseModel);
+noise = noise_model(x,y,f,p.NoiseModel);
 gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
               'rmse',sqrt(mean(se)),'rsquare',NaN,'adjrsquare',NaN); % can't calculate rsquared for flat line
 stop_condition = NaN;
@@ -203,9 +204,9 @@ function noise = noise_model(x,y,modeled_y,fn)
 noise = fn(x,y,modeled_y);
 assert(isequal(size(noise),size(y)),'Noise model function returned a matrix of size: ');
 end
-function noise = imperical_noise(~,observed_y,modeled_y)
+function noise = empirical_noise(~,observed_y,modeled_y)
     residuals = observed_y - modeled_y;
-    noise = std(residuals)*ones(size(residuals));
+    noise = std(residuals)^2*ones(size(residuals));
 end
 function noise = shot_noise(~,~,modeled_y)
     noise = modeled_y;
