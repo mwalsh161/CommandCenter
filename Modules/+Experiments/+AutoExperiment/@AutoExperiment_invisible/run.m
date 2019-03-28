@@ -26,9 +26,10 @@ if obj.imaging_source.source_on
 end
 obj.data.image.image = sites.image;
 obj.data.image.meta = sites.meta;
-for i=1:size(sites.positions,1)
-    obj.data.sites(i).position = sites.positions(i,:);
-    obj.data.sites(i).experiments = [];
+sites = rmfield(sites,{'image','meta'});
+obj.data.sites = sites;
+for i = 1:length(sites)
+    obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{});
 end
 
 %set up looping if breadth or depth
@@ -57,12 +58,32 @@ try
                     obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                 end
                 experiment = obj.experiments(exp_index); %grab experiment instance
+                mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
+                if any(mask) && all([obj.data.sites(site_index).experiments(mask).completed]) && ~any([obj.data.sites(site_index).experiments(mask).skipped])
+                    continue % Means this was completed already and we can move on
+                end
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
                 else
                     params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
                 end
+                if ~isempty(params)
+                    for j = 1:length(params)
+                        obj.data.sites(site_index).experiments(end+1).name = class(experiment);
+                        obj.data.sites(site_index).experiments(end).prefs = struct();
+                        obj.data.sites(site_index).experiments(end).err = [];
+                        obj.data.sites(site_index).experiments(end).completed = false;
+                        obj.data.sites(site_index).experiments(end).skipped = false;
+                    end
+                else
+                    obj.data.sites(site_index).experiments(end+1).name = class(experiment);
+                    obj.data.sites(site_index).experiments(end).prefs = struct();
+                    obj.data.sites(site_index).experiments(end).err = [];
+                    obj.data.sites(site_index).experiments(end).completed = true;
+                    obj.data.sites(site_index).experiments(end).skipped = true;
+                end
                 for j=1:length(params)
+                    local_exp_index = length(obj.data.sites(site_index).experiments)-length(params)+j; % So sorry
                     try
                         fields = fieldnames(params(j)); %grab list of parameter names
                         for k = 1:length(fields) %write all parameters to experiment
@@ -75,11 +96,10 @@ try
                         obj.logger.log(msg,obj.logger.DEBUG)
                         status.String = msg;
                         drawnow;
-                        obj.data.sites(site_index).experiments(end+1).name = class(experiment);
-                        obj.data.sites(site_index).experiments(end).prefs = experiment.prefs2struct;
-                        obj.data.sites(site_index).experiments(end).err = [];
+                        obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
                         RunExperiment(obj,managers,experiment,site_index,ax)
-                        obj.data.sites(site_index).experiments(end).data = experiment.GetData;
+                        obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
+                        obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
                         %track
@@ -95,7 +115,7 @@ try
                             end
                         end
                     catch param_err
-                        obj.data.sites(site_index).experiments(end).err = param_err;
+                        obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
                         obj.meta.errs(end+1).site = site_index;
                         obj.meta.errs(end).exp = exp_index;
                         obj.meta.errs(end).err = param_err;
