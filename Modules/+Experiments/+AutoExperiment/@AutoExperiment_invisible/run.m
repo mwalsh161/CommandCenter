@@ -71,7 +71,7 @@ try
                             experiment.(fields{k}) = params(j).(fields{k});
                         end
                         msg = sprintf('Running iteration %i of %s on site %i',j,class(experiment),site_index);
-                        obj.logger.log(msg)
+                        obj.logger.log(msg,obj.logger.DEBUG)
                         status.String = msg;
                         drawnow;
                         obj.data.sites(site_index).experiments(end+1).name = class(experiment);

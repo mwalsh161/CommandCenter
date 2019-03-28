@@ -58,7 +58,13 @@ parse(p,x,y);
 % Order data
 [x,I] = sort(x);
 y = y(I);
-dx = min(diff(x));
+% Prepare input for findpeaks (strictly increasing)
+[xp,~,idx] = unique(x,'stable');
+yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
+proms_y = smooth(yp,p.Span);
+proms_y = [min(proms_y); proms_y; min(proms_y)];
+dx = min(diff(xp));
+assert(dx>0,'dx calculated to be <= 0');
 
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
@@ -87,11 +93,6 @@ if ~isa(p.NoiseModel,'function_handle')
     end
 end
 
-% Prepare input for findpeaks (strictly increasing)
-[xp,~,idx] = unique(x,'stable');
-yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
-proms_y = smooth(yp,p.Span);
-proms_y = [min(proms_y); proms_y; min(proms_y)];
 [~, init.locs, init.wids, init.proms] = findpeaks(proms_y,[x(1)-dx; xp; x(end)+dx]);
 [init.proms,I] = sort(init.proms,'descend');
 init.locs = init.locs(I);
