@@ -137,6 +137,19 @@ classdef AutoExperiment_invisible < Modules.Experiment
         function set.run_type(obj,val)
             obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
         end
+        function set.continue_experiment(obj,val)
+            obj.continue_experiment = val;
+            pan = get(gcbo,'parent');
+            site_sel = findobj(pan,'tag','site_selection');
+            if isempty(site_sel) || ~isvalid(site_sel)
+                return;
+            end
+            if val
+                set(site_sel,'enable','off');
+            else
+                set(site_sel,'enable','on');
+            end
+        end
     end
     methods(Abstract)
         sites = AcquireSites(obj,managers)

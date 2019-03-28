@@ -100,7 +100,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
             for i=1:length(specs)
                 spec = specs(i); %grab ith spectrum experiment
-                if isempty(spec.data)
+                if ~spec.completed
                     continue
                 end
                 x = spec.data.wavelength;
@@ -122,6 +122,9 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             composite.freqs = [];
             composite.counts = [];
             for i=1:length(scans) %compile all scans
+                if ~scans(i).completed
+                    continue
+                end
                 if isempty(scans(i).err) %only grab if no errors
                     composite.freqs = [composite.freqs, scans(i).data.data.freqs_measured];
                     composite.counts = [composite.counts, scans(i).data.data.sumCounts];

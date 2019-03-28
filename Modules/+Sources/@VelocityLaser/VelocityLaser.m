@@ -91,15 +91,27 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function deactivate(obj)
             % Deactivate where we can
+            errs = {};
             if ~isempty(obj.wavemeter)
-                obj.wavemeter_active = false;
+                try
+                    obj.wavemeter_active = false;
+                catch err
+                    errs{end+1} = err.message;
+                end
             else
                 warning('Wavemeter not hooked up!');
             end
             if ~isempty(obj.serial)
-                obj.diode_on = false;
+                try
+                    obj.diode_on = false;
+                catch err
+                    errs{end+1} = err.message;
+                end
             else
                 warning('Velocity hwserver not connected!');
+            end
+            if ~isempty(errs)
+                error(strjoin(errs,[newline newline]))
             end
         end
         function delete(obj)

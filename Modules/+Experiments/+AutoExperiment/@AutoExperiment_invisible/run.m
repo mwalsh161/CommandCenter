@@ -22,6 +22,12 @@ end
 % Initialize with whatever data user chose
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
+    % Tag all this data as not new by incrememting continued flag
+    for i = 1:length(obj.data.sites)
+        for j = 1:length(obj.data.sites(i).experiments)
+            obj.data.sites(i).experiments(j).continued = obj.data.sites(i).experiments(j).continued + 1;
+        end
+    end
 else % Start a new experiment
     obj.data = [];
     sites = obj.AcquireSites(managers);
@@ -30,10 +36,9 @@ else % Start a new experiment
     end
     obj.data.image.image = sites.image;
     obj.data.image.meta = sites.meta;
-    sites = rmfield(sites,{'image','meta'});
-    obj.data.sites = sites;
-    for i = 1:length(sites)
-        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{});
+    for i = 1:size(sites.positions,1)
+        obj.data.sites(i).position = sites.positions(i,:);
+        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{},'continued',{});
     end
 end
 
@@ -65,8 +70,13 @@ try
                 end
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
-                if any(mask) && all([obj.data.sites(site_index).experiments(mask).completed]) && ~any([obj.data.sites(site_index).experiments(mask).skipped])
-                    continue % Means this was completed already and we can move on
+                new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==0);
+                if any(mask) && all([obj.data.sites(site_index).experiments(new_mask).completed])&&...
+                        ~any([obj.data.sites(site_index).experiments(new_mask).skipped])
+                    % If any over all time and the ones from the last run
+                    % are all completed and not skipped, then good to
+                    % continue
+                    continue
                 end
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
@@ -76,6 +86,7 @@ try
                 if ~isempty(params)
                     for j = 1:length(params)
                         obj.data.sites(site_index).experiments(end+1).name = class(experiment);
+                        obj.data.sites(site_index).experiments(end).continued = 0;
                         obj.data.sites(site_index).experiments(end).prefs = struct();
                         obj.data.sites(site_index).experiments(end).err = [];
                         obj.data.sites(site_index).experiments(end).completed = false;
@@ -83,6 +94,7 @@ try
                     end
                 else
                     obj.data.sites(site_index).experiments(end+1).name = class(experiment);
+                    obj.data.sites(site_index).experiments(end).continued = 0;
                     obj.data.sites(site_index).experiments(end).prefs = struct();
                     obj.data.sites(site_index).experiments(end).err = [];
                     obj.data.sites(site_index).experiments(end).completed = true;
@@ -143,6 +155,7 @@ try
 catch err
 end
 obj.PostRun(status,managers,ax)
+obj.continue_experiment = false;
 if ~isempty(err)
     rethrow(err)
 end
