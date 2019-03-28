@@ -70,7 +70,7 @@ try
                 end
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
-                new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==0);
+                new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==1); % Previous run, continued = 1 
                 if any(mask) && all([obj.data.sites(site_index).experiments(new_mask).completed])&&...
                         ~any([obj.data.sites(site_index).experiments(new_mask).skipped])
                     % If any over all time and the ones from the last run
