@@ -131,12 +131,13 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 [composite.freqs,I] = sort(composite.freqs); %sort in ascending order
                 composite.counts = composite.counts(I);
                 scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss','NoiseModel','shot'); % Literally photon counts; shot noise
+                scanfit.widths = scanfit.widths*2*sqrt(2*log(2)); % sigma to FWHM
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
                 for i=1:length(regions)
                     % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x).
                     % Same precision as wavemeter driver: 0.1 MHz
                     vals = num2str(regions{i},'%0.7f ');
-                    test = str2num(vals); % Truncated precision
+                    test = str2num(vals); %#ok<ST2NM> % Truncated precision
                     vals = num2str(unique(test),'%0.7f '); % Remove duplicates caused by truncated precision
                     if length(test)~=length(regions{i})
                         warning('7 digit precision in freqs_THz caused removal of duplicate points');

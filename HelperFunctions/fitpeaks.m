@@ -55,9 +55,12 @@ validLimit = @(x)assert(validNumericArray(x)&&length(x)==2,...
 addRequired(p,'x',@(x)validNumericArray(x)&&validColumnArray(x))
 addRequired(p,'y',@(x)validNumericArray(x)&&validColumnArray(x))
 parse(p,x,y);
-% Order data
+% Order data and remove NaNs in y
 [x,I] = sort(x);
 y = y(I);
+remove = isnan(y);
+x(remove) = [];
+y(remove) = [];
 % Prepare input for findpeaks (strictly increasing)
 [xp,~,idx] = unique(x,'stable');
 yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
