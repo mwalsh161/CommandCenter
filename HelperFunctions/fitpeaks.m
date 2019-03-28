@@ -61,8 +61,6 @@ y = y(I);
 % Prepare input for findpeaks (strictly increasing)
 [xp,~,idx] = unique(x,'stable');
 yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
-proms_y = smooth(yp,p.Span);
-proms_y = [min(proms_y); proms_y; min(proms_y)];
 dx = min(diff(xp));
 assert(dx>0,'dx calculated to be <= 0');
 
@@ -93,14 +91,17 @@ if ~isa(p.NoiseModel,'function_handle')
     end
 end
 
-[~, init.locs, init.wids, init.proms] = findpeaks(proms_y,[x(1)-dx; xp; x(end)+dx]);
+yp = smooth(yp,p.Span);
+xp = [x(1)-dx; xp; x(end)+dx];
+yp = [min(yp); yp; min(yp)];
+[~, init.locs, init.wids, init.proms] = findpeaks(yp,xp);
 [init.proms,I] = sort(init.proms,'descend');
 init.locs = init.locs(I);
 init.wids = init.wids(I);
 
 fit_results = {[]};
 % Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
-f = median(y);
+f = median(y)*ones(size(y));
 se = (y-f).^2; % square error
 dfe = length(y) - 1; % degrees of freedom
 noise = noise_model(x,y,f,p.NoiseModel);
@@ -206,7 +207,7 @@ assert(isequal(size(noise),size(y)),'Noise model function returned a matrix of s
 end
 function noise = empirical_noise(~,observed_y,modeled_y)
     residuals = observed_y - modeled_y;
-    noise = std(residuals)^2*ones(size(residuals));
+    noise = var(residuals)*ones(size(residuals));
 end
 function noise = shot_noise(~,~,modeled_y)
     noise = modeled_y;
