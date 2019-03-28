@@ -107,7 +107,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 range = find(x>=min(299792./obj.freq_range) & x<=max(299792./obj.freq_range)); %clip to only range of interest
                 x = spec.data.wavelength(range);
                 y = spec.data.intensity(range);
-                specfit = fitpeaks(x,y,'fittype','gauss'); %fit spectrum peaks
+                specfit = fitpeaks(x,y,'fittype','gauss','NoiseModel','empirical'); %fit spectrum peaks (non calibrated camera; empirical noise)
                 for j=1:length(specfit.locations)
                     if specfit.SNRs(j)>=obj.SpecPeakThresh
                         params(end+1).freq_THz = obj.nm2THz(specfit.locations(j)); %add a new parameter set for each peak found
@@ -130,7 +130,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             if ~isempty(composite.counts) %if no data, return empty struct from above
                 [composite.freqs,I] = sort(composite.freqs); %sort in ascending order
                 composite.counts = composite.counts(I);
-                scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss');
+                scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss','NoiseModel','shot'); % Literally photon counts; shot noise
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
                 for i=1:length(regions)
                     % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x).
