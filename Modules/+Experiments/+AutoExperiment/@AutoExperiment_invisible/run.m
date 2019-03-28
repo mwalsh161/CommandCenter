@@ -19,26 +19,32 @@ if length(managers.Stages.modules)>1
         'Yes','No','Yes');
     assert(~strcmp(answer,'No'),'Select desired module as active stage module and rerun')
 end
-obj.data = [];
-sites = obj.AcquireSites(managers);
-if obj.imaging_source.source_on
-    obj.imaging_source.off;
-end
-obj.data.image.image = sites.image;
-obj.data.image.meta = sites.meta;
-sites = rmfield(sites,{'image','meta'});
-obj.data.sites = sites;
-for i = 1:length(sites)
-    obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{});
+% Initialize with whatever data user chose
+if obj.continue_experiment
+    assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
+else % Start a new experiment
+    obj.data = [];
+    sites = obj.AcquireSites(managers);
+    if obj.imaging_source.source_on
+        obj.imaging_source.off;
+    end
+    obj.data.image.image = sites.image;
+    obj.data.image.meta = sites.meta;
+    sites = rmfield(sites,{'image','meta'});
+    obj.data.sites = sites;
+    for i = 1:length(sites)
+        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{});
+    end
 end
 
 %set up looping if breadth or depth
-if strcmpi(obj.run_type,obj.SITES_FIRST)
-    [Y,X] = meshgrid(1:length(obj.experiments),1:length(obj.data.sites));
-elseif strcmpi(obj.run_type,obj.EXPERIMENTS_FIRST)
-    [X,Y] = meshgrid(1:length(obj.data.sites),1:length(obj.experiments));
-else
-    error('Unknown run_type %s',run_type)
+switch obj.run_type
+    case obj.SITES_FIRST
+        [Y,X] = meshgrid(1:length(obj.experiments),1:length(obj.data.sites));
+    case obj.EXPERIMENTS_FIRST
+        [X,Y] = meshgrid(1:length(obj.data.sites),1:length(obj.experiments));
+    otherwise
+        error('Unknown run_type %s',obj.run_type)
 end
 run_queue = [X(:),Y(:)];
 obj.PreRun(status,managers,ax)

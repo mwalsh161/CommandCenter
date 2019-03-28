@@ -10,7 +10,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
     
     properties
         prefs = {'run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
-        show_prefs = {'experiments','run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
+        show_prefs = {'experiments','run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','continue_experiment','repeat'};
         readonly_prefs = {'experiments'};
     end
     properties(Abstract)
@@ -34,8 +34,9 @@ classdef AutoExperiment_invisible < Modules.Experiment
         max_tracking_seconds = Inf; %in seconds; if tracking_threshold isn't hit, tracker will still run after this amount of time
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
         repeat = 1;
+        continue_experiment = false;
     end
-    properties(Constant)
+    properties(Constant,Hidden)
         SITES_FIRST = 'All Sites First';
         EXPERIMENTS_FIRST = 'All Experiments First';
     end
@@ -121,9 +122,20 @@ classdef AutoExperiment_invisible < Modules.Experiment
             dat.data = obj.data;
             dat.meta = obj.meta;
         end
+        function LoadData(obj,data)
+            % Not grabbing the meta data as that will be re-assigned
+            assert(isfield(data,'data'),'No field "data"; likely wrong experiment');
+            assert(isfield(data.data,'image'),'No field "data.image"; likely wrong experiment');
+            assert(isfield(data.data,'sites'),'No field "data.sites"; likely wrong experiment');
+            assert(~isempty(data.data.sites),'No sites data in loaded experiment');
+            obj.data = data.data;
+        end
         function PreRun(obj,status,managers,ax)
         end
         function PostRun(obj,status,managers,ax)
+        end
+        function set.run_type(obj,val)
+            obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
         end
     end
     methods(Abstract)
