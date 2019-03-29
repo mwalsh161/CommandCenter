@@ -88,6 +88,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             assert(~isempty(obj.wavemeter)&&~isempty(obj.serial),'Wavemeter and velocity do not exist')
             obj.diode_on = true;
             obj.wavemeter_active = true;
+            % Make sure piezo is reset correctly
+            obj.TunePercent(50); % Should center input voltage range
+            obj.serial.PiezoPercent = 50; % Force to mid point
+            p = obj.serial.getPiezoPercent; % Verify
+            assert(abs(p-50)<5,sprintf('Attempted to set laser to 50%%, but currently reads %g%%',p));
         end
         function deactivate(obj)
             % Deactivate where we can

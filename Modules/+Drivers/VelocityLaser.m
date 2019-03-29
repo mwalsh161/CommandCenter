@@ -57,6 +57,9 @@ classdef VelocityLaser < Modules.Driver
         function on = getDiodeState(obj)
             on = obj.com('getDiodeState');
         end
+        function percent = getPiezoPercent(obj)
+            percent = obj.com('getPiezoPercent');
+        end
         function on(obj)
             obj.com('on');
             pause(5);
