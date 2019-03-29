@@ -100,7 +100,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
             for i=1:length(specs)
                 spec = specs(i); %grab ith spectrum experiment
-                if ~scans(i).completed || scans(i).skipped
+                if ~spec(i).completed || spec(i).skipped
                     continue
                 end
                 x = spec.data.wavelength;

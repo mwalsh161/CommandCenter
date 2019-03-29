@@ -74,17 +74,17 @@ try
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
                 end
-                managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
-                if exp_index==1
-                    [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
-                    obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
-                end
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
                 else
                     params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
                 end
                 if ~isempty(params)
+                    managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
+                    if exp_index==1
+                        [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
+                        obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                    end
                     for j = 1:length(params)
                         obj.data.sites(site_index).experiments(end+1).name = class(experiment);
                         obj.data.sites(site_index).experiments(end).continued = 0;
@@ -94,6 +94,7 @@ try
                         obj.data.sites(site_index).experiments(end).skipped = false;
                     end
                 else
+                    % No need to move stage if nothing to do here
                     obj.data.sites(site_index).experiments(end+1).name = class(experiment);
                     obj.data.sites(site_index).experiments(end).continued = 0;
                     obj.data.sites(site_index).experiments(end).prefs = struct();
