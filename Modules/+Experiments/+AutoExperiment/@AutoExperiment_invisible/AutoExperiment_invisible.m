@@ -132,6 +132,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
             assert(isfield(data.data,'sites'),'No field "data.sites"; likely wrong experiment');
             assert(~isempty(data.data.sites),'No sites data in loaded experiment');
             obj.data = data.data;
+            obj.continue_experiment = true;
         end
         function PreRun(obj,status,managers,ax)
         end
