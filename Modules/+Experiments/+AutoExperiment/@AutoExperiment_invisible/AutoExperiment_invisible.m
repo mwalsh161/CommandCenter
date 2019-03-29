@@ -105,6 +105,9 @@ classdef AutoExperiment_invisible < Modules.Experiment
         end
         run(obj,statusH,managers,ax)
         function delete(obj)
+            % Clean up all experiments now to ensure no odd behavior when
+            % CC cleans everything up on shut down (race conditions)
+            delete(obj.experiments);
         end
         function abort(obj)
             obj.abort_request = true;
