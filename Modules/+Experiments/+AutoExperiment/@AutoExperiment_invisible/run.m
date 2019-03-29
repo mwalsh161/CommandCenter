@@ -117,6 +117,9 @@ try
                         status.String = msg;
                         drawnow;
                         obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
+                        if ~isempty(obj.prerun_functions{exp_index})
+                            obj.(obj.prerun_functions{exp_index})(experiment);
+                        end
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;

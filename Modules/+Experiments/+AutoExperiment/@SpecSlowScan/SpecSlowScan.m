@@ -11,7 +11,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         StdsPerPeak = 5; %how wide of a bin around peaks for SlowScanClosed
     end
     properties
-        patch_functions = {'PreSpec','Spec2Open','Open2Closed'};
+        patch_functions = {'','Spec2Open','Open2Closed'};
+        prerun_functions = {'PreSpec','',''};
         nm2THz = []; %this will be a function pulled from calibrating the spectrometer in the prerun method
     end
     methods(Access=private)
@@ -81,17 +82,18 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         end
     end
     methods
-        %the below patch functions will be run at the beginning of each
-        %(site, experiment) in the run_queue for any experiment that isn't
-        %the first one, and will be passed the relevant emitter site 
-        %(containing) all previous experiments.
-        function params = PreSpec(obj,site)
+        % the below pre-run functions will run immediately before the run
+        % method of the corresponding experiment each time it is called
+        function PreSpec(obj,spec_experiment)
             obj.experiments(2).resLaser.off;
             obj.experiments(2).repumpLaser.off; 
             obj.imaging_source.on;
             obj.experiments(2).resLaser.SpecSafeMode(obj.freq_range);
-            params = struct; %empty struct of length 1
         end
+        %the below patch functions will be run at the beginning of each
+        %(site, experiment) in the run_queue for any experiment that isn't
+        %the first one, and will be passed the relevant emitter site 
+        %(containing) all previous experiments.
         function params = Spec2Open(obj,site)
             % turn off spectrometer laser before PLE and set APD path
             obj.imaging_source.off;

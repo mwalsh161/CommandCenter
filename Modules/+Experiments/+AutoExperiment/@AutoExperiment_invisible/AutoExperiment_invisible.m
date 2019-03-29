@@ -14,7 +14,8 @@ classdef AutoExperiment_invisible < Modules.Experiment
         readonly_prefs = {'experiments'};
     end
     properties(Abstract)
-        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs)
+        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs). Run before experiment group.
+        prerun_functions %cell array of method names in subclass definition that take input (experiment). Run immediately before experiment's run method
     end
     properties(SetAccess=protected,Hidden)
         data = [] % Useful for saving data from run method
