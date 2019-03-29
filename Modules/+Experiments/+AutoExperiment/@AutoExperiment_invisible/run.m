@@ -63,11 +63,6 @@ try
             try
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
-                managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
-                if exp_index==1
-                    [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
-                    obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
-                end
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==1); % Previous run, continued = 1 
@@ -76,7 +71,13 @@ try
                     % If any over all time and the ones from the last run
                     % are all completed and not skipped, then good to
                     % continue
+                    obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
+                end
+                managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
+                if exp_index==1
+                    [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
+                    obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                 end
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
