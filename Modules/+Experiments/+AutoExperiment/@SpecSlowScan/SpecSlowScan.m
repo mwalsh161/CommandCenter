@@ -12,7 +12,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
     end
     properties
         patch_functions = {'','Spec2Open','Open2Closed'};
-        prerun_functions = {'PreSpec','',''};
+        prerun_functions = {'PreSpec','PreSlow','PreSlow'};
         nm2THz = []; %this will be a function pulled from calibrating the spectrometer in the prerun method
     end
     methods(Access=private)
@@ -85,19 +85,25 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         % the below pre-run functions will run immediately before the run
         % method of the corresponding experiment each time it is called
         function PreSpec(obj,spec_experiment)
+            % Can't assume these are the same lasers for exp 2 and 3
             obj.experiments(2).resLaser.off;
-            obj.experiments(2).repumpLaser.off; 
+            obj.experiments(3).resLaser.off;
+            obj.experiments(2).repumpLaser.off;
+            obj.experiments(3).repumpLaser.off;
             obj.imaging_source.on;
             obj.experiments(2).resLaser.SpecSafeMode(obj.freq_range);
+            obj.experiments(3).resLaser.SpecSafeMode(obj.freq_range);
+        end
+        function PreSlow(slow_experiment)
+            % turn off spectrometer laser before PLE
+            obj.imaging_source.off;
+            slow_experiment.resLaser.arm;
         end
         %the below patch functions will be run at the beginning of each
         %(site, experiment) in the run_queue for any experiment that isn't
         %the first one, and will be passed the relevant emitter site 
         %(containing) all previous experiments.
         function params = Spec2Open(obj,site)
-            % turn off spectrometer laser before PLE and set APD path
-            obj.imaging_source.off;
-
             params = struct('freq_THz',{}); %structure of params beings assigned
             specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
             for i=1:length(specs)
@@ -116,7 +122,6 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                     end
                 end
             end
-            obj.experiments(2).resLaser.arm;
         end
         function params = Open2Closed(obj,site)
             params = struct('freqs_THz',{}); %structure of params beings assigned
@@ -147,7 +152,6 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                     params(end+1).freqs_THz = vals;
                 end
             end
-            obj.experiments(3).resLaser.arm;
         end
         function sites = AcquireSites(obj,managers)
             sites = Experiments.AutoExperiment.AutoExperiment_invisible.SiteFinder_Confocal(managers,obj.imaging_source,obj.site_selection);
