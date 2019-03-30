@@ -55,6 +55,7 @@ run_queue = [X(:),Y(:)];
 obj.PreRun(status,managers,ax)
 runstart = tic;
 obj.meta.prefs = obj.prefs2struct;
+obj.meta.nm2THz = obj.nm2THz;
 obj.meta.errs = {};
 err = [];
 try

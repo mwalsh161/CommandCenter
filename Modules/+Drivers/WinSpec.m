@@ -254,15 +254,15 @@ classdef WinSpec < Modules.Driver
             try
                 oldExposure = obj.exposure;
                 obj.setExposure(exposure); %exposure is in seconds
-                setpoints = linspace(range(1),range(2),5); %take 10 points across the range of the laser
+                setpoints = linspace(range(1),range(2),5);
                 specloc = NaN(1,length(setpoints));
                 laserloc = NaN(1,length(setpoints));
                 laser.on;
-                xlabel(ax,'Wavelength (nm)')
-                title(ax,'Calibrating spectrometer')
                 for i=1:length(setpoints)
                     laser.TuneCoarse(setpoints(i));
                     laserspec = obj.acquire;
+                    xlabel(ax,'Wavelength (nm)')
+                    title(ax,'Calibrating spectrometer')
                     plot(ax,laserspec.x,laserspec.y);drawnow;
                     specfit = fitpeaks(laserspec.x,laserspec.y,'fittype','gauss');
                     assert(length(specfit.locations) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
