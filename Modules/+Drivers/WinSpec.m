@@ -275,6 +275,20 @@ classdef WinSpec < Modules.Driver
                 temp.source = class(laser);
                 temp.datetime = datetime;
                 obj.cal_local = temp;
+                cla(ax)
+                plotx = linspace(obj.c/max(laserloc),obj.c/min(laserloc),10*length(laserloc));
+                plot(ax,specloc,laserloc,'bo');
+                hold(ax,'on')
+                plot(ax,plotx,temp.nm2THz(plotx));
+                fitbounds = predint(temp.nm2THz,plotx,0.95,'functional','on'); %get confidence bounds on fit
+                errorfill(plotx,temp.nm2THz(plotx)',abs(temp.nm2THz(plotx)'-fitbounds(:,1)'),abs(fitbounds(:,2)'-temp.nm2THz(plotx)'),'parent',ax)
+                hold(ax,'off')
+                answer = questdlg('Calibration satisfactory?','Spectrometer Calibration Verification','Yes','No, retake','No, abort','No, abort');
+                if strcmp(answer,'No, retake')
+                    obj.calibrate(laser,range,exposure,ax)
+                elseif strcmp(answer,'No, abort')
+                    error('Failed spectrometer validation')
+                end
             catch err
             end
             laser.off;
