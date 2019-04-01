@@ -1,23 +1,28 @@
-function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,fit_type,span,userlimits,conf_level,stop_metric)
+function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,varargin)
 %FITPEAKS Takes in x, y pair and fits peaks optimizing r^2_adj and \chi^2_red
 % r^2_adj == adjrsquared == r == adjusted R squared
 % \chi^2_red == redchisquared == chi == reduced Chi squared
-% Inputs brackets indicate optional:
+% Inputs; brackets indicate name,value optional pair:
 %   x: vector of x values Nx1
 %   y: vector of y values Nx1
-%   [fit_type]: "gauss" or "lorentz" (default "gauss")
-%   [span]: The span of the moving average used to calculate "init" (default 5)
-%   [userlimits]: Any limits to impose on the fitted peak properties. Should be a
-%       struct with any combination of fields (each an array of [min max]):
-%       amplitudes: default [0, Inf]
-%       widths: default [3.*min(diff(x)), (max(x)-min(x))] (min FWHM of 3 points)
-%   [conf_level]: confidence interval level (default 0.95)
-%   [stop_metric]: a string indicating what metric to check for stopping options (case insensiive):
+%   [FitType]: "gauss" or "lorentz" (default "gauss")
+%   [Span]: The span of the moving average used to calculate "init" (default 5)
+%   [Width]: FWHM width limits to impose on the fitted peak properties.
+%       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
+%   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
+%       Default: [0, Inf].
+%   [ConfLevel]: confidence interval level (default 0.95)
+%   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
 %       r: only use rsquared (this means there can't be a test for no peaks
 %       chi: only use chisquared (assuming poisson noise)
 %       rANDchi (default): use both rsquared or chisquared at every step
 %       FirstChi: use chisquared to check the first peak against no peaks,
 %          then rsquared for the rest
+%   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
+%       where are of the current fit. Output must be a vector in the same shape of y.
+%       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
+%           "empirical" (default): uses the variance of the residuals for all values
+%           "shot": use val for each val in y
 % Outputs (each field is Mx1, M being number of peaks fit):
 %   vals: struct with "locations", "amplitudes", "widths", "SNRs" of fit results
 %   confs: struct with same field as vals with symmetric confidence interval for given conf_level
@@ -42,43 +47,47 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,fit_ty
 %
 % NOTE: Meaning of widths will depend on lorentz (FWHM) or gauss (sigma)
 
-assert(length(x)==length(y),'x and y must be same length');
-assert(ismatrix(x)&&ismatrix(y),'x and y must be matrices (e.g. 2 dimensional)')
-assert(size(x,2)==1&&size(y,2)==1,'x and y must be column vectors (Nx1)')
+p = inputParser;
+validNumericArray = @(x) isnumeric(x) && ismatrix(x);
+validColumnArray = @(x) size(x,2)==1;
+validLimit = @(x)assert(validNumericArray(x)&&length(x)==2,...
+                 'Limit should be numeric array with [lower,upper]');
+addRequired(p,'x',@(x)validNumericArray(x)&&validColumnArray(x))
+addRequired(p,'y',@(x)validNumericArray(x)&&validColumnArray(x))
+parse(p,x,y);
 % Order data
 [x,I] = sort(x);
 y = y(I);
 dx = min(diff(x));
-if nargin < 7 || isempty(stop_metric)
-    stop_metric = 'rANDchi';
-end
-stop_metric = lower(stop_metric); % Case insensitive
-assert(ismember(stop_metric,{'r','chi','firstchi','randchi'}), 'stop_metric must be "r", "chi", "FirstChi", or "rANDchi"');
-if nargin < 6 || isempty(conf_level)
-    conf_level = 0.95;
-end
-limits.amplitudes = [0, Inf];
-limits.widths = [3*dx, (max(x)-min(x))];
-if nargin > 4
-    if isfield(userlimits,'amplitudes')
-        assert(length(userlimits.amplitudes)==2,'Amplitudes should be array with [lower,upper]')
-        limits.amplitudes = userlimits.amplitudes;
-    end
-    if isfield(userlimits,'widths')
-        assert(length(userlimits.widths)==2,'Widths should be array with [lower,upper]')
-        limits.widths = userlimits.widths;
-    end
-end
-if nargin < 4 || isempty(span)
-    span = 5; % This is also the default for the smooth method that is used
-end
-if nargin < 3 || isempty(fit_type)
-    fit_type = 'gauss';
-end
-fit_type = lower(fit_type); % Case insensitive
-assert(ismember(fit_type,{'gauss','lorentz'}), 'fit_type must be "lorentz" or "gauss"');
 
-proms_y = smooth(y,span);
+addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
+addParameter(p,'Width',[2*dx, (max(x)-min(x))],validLimit);
+addParameter(p,'Amplitude',[0 Inf],validLimit);
+addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
+addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
+addParameter(p,'NoiseModel','empirical');
+parse(p,x,y,varargin{:});
+p = p.Results;
+% Further validation
+assert(length(x)==length(y),'x and y must be same length');
+% Case insensitive stuff
+p.StopMetric = lower(p.StopMetric);
+p.FitType = lower(p.FitType);
+% Setup limits struct
+limits.amplitudes = p.Amplitude;
+limits.widths = p.Width;
+% Setup noise model if string specified
+if ~isa(p.NoiseModel,'function_handle')
+    switch lower(p.NoiseModel)
+        case 'shot'
+            p.NoiseModel = @shot_noise;
+        case 'empirical'
+            p.NoiseModel = @empirical_noise;
+    end
+end
+
+proms_y = smooth(y,p.Span);
 proms_y = [min(proms_y); proms_y; min(proms_y)];
 [~, init.locs, init.wids, init.proms] = findpeaks(proms_y,[x(1)-dx; x; x(end)+dx]);
 [init.proms,I] = sort(init.proms,'descend');
@@ -86,25 +95,28 @@ init.locs = init.locs(I);
 init.wids = init.wids(I);
 
 fit_results = {[]};
-% Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is mean(y))
-se = (y-mean(y)).^2; % square error
+% Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
+f = median(y);
+se = (y-f).^2; % square error
 dfe = length(y) - 1; % degrees of freedom
-gofs = struct('sse',sum(se),'redchisquare',sum(se/abs(mean(y)))/dfe,'dfe',dfe,...
+noise = noise_model(x,y,f,p.NoiseModel);
+gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
               'rmse',sqrt(mean(se)),'rsquare',NaN,'adjrsquare',NaN); % can't calculate rsquared for flat line
 stop_condition = NaN;
 for n = 1:length(init.proms)
-    if strcmp(fit_type,'gauss')
+    if strcmp(p.FitType,'gauss')
         [f,new_gof,output] = gaussfit(x, y, n, init, limits);
-    else % fit_type assert requires this else to be lorentz
+    else % p.FitType assert requires this else to be lorentz
         [f,new_gof,output] = lorentzfit(x, y, n, init, limits);
     end
-    new_gof.redchisquare = sum(output.residuals.^2./abs(f(x)))/new_gof.dfe; % Assume shot noise
-    if (strcmp(stop_metric,'chi') || strcmp(stop_metric,'randchi') || (strcmp(stop_metric,'firstchi')&&n>1)) &&...
+    noise = noise_model(x,y,f(x),p.NoiseModel);
+    new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
+    if (strcmp(p.StopMetric,'chi') || strcmp(p.StopMetric,'randchi') || (strcmp(p.StopMetric,'firstchi')&&n>1)) &&...
             abs(1-gofs(end).redchisquare) < abs(1-new_gof.redchisquare) % further from 1 than last
         stop_condition = 0;
         break
     end
-    if (strcmp(stop_metric,'r') || strcmp(stop_metric,'randchi') || strcmp(stop_metric,'firstchi')) &&...
+    if (strcmp(p.StopMetric,'r') || strcmp(p.StopMetric,'randchi') || strcmp(p.StopMetric,'firstchi')) &&...
             gofs(end).adjrsquare > new_gof.adjrsquare                    % lower than last
         stop_condition = 1;
         break
@@ -131,7 +143,7 @@ vals.locations = fitcoeffs(n+1:2*n);
 vals.widths = fitcoeffs(2*n+1:3*n);
 vals.SNRs = vals.amplitudes./noise;
 
-fitconfs = diff(confint(fit_result,conf_level))/2;
+fitconfs = diff(confint(fit_result,p.ConfLevel))/2;
 confs.amplitudes = fitconfs(1:n);
 confs.locations = fitconfs(n+1:2*n);
 confs.widths = fitconfs(2*n+1:3*n);
@@ -181,4 +193,17 @@ function [f,gof,output] = lorentzfit(x, y, n, init, limits)
     options.Lower = [lower_amps; lower_pos; lower_width; 0     ];
     options.Start = [start_amps; start_pos; start_width; median(y)];
     [f,gof,output] = fit(x,y,fit_type,options);
+end
+
+function noise = noise_model(x,y,modeled_y,fn)
+% Just to validate the function
+noise = fn(x,y,modeled_y);
+assert(isequal(size(noise),size(y)),'Noise model function returned a matrix of size: ');
+end
+function noise = empirical_noise(~,observed_y,modeled_y)
+    residuals = observed_y - modeled_y;
+    noise = std(residuals)^2*ones(size(residuals));
+end
+function noise = shot_noise(~,~,modeled_y)
+    noise = modeled_y;
 end
