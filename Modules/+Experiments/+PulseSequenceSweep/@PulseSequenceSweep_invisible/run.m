@@ -69,8 +69,9 @@ try
                 
                 apdPS.start(1000); % hard coded
                 apdPS.stream(p);
-                obj.data.sumCounts(j,indices{:},:) = sum(p.YData);
-                obj.data.stdCounts(j,indices{:},:) = std(p.YData);
+                dat = reshape(p.YData,obj.nCounterBins,[])';
+                obj.data.sumCounts(j,indices{:},:) = sum(dat);
+                obj.data.stdCounts(j,indices{:},:) = std(dat);
             end
             obj.UpdateRun(status,managers,ax,j,indices{:});
         end
