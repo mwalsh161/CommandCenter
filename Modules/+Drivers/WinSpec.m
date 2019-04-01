@@ -340,6 +340,9 @@ classdef WinSpec < Modules.Driver
             end
             cal = obj.cal_local;
         end
+        function resetCalibration(obj)
+            obj.cal_local = [];
+        end
     end
 end
 
