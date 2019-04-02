@@ -99,10 +99,10 @@ end
 
 proms_y = smooth(y,p.Span);
 proms_y = [min(proms_y); proms_y; min(proms_y)];
-[~, init.locs, init.wids, init.proms] = findpeaks(proms_y,[x(1)-dx; x; x(end)+dx]);
-[init.amplitudes,I] = sort(init.proms,'descend');
-init.locations = init.locs(I);
-init.widths = init.wids(I);
+[~, init.locations, init.widths, init.amplitudes] = findpeaks(proms_y,[x(1)-dx; x; x(end)+dx]);
+[init.amplitudes,I] = sort(init.amplitudes,'descend');
+init.locations = init.locations(I);
+init.widths = init.widths(I);
 
 fit_results = {[]};
 % Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
@@ -113,7 +113,7 @@ noise = noise_model(x,y,f,p.NoiseModel);
 gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
               'rmse',sqrt(mean(se)),'rsquare',NaN,'adjrsquare',NaN); % can't calculate rsquared for flat line
 stop_condition = NaN;
-for n = 1:length(init.proms)
+for n = 1:length(init.amplitudes)
     [f,new_gof,output] = fit_function(x, y, n, init, limits);
     noise = noise_model(x,y,f(x),p.NoiseModel);
     new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
