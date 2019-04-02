@@ -283,6 +283,8 @@ classdef WinSpec < Modules.Driver
                 fitbounds = predint(temp.nm2THz,plotx,0.95,'functional','on'); %get confidence bounds on fit
                 errorfill(plotx,temp.nm2THz(plotx)',abs(temp.nm2THz(plotx)'-fitbounds(:,1)'),abs(fitbounds(:,2)'-temp.nm2THz(plotx)'),'parent',ax)
                 hold(ax,'off')
+                xlabel(ax,'Spectrometer Reading')
+                ylabel(ax,'Wavemeter Reading')
                 answer = questdlg('Calibration satisfactory?','Spectrometer Calibration Verification','Yes','No, retake','No, abort','No, abort');
                 if strcmp(answer,'No, retake')
                     obj.calibrate(laser,range,exposure,ax)

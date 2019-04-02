@@ -255,9 +255,13 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             assert(val >= min(obj.range) && val <= max(obj.range),...
                 sprintf('Laser frequency must be in range [%g,%g] THz',obj.range(1),obj.range(2)))
         end
-        function calibrate(obj) 
+        function calibrate(obj,ax) 
             %calibrates the frequency as read by the wavemeter to the 
             %wavelength as set by the diode motor
+            if nargin < 2
+                f = figure;
+                ax = axes('parent',f);
+            end
             if ~obj.diode_on
                 answer = questdlg('Diode off; turn diode on for calibration?','Diode off', 'Yes','No','No');
                 switch answer
@@ -279,6 +283,22 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             [temp.THz2nm,temp.gof] = fit(wavelocs',setpoints',fit_type,options);
             temp.datetime = datetime;
             obj.cal_local = temp;
+            cla(ax)
+            plotx = linspace(min(obj.c/max(setpoints),min(wavelocs)),max(obj.c/min(setpoints),max(wavelocs)),10*length(setpoints));
+            plot(ax,wavelocs,setpoints,'bo');
+            hold(ax,'on')
+            plot(ax,plotx,temp.THz2nm(plotx));
+            fitbounds = predint(temp.THz2nm,plotx,0.95,'functional','on'); %get confidence bounds on fit
+            errorfill(plotx,temp.THz2nm(plotx)',[abs(temp.THz2nm(plotx)'-fitbounds(:,1)');abs(fitbounds(:,2)'-temp.THz2nm(plotx)')],'parent',ax)
+            hold(ax,'off')
+            xlabel(ax,'Wavemeter Reading')
+            ylabel(ax,'Wavelength Set Command')
+            answer = questdlg('Calibration satisfactory?','Spectrometer Calibration Verification','Yes','No, retake','No, abort','No, abort');
+            if strcmp(answer,'No, retake')
+                obj.calibrate(ax)
+            elseif strcmp(answer,'No, abort')
+                error('Failed spectrometer validation')
+            end
         end
         function cal = calibration(obj)
             %get the calibration of the frequency as read by the wavemeter
