@@ -267,6 +267,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                         obj.diode_on = true;
                 end
             end
+            f= [];
             if nargin < 2
                 f = figure;
                 ax = axes('parent',f);
@@ -291,7 +292,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 hold(ax,'on')
                 plot(ax,plotx,temp.THz2nm(plotx));
                 fitbounds = predint(temp.THz2nm,plotx,0.95,'functional','on'); %get confidence bounds on fit
-                errorfill(plotx,temp.THz2nm(plotx)',[abs(temp.THz2nm(plotx)'-fitbounds(:,1)');abs(fitbounds(:,2)'-temp.THz2nm(plotx)')],'parent',ax)
+                errorfill(plotx,temp.THz2nm(plotx)',[abs(temp.THz2nm(plotx)'-fitbounds(:,1)');abs(fitbounds(:,2)'-temp.THz2nm(plotx)')],'parent',ax);
                 hold(ax,'off')
                 xlabel(ax,'Wavemeter Reading')
                 ylabel(ax,'Wavelength Set Command')
@@ -306,6 +307,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 delete(f)
                 rethrow(err)
             end
+            delete(f)
         end
         function cal = calibration(obj)
             %get the calibration of the frequency as read by the wavemeter
