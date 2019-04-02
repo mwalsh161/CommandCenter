@@ -92,9 +92,9 @@ if ~isa(p.NoiseModel,'function_handle')
 end
 switch lower(p.FitType)
     case 'gauss'
-        fit_function = @gaussfit
+        fit_function = @gaussfit;
     case 'lorentz'
-        fit_function = @lorentzfit
+        fit_function = @lorentzfit;
 end
 
 proms_y = smooth(y,p.Span);
