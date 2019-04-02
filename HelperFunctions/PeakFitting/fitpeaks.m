@@ -81,6 +81,7 @@ p.FitType = lower(p.FitType);
 limits.amplitudes = p.Amplitude;
 limits.widths = p.Width;
 limits.locations = p.Location;
+limits.background = [0 max(y)];
 % Setup noise model if string specified
 if ~isa(p.NoiseModel,'function_handle')
     switch lower(p.NoiseModel)
@@ -103,6 +104,7 @@ proms_y = [min(proms_y); proms_y; min(proms_y)];
 [init.amplitudes,I] = sort(init.amplitudes,'descend');
 init.locations = init.locations(I);
 init.widths = init.widths(I);
+init.background = median(y);
 
 fit_results = {[]};
 % Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
