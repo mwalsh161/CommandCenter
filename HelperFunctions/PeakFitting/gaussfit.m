@@ -5,10 +5,11 @@ function [f,gof,output] = gaussfit(x, y, n, init, limits)
 %   x - vector of x-data (same shape as "fit" takes)
 %   y - vector of y-data (same shape as "fit" takes)
 %   n - number (N) of peaks to fit
-%   init - struct with fields (each are Nx1):
+%   init - struct with fields (each are Nx1 except background which is 1x1):
 %       amplitudes - amplitude guesses
 %       locations - x-location guesses
 %       widths - FWHM* guesses
+%       background
 %   limits - similar to init (same field names), but each is Nx2 to specify [min max]
 %   OUTPUT: first 3 outputs of "fit"
 %
@@ -31,8 +32,8 @@ function [f,gof,output] = gaussfit(x, y, n, init, limits)
     lower_width = limits.widths(1).*ones(n,1)./FWHM_factor;
     start_width = init.widths(1:n)./FWHM_factor;
     
-    options.Upper = [upper_amps; upper_pos; upper_width; max(y)];
-    options.Lower = [lower_amps; lower_pos; lower_width; 0     ];
-    options.Start = [start_amps; start_pos; start_width; median(y)];
+    options.Upper = [upper_amps; upper_pos; upper_width; limits.background(2)];
+    options.Lower = [lower_amps; lower_pos; lower_width; limits.background(1)];
+    options.Start = [start_amps; start_pos; start_width; init.background     ];
     [f,gof,output] = fit(x,y,fit_type,options);
 end
