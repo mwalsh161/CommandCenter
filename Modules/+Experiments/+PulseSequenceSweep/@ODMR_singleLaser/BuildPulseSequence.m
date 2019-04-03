@@ -6,6 +6,13 @@ obj.SignalGenerator.MWFrequency = freq;
 
 samples = obj.samples;
 
+assert(abs(obj.laserOffset_us) < obj.MWPad_us);
+assert(obj.MWPad_us >= 0);
+assert(obj.MWTime_us > 0);
+assert(obj.laserTime_us > 0);
+assert(obj.APDTime_us > 0);
+assert(obj.laserTime_us > 2*obj.APDTime_us + 2*obj.APDInset_us);
+
 s = sequence('ODMR_singleLaser');
 
 laserChannel =  channel('laser',    'color', 'g', 'hardware', obj.laser.PBline-1);
@@ -20,17 +27,17 @@ n = s.StartNode;
     node(n, dummyChannel,   'delta', 0);
 
 % Laser pulse, with two APD bins at the beginning and end.
-n = node(n, laserChannel,   'units', 'us', 'delta', obj.MWPad_us);
+l = node(n, laserChannel,   'units', 'us', 'delta', obj.MWPad_us + obj.laserOffset_us);
     
-    node(n, APDchannel,     'delta', 0);
+n = node(n, APDchannel,     'units', 'us', 'delta', obj.MWPad_us + obj.APDInset_us);
     node(n, APDchannel,     'units', 'us', 'delta', obj.APDTime_us);
-    node(n, APDchannel,     'units', 'us', 'delta', obj.laserTime_us - obj.APDTime_us);
-    node(n, APDchannel,     'units', 'us', 'delta', obj.laserTime_us);
+    node(n, APDchannel,     'units', 'us', 'delta', obj.laserTime_us - obj.APDTime_us - 2*obj.APDInset_us);
+n = node(n, APDchannel,     'units', 'us', 'delta', obj.laserTime_us - 2*obj.APDInset_us);
     
-n = node(n, laserChannel,   'units', 'us', 'delta', obj.laserTime_us);
+    node(l, laserChannel,   'units', 'us', 'delta', obj.laserTime_us);
 
 % MW pulse.
-n = node(n, MWchannel,      'units', 'us', 'delta', obj.MWPad_us);
+n = node(l, MWchannel,      'units', 'us', 'delta', obj.MWPad_us + obj.laserTime_us - obj.laserOffset_us);
 n = node(n, MWchannel,      'units', 'us', 'delta', obj.MWTime_us);
 
     node(n, dummyChannel,   'delta', 0);

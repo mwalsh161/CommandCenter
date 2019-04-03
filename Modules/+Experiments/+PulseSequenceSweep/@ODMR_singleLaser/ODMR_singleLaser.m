@@ -8,9 +8,11 @@ classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
         % These should be preferences you want set in default settings method
         laser = Modules.Source.empty;
         laserTime_us = 10;
+        laserOffset_us = 0;
         
         APDline = 1;
         APDTime_us = 1;
+        APDInset_us = 1;
         
         SignalGenerator = Modules.Source.empty;
         MWfreqs_GHz = 'linspace(2.85,2.91,101)';
@@ -47,7 +49,7 @@ classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
     methods(Access=private)
         function obj = ODMR_singleLaser()
             % Constructor (should not be accessible to command line!)
-            obj.prefs = [obj.prefs, { 'laser', 'laserTime_us', 'APDline', 'APDTime_us', 'SignalGenerator', 'MWfreqs_GHz', 'MWPower_dBm', 'MWTime_us', 'MWPad_us', 'dummyLine'}]; %additional preferences not in superclass
+            obj.prefs = [obj.prefs, { 'laser', 'laserTime_us', 'laserOffset_us', 'APDline', 'APDTime_us', 'APDInset_us', 'SignalGenerator', 'MWfreqs_GHz', 'MWPower_dBm', 'MWTime_us', 'MWPad_us', 'dummyLine'}]; %additional preferences not in superclass
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
