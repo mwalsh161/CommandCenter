@@ -75,7 +75,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
                     sites.positions = [scatterH.XData',scatterH.YData'];
                     sites.meta = scatterH.UserData;
                 case 'Grid'
-                    sites = obj.select_grid_sites(sites,ax_temp);
+                    sites = Experiments.AutoExperiment.AutoExperiment_invisible.select_grid_sites(sites,ax_temp);
                 case 'Manual sites'
                     title('Click on all positions, then hit enter when done.')
                     sites.positions = ginput();
