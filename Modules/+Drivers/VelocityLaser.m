@@ -11,6 +11,9 @@ classdef VelocityLaser < Modules.Driver
         connection
         idn
     end
+    properties
+        TuningTimout = 60;
+    end
     properties (SetObservable)
         PiezoPercent = [];
         Wavelength = [];
@@ -100,12 +103,19 @@ classdef VelocityLaser < Modules.Driver
             obj.ConstantPowerMode = val;
         end
         function set.Wavelength(obj,val)
+            start_timeout = obj.connection.connection.Timeout;
+            obj.connection.connection.Timeout = obj.TuningTimout;
+            try
             obj.com('setWavelength',val);
+            catch err
+                obj.connection.connection.Timeout = start_timeout;
+                rethrow(err);
+            end
+            obj.connection.connection.Timeout = start_timeout;
             obj.Wavelength = val;
             if strcmpi(obj.TrackMode,'off')
                 obj.TrackMode = 'off'; %set.TrackMode affirms local setting with hardware
             end
-            pause(0.1); %needed to give laser time to settle into new mode
         end
         function set.PiezoPercent(obj,val)
             obj.com('setPiezoPercent',val);

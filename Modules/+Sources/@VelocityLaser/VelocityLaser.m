@@ -17,10 +17,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %   the driver class equivalent (set.Wavelength), as the source method
     %   uses a calibration function to improve the accuracy of wavelength
     %   setting
-    
-    properties
-        TuningTimeout = 60; % Timeout for all tune methods
-    end
+
     properties(SetObservable,AbortSet)
         tuning = false;
         prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel','cal_local'};
