@@ -150,6 +150,51 @@ classdef WinSpec < Modules.Driver
                 delete(obj.connection);
             end
         end
+        function exposure_set = find_exposure(obj,MaxExposure,varargin)
+            % Find exposure that sets max pixel to intensity percentage
+            % max_exposure: exposure value to not exceed
+            % Optional inputs are arg,val pairs
+            % [p] default 0.5, percentage of max intensity to get
+            % the max pixel value to
+            p = inputParser;
+            addRequired(p,'MaxExposure',@isnumeric);
+            addParameter(p,'p',0.5,@isnumeric);
+            addParameter(p,'ax',gca,@(a)isa(a,'matlab.graphics.axis.Axes')&&isvalid(a));
+            parse(p,MaxExposure,varargin{:});
+            p = p.Results;
+            
+            max_intensity = 2^16-1;
+            target_intensity = max_intensity*p.p;
+            % First, try smallest exposure to make sure there is a chance
+            exposure_set = 0;
+            y = get_val(exposure_set);
+            assert(y < max_intensity,'Smallest exposure still overexposed');
+            if y >= target_intensity
+                return
+            end
+            bounds = [0 p.MaxExposure];
+            while true
+                exposure_set = mean(bounds);
+                y = get_val(exposure_set);
+                if exposure_set == 0
+                    assert(y < max_intensity,'Smallest exposure still overexposed');
+                end
+                if y >= target_intensity && y < max_intensity
+                    return
+                elseif y < target_intensity
+                    bounds(1) = exposure_set; % Increase lower bound
+                elseif y >= max_intensity
+                    bounds(2) = exposure_set; % Decrease upper bound
+                end
+            end
+            function y = get_val(exp)
+                obj.setExposure(exp);
+                sp = obj.acquire([],true); % Will do our own test
+                y = max(sp.y);
+                plt = plot(p.ax,sp.x,sp.y);
+                legend(plt,{sprintf('%g seconds',exp)});
+            end
+        end
         function sp = acquire(obj,updateFcn,over_exposed_override)
             % [optional] Calls updateFcn with the only input as the elapsed time
             % [optional] over_exposed_override will supress server's
