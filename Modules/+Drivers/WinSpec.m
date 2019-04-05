@@ -202,7 +202,7 @@ classdef WinSpec < Modules.Driver
             % This sets basic file handling: overwrite, autosave, no BG
             % file etc.
             out = obj.com('setup');
-            gratings = out.gratings;
+            gratings = out.gratings; % For future use
         end
         function setGrating(obj,N,pos)
             % If N/pos empty, will use last setting (still require all args
