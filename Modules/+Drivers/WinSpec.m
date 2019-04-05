@@ -185,14 +185,6 @@ classdef WinSpec < Modules.Driver
                 sp.CAL_COEFFS(3)*x.^2+...
                 sp.CAL_COEFFS(4)*x.^3+...
                 sp.CAL_COEFFS(5)*x.^4)';
-            % Take care of y
-            y = NaN(length(sp.x),sp.FRAME_COUNT);
-            for i = 1:length(sp.FRAME_COUNT)
-                key = sprintf('y%i',i);
-                y(:,i) = sp.(key);
-                sp = rmfield(sp,key);
-            end
-            sp.y = y;
             if abs(sp.EXPOSEC - obj.exposure) > 0.0001
                 warning('Exposure changed from expected value!')
             end
@@ -209,7 +201,8 @@ classdef WinSpec < Modules.Driver
         function setup(obj)
             % This sets basic file handling: overwrite, autosave, no BG
             % file etc.
-            obj.com('setup');
+            out = obj.com('setup');
+            gratings = out.gratings;
         end
         function setGrating(obj,N,pos)
             % If N/pos empty, will use last setting (still require all args
