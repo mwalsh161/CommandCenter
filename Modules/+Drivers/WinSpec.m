@@ -14,10 +14,13 @@ classdef WinSpec < Modules.Driver
     properties(SetAccess=?Base.Module,SetObservable, AbortSet)
         % Used for monitoring only (use methods to change)
         % Base.Module needs permission for getPrefs;
-        grating = {uint8(1),uint8(2),uint8(3)};    % Grating number
+        grating = 1;          % Grating number (index into gratings_avail)
         position = 637;       % Grating position
         exposure = 1;         % Seconds
         running = false;
+    end
+    properties(SetAccess=private)
+        gratings_avail = {}; % Populated on setup
     end
     properties(Hidden)
         prefs = {'grating','position','exposure','cal_local'};
@@ -154,7 +157,7 @@ classdef WinSpec < Modules.Driver
             if nargin < 2
                 updateFcn = [];
             else
-                assert(isa(updateFcn,'function_handle'),'"updateFcn" callback must be a function handle');
+                assert(isempty(updateFcn)||isa(updateFcn,'function_handle'),'"updateFcn" callback must be a function handle');
             end
             if nargin < 3
                 over_exposed_override = false;
@@ -207,7 +210,7 @@ classdef WinSpec < Modules.Driver
             % This sets basic file handling: overwrite, autosave, no BG
             % file etc.
             out = obj.com('setup');
-            gratings = out.gratings; % For future use
+            obj.gratings_avail = out.gratings;
         end
         function setGrating(obj,N,pos)
             % If N/pos empty, will use last setting (still require all args
@@ -225,7 +228,7 @@ classdef WinSpec < Modules.Driver
             obj.com('grating',N,pos);
             obj.connection.Timeout = timeout;
             % Abortset should make this reasonable overhead
-            obj.grating = uint8(N);
+            obj.grating = N;
             obj.position = pos;
         end
         function setExposure(obj,exp)
@@ -237,7 +240,7 @@ classdef WinSpec < Modules.Driver
         function [N,pos,exp] = getInstrParams(obj)
             % Gets grating info and exposure from instrument (sec)
             out = obj.com('getGratingAndExposure');
-            N = uint8(out(1)); pos = out(2); exp = out(3);
+            N = out(1); pos = out(2); exp = out(3);
         end
         function calibrate(obj,laser,range,exposure,ax) %when fed a tunable laser, will sweep the laser's range to calibrate itself, outputting a calibration function
             assert(isvalid(laser),'Invalid laser handle passed to Winspec calibration')
