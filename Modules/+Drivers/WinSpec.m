@@ -147,12 +147,17 @@ classdef WinSpec < Modules.Driver
                 delete(obj.connection);
             end
         end
-        function sp = acquire(obj,updateFcn)
+        function sp = acquire(obj,updateFcn,over_exposed_override)
             % [optional] Calls updateFcn with the only input as the elapsed time
+            % [optional] over_exposed_override will supress server's
+            %   overexposed error (default is not to supress)
             if nargin < 2
                 updateFcn = [];
             else
                 assert(isa(updateFcn,'function_handle'),'"updateFcn" callback must be a function handle');
+            end
+            if nargin < 3
+                over_exposed_override = false;
             end
             obj.running = true;
             obj.abort_requested = false;
@@ -164,7 +169,7 @@ classdef WinSpec < Modules.Driver
                 drawnow; % Flush callback queue
             end
             try
-                sp = obj.com('acquire',@acquire_callback);
+                sp = obj.com('acquire',over_exposed_override,@acquire_callback);
             catch err
                 if strcmp(err.message,'Connection timed out.')
                     obj.setExposure(obj.exposure);
