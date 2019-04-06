@@ -269,7 +269,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
             assert(target>=0&&target<=100,'Target must be a percentage')
             % tune at a limited rate per step
             currentPercent = obj.GetPercent;
-            numberSteps = mod(abs(currentPercent-target),obj.resonator_tune_speed);
+            numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
                 obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
