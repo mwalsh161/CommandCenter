@@ -49,7 +49,7 @@ classdef VelocityLaser < Modules.Driver
             try % Init laser
                 obj.idn = obj.com('idn');
                 obj.PiezoPercent = obj.com('getPiezoPercent');
-                obj.Wavelength = obj.com('getWavelength');
+                obj.Wavelength = obj.measuredWavelength;
                 obj.Power = obj.com('getPower');
             catch err
                 error(err.message);
@@ -68,6 +68,9 @@ classdef VelocityLaser < Modules.Driver
         end
         function on = getDiodeState(obj)
             on = obj.com('getDiodeState');
+        end
+        function wl = measuredWavelength(obj)
+            wl = obj.com('getWavelength');
         end
         function on(obj)
             obj.com('on');
