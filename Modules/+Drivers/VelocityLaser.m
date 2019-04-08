@@ -62,11 +62,10 @@ classdef VelocityLaser < Modules.Driver
         end
         function on(obj)
             obj.com('on');
-            pause(5);
+            pause(5); % As stated in the manual
         end
         function off(obj)
             obj.com('off');
-            pause(5);
         end
         function set.Power(obj,val)
             obj.com('setPower',val);
@@ -106,7 +105,7 @@ classdef VelocityLaser < Modules.Driver
             start_timeout = obj.connection.connection.Timeout;
             obj.connection.connection.Timeout = obj.TuningTimout;
             try
-            obj.com('setWavelength',val);
+            obj.com('setWavelength',val,obj.TuningTimout);
             catch err
                 obj.connection.connection.Timeout = start_timeout;
                 rethrow(err);
