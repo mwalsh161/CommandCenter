@@ -7,6 +7,9 @@ classdef VelocityLaser < Modules.Driver
     properties (Constant)
         hwname = 'velocitylaser';
     end
+    properties(Access=private)
+        init = true; % Used in set methods
+    end
     properties (SetAccess=immutable)
         connection
         idn
@@ -16,7 +19,7 @@ classdef VelocityLaser < Modules.Driver
     end
     properties (SetObservable)
         PiezoPercent = [];
-        Wavelength = [];
+        Wavelength = [];  % This is the set wavelength (not actual)
         ConstantPowerMode = [];
         TrackMode = [];
         Power = [];
@@ -43,11 +46,17 @@ classdef VelocityLaser < Modules.Driver
     methods(Access=private)
         function obj = VelocityLaser(ip)
             obj.connection = hwserver(ip);
-            try
+            try % Init laser
                 obj.idn = obj.com('idn');
+                obj.PiezoPercent = obj.com('getPiezoPercent');
+                obj.Wavelength = obj.com('getWavelength');
+                obj.Power = obj.com('getPower');
             catch err
                 error(err.message);
             end
+            obj.init = false;
+            obj.ConstantPowerMode = true;
+            obj.TrackMode = false;
         end
         function response = com(obj,funcname,varargin) %keep this
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
@@ -68,56 +77,66 @@ classdef VelocityLaser < Modules.Driver
             obj.com('off');
         end
         function set.Power(obj,val)
-            obj.com('setPower',val);
+            if ~obj.init
+                obj.com('setPower',val);
+            end
             obj.Power = val;
         end
         function set.TrackMode(obj,val)
-            if ~ischar(val)
-                if ~islogical(val)
-                    error('TrackMode requires true/false or string on/off input')
-                else
-                    if val
-                        val = 'on';
+            if ~obj.init
+                if ~ischar(val)
+                    if ~islogical(val)
+                        error('TrackMode requires true/false or string on/off input')
                     else
-                        val = 'off';
+                        if val
+                            val = 'on';
+                        else
+                            val = 'off';
+                        end
                     end
                 end
-            end            
-            obj.com('setTrackMode',val);
+                obj.com('setTrackMode',val);
+            end
             obj.TrackMode = val;
         end
         function set.ConstantPowerMode(obj,val)
-            if ~ischar(val)
-                if ~islogical(val)
-                    error('ConstantPowerMod requires true/false or string on/off input')
-                else
-                    if val
-                        val = 'on';
+            if ~obj.init
+                if ~ischar(val)
+                    if ~islogical(val)
+                        error('ConstantPowerMod requires true/false or string on/off input')
                     else
-                        val = 'off';
+                        if val
+                            val = 'on';
+                        else
+                            val = 'off';
+                        end
                     end
                 end
+                obj.com('setConstantPowerMode',val);
             end
-            obj.com('setConstantPowerMode',val);
             obj.ConstantPowerMode = val;
         end
         function set.Wavelength(obj,val)
-            start_timeout = obj.connection.connection.Timeout;
-            obj.connection.connection.Timeout = obj.TuningTimout;
-            try
-            obj.com('setWavelength',val,obj.TuningTimout);
-            catch err
+            if ~obj.init
+                start_timeout = obj.connection.connection.Timeout;
+                obj.connection.connection.Timeout = obj.TuningTimout;
+                try
+                    obj.com('setWavelength',val,obj.TuningTimout);
+                catch err
+                    obj.connection.connection.Timeout = start_timeout;
+                    rethrow(err);
+                end
                 obj.connection.connection.Timeout = start_timeout;
-                rethrow(err);
+                if strcmpi(obj.TrackMode,'off')
+                    obj.TrackMode = 'off'; %set.TrackMode affirms local setting with hardware
+                end
             end
-            obj.connection.connection.Timeout = start_timeout;
             obj.Wavelength = val;
-            if strcmpi(obj.TrackMode,'off')
-                obj.TrackMode = 'off'; %set.TrackMode affirms local setting with hardware
-            end
         end
         function set.PiezoPercent(obj,val)
-            obj.com('setPiezoPercent',val);
+            if ~obj.init
+                obj.com('setPiezoPercent',val);
+            end
             obj.PiezoPercent = val;
         end
         function output = get.PiezoPercent(obj)
