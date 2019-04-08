@@ -185,6 +185,7 @@ classdef WinSpec < Modules.Driver
                 sp.CAL_COEFFS(3)*x.^2+...
                 sp.CAL_COEFFS(4)*x.^3+...
                 sp.CAL_COEFFS(5)*x.^4)';
+            sp.y=sp.y'; %to keep consistent with x dimensionality
             if abs(sp.EXPOSEC - obj.exposure) > 0.0001
                 warning('Exposure changed from expected value!')
             end
@@ -250,12 +251,13 @@ classdef WinSpec < Modules.Driver
                 specloc = NaN(1,length(setpoints));
                 laserloc = NaN(1,length(setpoints));
                 laser.on;
-                xlabel(ax,'Wavelength (nm)')
                 title(ax,'Calibrating spectrometer')
                 for i=1:length(setpoints)
                     laser.TuneCoarse(setpoints(i));
                     laserspec = obj.acquire;
-                    plot(ax,laserspec.x,laserspec.y);drawnow;
+                    plot(ax,laserspec.x,laserspec.y);
+                    xlabel(ax,'Wavelength (nm)');
+                    ylabel(ax,'Intensity');drawnow;
                     specfit = fitpeaks(laserspec.x,laserspec.y,'fittype','gauss');
                     assert(length(specfit.locations) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
                     specloc(i) = specfit.locations;
@@ -269,12 +271,12 @@ classdef WinSpec < Modules.Driver
                 temp.datetime = datetime;
                 obj.cal_local = temp;
                 cla(ax)
-                plotx = linspace(obj.c/max(laserloc),obj.c/min(laserloc),10*length(laserloc));
+                plotx = linspace(min(obj.c/max(laserloc),min(specloc)),max(obj.c/min(laserloc),max(specloc)),10*length(laserloc));
                 plot(ax,specloc,laserloc,'bo');
                 hold(ax,'on')
                 plot(ax,plotx,temp.nm2THz(plotx));
                 fitbounds = predint(temp.nm2THz,plotx,0.95,'functional','on'); %get confidence bounds on fit
-                errorfill(plotx,temp.nm2THz(plotx)',abs(temp.nm2THz(plotx)'-fitbounds(:,1)'),abs(fitbounds(:,2)'-temp.nm2THz(plotx)'),'parent',ax)
+                errorfill(plotx,temp.nm2THz(plotx)',[abs(temp.nm2THz(plotx)'-fitbounds(:,1)');abs(fitbounds(:,2)'-temp.nm2THz(plotx)')],'parent',ax)
                 hold(ax,'off')
                 xlabel(ax,'Spectrometer Reading')
                 ylabel(ax,'Wavemeter Reading')
