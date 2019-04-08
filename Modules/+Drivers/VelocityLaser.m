@@ -76,6 +76,10 @@ classdef VelocityLaser < Modules.Driver
         function off(obj)
             obj.com('off');
         end
+        function out = opc(obj)
+            % Operation complete query
+            out = obj.com('opc');
+        end
         function set.Power(obj,val)
             if ~obj.init
                 obj.com('setPower',val);
