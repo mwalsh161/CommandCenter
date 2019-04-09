@@ -257,6 +257,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         function TuneCoarse(obj,target)
             obj.tune(obj.c/target);
             if obj.locked
+                pause(3); % Required for the EMM to reach the target wavelength (with 3 sec pause the error on the target is ~2.3e-5nm)
                 obj.WavelengthLock(false);
             end
         end
