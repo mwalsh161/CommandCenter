@@ -192,11 +192,10 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 if val
                     f = msgbox('Turning laser diode on, please wait...');
                     obj.serial.on;
+                    delete(f);
                 else
-                    f = msgbox('Turning laser diode off, please wait...');
                     obj.serial.off;
                 end
-                delete(f);
             end
             obj.diode_on = val;
         end
