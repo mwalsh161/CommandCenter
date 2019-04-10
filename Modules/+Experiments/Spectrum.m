@@ -20,42 +20,9 @@ classdef Spectrum < Modules.Experiment
             obj.path = 'spectrometer';
             obj.grating = NaN;
             try
-                obj.loadPrefs; % Load prefs should setWinSpec
+                obj.loadPrefs; % Load prefs should load WinSpec via set.ip
             catch err % Don't need to raise alert here
                 if ~strcmp(err.message,'WinSpec not set')
-                    rethrow(err)
-                end
-            end
-        end
-        function setWinSpec(obj,ip)
-            delete(obj.listeners);
-            obj.WinSpec = []; obj.listeners = [];
-            wrappers = {'grating','position','exposure'};
-            if strcmp(ip,'No Server')
-                for i = 1:length(wrappers) % Disable editing
-                    obj.(wrappers{i}) = NaN;
-                end
-            else
-                h = msgbox(sprintf('Connecting to %s...',ip),mfilename,'help','modal');
-                delete(findall(h,'tag','OKButton')); drawnow;
-                try
-                    obj.WinSpec = Drivers.WinSpec.instance(ip);
-                    % Setup listeners and grab winspec settings
-                    grating_info = obj.WinSpec.gratings_avail(obj.WinSpec.grating);
-                    %notify(obj,'update_settings'); % Trigger CC to reload settings now that we have grating info
-                    obj.grating = sprintf('%i %s',grating_info.grooves,grating_info.name);
-                    obj.listeners = addlistener(obj.WinSpec,'grating','PostSet',@obj.set_grating_string);
-                    for i = 2:length(wrappers)
-                        obj.(wrappers{i}) = obj.WinSpec.(wrappers{i});
-                        obj.listeners(i) = addlistener(obj.WinSpec,wrappers{i},'PostSet',@(a,b)updateprop(a,b,obj));
-                    end
-                    delete(h)
-                catch err
-                    delete(h)
-                    obj.WinSpec = [];
-                    for i = 1:length(wrappers) % Disable editing
-                        obj.(wrappers{i}) = NaN;
-                    end
                     rethrow(err)
                 end
             end
