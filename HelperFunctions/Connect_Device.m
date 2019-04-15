@@ -267,7 +267,9 @@ catch
             comProperties.(field_names{index}) =  val;
         end
     end
-    set(comObject,comProperties);%set all the properties; this also handles debugging
+%     set(comObject,comProperties);%set all the properties; this also handles debugging
+     set(comObject);%set all the properties; this also handles debugging
+
 end
 end
 
