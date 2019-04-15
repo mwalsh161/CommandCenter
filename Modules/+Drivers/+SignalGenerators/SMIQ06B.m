@@ -4,12 +4,6 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
     %
     % Primary purpose of this is to control the SG
     %
-<<<<<<< HEAD
-    % Singleton based on GPIB address/control. We communicate through
-    % ComDevice drivers.
-    %
-=======
->>>>>>> PiezoCheck
     % should be named serial in an class that calls this instance
     
     % One instance controls 1 physical device. Multiple instances can exist
@@ -51,14 +45,6 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
             obj.loadPrefs;
             display('setting comInfo for SMIQ06B.')
             if isempty(obj.comObjectInfo.comType)&& isempty(obj.comObjectInfo.comAddress)&& isempty(obj.comObjectInfo.comProperties)
-<<<<<<< HEAD
-                [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = Connect_Device;
-            else
-                try
-                    [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = ...
-                        Connect_Device(obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties);
-                catch
-=======
                  %first time connecting should run the helperfunction
                 %Connect_Device to establish your connection
                 [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = Connect_Device;
@@ -73,7 +59,6 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
                     %after the intiial connection (ex: change GPIB
                     %address). This allows you to establish a new
                     %connection.
->>>>>>> PiezoCheck
                     [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] ...
                         = Connect_Device;
                 end
