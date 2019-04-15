@@ -31,17 +31,7 @@ classdef SG_Source_invisible < Modules.Source
             obj.serial.setPowerCW(val);
             obj.MWPower = obj.serial.getPowerCW;
         end
-       
-        function MWFrequency = get.MWFrequency(obj)
-            MWFrequency = obj.serial.getFreqCW;
-            obj.MWFrequency = MWFrequency;
-        end
-        
-        function MWPower = get.MWPower(obj)
-            MWPower = obj.serial.getPowerCW;
-            obj.MWPower = MWPower;
-        end
-        
+         
         function delete(obj)
             obj.serial.delete;
         end
