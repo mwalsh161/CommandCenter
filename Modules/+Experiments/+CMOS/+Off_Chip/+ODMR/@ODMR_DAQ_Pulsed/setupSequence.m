@@ -29,11 +29,10 @@ function [program,s] = setupSequence(obj)
     s = sequence('Pulsed_Freq_Sweep_sequence');
     s.channelOrder = [cLaser,cMWswitch,cDummy];
     
-
-     %dummy line
+    %dummy line
      
     n_dummy = node(s.StartNode,cDummy,'delta',0,'units','us');
-    n_dummy = node(n_dummy,cDummy,'delta',obj.LaserOnTime + obj.MWOnTime + obj.DelayTime + 2*obj.dummyTime,'units','us');
+    n_dummy = node(n_dummy,cDummy,'delta',obj.LaserOnTime + obj.MWOnTime + obj.DelayTime + 2*obj.dummyTime+0.6,'units','us');
     
     % MW gate duration
     n_MW = node(s.StartNode,cMWswitch,'delta',obj.dummyTime,'units','us');

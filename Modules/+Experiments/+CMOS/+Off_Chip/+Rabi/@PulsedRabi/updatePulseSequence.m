@@ -37,11 +37,13 @@ n_LaserEnd = node(n_LaserStart,cLaser,'delta',obj.LaseronTime,'units','ns');
 n_dummy = node(s.StartNode,cDummy,'delta',0,'units','ns');
 n_dummy = node(n_dummy,cDummy,'delta',obj.deadTime + obj.padding + obj.LaseronTime + MWonTime,'units','ns');
 
-%%
+%% determine number of repeats
+repeats = round(obj.IntegrationTime./(obj.LaseronTime*1e-9));
+s.repeat = repeats;
 
 [program,~] = s.compile;
 
-%% 
+%%
 obj.pulseblaster.stop; %in case of running sequence
 obj.pulseblaster.open;
 obj.pulseblaster.load(program); %board is loaded and ready to start

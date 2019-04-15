@@ -46,8 +46,8 @@ try
             
             %% data
             
-            [s,program] = obj.updatePulseSequence(time_list(timeIndex),true); %this steps the MW time on and loads sequence into pulseblaster
-            
+            [s1,program1] = obj.updatePulseSequence(time_list(timeIndex),true); %this steps the MW time on and loads sequence into pulseblaster
+
             t = obj.Ni.CreateTask('pulse');
             t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
             AI = obj.Ni.CreateTask('Analog In');
@@ -69,7 +69,10 @@ try
             
             %% normalization
             
-            [s,program] = obj.updatePulseSequence(time_list(timeIndex),false); %this turns off the MW for normalization but keeps the sequence the same otherwise
+            drawnow;
+            assert(~obj.abort_request,'User aborted');
+            
+            [s2,program2] = obj.updatePulseSequence(time_list(timeIndex),false); %this turns off the MW for normalization but keeps the sequence the same otherwise
 
             t = obj.Ni.CreateTask('pulse');
             t.ConfigurePulseTrainOut(obj.CounterSyncName,obj.DAQSamplingFrequency,obj.Nsamples);
@@ -113,6 +116,7 @@ end
 
 %% cleanup
 obj.laser.off;
+obj.pulseblaster.stop;
 
 %%
 if ~isempty(message)

@@ -122,7 +122,7 @@ catch message
 end
 %% cleanup
 obj.laser.off;
-     
+obj.Pulseblaster.stop;
             
 %%
 if ~isempty(message)
