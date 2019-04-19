@@ -320,7 +320,7 @@ switch hObj.UserData.Style
     case 'popup'
         ind = find(ismember(hObj.String,num2str(val)),1);
         if isempty(ind)
-            if ~isnan(val)
+            if ~isnan(val) % nan is universal signifier to disable; so it is an acceptible "choice" for multiple choice popup
                 warning('UICONTROLGROUP:set_value','Callback returned a value that is not in the set of options for the popup (%s).',hObj.Tag)
             end
             hObj.Enable='off';

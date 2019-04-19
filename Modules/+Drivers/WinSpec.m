@@ -173,12 +173,9 @@ classdef WinSpec < Modules.Driver
                 return
             end
             bounds = [0 p.MaxExposure];
-            while true
+            for i = 1:10 % Min step size is then roughly 1/2^10 (0.9%)
                 exposure_set = mean(bounds);
                 y = get_val(exposure_set);
-                if exposure_set == 0
-                    assert(y < max_intensity,'Smallest exposure still overexposed');
-                end
                 if y >= target_intensity && y < max_intensity
                     return
                 elseif y < target_intensity
@@ -187,6 +184,7 @@ classdef WinSpec < Modules.Driver
                     bounds(2) = exposure_set; % Decrease upper bound
                 end
             end
+            error('Failed to reach target intensity within 10 steps.')
             function y = get_val(exp)
                 obj.setExposure(exp);
                 sp = obj.acquire([],true); % Will do our own test
