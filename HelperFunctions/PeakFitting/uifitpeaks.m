@@ -15,7 +15,6 @@ addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})))
 parse(p,varargin{:});
 fittype = lower(p.Results.FitType);
 
-% Init with fitpeaks
 x = [];
 y = [];
 children = [findall(ax,'type','line') findall(ax,'type','scatter')];
@@ -23,22 +22,28 @@ for i = 1:length(children)
     if ~strcmp(get(children(i),'tag'),mfilename)
         x = [x; children(i).XData'];
         y = [y; children(i).YData'];
+        set(children(i),'HitTest','off');
     end
 end
 
+% Init with fitpeaks
 colors = lines;
 xfit = linspace(min(x),max(x),1001);
-[vals,confs,fits,~,init] = fitpeaks(x,y,'FitType',fittype,'noisemodel','shot');
-bg = fits{end}.d; % Background
+[vals,confs,fits,~,init] = fitpeaks(x,y,'FitType',fittype,'noisemodel','empirical');
 held = ishold(ax);
 hold(ax,'on');
-pFit = plot(ax,xfit,fits{end}(xfit),'r','linewidth',1,'tag',mfilename);
+if ~isempty(fits{end})
+    bg = fits{end}.d; % Background
+    pFit = plot(ax,xfit,fits{end}(xfit),'r','linewidth',1,'tag',mfilename);
+else
+    bg = median(y);
+    pFit = plot(ax,xfit,ones(size(xfit))*bg,'r','linewidth',1,'tag',mfilename);
+end
 pFit.UserData = fits{end};
 
 if ~held
     hold(ax,'off');
 end
-handles.ax = ax;
 handles.pFit = pFit;
 handles.x = x;
 handles.y = y;
@@ -70,12 +75,24 @@ pnt.UserData.desc = 0; % background
 handles.background = pnt;
 
 f = Base.getParentFigure(ax);
+if isfield(f.UserData,[mfilename '_count'])
+    f.UserData.([mfilename '_count']) = f.UserData.([mfilename '_count']) + 1;
+else
+    f.UserData.([mfilename '_count']) = 1;
+end
 handles.figure = f;
-handles.old_keypressfcn = get(f,'keypressfcn');
+if f.UserData.([mfilename '_count']) == 1
+    % Only remember if this is the first time called on a figure
+    handles.old_keypressfcn = get(f,'keypressfcn');
+    handles.old_keyreleasefcn = get(f,'keyreleasefcn');
+    set(f,'keypressfcn',@shifted);
+    set(f,'keyreleasefcn',@refit);
+end
 handles.old_buttondownfcn = get(ax,'buttondownfcn');
-guidata(ax,handles);
-set(f,'keypressfcn',@shifted);
 set(ax,'buttondownfcn',@newPeak);
+ax.UserData = handles;
+ax.UserData.([mfilename '_enabled']) = true;
+iptPointerManager(f, 'enable');
 addlistener(pFit,'ObjectBeingDestroyed',@clean_up);
 if nargout
     varargout = {pFit};
@@ -83,10 +100,16 @@ end
 end
 
 function clean_up(hObj,~)
-handles = guidata(hObj);
-set(handles.figure,'keypressfcn',handles.old_keypressfcn);
-set(handles.ax,'buttondownfcn',handles.old_buttondownfcn);
-delete(findall(handles.ax,'tag',mfilename))
+ax = hObj.Parent;
+handles = ax.UserData;
+if isfield(handles,'old_keypressfcn')
+    set(handles.figure,'keypressfcn',handles.old_keypressfcn);
+end
+if isfield(handles,'old_keyreleasefcn') % Using key release allows holding arrows to adjust faster
+    set(handles.figure,'keyreleasefcn',handles.old_keyreleasefcn);
+end
+set(ax,'buttondownfcn',handles.old_buttondownfcn);
+delete(findall(ax,'tag',mfilename))
 end
 
 function p = addPoint(ax,x,y,railed,color)
@@ -104,17 +127,18 @@ set(p,'buttondownfcn',@selected);
 end
 
 function newPeak(hObj,eventdata)
-handles = guidata(hObj);
-if handles.lock
+ax = gca;
+if ax.UserData.lock
     return
 end
+handles = ax.UserData;
 bg = handles.background.YData;
 x = eventdata.IntersectionPoint(1);
 y = eventdata.IntersectionPoint(2);
 amp = y - bg;
-pnt(1) = addPoint(handles.ax,x,y,false,handles.colors(length(handles.guesses)+1,:));
-pnt(2) = addPoint(handles.ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
-pnt(3) = addPoint(handles.ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
+pnt(1) = addPoint(ax,x,y,false,handles.colors(length(handles.guesses)+1,:));
+pnt(2) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
+pnt(3) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
 handles.guesses(end+1).gobs = pnt;
 pnt(1).UserData.ind = length(handles.guesses);
 pnt(1).UserData.desc = 1; % encode amplitude (also index to guesses)
@@ -122,26 +146,28 @@ pnt(2).UserData.ind = length(handles.guesses);
 pnt(2).UserData.desc = 2; % encode right
 pnt(3).UserData.ind = length(handles.guesses);
 pnt(3).UserData.desc = 3; % encode left
-guidata(hObj,handles);
+ax.UserData = handles;
 selected(pnt(1));
-refit(hObj);
+refit(hObj); % Force refit
 end
 
 function selected(hObj,~)
+ax = gca;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
+    return;
+end
 set(findall(hObj.Parent,'tag',mfilename),'linewidth',1);
 set(hObj,'linewidth',2);
-handles = guidata(hObj);
-handles.active_point = hObj;
-guidata(hObj,handles);
+ax.UserData.active_point = hObj;
 end
 
 function shifted(hObj,eventdata)
-d = 0.01;
-handles = guidata(hObj);
-if handles.lock
-    return
+ax = gca;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
+    return;
 end
-if handles.lock
+handles = ax.UserData;
+if isempty(handles.active_point)
     return
 end
 modified = false;
@@ -159,11 +185,19 @@ switch eventdata.Key
         ind = handles.active_point.UserData.ind;
         delete(handles.guesses(ind).gobs);
         handles.guesses(ind) = [];
+        for i = ind:length(handles.guesses)
+            for j = 1:length(handles.guesses(i).gobs)
+            handles.guesses(i).gobs(j).UserData.ind = ...
+                handles.guesses(i).gobs(j).UserData.ind - 1;
+            end
+        end
+        handles.active_point = [];
 end
+d = 0.01; % Percent of axis span to shift
 if ismember(eventdata.Key,{'leftarrow','rightarrow'})
     if any(handles.active_point.UserData.desc==[0,1,2,3])
         modified = true;
-        xlim = get(handles.ax,'xlim');
+        xlim = get(ax,'xlim');
         dx = diff(xlim)*d*dir;
         handles.active_point.XData = handles.active_point.XData + dx;
         if any(handles.active_point.UserData.desc==[2,3])
@@ -184,7 +218,7 @@ if ismember(eventdata.Key,{'leftarrow','rightarrow'})
 elseif ismember(eventdata.Key,{'uparrow','downarrow'})
     if any(handles.active_point.UserData.desc==[0,1])
         modified = true;
-        ylim = get(handles.ax,'ylim');
+        ylim = get(ax,'ylim');
         dy = diff(ylim)*d*dir;
         handles.active_point.YData = handles.active_point.YData + dy;
         if handles.active_point.UserData.desc == 1
@@ -196,20 +230,30 @@ elseif ismember(eventdata.Key,{'uparrow','downarrow'})
     end
 end
 if modified
-    guidata(hObj,handles);
-    refit(hObj);
+    ax.UserData = handles;
 end
 end
 
-function refit(hObj)
+function refit(hObj,varargin)
 limit = [0, 1.2];
-handles = guidata(hObj);
-handles.lock = true;
-guidata(hObj,handles);
+ax = gca;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
+    return;
+end
+if ax.UserData.lock
+    return
+end
+handles = ax.UserData;
+ax.UserData.lock = true;
 try
-handles.pFit.YData = NaN(size(handles.pFit.XData));
+handles.pFit.YData = median(handles.y)+zeros(size(handles.pFit.XData));
 init = struct('background',handles.background.YData,'amplitudes',NaN(0,1),'locations',NaN(0,1),'widths',NaN(0,1));
 n = length(handles.guesses);
+if n==0 % Edge case of no peaks
+    handles.lock = false;
+    ax.UserData = handles;
+    return
+end
 for i = 1:n % The notation below explicitly forces to column vector
     init.amplitudes(end+1,:) = handles.guesses(i).gobs(1).YData - handles.background.YData;
     init.widths(end+1,:) = abs(diff([handles.guesses(i).gobs([2,3]).XData]));
@@ -239,14 +283,15 @@ else
     handles.background.Marker = 'o';
 end
 if any(isnan(fitconfs))
-    set(handles.ax,'Color',[1 0.8 0.8]);
+    set(ax,'Color',[1 0.8 0.8]);
 else
-    set(handles.ax,'Color',[1 1 1]);
+    set(ax,'Color',[1 1 1]);
 end
 catch err
 end
+drawnow;
 handles.lock = false;
-guidata(hObj,handles);
+ax.UserData = handles;
 if exist('err','var')
     rethrow(err);
 end
