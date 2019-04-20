@@ -28,7 +28,7 @@ function choice = buttonChoiceDialog(varargin)
 %     Expected to be a sting. Empty by default.
 
 %% Output arguments
-%	choice- index ot the user chosen (clicked) button.
+%	choice- choice of user (clicked button) as a cell (ex: {'yes'}).
 
 %Note: Cancel returns []
 %%
@@ -60,7 +60,7 @@ else
 end
 
 if nargin < 4 || isempty(varargin{4})
-    qStr = 'Select One';
+    qStr = ' ';
 else
     assert(ischar(varargin{4}),'Fourth input must be a string')
     qStr = varargin{4};
@@ -87,7 +87,7 @@ if  Pos(4) < minHeight
 end
 %%  create figure window
 
-figWindow = figure('Visible','off','Units','pixels');
+figWindow = figure('Visible','off','Units','pixels','numbertitle', 'off');
 figWindow.Position = Pos;
 figWindow.Name = dlgTitle;
 figWindow.MenuBar ='none';
