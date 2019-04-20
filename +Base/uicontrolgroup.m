@@ -107,7 +107,12 @@ for i = 1:length(props)
         style = 'popup';
         ui.Style = style; 
         ui.String = prop.options; % This converts all options to strings
-        ui.Value = prop.default;
+        if isempty(prop.default)
+            ui.Value = 1;
+            ui.Enable = 'off';
+        else
+            ui.Value = prop.default;
+        end
         ui.UserData.options = prop.options;  % This maintains original type
     elseif (isnumeric(prop.default) && length(prop.default)<=1) || ischar(prop.default)
         style = 'edit';
@@ -315,7 +320,9 @@ switch hObj.UserData.Style
     case 'popup'
         ind = find(ismember(hObj.String,num2str(val)),1);
         if isempty(ind)
-            warning('UICONTROLGROUP:set_value','Callback returned a value that is not in the set of options for the popup (%s).',hObj.Tag)
+            if ~isnan(val) % nan is universal signifier to disable; so it is an acceptible "choice" for multiple choice popup
+                warning('UICONTROLGROUP:set_value','Callback returned a value that is not in the set of options for the popup (%s).',hObj.Tag)
+            end
             hObj.Enable='off';
         else
             if strcmp(hObj.Enable,'off') && ~hObj.UserData.readonly
