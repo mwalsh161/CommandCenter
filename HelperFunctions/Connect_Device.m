@@ -1,62 +1,37 @@
-function [comObject,comType,comAddress,comProperties]=Connect_Device(varargin)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%Expected Inputs/Behavior:
-
+function [comObject,comProperties]=Connect_Device(varargin)
+%% Expected Inputs/Behavior:
 %if no input is supplied then connect device asks the user to pick a
 %communication type( ex: serial, prologix, etc). The user will be prompted
 %to submit the needed information to connect to the device,
 
-%ex: [comObject,comType,comAddress,comProperties]=Connect_Device
+%ex: [comObject,comProperties]=Connect_Device
+%ex: [comObject,comProperties]=Connect_Device(comProperties)
 
-%if a communication type (comType) is input (ex:'serial') without the relevant comm
-%port information then the user is prompted to submit the com port
-%information.
+%% Input arguments (defaults exist):
+% comProperties - desired settings of comObject
 
-%ex: [comObject,comType,comAddress,comProperties]=Connect_Device('serial')
+%% Output arguments
+% comObject - handle to device
 
-%if a valid comport object is supplied then the user is prompted
-%to adjust the com port properties. Upon closing the comport properties
-%are set to match the user's input. Incorrect properties will trigger a warning and
-%default value will be set.
-
-%ex: [comObject,comType,comAddress,comProperties]=Connect_Device(comObject)
-
-%if ComType is supplied with a corresponding comAddress then a comObject is
-%created and the user is asked to set their ComProperties
-
-%ex: [comObject,comType,comAddress,comProperties]=Connect_Device(comType,comAddress)
-
-%if a valid comport object/(comType +comAddress) and comProperties are supplied then a com
-%object is made with the supplied comproperties.Incorrect properties will trigger a warning and
-%default value will be set. comProperties should be a structure where field
-%names are the names of settable properties and their value is the desired
-%property setting.
-
-%ex: [comObject,comType,comAddress,comProperties]=Connect_Device(comObject,comAddress,comProperties)
-%ex: [comObject,comType,comAddress,comProperties]=Connect_Device(comType,comAddress,comProperties)
-
-%Note:
-% if any of the input variable are an empty matrix [] then it is treated as
-% not a valid input and it is ignored. Thus
-%Connect_Device('serial',[]) is equal to  Connect_Device('serial')
-
-%Note:
-%UserData property of ComObjects has been reserved to store the ComObjects'
-%comAddress. Do comObject.UserData to query comAddress info.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %Expected Outputs:
 
 %first output is the comObject for your communication object.
 
-%second output is your comunication object. Ex: 'serial'
-
-%third output is the comAddress for your communication object.Ex: 'Com5'
-
-%fourth output is a structure of comProperties. Field names are the name of
+%second output is a structure of comProperties. Field names are the name of
 %the settable properties of comObject. Field values are the current
 %property setting.
+%% Note:
+% if any of the input variable are an empty matrix [] then it is treated as
+% not a valid input and it is ignored. Thus
+%Connect_Device([]) is equal to  Connect_Device()
+
+%Note:
+%UserData property of ComObjects has been reserved to store the ComObjects'
+%comAddress. Do comObject.UserData to query comAddress info.
+
+%Connect_Device does not handle debugging on comObject
 
 %supported communication objects: 'serial', 'gpib', 'TCP',and 'prologix'
 %%
@@ -64,111 +39,66 @@ function [comObject,comType,comAddress,comProperties]=Connect_Device(varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Handle Input Args %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%
+narginchk(0,1); %should have no more than one inputs
+
+comObject = [];
+comProperties = struct();
 numInputs = nargin;
 
-if numInputs >3
-    error('too many input arguments supplied')
-end
-
-if numInputs == 3
-    if ~isempty(varargin{3}) && ~isempty(varargin{2})&& ~isempty(varargin{1})
-        assert(isstruct(varargin{3}),'ComProperties must be a structure')
-    else
-        varargin(3) = [];
-        numInputs = 2;
-    end
-end
-
-if numInputs == 2
-    if ~isempty(varargin{2})&& ~isempty(varargin{1})
-        assert(iscell(varargin{2}) || ischar(varargin{2}),'ComAddress must be a cell')
-    else
-        varargin(2) = [];
-        numInputs = 1;
-    end
-end
-
 if numInputs == 1
-    if ~isempty(varargin{1})
-        assert(ischar(varargin{1}) || isobject(varargin{1}),'First argument should be a valid comObject or comType, ex: ''serial''')
+    if  ~isempty(varargin{1})
+        assert(isstruct(varargin{1}),'comProperties must be a struct.')
     else
         varargin(1) = [];
         numInputs = 0;
     end
 end
 
-comAddress = [];
-comType = '';
-comObject = [];
-comProperties = struct();
 %% see if any input is entered if not then prompt user to select com object
 dlgOptions = [{'gpib'},{'TCP'},{'serial'},{'prologix'}]; %add additional choices here
-
 if numInputs == 0 %no information supplied
     dlgTitle = 'communication options';
     defOption = [];
     qStr ='Select comType';
     choice = buttonChoiceDialog(dlgOptions, dlgTitle, defOption, qStr);
- 
+    
     if isempty(choice)
-        %user has elected to not select a comType exit the function 
-        comObject = []; %return an empty bracket to match how inputdlg returns 
+        %user has elected to not select a comType exit the function
+        comObject = []; %return an empty bracket to match how inputdlg returns
         return
     end
     
     comObject = selectConnection(choice);
-
-end
-%% if exactly one input is given then see if is valid comObject or a supported communication type: 'serial', etc,
-if numInputs==1
-    if ischar(varargin{1})
-        comObject = selectConnection(varargin{:});
-    else
-        assert(isobject(varargin{1}),'inputs supplied should be a valid communication object or communication type')
-        comObject = varargin{1};
-        assert(strcmp(comObject.status,'closed'),'comObject should be closed')
-    end
+    comProperties =  displayProperties(comObject);
     
-
-end
-%% if two input are supplied then expect it to be information to establish a valid comport and query user to setup comport properties
-if numInputs == 2
-    if ischar(varargin{1})
-        comObject = selectConnection(varargin{1:2});
-    else
-        comObject = varargin{1};
-        assert(strcmp(comObject.status,'closed'),'comObject should be closed')
-    end
-
-end
-%% if more three inputs are supplied then expect it to be information to establish a valid comport and to setup comport properties
-if numInputs == 3
-    if ischar(varargin{1})
-        comObject = selectConnection(varargin{1:2});
-    else
-        comObject = varargin{1};
-        assert(strcmp(comObject.status,'closed'),'comObject should be closed')
-    end
-end
-
-
-if ~isempty(comObject) && isvalid(comObject)
-    if numInputs ~= 3 % Assume if handed arguments, we don't need to modify
-        comProperties = displayProperties(comObject);
-    else
-        comProperties = varargin{3};
-        assert(isstruct(comProperties),'comProperties must be a structure.')
-    end
+    %% set all comProperties
+    
     if ~isempty(fields(comProperties))
         testComObject(comObject,dlgOptions); %check comObject
-        comAddress = comObject.UserData;
-        comType = class(comObject);
         comProperties = setAllProperties(comObject,comProperties);
     else
         delete(comObject);
         comObject = [];
     end
+    
 end
+%% if one inputs is given
+
+if numInputs == 1 % Assume if handed arguments, we don't need to modify
+    comType = determineComType(comProperties);
+    comAddress = determineComAddress(comProperties);
+    comObject = selectConnection(choice);
+end
+
+end
+
+function comType = determineComType(comProperties)
+
+
+end
+
+function comAddress = determineComAddress(comProperties)
+
 end
 
 function [comObject] = selectConnection(varargin)
@@ -198,10 +128,10 @@ end
 
 if nargin == 1
     %user supplied only comType so query user to provide comInformation
-  answer = inputdlg(InputArg,dlg_title,num_lines)';  
-  if isempty(answer)
-      return
-  end
+    answer = inputdlg(InputArg,dlg_title,num_lines)';
+    if isempty(answer)
+        return
+    end
 end
 
 if nargin > 1
