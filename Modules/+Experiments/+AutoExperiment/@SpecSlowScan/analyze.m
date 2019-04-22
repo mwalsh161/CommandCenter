@@ -42,10 +42,9 @@ fig.UserData.AutoExperiment_analysis = struct(...
             'widths',[],...
             'locations',[],...
             'background',cell(length(data.sites),3));
-update(fig); % Bypass changeSite since we have no previous site
-
 % Link UI control
 fig.KeyPressFcn = @cycleSite;
+update(fig); % Bypass changeSite since we have no previous site
 
 if nargout
     varargout = {fig};
@@ -54,6 +53,8 @@ end
 
 function closereq(fig,~)
 % Export data to workspace if analysis exists
+err = [];
+try
 save_state(fig);
 if isfield(fig.UserData,'AutoExperiment_analysis') && ~isempty(fig.UserData.AutoExperiment_analysis)
     var_name = 'SpecSlowScan_analysis';
@@ -68,7 +69,12 @@ if isfield(fig.UserData,'AutoExperiment_analysis') && ~isempty(fig.UserData.Auto
         assignin('base',var_name,fig.UserData.AutoExperiment_analysis)
     end
 end
+catch err
+end
 delete(fig)
+if ~isempty(err)
+    rethrow(err);
+end
 end
 
 function changeSite(fig,new_index)
@@ -113,7 +119,8 @@ colors = lines;
 title(ax(1),sprintf('Site %i/%i',fig.UserData.index,length(fig.UserData.sites)));
 set(fig.UserData.pos,'xdata',site.position(1),'ydata',site.position(2));
 
-cla(ax(2)); cla(ax(3)); cla(ax(4));
+cla(ax(2),'reset'); cla(ax(3),'reset'); cla(ax(4),'reset');
+hold(ax(2),'on'); hold(ax(3),'on'); hold(ax(4),'on');
 titles = {'Spectrum'};
 for i = 1:length(site.experiments)
     experiment = site.experiments(1);
@@ -174,9 +181,15 @@ end
 title(ax(4),strjoin(titles,newline),'interpreter','none');
 xlabel(ax(4),'Frequency (THz)');
 ylabel(ax(4),'Counts');
-attach_uifitpeaks(ax(2));
-attach_uifitpeaks(ax(3));
-attach_uifitpeaks(ax(4));
+if ~isempty(findall(ax(2),'type','line'))
+    attach_uifitpeaks(ax(2));
+end
+if ~isempty(findall(ax(3),'type','line'))
+    attach_uifitpeaks(ax(3),'noisemodel','shot');
+end
+if ~isempty(findall(ax(4),'type','line'))
+    attach_uifitpeaks(ax(4),'noisemodel','shot');
+end
 assert(isempty(site.experiments),'Missed some experiments!')
 catch err
 end
@@ -190,21 +203,32 @@ function save_state(fig)
 dat = struct('background',cell(0,3),'locations',[],'amplitudes',[],'widths',[]);
 ax = fig.UserData.ax;
 for i = 2:4 % Go through each data axis
+    if ~isstruct(ax(i).UserData) || ~isfield(ax(i).UserData,'uifitpeaks_enabled')
+        continue
+    end
     fit_result = ax(i).UserData.pFit.UserData;
-    fitcoeffs = coeffvalues(fit_result);
-    n = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
-    dat(i-1).fit = fit_result;
-    dat(i-1).background = fitcoeffs(1:n);
-    dat(i-1).locations = fitcoeffs(n+1:2*n);
-    dat(i-1).amplitudes = fitcoeffs(2*n+1:3*n);
-    dat(i-1).widths = fitcoeffs(3*n+1);
+    if ~isempty(fit_result)
+        fitcoeffs = coeffvalues(fit_result);
+        n = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
+        dat(i-1).fit = fit_result;
+        dat(i-1).background = fitcoeffs(1:n);
+        dat(i-1).locations = fitcoeffs(n+1:2*n);
+        dat(i-1).amplitudes = fitcoeffs(2*n+1:3*n);
+        dat(i-1).widths = fitcoeffs(3*n+1);
+    else
+        dat(i-1).fit = [];
+        dat(i-1).background = NaN;
+        dat(i-1).locations = NaN;
+        dat(i-1).amplitudes = NaN;
+        dat(i-1).widths = NaN;
+    end
 end
 fig.UserData.AutoExperiment_analysis(fig.UserData.index,:) = dat;
 end
-function attach_uifitpeaks(ax)
+function attach_uifitpeaks(ax,varargin)
 % Wrapper to attach uifitpeaks
 % Let uifitpeaks update keyboard fcn, but then wrap that fcn again
-uifitpeaks(ax);
+uifitpeaks(ax,varargin{:});
 f = ax.Parent;
 if f.UserData.uifitpeaks_count == 1 % Only set on first creation
     f.UserData.uifitpeaks_keypress_callback = get(f,'keypressfcn');

@@ -10,6 +10,8 @@ function varargout = uifitpeaks(ax,varargin)
 %       [Bounds]: How tight to make bounds on fit; [lower,upper] = Bounds*initial guess
 %       [StepSize]: Pixels to increment when moving guess with arrows
 %       [InitWidth]: Pixel width to make newly clicked peaks
+%       [ANY THING ELSE]: gets piped to fitpeaks for the init guess
+%           (obviously this is simply ignored if Init is supplied)
 %   Outputs:
 %       pFit: line object corresponding to fitted line
 %           UserData of this line is the cfit object
@@ -20,7 +22,8 @@ if ~isempty(findall(ax,'tag',mfilename))
     warning('UIFITPEAKS already initialized on this axis');
     return % Already running on this axes
 end
-p = inputParser;
+p = inputParser();
+p.KeepUnmatched = true;
 addParameter(p,'Init',[],@isstruct);
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
@@ -49,7 +52,13 @@ bg = median(y);
 if isempty(p.Results.Init)
     % Use fitpeaks (it is redundant to call fitpeaks again, but makes the
     % code flow in a more logical way)
-    [vals,~,~,~,init] = fitpeaks(x,y,'FitType',fittype,'noisemodel','empirical');
+    inputs = {};
+    input_keys = fields(p.Unmatched);
+    for i = 1:length(input_keys)
+        inputs{end+1} = input_keys{i};
+        inputs{end+1} = p.Unmatched.(input_keys{i});
+    end
+    [vals,~,~,~,init] = fitpeaks(x,y,'FitType',fittype,inputs{:});
     n = length(vals.locations); % vals tells us how many init points were used
     % Use init instead of vals because vals could fit an insane amplitude
     init.locations = init.locations(1:n);
