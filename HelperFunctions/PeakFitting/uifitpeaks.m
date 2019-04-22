@@ -4,6 +4,8 @@ function varargout = uifitpeaks(ax,varargin)
 %   can modify existing guesses
 %   Inputs (optional):
 %       [FitType]: "gauss" or "lorentz" (default "guass")
+%       [Bounds]: How tight to make bounds on fit; [lower,upper] = Bounds*initial guess
+%       [StepSize]: Pixels to increment when moving guess with arrows
 %   Outputs:
 %       pFit: line object corresponding to fitted line
 %           UserData of this line is the cfit object
@@ -12,6 +14,8 @@ function varargout = uifitpeaks(ax,varargin)
 
 p = inputParser;
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
+addParameter(p,'StepSize',10,@(x) isnumeric(x) && numel(x)==1);
 parse(p,varargin{:});
 fittype = lower(p.Results.FitType);
 
@@ -44,6 +48,8 @@ pFit.UserData = fits{end};
 if ~held
     hold(ax,'off');
 end
+handles.Bounds = p.Results.Bounds;
+handles.StepSize = p.Results.StepSize;
 handles.pFit = pFit;
 handles.x = x;
 handles.y = y;
@@ -92,6 +98,7 @@ handles.old_buttondownfcn = get(ax,'buttondownfcn');
 set(ax,'buttondownfcn',@newPeak);
 ax.UserData = handles;
 ax.UserData.([mfilename '_enabled']) = true;
+ax.UserData.original_color = ax.Color;
 iptPointerManager(f, 'enable');
 addlistener(pFit,'ObjectBeingDestroyed',@clean_up);
 if nargout
@@ -99,143 +106,7 @@ if nargout
 end
 end
 
-function clean_up(hObj,~)
-ax = hObj.Parent;
-handles = ax.UserData;
-if isfield(handles,'old_keypressfcn')
-    set(handles.figure,'keypressfcn',handles.old_keypressfcn);
-end
-if isfield(handles,'old_keyreleasefcn') % Using key release allows holding arrows to adjust faster
-    set(handles.figure,'keyreleasefcn',handles.old_keyreleasefcn);
-end
-set(ax,'buttondownfcn',handles.old_buttondownfcn);
-delete(findall(ax,'tag',mfilename))
-end
-
-function p = addPoint(ax,x,y,railed,color)
-held = ishold(ax);
-hold(ax,'on');
-p = plot(ax,x,y,'color',color,'marker','o','linestyle','none','tag',mfilename,'linewidth',1);
-if railed
-    p.Marker = 'square';
-    p.Color = p.Color*0.7;
-end
-if ~held
-    hold(ax,'off');
-end
-set(p,'buttondownfcn',@selected);
-end
-
-function newPeak(hObj,eventdata)
-ax = gca;
-if ax.UserData.lock
-    return
-end
-handles = ax.UserData;
-bg = handles.background.YData;
-x = eventdata.IntersectionPoint(1);
-y = eventdata.IntersectionPoint(2);
-amp = y - bg;
-pnt(1) = addPoint(ax,x,y,false,handles.colors(length(handles.guesses)+1,:));
-pnt(2) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
-pnt(3) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
-handles.guesses(end+1).gobs = pnt;
-pnt(1).UserData.ind = length(handles.guesses);
-pnt(1).UserData.desc = 1; % encode amplitude (also index to guesses)
-pnt(2).UserData.ind = length(handles.guesses);
-pnt(2).UserData.desc = 2; % encode right
-pnt(3).UserData.ind = length(handles.guesses);
-pnt(3).UserData.desc = 3; % encode left
-ax.UserData = handles;
-selected(pnt(1));
-refit(hObj); % Force refit
-end
-
-function selected(hObj,~)
-ax = gca;
-if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
-    return;
-end
-set(findall(hObj.Parent,'tag',mfilename),'linewidth',1);
-set(hObj,'linewidth',2);
-ax.UserData.active_point = hObj;
-end
-
-function shifted(hObj,eventdata)
-ax = gca;
-if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
-    return;
-end
-handles = ax.UserData;
-if isempty(handles.active_point)
-    return
-end
-modified = false;
-switch eventdata.Key
-    case 'rightarrow'
-        dir = 1;
-    case 'uparrow'
-        dir = 1;
-    case 'leftarrow'
-        dir = -1;
-    case 'downarrow'
-        dir = -1;
-    case {'delete','backspace'}
-        modified = true;
-        ind = handles.active_point.UserData.ind;
-        delete(handles.guesses(ind).gobs);
-        handles.guesses(ind) = [];
-        for i = ind:length(handles.guesses)
-            for j = 1:length(handles.guesses(i).gobs)
-            handles.guesses(i).gobs(j).UserData.ind = ...
-                handles.guesses(i).gobs(j).UserData.ind - 1;
-            end
-        end
-        handles.active_point = [];
-end
-d = 0.01; % Percent of axis span to shift
-if ismember(eventdata.Key,{'leftarrow','rightarrow'})
-    if any(handles.active_point.UserData.desc==[0,1,2,3])
-        modified = true;
-        xlim = get(ax,'xlim');
-        dx = diff(xlim)*d*dir;
-        handles.active_point.XData = handles.active_point.XData + dx;
-        if any(handles.active_point.UserData.desc==[2,3])
-            other_ind = not(handles.active_point.UserData.desc==[2,3]);
-            other = [2,3]; other = other(other_ind); % MATLAB annoying syntax
-            handles.guesses(handles.active_point.UserData.ind).gobs(other).XData = ...
-                handles.guesses(handles.active_point.UserData.ind).gobs(other).XData - dx;
-        elseif handles.active_point.UserData.desc == 1
-            handles.guesses(handles.active_point.UserData.ind).gobs(2).XData = ...
-                handles.guesses(handles.active_point.UserData.ind).gobs(2).XData + dx;
-            handles.guesses(handles.active_point.UserData.ind).gobs(3).XData = ...
-                handles.guesses(handles.active_point.UserData.ind).gobs(3).XData + dx;
-        end
-        if handles.active_point.UserData.desc==0 % Lateral movement of background
-            modified = false;
-        end
-    end
-elseif ismember(eventdata.Key,{'uparrow','downarrow'})
-    if any(handles.active_point.UserData.desc==[0,1])
-        modified = true;
-        ylim = get(ax,'ylim');
-        dy = diff(ylim)*d*dir;
-        handles.active_point.YData = handles.active_point.YData + dy;
-        if handles.active_point.UserData.desc == 1
-            handles.guesses(handles.active_point.UserData.ind).gobs(2).YData = ...
-                handles.guesses(handles.active_point.UserData.ind).gobs(2).YData + dy/2;
-            handles.guesses(handles.active_point.UserData.ind).gobs(3).YData = ...
-                handles.guesses(handles.active_point.UserData.ind).gobs(3).YData + dy/2;
-        end
-    end
-end
-if modified
-    ax.UserData = handles;
-end
-end
-
 function refit(hObj,varargin)
-limit = [0, 1.2];
 ax = gca;
 if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
     return;
@@ -244,6 +115,7 @@ if ax.UserData.lock
     return
 end
 handles = ax.UserData;
+limit = handles.Bounds;
 ax.UserData.lock = true;
 try
 handles.pFit.YData = median(handles.y)+zeros(size(handles.pFit.XData));
@@ -295,4 +167,151 @@ ax.UserData = handles;
 if exist('err','var')
     rethrow(err);
 end
+end
+
+%% UI Callbacks
+function clean_up(hObj,~)
+ax = hObj.Parent;
+handles = ax.UserData;
+if isfield(handles,'old_keypressfcn')
+    set(handles.figure,'keypressfcn',handles.old_keypressfcn);
+end
+if isfield(handles,'old_keyreleasefcn') % Using key release allows holding arrows to adjust faster
+    set(handles.figure,'keyreleasefcn',handles.old_keyreleasefcn);
+end
+set(ax,'buttondownfcn',handles.old_buttondownfcn);
+ax.Color = handles.original_color;
+delete(findall(ax,'tag',mfilename))
+handles.figure.UserData.([mfilename '_count']) = handles.figure.UserData.([mfilename '_count']) - 1;
+end
+
+function selected(hObj,~)
+ax = gca;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
+    return;
+end
+set(findall(hObj.Parent,'tag',mfilename),'linewidth',1);
+set(hObj,'linewidth',2);
+ax.UserData.active_point = hObj;
+end
+
+function shifted(hObj,eventdata)
+ax = gca;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
+    return;
+end
+handles = ax.UserData;
+if isempty(handles.active_point)
+    return
+end
+modified = false;
+switch eventdata.Key
+    case 'rightarrow'
+        dir = 1;
+    case 'uparrow'
+        dir = 1;
+    case 'leftarrow'
+        dir = -1;
+    case 'downarrow'
+        dir = -1;
+    case {'delete','backspace'}
+        modified = true;
+        ind = handles.active_point.UserData.ind;
+        delete(handles.guesses(ind).gobs);
+        handles.guesses(ind) = [];
+        for i = ind:length(handles.guesses)
+            for j = 1:length(handles.guesses(i).gobs)
+            handles.guesses(i).gobs(j).UserData.ind = ...
+                handles.guesses(i).gobs(j).UserData.ind - 1;
+            end
+        end
+        handles.active_point = [];
+end
+[dx,dy] = pixel2coord(ax,handles.StepSize,handles.StepSize); %[x, y]
+if ismember(eventdata.Key,{'leftarrow','rightarrow'})
+    if any(handles.active_point.UserData.desc==[0,1,2,3])
+        modified = true;
+        dx = dx*dir;
+        handles.active_point.XData = handles.active_point.XData + dx;
+        if any(handles.active_point.UserData.desc==[2,3])
+            other_ind = not(handles.active_point.UserData.desc==[2,3]);
+            other = [2,3]; other = other(other_ind); % MATLAB annoying syntax
+            handles.guesses(handles.active_point.UserData.ind).gobs(other).XData = ...
+                handles.guesses(handles.active_point.UserData.ind).gobs(other).XData - dx;
+        elseif handles.active_point.UserData.desc == 1
+            handles.guesses(handles.active_point.UserData.ind).gobs(2).XData = ...
+                handles.guesses(handles.active_point.UserData.ind).gobs(2).XData + dx;
+            handles.guesses(handles.active_point.UserData.ind).gobs(3).XData = ...
+                handles.guesses(handles.active_point.UserData.ind).gobs(3).XData + dx;
+        end
+        if handles.active_point.UserData.desc==0 % Lateral movement of background
+            modified = false;
+        end
+    end
+elseif ismember(eventdata.Key,{'uparrow','downarrow'})
+    if any(handles.active_point.UserData.desc==[0,1])
+        modified = true;
+        dy = dy*dir;
+        handles.active_point.YData = handles.active_point.YData + dy;
+        if handles.active_point.UserData.desc == 1
+            handles.guesses(handles.active_point.UserData.ind).gobs(2).YData = ...
+                handles.guesses(handles.active_point.UserData.ind).gobs(2).YData + dy/2;
+            handles.guesses(handles.active_point.UserData.ind).gobs(3).YData = ...
+                handles.guesses(handles.active_point.UserData.ind).gobs(3).YData + dy/2;
+        end
+    end
+end
+if modified
+    ax.UserData = handles;
+end
+end
+%% Helpers
+function [dx,dy] = pixel2coord(ax,dx_px,dy_px)
+p = getpixelposition(ax);
+xspan = diff(get(ax,'xlim'));
+yspan = diff(get(ax,'ylim'));
+dx = dx_px*xspan/p(3);
+dy = dy_px*yspan/p(4);
+end
+
+function p = addPoint(ax,x,y,railed,color)
+held = ishold(ax);
+hold(ax,'on');
+p = plot(ax,x,y,'color',color,'marker','o','linestyle','none','tag',mfilename,'linewidth',1);
+if railed
+    p.Marker = 'square';
+    p.Color = p.Color*0.7;
+end
+if ~held
+    hold(ax,'off');
+end
+set(p,'buttondownfcn',@selected);
+end
+
+function newPeak(hObj,eventdata)
+ax = gca;
+if ax.UserData.lock
+    return
+end
+handles = ax.UserData;
+if strcmp(handles.figure.SelectionType,'normal')
+    return % Only use double click
+end
+bg = handles.background.YData;
+x = eventdata.IntersectionPoint(1);
+y = eventdata.IntersectionPoint(2);
+amp = y - bg;
+pnt(1) = addPoint(ax,x,y,false,handles.colors(length(handles.guesses)+1,:));
+pnt(2) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
+pnt(3) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
+handles.guesses(end+1).gobs = pnt;
+pnt(1).UserData.ind = length(handles.guesses);
+pnt(1).UserData.desc = 1; % encode amplitude (also index to guesses)
+pnt(2).UserData.ind = length(handles.guesses);
+pnt(2).UserData.desc = 2; % encode right
+pnt(3).UserData.ind = length(handles.guesses);
+pnt(3).UserData.desc = 3; % encode left
+ax.UserData = handles;
+selected(pnt(1));
+refit(hObj); % Force refit
 end
