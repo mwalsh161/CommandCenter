@@ -1,15 +1,15 @@
-function [comObject,comProperties]=Connect_Device(varargin)
+function [comObject,comInformation]=Connect_Device(varargin)
 %% Expected Inputs/Behavior:
 %if no input is supplied then connect device asks the user to pick a
 %communication type( ex: serial, prologix, etc). The user will be prompted
 %to submit the needed information to connect to the device,
 
 %ex: [comObject,comProperties]=Connect_Device
-%ex: [comObject,comProperties]=Connect_Device(comProperties)
+%ex: [comObject,comProperties]=Connect_Device(comInformation)
 
 %% Input arguments (defaults exist):
-% comProperties - desired settings of comObject
-
+% comInformation - comInformation has three fields. One is class type of
+% connection. Two is comAddress (ex: {'ni','1','1'}. Three is comProperties which are the editable fields of comObject.)
 %% Output arguments
 % comObject - handle to device
 
@@ -19,7 +19,7 @@ function [comObject,comProperties]=Connect_Device(varargin)
 
 %first output is the comObject for your communication object.
 
-%second output is a structure of comProperties. Field names are the name of
+%second output is a structure of comInformation. Field names of comProperties are the name of
 %the settable properties of comObject. Field values are the current
 %property setting.
 %% Note:
@@ -41,13 +41,15 @@ function [comObject,comProperties]=Connect_Device(varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%
 narginchk(0,1); %should have no more than one inputs
 
+comInformation = [];
 comObject = [];
 comProperties = struct();
 numInputs = nargin;
 
 if numInputs == 1
     if  ~isempty(varargin{1})
-        assert(isstruct(varargin{1}),'comProperties must be a struct.')
+        assert(isstruct(varargin{1}),'comInformation must be a struct.')
+        assert(numel(fields(varargin{1})) == 3,'comInformation must have three fields. comType, comAddress, and comProperties.')
     else
         varargin(1) = [];
         numInputs = 0;
@@ -55,6 +57,7 @@ if numInputs == 1
 end
 
 %% see if any input is entered if not then prompt user to select com object
+
 dlgOptions = [{'gpib'},{'TCP'},{'serial'},{'prologix'}]; %add additional choices here
 if numInputs == 0 %no information supplied
     dlgTitle = 'communication options';
@@ -71,33 +74,25 @@ if numInputs == 0 %no information supplied
     comObject = selectConnection(choice);
     comProperties =  displayProperties(comObject);
     
-    %% set all comProperties
-    
-    if ~isempty(fields(comProperties))
-        testComObject(comObject,dlgOptions); %check comObject
-        comProperties = setAllProperties(comObject,comProperties);
-    else
-        delete(comObject);
-        comObject = [];
-    end
-    
+    comInformation.comProperties = comProperties; %editable fields of comOject and values
+    comInformation.comType = class(comObject); %comType
+    comInformation.comAddress = comObject.userData; %comAddress
 end
 %% if one inputs is given
 
 if numInputs == 1 % Assume if handed arguments, we don't need to modify
-    comType = determineComType(comProperties);
-    comAddress = determineComAddress(comProperties);
-    comObject = selectConnection(choice);
+    comInformation = varargin{1};
+    comObject = selectConnection(comInformation.comType,comInformation.comAddress);
 end
+%% set all comProperties
 
+if ~isempty(fields(comInformation.comProperties))
+    testComObject(comObject,dlgOptions); %check comObject
+    [comInformation.comProperties,comObject] = setAllProperties(comObject,comInformation.comProperties);
+else
+    delete(comObject);
+    comObject = [];
 end
-
-function comType = determineComType(comProperties)
-
-
-end
-
-function comAddress = determineComAddress(comProperties)
 
 end
 
@@ -197,7 +192,7 @@ for index = 1:length(answers)
 end
 end
 
-function comProperties = setAllProperties(comObject,comProperties)
+function [comProperties,comObject] = setAllProperties(comObject,comProperties)
 assert(isstruct(comProperties),['Input to setComProperties must be a '...
     'structure with fields specifying property name and value as desired set value.'])
 try

@@ -3,9 +3,9 @@ function [comObject,comObjectInfo] = Connect_Driver(varargin)
 % Handles connecting to your computer to your driver(s).
 %
 %% Syntax
-%  Connect_Driver();
-%  Connect_Driver(comProperties);
-%  Connect_Driver(comProperties,deviceID);
+%  [comObject,comObjectInfo] = Connect_Driver();
+%  [comObject,comObjectInfo] = Connect_Driver(comInformation);
+%  [comObject,comObjectInfo] = Connect_Driver(comInformation,deviceID);
 %% Description
 %  Helper function that handles connecting to your driver. Uses the helper
 %  function Connect_Device. The handle to your device will be returned and
@@ -13,17 +13,16 @@ function [comObject,comObjectInfo] = Connect_Driver(varargin)
 %
 %% Input arguments (defaults exist):
 
-% comProperties - desired settings of comObject
+% comObjectInfo - comInformation has three fields. One is class type of
+% connection. Two is comAddress (ex: {'ni','1','1'}. Three is comProperties which are the editable fields of comObject.)
+
 
 % deviceID - id of device. Can be anything, for example call query(comObject,'*IDN?') to get.
 %% Output arguments
-%	[comObject,comProperties] - neccessary information to establish future
+%	[comObject,comObjectInfo] - neccessary information to establish future
 %	connections. If connection cannot be established returns [].
 
 % comObject - handle to device
-
-% comProperties - is a struct with fields aligned with properties of the
-% comObject
 
 %Note: Cancel returns [] for comObject, but returns last entered comProperties
 %% handle inputs
@@ -56,20 +55,20 @@ end
 
 %% initialize outputs
 comObject = [];
-
+comObjectInfo = [];
 %% if there are no inputs
 
 if numInputs == 0
     %first time connecting should run the helperfunction
     %Connect_Device to establish your connection
-    [comObject,comProperties] = Connect_Device;
+    [comObject,comObjectInfo] = Connect_Device;
     
 end
 
 if numInputs > 0
     %this is used for connecting every time after the first
     %time
-    [comObject,comProperties] = Connect_Device(varargin{1});
+    [comObject,comObjectInfo] = Connect_Device(varargin{1});
 end
 
 %% try opening your device
@@ -85,7 +84,7 @@ try
     end
 catch ME
     %ask user if they want to enter in a new comm address
-    [comObject,comProperties] = messageUser(comObject,comProperties,deviceID);
+    [comObject,comObjectInfo] = messageUser(comObject,deviceID,comObjectInfo);
     if ~isempty(comObject)
         comObject = openHandle(comObject);
         if strcmpi(comObject.Status,'closed') %if closed then open
@@ -105,7 +104,7 @@ if ~isempty(ME)
 end
 end
 
-function [comObject,comProperties] = messageUser(comObject,comProperties,deviceID)
+function [comObject,comObjectInfo] = messageUser(comObject,deviceID,comObjectInfo)
 %this is only called if you failed to connect to your device(ex: change GPIB
 %address). This allows you to establish a new
 %connection.
@@ -143,7 +142,7 @@ defbtn = [{'yes'},{'no'}];
 answer = questdlg(question, title,defbtn);
 comObject = [];
 if strcmpi(answer,'yes')
-    [comObject,comProperties] = Connect_Device;
+    [comObject,comObjectInfo] = Connect_Device;
 end
 end
 
