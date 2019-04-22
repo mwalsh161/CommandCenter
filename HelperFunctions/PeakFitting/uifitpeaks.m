@@ -3,19 +3,29 @@ function varargout = uifitpeaks(ax,varargin)
 %   Takes all data in axes. User clicks to apply new guesses for peaks and
 %   can modify existing guesses
 %   Inputs (optional):
+%       [Init]: Struct with initial peak guesses. Same format as FITPEAKS
+%           returns for vals/init (each field must be same length). You can
+%           choose to supply a "background" field of length one in addition.
 %       [FitType]: "gauss" or "lorentz" (default "guass")
 %       [Bounds]: How tight to make bounds on fit; [lower,upper] = Bounds*initial guess
 %       [StepSize]: Pixels to increment when moving guess with arrows
+%       [InitWidth]: Pixel width to make newly clicked peaks
 %   Outputs:
 %       pFit: line object corresponding to fitted line
 %           UserData of this line is the cfit object
 %           Deleting this line cleans up all uifitpeaks graphics and
 %             listeners, restoring the original figure and axes callbacks
 
+if ~isempty(findall(ax,'tag',mfilename))
+    warning('UIFITPEAKS already initialized on this axis');
+    return % Already running on this axes
+end
 p = inputParser;
+addParameter(p,'Init',[],@isstruct);
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
 addParameter(p,'StepSize',10,@(x) isnumeric(x) && numel(x)==1);
+addParameter(p,'InitWidth',5,@(x) isnumeric(x) && numel(x)==1);
 parse(p,varargin{:});
 fittype = lower(p.Results.FitType);
 
@@ -26,34 +36,55 @@ for i = 1:length(children)
     if ~strcmp(get(children(i),'tag'),mfilename)
         x = [x; children(i).XData'];
         y = [y; children(i).YData'];
-        set(children(i),'HitTest','off');
+        % Need to set everything in the group's hittest to off
+        target = children(i);
+        while target.Parent ~= ax
+            target = target.Parent;
+        end
+        set([target;allchild(target)],'HitTest','off');
     end
 end
 
-% Init with fitpeaks
-colors = lines;
-xfit = linspace(min(x),max(x),1001);
-[vals,confs,fits,~,init] = fitpeaks(x,y,'FitType',fittype,'noisemodel','empirical');
-held = ishold(ax);
-hold(ax,'on');
-if ~isempty(fits{end})
-    bg = fits{end}.d; % Background
-    pFit = plot(ax,xfit,fits{end}(xfit),'r','linewidth',1,'tag',mfilename);
+bg = median(y);
+if isempty(p.Results.Init)
+    % Use fitpeaks (it is redundant to call fitpeaks again, but makes the
+    % code flow in a more logical way)
+    [vals,~,~,~,init] = fitpeaks(x,y,'FitType',fittype,'noisemodel','empirical');
+    n = length(vals.locations); % vals tells us how many init points were used
+    % Use init instead of vals because vals could fit an insane amplitude
+    init.locations = init.locations(1:n);
+    init.amplitudes = init.amplitudes(1:n);
+    init.widths = init.widths(1:n);
 else
-    bg = median(y);
-    pFit = plot(ax,xfit,ones(size(xfit))*bg,'r','linewidth',1,'tag',mfilename);
+    if isfield(p.Results.Init,'background')
+        bg = p.Results.Init.background;
+    end
+    init = p.Results.Init;
+    assert(isfield(init,'locations'),'"Init" requires a field locations.')
+    assert(isfield(init,'widths'),'"Init" requires a field widths.')
+    assert(isfield(init,'amplitudes'),'"Init" requires a field amplitudes.')
+    assert(length(init.locations)==length(init.widths)==length(init.amplitudes),...
+        'init.locations, init.amplitudes, and init.widths must all be the same length.');
 end
-pFit.UserData = fits{end};
+        
+% Prepare graphics
+xfit = linspace(min(x),max(x),1001);
+pFit = plot(ax,xfit,ones(size(xfit))*bg,'r','linewidth',1,'tag',mfilename);
+pFit.UserData = [];
+pnt = addPoint(ax,(max(x)+min(x))/2,bg,false,[0 0 0]);
+pnt.UserData.ind = NaN;
+pnt.UserData.desc = 0; % desc=0 -> background
 
-if ~held
-    hold(ax,'off');
-end
+% Set up data structures
 handles.Bounds = p.Results.Bounds;
 handles.StepSize = p.Results.StepSize;
+handles.InitWid = p.Results.InitWidth;
 handles.pFit = pFit;
+handles.background = pnt;
 handles.x = x;
 handles.y = y;
 handles.lock = false;
+handles.active_point = [];
 switch fittype
     case 'gauss'
         handles.fit_function = @gaussfit;
@@ -61,25 +92,17 @@ switch fittype
         handles.fit_function = @lorentzfit;
 end
 handles.guesses = struct('gobs',{});
-handles.colors = colors;
+handles.colors = lines;
 
-for i = 1:length(vals.locations) % vals tells us how many init points we took
-    pnt(1) = addPoint(ax,init.locations(i),bg+init.amplitudes(i),isnan(confs.amplitudes(i)),colors(i,:));
-    pnt(2) = addPoint(ax,init.locations(i)+init.widths(i),bg+init.amplitudes(i)/2,isnan(confs.widths(i)),colors(i,:));
-    pnt(3) = addPoint(ax,init.locations(i)-init.widths(i),bg+init.amplitudes(i)/2,isnan(confs.widths(i)),colors(i,:));
-    handles.guesses(end+1).gobs = pnt;
-    pnt(1).UserData.ind = i;
-    pnt(1).UserData.desc = 1; % encode amplitude (also index to guesses)
-    pnt(2).UserData.ind = i;
-    pnt(2).UserData.desc = 2; % encode right
-    pnt(3).UserData.ind = i;
-    pnt(3).UserData.desc = 3; % encode left
+% Go through adding newPeaks (note need to push handles to ax.UserData and
+% pull them back after newPeak function calls
+ax.UserData = handles;
+for i = 1:length(init.locations) % vals tells us how many init points we took
+    newPeak(ax,init.locations(i),bg+init.amplitudes(i),init.widths(i),bg);
 end
-pnt = addPoint(ax,(max(x)+min(x))/2,bg,false,[0 0 0]);
-pnt.UserData.ind = NaN;
-pnt.UserData.desc = 0; % background
-handles.background = pnt;
+handles = ax.UserData;
 
+% Setup figure and axes callbacks
 f = Base.getParentFigure(ax);
 if isfield(f.UserData,[mfilename '_count'])
     f.UserData.([mfilename '_count']) = f.UserData.([mfilename '_count']) + 1;
@@ -89,25 +112,30 @@ end
 handles.figure = f;
 if f.UserData.([mfilename '_count']) == 1
     % Only remember if this is the first time called on a figure
-    handles.old_keypressfcn = get(f,'keypressfcn');
-    handles.old_keyreleasefcn = get(f,'keyreleasefcn');
-    set(f,'keypressfcn',@shifted);
+    f.UserData.old_keypressfcn = get(f,'keypressfcn');
+    f.UserData.old_keyreleasefcn = get(f,'keyreleasefcn');
+    set(f,'keypressfcn',@keypressed);
     set(f,'keyreleasefcn',@refit);
 end
 handles.old_buttondownfcn = get(ax,'buttondownfcn');
-set(ax,'buttondownfcn',@newPeak);
+set(ax,'buttondownfcn',@ax_clicked);
 ax.UserData = handles;
 ax.UserData.([mfilename '_enabled']) = true;
 ax.UserData.original_color = ax.Color;
 iptPointerManager(f, 'enable');
 addlistener(pFit,'ObjectBeingDestroyed',@clean_up);
+% Init GUI state
+selected(handles.background);
+refit(ax);
 if nargout
     varargout = {pFit};
 end
 end
 
-function refit(hObj,varargin)
-ax = gca;
+function refit(ax,varargin)
+if nargin == 0 || ~isa(ax,'matlab.graphics.axis.Axes')
+    ax = gca;
+end
 if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
     return;
 end
@@ -173,19 +201,20 @@ end
 function clean_up(hObj,~)
 ax = hObj.Parent;
 handles = ax.UserData;
-if isfield(handles,'old_keypressfcn')
-    set(handles.figure,'keypressfcn',handles.old_keypressfcn);
-end
-if isfield(handles,'old_keyreleasefcn') % Using key release allows holding arrows to adjust faster
-    set(handles.figure,'keyreleasefcn',handles.old_keyreleasefcn);
-end
 set(ax,'buttondownfcn',handles.old_buttondownfcn);
 ax.Color = handles.original_color;
 delete(findall(ax,'tag',mfilename))
-handles.figure.UserData.([mfilename '_count']) = handles.figure.UserData.([mfilename '_count']) - 1;
+% Now, reset figure stuff
+f = handles.figure;
+f.UserData.([mfilename '_count']) = f.UserData.([mfilename '_count']) - 1;
+if f.UserData.([mfilename '_count'])==0
+    set(f,'keypressfcn',f.UserData.old_keypressfcn,...
+                'keyreleasefcn',f.UserData.old_keyreleasefcn);
+end
 end
 
 function selected(hObj,~)
+% Click callback for points generated by "addPoint"
 ax = gca;
 if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
     return;
@@ -195,7 +224,26 @@ set(hObj,'linewidth',2);
 ax.UserData.active_point = hObj;
 end
 
-function shifted(hObj,eventdata)
+function ax_clicked(hObj,eventdata)
+% Click callback for axes
+ax = gca;
+if ax.UserData.lock
+    return
+end
+handles = ax.UserData;
+if ~strcmp(handles.figure.SelectionType,'open')
+    return % Only use double click (i.e. "open")
+end
+bg = handles.background.YData;
+x = eventdata.IntersectionPoint(1);
+y = eventdata.IntersectionPoint(2);
+wid = pixel2coord(ax,handles.InitWid,0);
+newPeak(ax,x,y,wid,bg);
+refit(ax); % Force refit
+end
+
+function keypressed(hObj,eventdata)
+% If modified with control, [dx,dy] = [dx,dy]/10
 ax = gca;
 if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
     return;
@@ -214,6 +262,24 @@ switch eventdata.Key
         dir = -1;
     case 'downarrow'
         dir = -1;
+    case 'tab'
+        from_uifitpeaks = findall(ax,'tag',mfilename);
+        guess_gobs = gobjects(0);
+        for i = 1:length(from_uifitpeaks)
+            if isstruct(from_uifitpeaks(i).UserData) && isfield(from_uifitpeaks(i).UserData,'guess')
+                guess_gobs(end+1) = from_uifitpeaks(i);
+                if guess_gobs(end)==handles.active_point
+                    cur_point_ind = length(guess_gobs);
+                end
+            end
+        end
+        if length(eventdata.Modifier)==1 && strcmp(eventdata.Modifier{1},'shift')
+            next = mod(cur_point_ind,length(guess_gobs))+1;
+        else
+            next = mod(cur_point_ind-2,length(guess_gobs))+1;
+        end
+        selected(guess_gobs(next));
+        return
     case {'delete','backspace'}
         modified = true;
         ind = handles.active_point.UserData.ind;
@@ -226,8 +292,14 @@ switch eventdata.Key
             end
         end
         handles.active_point = [];
+    otherwise
+        return
 end
 [dx,dy] = pixel2coord(ax,handles.StepSize,handles.StepSize); %[x, y]
+if length(eventdata.Modifier)==1 && strcmp(eventdata.Modifier{1},'control')
+    dx = dx/10;
+    dy = dy/10;
+end
 if ismember(eventdata.Key,{'leftarrow','rightarrow'})
     if any(handles.active_point.UserData.desc==[0,1,2,3])
         modified = true;
@@ -275,9 +347,11 @@ dy = dy_px*yspan/p(4);
 end
 
 function p = addPoint(ax,x,y,railed,color)
+% Adding a "guess" point (e.g. what is used for the initial fitting guess)
 held = ishold(ax);
 hold(ax,'on');
-p = plot(ax,x,y,'color',color,'marker','o','linestyle','none','tag',mfilename,'linewidth',1);
+p = plot(ax,x,y,'color',color,'marker','o','linestyle','none',...
+    'tag',mfilename,'linewidth',1,'UserData',struct('guess',true));
 if railed
     p.Marker = 'square';
     p.Color = p.Color*0.7;
@@ -288,22 +362,13 @@ end
 set(p,'buttondownfcn',@selected);
 end
 
-function newPeak(hObj,eventdata)
-ax = gca;
-if ax.UserData.lock
-    return
-end
+function newPeak(ax,x,y,wid,bg)
+% Initialize to "not railed" in addPoint
 handles = ax.UserData;
-if strcmp(handles.figure.SelectionType,'normal')
-    return % Only use double click
-end
-bg = handles.background.YData;
-x = eventdata.IntersectionPoint(1);
-y = eventdata.IntersectionPoint(2);
 amp = y - bg;
 pnt(1) = addPoint(ax,x,y,false,handles.colors(length(handles.guesses)+1,:));
-pnt(2) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
-pnt(3) = addPoint(ax,x,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
+pnt(2) = addPoint(ax,x-wid/2,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
+pnt(3) = addPoint(ax,x+wid/2,bg+amp/2,false,handles.colors(length(handles.guesses)+1,:));
 handles.guesses(end+1).gobs = pnt;
 pnt(1).UserData.ind = length(handles.guesses);
 pnt(1).UserData.desc = 1; % encode amplitude (also index to guesses)
@@ -312,6 +377,5 @@ pnt(2).UserData.desc = 2; % encode right
 pnt(3).UserData.ind = length(handles.guesses);
 pnt(3).UserData.desc = 3; % encode left
 ax.UserData = handles;
-selected(pnt(1));
-refit(hObj); % Force refit
+selected(pnt(1)); % Make the peak the newly selected point (where the click happened)
 end
