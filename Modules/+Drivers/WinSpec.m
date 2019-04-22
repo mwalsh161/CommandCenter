@@ -14,10 +14,13 @@ classdef WinSpec < Modules.Driver
     properties(SetAccess=?Base.Module,SetObservable, AbortSet)
         % Used for monitoring only (use methods to change)
         % Base.Module needs permission for getPrefs;
-        grating = {uint8(1),uint8(2),uint8(3)};    % Grating number
+        grating = 1;          % Grating number (index into gratings_avail)
         position = 637;       % Grating position
         exposure = 1;         % Seconds
         running = false;
+    end
+    properties(SetAccess=private)
+        gratings_avail = {}; % Populated on setup
     end
     properties(Hidden)
         prefs = {'grating','position','exposure','cal_local'};
@@ -147,12 +150,60 @@ classdef WinSpec < Modules.Driver
                 delete(obj.connection);
             end
         end
-        function sp = acquire(obj,updateFcn)
+        function exposure_set = find_exposure(obj,MaxExposure,varargin)
+            % Find exposure that sets max pixel to intensity percentage
+            % max_exposure: exposure value to not exceed
+            % Optional inputs are arg,val pairs
+            % [p] default 0.5, percentage of max intensity to get
+            % the max pixel value to
+            p = inputParser;
+            addRequired(p,'MaxExposure',@isnumeric);
+            addParameter(p,'p',0.5,@isnumeric);
+            addParameter(p,'ax',gca,@(a)isa(a,'matlab.graphics.axis.Axes')&&isvalid(a));
+            parse(p,MaxExposure,varargin{:});
+            p = p.Results;
+            
+            max_intensity = 2^16-1;
+            target_intensity = max_intensity*p.p;
+            % First, try smallest exposure to make sure there is a chance
+            exposure_set = 0;
+            y = get_val(exposure_set);
+            assert(y < max_intensity,'Smallest exposure still overexposed');
+            if y >= target_intensity
+                return
+            end
+            bounds = [0 p.MaxExposure];
+            for i = 1:10 % Min step size is then roughly 1/2^10 (0.9%)
+                exposure_set = mean(bounds);
+                y = get_val(exposure_set);
+                if y >= target_intensity && y < max_intensity
+                    return
+                elseif y < target_intensity
+                    bounds(1) = exposure_set; % Increase lower bound
+                elseif y >= max_intensity
+                    bounds(2) = exposure_set; % Decrease upper bound
+                end
+            end
+            error('Failed to reach target intensity within 10 steps.')
+            function y = get_val(exp)
+                obj.setExposure(exp);
+                sp = obj.acquire([],true); % Will do our own test
+                y = max(sp.y);
+                plt = plot(p.ax,sp.x,sp.y);
+                legend(plt,{sprintf('%g seconds',exp)});
+            end
+        end
+        function sp = acquire(obj,updateFcn,over_exposed_override)
             % [optional] Calls updateFcn with the only input as the elapsed time
+            % [optional] over_exposed_override will supress server's
+            %   overexposed error (default is not to supress)
             if nargin < 2
                 updateFcn = [];
             else
-                assert(isa(updateFcn,'function_handle'),'"updateFcn" callback must be a function handle');
+                assert(isempty(updateFcn)||isa(updateFcn,'function_handle'),'"updateFcn" callback must be a function handle');
+            end
+            if nargin < 3
+                over_exposed_override = false;
             end
             obj.running = true;
             obj.abort_requested = false;
@@ -164,7 +215,7 @@ classdef WinSpec < Modules.Driver
                 drawnow; % Flush callback queue
             end
             try
-                sp = obj.com('acquire',@acquire_callback);
+                sp = obj.com('acquire',over_exposed_override,@acquire_callback);
             catch err
                 if strcmp(err.message,'Connection timed out.')
                     obj.setExposure(obj.exposure);
@@ -202,7 +253,7 @@ classdef WinSpec < Modules.Driver
             % This sets basic file handling: overwrite, autosave, no BG
             % file etc.
             out = obj.com('setup');
-            gratings = out.gratings; % For future use
+            obj.gratings_avail = out.gratings;
         end
         function setGrating(obj,N,pos)
             % If N/pos empty, will use last setting (still require all args
@@ -220,7 +271,7 @@ classdef WinSpec < Modules.Driver
             obj.com('grating',N,pos);
             obj.connection.Timeout = timeout;
             % Abortset should make this reasonable overhead
-            obj.grating = uint8(N);
+            obj.grating = N;
             obj.position = pos;
         end
         function setExposure(obj,exp)
@@ -232,7 +283,7 @@ classdef WinSpec < Modules.Driver
         function [N,pos,exp] = getInstrParams(obj)
             % Gets grating info and exposure from instrument (sec)
             out = obj.com('getGratingAndExposure');
-            N = uint8(out(1)); pos = out(2); exp = out(3);
+            N = out(1); pos = out(2); exp = out(3);
         end
         function calibrate(obj,laser,range,exposure,ax) %when fed a tunable laser, will sweep the laser's range to calibrate itself, outputting a calibration function
             assert(~isempty(laser),'No laser supplied to Winspec calibration');

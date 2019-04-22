@@ -17,10 +17,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %   the driver class equivalent (set.Wavelength), as the source method
     %   uses a calibration function to improve the accuracy of wavelength
     %   setting
-    
-    properties
-        TuningTimeout = 60; % Timeout for all tune methods
-    end
+
     properties(SetObservable,AbortSet)
         tuning = false;
         prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel','cal_local'};
@@ -212,11 +209,10 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 if val
                     f = msgbox('Turning laser diode on, please wait...');
                     obj.serial.on;
+                    delete(f);
                 else
-                    f = msgbox('Turning laser diode off, please wait...');
                     obj.serial.off;
                 end
-                delete(f);
             end
             obj.diode_on = val;
         end
