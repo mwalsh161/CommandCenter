@@ -1,10 +1,19 @@
 function varargout = analyze(data)
 %ANALYZE Examine data from all sites
-%   Left/right arrows to go between sites (wraps around)
+%   See keyboard functionality for uifitpeaks
+%   alt+Left/right arrows to go between sites (wraps around)
+%   Will be prompted to export analysis data upon closing figure. This data
+%   is stored in figure.UserData.AutoExperiment_analysis as follows:
+%     N×3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
+%       amplitudes - Nx1 double
+%       widths - Nx1 double
+%       locations - Nx1 double
+%       background - 1x1 double
+%       fit - cfit object
 
 im = data.image.image;
 
-fig = figure('name',mfilename,'numbertitle','off');
+fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 ax = subplot(1,5,[1 2],'parent',fig);
 hold(ax,'on');
@@ -27,7 +36,13 @@ fig.UserData.sites = data.sites;
 fig.UserData.ax = ax;
 fig.UserData.pos = p;
 fig.UserData.busy = false;
-update(fig);
+fig.UserData.AutoExperiment_analysis = struct(...
+            'fit',[],...
+            'amplitudes',[],...
+            'widths',[],...
+            'locations',[],...
+            'background',cell(length(data.sites),3));
+update(fig); % Bypass changeSite since we have no previous site
 
 % Link UI control
 fig.KeyPressFcn = @cycleSite;
@@ -37,12 +52,37 @@ if nargout
 end
 end
 
+function closereq(fig,~)
+% Export data to workspace if analysis exists
+save_state(fig);
+if isfield(fig.UserData,'AutoExperiment_analysis') && ~isempty(fig.UserData.AutoExperiment_analysis)
+    var_name = 'SpecSlowScan_analysis';
+    i = 1;
+    while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
+        i = i + 1;
+        var_name = sprintf('SpecSlowScan_analysis%i',i);
+    end
+    answer = questdlg(sprintf('Would you like to export analysis data to workspace as "%s"?',var_name),...
+        mfilename,'Yes','No','Yes');
+    if strcmp(answer,'Yes')
+        assignin('base',var_name,fig.UserData.AutoExperiment_analysis)
+    end
+end
+delete(fig)
+end
+
+function changeSite(fig,new_index)
+% Save the current analysis before moving to next site
+save_state(fig);
+fig.UserData.index = new_index;
+update(fig);
+end
+
 function selectSite(sc,eventdata)
 if eventdata.Button == 1
     [~,D] = knnsearch(eventdata.IntersectionPoint(1:2),[sc.XData; sc.YData]','K',1);
     [~,ind] = min(D);
-    sc.UserData.fig.UserData.index = ind;
-    update(sc.UserData.fig);
+    changeSite(sc.UserData.fig,ind);
 end
 end
 
@@ -55,14 +95,13 @@ switch eventdata.Key
     otherwise % Ignore anything else
         return
 end
-fig.UserData.index = mod(fig.UserData.index-1+direction,...
-                         length(fig.UserData.sites))+1;
-update(fig);
+ind = mod(fig.UserData.index-1+direction,length(fig.UserData.sites))+1;
+changeSite(fig,ind);
 end
 
 function update(fig)
 if fig.UserData.busy
-    warning('Chill! Busy fitting still...');
+    warning('Chill! Busy still...');
     return
 end
 fig.UserData.busy = true;
@@ -135,15 +174,48 @@ end
 title(ax(4),strjoin(titles,newline),'interpreter','none');
 xlabel(ax(4),'Frequency (THz)');
 ylabel(ax(4),'Counts');
-
+attach_uifitpeaks(ax(2));
+attach_uifitpeaks(ax(3));
+attach_uifitpeaks(ax(4));
 assert(isempty(site.experiments),'Missed some experiments!')
-%uifitpeaks(ax(2));
-%uifitpeaks(ax(3));
-%uifitpeaks(ax(4));
 catch err
 end
 fig.UserData.busy = false;
 if exist('err','var')
     rethrow(err)
+end
+end
+%% UIfitpeaks adaptor
+function save_state(fig)
+dat = struct('background',cell(0,3),'locations',[],'amplitudes',[],'widths',[]);
+ax = fig.UserData.ax;
+for i = 2:4 % Go through each data axis
+    fit_result = ax(i).UserData.pFit.UserData;
+    fitcoeffs = coeffvalues(fit_result);
+    n = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
+    dat(i-1).fit = fit_result;
+    dat(i-1).background = fitcoeffs(1:n);
+    dat(i-1).locations = fitcoeffs(n+1:2*n);
+    dat(i-1).amplitudes = fitcoeffs(2*n+1:3*n);
+    dat(i-1).widths = fitcoeffs(3*n+1);
+end
+fig.UserData.AutoExperiment_analysis(fig.UserData.index,:) = dat;
+end
+function attach_uifitpeaks(ax)
+% Wrapper to attach uifitpeaks
+% Let uifitpeaks update keyboard fcn, but then wrap that fcn again
+uifitpeaks(ax);
+f = ax.Parent;
+if f.UserData.uifitpeaks_count == 1 % Only set on first creation
+    f.UserData.uifitpeaks_keypress_callback = get(f,'keypressfcn');
+    set(f,'keypressfcn',@keypress_wrapper);
+end
+end
+function keypress_wrapper(hObj,eventdata)
+% uifitpeaks doesn't use alt, so we will distinguish with that
+if length(eventdata.Modifier)==1 && strcmp(eventdata.Modifier{1},'alt')
+    cycleSite(hObj,eventdata);
+else
+    hObj.UserData.uifitpeaks_keypress_callback(hObj,eventdata);
 end
 end
