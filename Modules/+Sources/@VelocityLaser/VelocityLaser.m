@@ -37,6 +37,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         resolution = 0.01; %frequency tuning resolution in THz
     end
     properties(SetObservable)
+        TuningTimeout = 60; %Timeout for home-built PID used in TuneCoarse
         pb_ip = 'No Server';         % IP of computer with PB and server
         PBline = 12;
         velocity_ip = 'No Server';

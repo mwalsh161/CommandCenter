@@ -15,7 +15,7 @@ classdef VelocityLaser < Modules.Driver
         idn
     end
     properties
-        TuningTimout = 60;
+        TuningTimout = 0;
     end
     properties (SetObservable)
         PiezoPercent = [];
