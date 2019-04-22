@@ -45,7 +45,7 @@ classdef prologix < handle
         EOTEnable = {'on';'off'};  % EOTEnable to on will translate instrument EOI to Terminator [default off]
     end
     properties(Constant)
-        Type = 'serial-gpib';
+        Type = 'Prologix';
     end
     properties(Access=private)
         serial
@@ -125,6 +125,7 @@ classdef prologix < handle
                 end % Don't need warning if default was used
                 obj.serial.Timeout = 0.5;
             end
+            obj.serial.name = sprintf('%s-%d',obj.Type,obj.PrimaryAddress);
         end
         function disp(obj)
             % This is called when no semicolon is used (overloading matlab builtin)
