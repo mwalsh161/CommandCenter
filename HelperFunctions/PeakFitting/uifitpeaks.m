@@ -17,6 +17,25 @@ function varargout = uifitpeaks(ax,varargin)
 %           UserData of this line is the cfit object
 %           Deleting this line cleans up all uifitpeaks graphics and
 %             listeners, restoring the original figure and axes callbacks
+%
+%   Interactivity:
+%       Circles are rendered representing the degrees of freedom in the
+%       fit. There is one at the peak that controls the location and
+%       amplitude degrees of freedom. There are two at the FWHM positions
+%       that control the width of the fit. Finally, there is one that
+%       controls the background offset. Each peak will have its own color,
+%       and the background will be black.
+%       Arrow keys allow moving of the active circle in the axis returned
+%       by gca. CTL+arrow allows for fine movement, and holding an arrow
+%       allows for many movements prior to the next attempted fit.
+%       If the fit returns a result that railed against an upper or lower
+%       bound, the background will turn light red and the circle
+%       corresponding to the offending degree of freedom will turn to a
+%       square.
+%       Double clicking will produce a new peak with InitWidth and an
+%       amplitude+background of where you click.
+%       You can delete a peak by using the delete key on any circle
+%       corresponding to that peak.
 
 if ~isempty(findall(ax,'tag',mfilename))
     warning('UIFITPEAKS already initialized on this axis');
@@ -72,7 +91,8 @@ else
     assert(isfield(init,'locations'),'"Init" requires a field locations.')
     assert(isfield(init,'widths'),'"Init" requires a field widths.')
     assert(isfield(init,'amplitudes'),'"Init" requires a field amplitudes.')
-    assert(length(init.locations)==length(init.widths)==length(init.amplitudes),...
+    assert(all(length(init.locations)==...
+        [length(init.locations),length(init.widths),length(init.amplitudes)]),...
         'init.locations, init.amplitudes, and init.widths must all be the same length.');
 end
         
