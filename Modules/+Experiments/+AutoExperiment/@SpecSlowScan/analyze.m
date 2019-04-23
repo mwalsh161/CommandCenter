@@ -72,11 +72,11 @@ if isstruct(p.Results.Analysis)
     fig.UserData.AutoExperiment_analysis = p.Results.Analysis;
 else
     fig.UserData.AutoExperiment_analysis = struct(...
-            'fit',[],...
-            'amplitudes',[],...
-            'widths',[],...
-            'locations',[],...
-            'background',cell(length(data.sites),3));
+            'fit',cell(length(data.sites),3),...
+            'amplitudes',NaN,...
+            'widths',NaN,...
+            'locations',NaN,...
+            'background',NaN);
 end
 % Link UI control
 fig.KeyPressFcn = @cycleSite;
@@ -271,12 +271,12 @@ for i = 2:4 % Go through each data axis
         if strcmpi(fig.UserData.FitType,'gauss')
             dat(i-1).widths = dat(i-1).widths*2*sqrt(2*log(2));
         end
-    else  % Changing [] -> NaN shows that it has been processed
+    else
         dat(i-1).fit = [];
-        dat(i-1).locations = NaN;
-        dat(i-1).background = NaN;
-        dat(i-1).amplitudes = NaN;
-        dat(i-1).widths = NaN;
+        dat(i-1).amplitudes = [];
+        dat(i-1).locations = [];
+        dat(i-1).widths = [];
+        dat(i-1).background = [];
     end
 end
 if ~isempty(dat)
@@ -288,7 +288,7 @@ function attach_uifitpeaks(ax,init,varargin)
 % Wrapper to attach uifitpeaks
 % Let uifitpeaks update keyboard fcn, but then wrap that fcn again
 f = ax.Parent;
-if isempty(init.locations) || any(isnan(init.locations))
+if any(isnan(init.locations))
     uifitpeaks(ax,'fittype',f.UserData.FitType,varargin{:});
 else
     uifitpeaks(ax,'fittype',f.UserData.FitType,'init',init,varargin{:});

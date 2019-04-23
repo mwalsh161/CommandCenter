@@ -85,7 +85,9 @@ if isempty(p.Results.Init)
     init.amplitudes = init.amplitudes(1:n);
     init.widths = init.widths(1:n);
 else
-    if isfield(p.Results.Init,'background')
+    if isfield(p.Results.Init,'background') &&...
+            ~any(isnan(p.Results.Init.background)) &&...
+            ~isempty(p.Results.Init.background)
         bg = p.Results.Init.background;
     end
     init = p.Results.Init;
@@ -177,6 +179,7 @@ limit = handles.Bounds;
 ax.UserData.lock = true;
 try
 handles.pFit.YData = median(handles.y)+zeros(size(handles.pFit.XData));
+handles.pFit.UserData = [];
 init = struct('background',handles.background.YData,'amplitudes',NaN(0,1),'locations',NaN(0,1),'widths',NaN(0,1));
 n = length(handles.guesses);
 if n==0 % Edge case of no peaks
