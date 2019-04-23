@@ -13,25 +13,14 @@ classdef establishComObject < handle
         % comObject - handle to device
     end
     
-    methods(Static)
-        function obj = instance(name)
-            mlock;
-            persistent Object
-            if isempty(Object) || ~isvalid(Object)
-                Object = establishComObject();
-            end
-            obj = Object;
-            if isempty(obj.comObjectInfo)
+    
+    methods
+        function obj = establishComObject(name)
+             if isempty(obj.comObjectInfo)
                 obj.establishInitialConnection();
             end
             obj.Connect_Driver()
             obj.deviceID = name;
-        end
-    end
-    
-    methods(Access=private)
-        function obj = establishComObject()
-            
         end
     end
        
