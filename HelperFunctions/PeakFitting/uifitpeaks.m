@@ -36,6 +36,7 @@ function varargout = uifitpeaks(ax,varargin)
 %       amplitude+background of where you click.
 %       You can delete a peak by using the delete key on any circle
 %       corresponding to that peak.
+%       [Shift+] Tab will change the selected point.
 
 if ~isempty(findall(ax,'tag',mfilename))
     warning('UIFITPEAKS already initialized on this axis');

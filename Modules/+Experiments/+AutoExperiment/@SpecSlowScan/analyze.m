@@ -10,10 +10,12 @@ function varargout = analyze(data,varargin)
 %       click on a spot to see corresponding data
 %       [alt+] left/right arrows to change site index. The alt is only
 %           necessary if viewonly=false, which is default.
+%       Right clicking on axis will allow you to choose lorentz/gauss for that axis
 %   When viewonly = false, main keyboard functionality goes to UIFITPEAKS
 %       Click on circle node to select it, use arrows to change its
 %       location (and corresponding guess value).
 %       ctl+arrows allow fine control.
+%       [Shift+] Tab changes selected point
 %   Analysis data is stored in figure.UserData.AutoExperiment_analysis as follows:
 %     N×3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
 %       amplitudes - Nx1 double
