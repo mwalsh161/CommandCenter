@@ -185,6 +185,7 @@ n = length(handles.guesses);
 if n==0 % Edge case of no peaks
     handles.lock = false;
     ax.UserData = handles;
+    set(ax,'Color',[1 1 1]);
     return
 end
 for i = 1:n % The notation below explicitly forces to column vector
