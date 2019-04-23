@@ -35,6 +35,8 @@ addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})))
 addParameter(p,'viewonly',false,@islogical);
 parse(p,varargin{:});
 
+prefs = data.meta.prefs;
+data = data.data;
 im = data.image.image;
 
 fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
@@ -60,6 +62,7 @@ ax(4) = subplot(1,5,5,'parent',fig); hold(ax(4),'on');
 fig.UserData.new_data = false;
 fig.UserData.viewonly = p.Results.viewonly;
 fig.UserData.FitType = p.Results.FitType;
+fig.UserData.wavenm_range = 299792./prefs.freq_range; % Used when plotting
 fig.UserData.index = 1;
 fig.UserData.sites = data.sites;
 fig.UserData.ax = ax;
@@ -175,8 +178,11 @@ for i = 1:length(site.experiments)
     end
     site.experiments(1) = [];
     if ~isempty(experiment.data)
-        plot(ax(2),experiment.data.wavelength,...
-                  experiment.data.intensity,'color',colors(i,:));
+        nm_range = fig.UserData.wavenm_range;
+        wavelength = experiment.data.wavelength;
+        mask = and(wavelength>=min(nm_range),wavelength<=max(nm_range));
+        plot(ax(2),wavelength(mask),...
+                  experiment.data.intensity(mask),'color',colors(i,:));
     end
     if ~isempty(experiment.err)
         titles{end+1} = sprintf('%i: %s',i,experiment.err.message);
