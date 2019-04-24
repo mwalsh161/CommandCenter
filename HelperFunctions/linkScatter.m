@@ -7,7 +7,8 @@ function linkScatter(scatterObjs,varargin)
 %     - scatterObjs: the array of scatter plot handles to link
 %     - (reset): string "reset" to remove linkScatter functionality from
 %       all supplied scatterObjs and restore state prior to initializing
-%       linkScatter (specifically ButtonDownFcn and BusyAction).
+%       linkScatter (specifically ButtonDownFcn and BusyAction). Resetting
+%       any scatter plot in a link set results in resetting them all.
 %     - [linewidth_factor]: factor to change linewidth by (default 5)
 %     - [all others]: piped to the overlaid (hittest off) highlighted
 %       scatter. This is applied after the default setting, so it can
@@ -103,7 +104,14 @@ if isstruct(sc.UserData) && isfield(sc.UserData,'linkScatter')
     sc.ButtonDownFcn = sc.UserData.linkScatter.ButtonDownFcn;
     sc.BusyAction = sc.UserData.linkScatter.BusyAction;
     delete(sc.UserData.linkScatter.highlighter);
+    % Grab it before we clean the field, but delete after the field is
+    % cleaned to avoid recursion (see next comment)
+    others = sc.UserData.linkScatter.others;
     sc.UserData = rmfield(sc.UserData,'linkScatter');
+    % Clean up all in this set; note this may be redundant with the
+    % original call to linkScatter(...,'reset'), but the if statement at
+    % the beginning of this method will allow it.
+    arrayfun(@clean_up,others);
 end
 end
 
