@@ -19,10 +19,8 @@ function linkScatter(scatterObjs,varargin)
 %   named linkScatter. If UserData is not a struct and is not empty, it
 %   will error.
 %   Interactivity:
-%     - Clicking on a data point will select it
-%     - Holding shift while clicking will make a new selection that
-%       includes the old selection as well. If a point was in the old
-%       selection and in the new selection it will be unselected.
+%     - Clicking on a data point will select it (removing all others)
+%     - Right clicking will add/remove points to the selection
 %
 %   EXAMPLES:
 %     - Make the linewidth 10 times larger
