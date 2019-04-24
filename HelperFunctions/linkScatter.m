@@ -5,7 +5,7 @@ function linkScatter(scatterObjs,varargin)
 %   those points on all of them.
 %   Input:
 %     - scatterObjs: the array of scatter plot handles to link
-%     - [linewidth_factor]: factor to change linewidth by (default 2)
+%     - [linewidth_factor]: factor to change linewidth by (default 5)
 %     - [all others]: piped to the overlaid (hittest off) highlighted
 %       scatter. This is applied after the default setting, so it can
 %       override it and/or complement it. The default is to multiply
@@ -16,23 +16,29 @@ function linkScatter(scatterObjs,varargin)
 %   will error.
 %   Interactivity:
 %     - Clicking on a data point will select it
-%     - Drawing a box by clicking and dragging on the axes will select
-%       anything in that box.
-%     - Holding shift while clicking or drawing a box will make a new
-%       selection that includes the old selection as well. If a point was
-%       in the old selection and in the new selection it will be
-%       unselected.
+%     - Holding shift while clicking will make a new selection that
+%       includes the old selection as well. If a point was in the old
+%       selection and in the new selection it will be unselected.
 %   NOTE: This does not clean up callbackfcn's set
+%
+%   EXAMPLES:
+%     - Make the linewidth 10 times larger
+%       linkScatter(scatterObjs,'linewidth_factor',10)
+%     - Fill the circle (note this also changes linewidth)
+%       linkScatter(scatterObjs,'MarkerFaceColor','flat')
+%     - Same as above, but keeping linewidth the same
+%       linkScatter(scatterObjs,'MarkerFaceColor','flat','linewidth_factor',1)
+%
+%   ENHANCEMENTS: make box selection!
 
 persistent p
 if isempty(p) % Avoid having to rebuild on each function call
     p = inputParser();
     p.KeepUnmatched = true;
-    addParameter(p,'linewidth_factor',2,@(x) isnumeric(x) && numel(x)==1);
+    addParameter(p,'linewidth_factor',5,@(x) isnumeric(x) && numel(x)==1);
 end
 parse(p,varargin{:});
 assert(isa(scatterObjs,'matlab.graphics.chart.primitive.Scatter'),'scatterObjs must be array of scatter plot handles');
-
 % Check that data is same length in all of scatterObjs and that it is >0
 data_lengths = arrayfun(@(x)length(x.XData),scatterObjs);
 assert(~any(data_lengths==0),'One or more scatterObjs has no data.')
@@ -45,29 +51,38 @@ for i = 1:length(scatterObjs)
         error('One or more of scatterObjs UserData is not a struct and is not empty.')
     end
 end
+% Map a struct back into a cell aray of name, value pairs
+user_settings = {};
+input_keys = fields(p.Unmatched);
+for i = 1:length(input_keys)
+    user_settings{end+1} = input_keys{i};
+    user_settings{end+1} = p.Unmatched.(input_keys{i});
+end
 
 % Link up interactivity
-set(scatterObjs,'ButtonDownFcn',@clicked_callback);
+set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
 scatterObjs(1).UserData.linkScatter.selected = []; % This will be the master list
 for i = 1:length(scatterObjs)
     % For each scatter obj, we will keep the list of all scatter objs, and
     % just know in the callbacks that the first one in the list is the master
     scatterObjs(i).UserData.linkScatter.others = scatterObjs;
     % Make another scatter object that is not clickable but is the "mask"
-    sc = scatter(scatterObjs(i).Parent,[],[]);
-    set(sc,'CData',scatterObjs(i).CData(:,1),... % Grab first row only [if multiple rows, updated in highlight]
+    sc = scatter(scatterObjs(i).Parent,[],[],'hittest','off','pickableparts','none','HandleVisibility','off');
+    set(sc,'CData',scatterObjs(i).CData(1,:),... % Grab first row only [if multiple rows, updated in highlight]
            'LineWidth',p.Results.linewidth_factor*scatterObjs(i).LineWidth,...
            'Marker',scatterObjs(i).Marker,...
            'MarkerEdgeAlpha',scatterObjs(i).MarkerEdgeAlpha,...
            'MarkerEdgeColor',scatterObjs(i).MarkerEdgeColor,...
-           'MarkerFaceAlpha',scatterObjs(i).MarkerEdgeAlpha,...
-           'MarkerFaceColor',scatterObjs(i).MarkerEdgeColor)
-    set(sc,p.Unmatched{:}); % This will also serve as a validation on varargin
-    sc.UserData = p.Unmatched;
+           'MarkerFaceAlpha',scatterObjs(i).MarkerFaceAlpha,...
+           'MarkerFaceColor',scatterObjs(i).MarkerFaceColor);
+    if ~isempty(user_settings)
+        set(sc,user_settings{:}); % This will also serve as a validation on varargin
+    end
+    sc.UserData = user_settings;
     scatterObjs(i).UserData.linkScatter.highlighter = sc;
 end
-
 end
+
 %%% Helpers
 function highlight(scatterObjs,inds)
 for i = 1:length(scatterObjs)
@@ -81,24 +96,29 @@ for i = 1:length(scatterObjs)
     if length(scatterObjs(i).SizeData)>1
         hl.SizeData = scatterObjs(i).SizeData(inds);
     end
-    set(hl,hl.UserData{:});
+    if ~isempty(hl.UserData)
+        set(hl,hl.UserData{:});
+    end
 end
 end
 
 %%% Callbacks
-function clicked_callback(hObj,eventdata)
+function point_clicked_callback(hObj,eventdata)
 scatterObjs = hObj.UserData.linkScatter.others;
-this_ind = NaN;
-if length(eventdata.Modifier)==1 && strcmp(eventdata.Modifier{1},'shift')
-    inds = scatterObjs(1).UserData.linkScatter.selected;
-    already_selected = this_ind==inds;
-    if any(already_selected) % Then remove them
-        inds(already_selected) = [];
-    else % Add this one to the list
-        inds(end+1) = this_ind;
-    end
-else % Only this one
-    inds = this_ind;
+[~,D] = knnsearch(eventdata.IntersectionPoint(1:2),[hObj.XData; hObj.YData]','K',1);
+[~,this_ind] = min(D);
+% See if it is already in selected set
+inds = scatterObjs(1).UserData.linkScatter.selected;
+already_selected = this_ind==inds;
+switch eventdata.Button
+    case 1
+        inds = this_ind;
+    case 3
+        if any(already_selected) % Then remove them
+            inds(already_selected) = [];
+        else
+            inds(end+1) = this_ind;
+        end
 end
 scatterObjs(1).UserData.linkScatter.selected = inds;
 highlight(scatterObjs,inds);
