@@ -3,8 +3,11 @@ function linkScatter(scatterObjs,varargin)
 %   Given a set of scatter plots with the same number of points, link the
 %   datasets in a way that selecting points on any of them will highlight
 %   those points on all of them.
-%   Input:
+%   Input *(arg) indicates optional positional; [arg] indicates name,value:
 %     - scatterObjs: the array of scatter plot handles to link
+%     - (reset): string "reset" to remove linkScatter functionality from
+%       all supplied scatterObjs and restore state prior to initializing
+%       linkScatter (specifically ButtonDownFcn and BusyAction).
 %     - [linewidth_factor]: factor to change linewidth by (default 5)
 %     - [all others]: piped to the overlaid (hittest off) highlighted
 %       scatter. This is applied after the default setting, so it can
@@ -19,7 +22,6 @@ function linkScatter(scatterObjs,varargin)
 %     - Holding shift while clicking will make a new selection that
 %       includes the old selection as well. If a point was in the old
 %       selection and in the new selection it will be unselected.
-%   NOTE: This does not clean up callbackfcn's set
 %
 %   EXAMPLES:
 %     - Make the linewidth 10 times larger
@@ -35,10 +37,16 @@ persistent p
 if isempty(p) % Avoid having to rebuild on each function call
     p = inputParser();
     p.KeepUnmatched = true;
+    addOptional(p,'reset','',@(x)any(validatestring(x,{'reset'})));
     addParameter(p,'linewidth_factor',5,@(x) isnumeric(x) && numel(x)==1);
 end
 parse(p,varargin{:});
 assert(isa(scatterObjs,'matlab.graphics.chart.primitive.Scatter'),'scatterObjs must be array of scatter plot handles');
+% We have validated all the necessary data here to reset
+if ~isempty(p.Results.reset)
+    arrayfun(@clean_up,scatterObjs);
+    return
+end
 % Check that data is same length in all of scatterObjs and that it is >0
 data_lengths = arrayfun(@(x)length(x.XData),scatterObjs);
 assert(~any(data_lengths==0),'One or more scatterObjs has no data.')
@@ -60,14 +68,16 @@ for i = 1:length(input_keys)
 end
 
 % Link up interactivity
-set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
 scatterObjs(1).UserData.linkScatter.selected = []; % This will be the master list
 for i = 1:length(scatterObjs)
     % For each scatter obj, we will keep the list of all scatter objs, and
     % just know in the callbacks that the first one in the list is the master
     scatterObjs(i).UserData.linkScatter.others = scatterObjs;
     % Make another scatter object that is not clickable but is the "mask"
+    ax = get_axes(scatterObjs(i));
+    held = ishold(ax); hold(ax,'on');
     sc = scatter(scatterObjs(i).Parent,[],[],'hittest','off','pickableparts','none','HandleVisibility','off');
+    if ~held; hold(ax,'off'); end
     set(sc,'CData',scatterObjs(i).CData(1,:),... % Grab first row only [if multiple rows, updated in highlight]
            'LineWidth',p.Results.linewidth_factor*scatterObjs(i).LineWidth,...
            'Marker',scatterObjs(i).Marker,...
@@ -80,10 +90,29 @@ for i = 1:length(scatterObjs)
     end
     sc.UserData = user_settings;
     scatterObjs(i).UserData.linkScatter.highlighter = sc;
+    % Store state to use on reset
+    scatterObjs(i).UserData.linkScatter.ButtonDownFcn = scatterObjs(i).ButtonDownFcn;
+    scatterObjs(i).UserData.linkScatter.BusyAction = scatterObjs(i).BusyAction;
 end
+set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
 end
 
 %%% Helpers
+function clean_up(sc)
+if isstruct(sc.UserData) && isfield(sc.UserData,'linkScatter')
+    sc.ButtonDownFcn = sc.UserData.linkScatter.ButtonDownFcn;
+    sc.BusyAction = sc.UserData.linkScatter.BusyAction;
+    delete(sc.UserData.linkScatter.highlighter);
+    sc.UserData = rmfield(sc.UserData,'linkScatter');
+end
+end
+
+function sc = get_axes(sc)
+while ~isempty(sc) && ~strcmp('axes', get(sc,'type'))
+  sc = get(sc,'parent');
+end
+end
+
 function highlight(scatterObjs,inds)
 for i = 1:length(scatterObjs)
     hl = scatterObjs(i).UserData.linkScatter.highlighter;
