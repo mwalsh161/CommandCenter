@@ -100,7 +100,7 @@ if isfield(fig.UserData,'AutoExperiment_analysis') && ~isempty(fig.UserData.Auto
         var_name = sprintf('SpecSlowScan_analysis%i',i);
     end
     answer = questdlg(sprintf('Would you like to export analysis data to workspace as "%s"?',var_name),...
-        mfilename,'Yes','No','Yes');
+        'Export Analysis','Yes','No','Yes');
     if strcmp(answer,'Yes')
         assignin('base',var_name,fig.UserData.AutoExperiment_analysis)
     end
@@ -163,7 +163,6 @@ end
 function update(fig)
 site = fig.UserData.sites(fig.UserData.index);
 ax = fig.UserData.ax;
-colors = lines;
 % Image
 title(ax(1),sprintf('Site %i/%i',fig.UserData.index,length(fig.UserData.sites)));
 set(fig.UserData.pos,'xdata',site.position(1),'ydata',site.position(2));
@@ -171,34 +170,25 @@ set(fig.UserData.pos,'xdata',site.position(1),'ydata',site.position(2));
 cla(ax(2),'reset'); cla(ax(3),'reset'); cla(ax(4),'reset');
 hold(ax(2),'on'); hold(ax(3),'on'); hold(ax(4),'on');
 titles = {'Spectrum'};
-for i = 1:length(site.experiments)
-    experiment = site.experiments(1);
-    if ~strcmp(experiment.name,'Experiments.Spectrum')
-        break
-    end
-    site.experiments(1) = [];
+for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
+    experiment = site.experiments(i);
     if ~isempty(experiment.data)
         nm_range = fig.UserData.wavenm_range;
         wavelength = experiment.data.wavelength;
         mask = and(wavelength>=min(nm_range),wavelength<=max(nm_range));
-        plot(ax(2),wavelength(mask),...
-                  experiment.data.intensity(mask),'color',colors(i,:));
+        plot(ax(2),wavelength(mask),experiment.data.intensity(mask));
     end
     if ~isempty(experiment.err)
-        titles{end+1} = sprintf('%i: %s',i,experiment.err.message);
+        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\Rightarrow %s',i,experiment.err.message);
     end
 end
-title(ax(2),strjoin(titles,newline),'interpreter','none');
+title(ax(2),titles);
 xlabel(ax(2),'Wavelength (nm)');
 ylabel(ax(2),'Intensity (a.u.)');
 
 titles = {'Open Loop SlowScan'};
-for i = 1:length(site.experiments)
-    experiment = site.experiments(1);
-    if ~strcmp(experiment.name,'Experiments.SlowScan.Open')
-        break
-    end
-    site.experiments(1) = [];
+for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
+    experiment = site.experiments(i);
     if ~isempty(experiment.data)
         errorfill(experiment.data.data.freqs_measured,...
                   experiment.data.data.sumCounts,...
@@ -206,20 +196,16 @@ for i = 1:length(site.experiments)
                   'parent',ax(3));
     end
     if ~isempty(experiment.err)
-        titles{end+1} = sprintf('%i: %s',i,experiment.err.message);
+        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\Rightarrow %s',i,experiment.err.message);
     end
 end
-title(ax(3),strjoin(titles,newline),'interpreter','none');
+title(ax(3),titles);
 xlabel(ax(3),'Frequency (THz)');
 ylabel(ax(3),'Counts');
 
 titles = {'Closed Loop SlowScan'};
-for i = 1:length(site.experiments)
-    experiment = site.experiments(1);
-    if ~strcmp(experiment.name,'Experiments.SlowScan.Closed')
-        break
-    end
-    site.experiments(1) = [];
+for i = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}))
+    experiment = site.experiments(i);
     if ~isempty(experiment.data)
         errorfill(experiment.data.data.freqs_measured,...
                   experiment.data.data.sumCounts,...
@@ -227,10 +213,10 @@ for i = 1:length(site.experiments)
                   'parent',ax(4));
     end
     if ~isempty(experiment.err)
-        titles{end+1} = sprintf('%i: %s',i,experiment.err.message);
+        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\Rightarrow %s',i,experiment.err.message);
     end
 end
-title(ax(4),strjoin(titles,newline),'interpreter','none');
+title(ax(4),titles);
 xlabel(ax(4),'Frequency (THz)');
 ylabel(ax(4),'Counts');
 if ~fig.UserData.viewonly
@@ -249,7 +235,6 @@ if ~fig.UserData.viewonly
             'noisemodel','shot');
     end
 end
-assert(isempty(site.experiments),'Missed some experiments!')
 end
 %% UIfitpeaks adaptor
 function save_state(fig)
