@@ -179,7 +179,7 @@ for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
         plot(ax(2),wavelength(mask),experiment.data.intensity(mask));
     end
     if ~isempty(experiment.err)
-        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\Rightarrow %s',i,experiment.err.message);
+        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',i,experiment.err.message);
     end
 end
 title(ax(2),titles);
@@ -196,7 +196,7 @@ for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
                   'parent',ax(3));
     end
     if ~isempty(experiment.err)
-        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\Rightarrow %s',i,experiment.err.message);
+        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',i,experiment.err.message);
     end
 end
 title(ax(3),titles);
@@ -213,7 +213,7 @@ for i = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}))
                   'parent',ax(4));
     end
     if ~isempty(experiment.err)
-        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\Rightarrow %s',i,experiment.err.message);
+        titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',i,experiment.err.message);
     end
 end
 title(ax(4),titles);
