@@ -15,7 +15,7 @@ classdef VelocityLaser < Modules.Driver
         idn
     end
     properties
-        TuningTimout = 0;
+        TuningTimeout = 0;
     end
     properties (SetObservable)
         PiezoPercent = [];
@@ -129,9 +129,11 @@ classdef VelocityLaser < Modules.Driver
         function set.Wavelength(obj,val)
             if ~obj.init
                 start_timeout = obj.connection.connection.Timeout;
-                obj.connection.connection.Timeout = obj.TuningTimout;
+                if obj.TuningTimeout > 0
+                    obj.connection.connection.Timeout = obj.TuningTimeout;
+                end
                 try
-                    obj.com('setWavelength',val,obj.TuningTimout);
+                    obj.com('setWavelength',val,obj.TuningTimeout);
                 catch err
                     obj.connection.connection.Timeout = start_timeout;
                     rethrow(err);
