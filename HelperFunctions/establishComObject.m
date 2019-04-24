@@ -7,7 +7,7 @@ classdef establishComObject < handle
     properties(SetAccess = private)
         comObjectInfo = [];
         % comObjectInfo - comInformation has three fields. One is class type of
-        % connection. Two is comAddress (ex: {'ni','1','1'}. Three is comProperties which are the editable fields of comObject.)
+        % connection. Two is comAddress (ex: {'ni','1','1'} for gpib or {'COM8'} for serial. Three is comProperties which are the editable fields of comObject.)
         
         comObject = [];
         % comObject - handle to device
@@ -19,7 +19,7 @@ classdef establishComObject < handle
              if isempty(obj.comObjectInfo)
                 obj.establishInitialConnection();
             end
-            obj.Connect_Driver()
+            obj.connectDriver()
             obj.deviceID = name;
         end
     end
@@ -47,7 +47,7 @@ classdef establishComObject < handle
             end
             
             obj.selectConnection(choice);
-            comProperties =  obj.displayProperties();
+            comProperties =  obj.displayPropertiesDialog();
             
             obj.comObjectInfo.comProperties = comProperties; %editable fields of comOject and values
             obj.comObjectInfo.comType = class(obj.comObject); %comType
@@ -58,14 +58,14 @@ classdef establishComObject < handle
             if ~isempty(fields(obj.comObjectInfo.comProperties))
                 obj.testComObject(dlgOptions); %check comObject
                 obj.setAllProperties();
-            else        %??
+            else 
                 delete(obj.comObject);
                 obj.comObject = [];
             end
             
         end
         
-        function Connect_Driver(obj)
+        function connectDriver(obj)
             %% Description
             %  Helper function that handles connecting to your driver. Uses the helper
             %  function Connect_Device. The handle to your device will be returned and
@@ -161,82 +161,94 @@ classdef establishComObject < handle
         
         
         function selectConnection(obj,choice)
-            num_lines = 1;
+            numLines = 1;
             switch lower(choice)
                 case 'gpib'
-                    InputArg={'Adaptor_Type','GPIBboard_Number','GPIBnum'};
-                    dlg_title = ['GPIB Communication Setting'];
-                    comType = @(x) gpib(x{1},obj.force_double(x{2}),obj.force_double(x{3}));
+                    inputArg={'Adaptor_Type','GPIBboard_Number','GPIBnum'};
+                    dlgTitle = ['GPIB Communication Setting'];
+                    comType = @(x) gpib(x{1},obj.forceDouble(x{2}),obj.forceDouble(x{3}));
                 case 'serial'
-                    InputArg={'comPortNum'};
-                    dlg_title = ['Serial Communication Setting'];
+                    inputArg={'comPortNum'};
+                    dlgTitle = ['Serial Communication Setting'];
                     comType = @(x) serial(x{:});
                 case {'tcp','tcp/ip','tcpip'}
-                    InputArg ={'Address','Port'};
-                    dlg_title = ['TCP Communication Setting'];
-                    comType = @(x) tcpip(x{1},obj.force_double(x{2}));
+                    inputArg ={'Address','Port'};
+                    dlgTitle = ['TCP Communication Setting'];
+                    comType = @(x) tcpip(x{1},obj.forceDouble(x{2}));
                 case 'prologix'
-                    InputArg={'comPortNum','GPIBnum'};
-                    dlg_title = ['Prologix Communication Setting'];
-                    comType = @(x) prologix(x{1},obj.force_double(x{2}));
+                    inputArg={'comPortNum','GPIBnum'};
+                    dlgTitle = ['Prologix Communication Setting'];
+                    comType = @(x) prologix(x{1},obj.forceDouble(x{2}));
                 otherwise
                     error([choice,' is not a supported com object.'])
             end
             
-            answer = inputdlg(InputArg,dlg_title,num_lines)';
+            answer = inputdlg(inputArg,dlgTitle,numLines)';
             if isempty(answer)
                 return
             end
             
-            obj.comObject = comType(answer(:)); %majority of error handling happens here
+            obj.comObject = comType(answer(:)); %Populates comObject using majority of error handling happens here
             obj.comObject.UserData = answer; %save comAddress
         end
         
-        function x = force_double(obj,x)
+        function x = forceDouble(obj,x)
             if ~isnumeric(x)
                 x = str2double(x);
             end
         end
         
-        function comProperties = displayProperties(obj)
-            default_ans = [];
-            delete_index = [];
+        function comProperties = displayPropertiesDialog(obj)
+            % Description:
+            %  Composes list of settable properties for the comObject and
+            %  creates dialog box with the options for the user to populate
+            %  (default answers are provided)
+            %
+            % Outputs:
+            %  comProperties - List of all settable properties associated with
+            %  comObject
+            
+            
+            defaultAns = [];
+            deleteIndex = [];
             properties = set(obj.comObject);
-            field_names = fields(properties);
-            for index = 1:numel(field_names)
-                if ~isempty(findstr(field_names{index}, 'Fcn'))
-                    delete_index = [delete_index,index];
+            fieldNames = fields(properties);
+            for index = 1:numel(fieldNames)
+                % Removes callback function settings from properties list
+                if ~isempty(findstr(fieldNames{index}, 'Fcn'))
+                    deleteIndex = [deleteIndex,index];
                     continue
                 end
-                fieldName = field_names{index};
+                % Sets default answers for comProperties
+                fieldName = fieldNames{index};
                 value = getfield(properties,fieldName);
-                poss_ans = obj.comObject.(fieldName);
+                possAns = obj.comObject.(fieldName);
                 if numel(value) == 0
-                    if isnumeric(poss_ans)
-                        poss_ans = num2str(poss_ans);
+                    if isnumeric(possAns)
+                        possAns = num2str(possAns);
                     end
-                    default_ans{index} = poss_ans;
+                    defaultAns{index} = possAns;
                 else
-                    currentIndex = contains(value,poss_ans);
+                    currentIndex = contains(value,possAns);
                     value = [value(currentIndex);value(~currentIndex)];  %reorganize cell array so the default option is first
-                    default_ans{index} = value;
+                    defaultAns{index} = value;
                     choices = [];
                 end
             end
-            field_names(delete_index) = [];
-            default_ans(delete_index) = [];
-            Index_list = strfind(field_names, 'UserData');
-            Index = find(~cellfun(@isempty,Index_list));
-            field_names(Index)=[];
-            default_ans(Index)=[];
-            dlg_title = 'Set Communication Properties';
-            answers = UserInputDialog(field_names,dlg_title,default_ans);
+            fieldNames(deleteIndex) = [];
+            defaultAns(deleteIndex) = [];
+            indexList = strfind(fieldNames, 'UserData');
+            Index = find(~cellfun(@isempty,indexList));
+            fieldNames(Index)=[];
+            defaultAns(Index)=[];
+            dlgTitle = 'Set Communication Properties';
+            answers = UserInputDialog(fieldNames,dlgTitle,defaultAns);
             comProperties = struct();
             if isempty(answers)
                 return
             end
             for index = 1:length(answers)
-                comProperties.(field_names{index}) = answers{index};
+                comProperties.(fieldNames{index}) = answers{index};
             end
         end
         
@@ -249,12 +261,12 @@ classdef establishComObject < handle
                 %should only hit this catch if it is your first time establish
                 %comProperties. Some of the properties are the wrong dataType for the
                 %set method. So go through and change numbers to datatype double from strings.
-                field_names = fields(obj.comObjectInfo.comProperties);
-                for index = 1:numel(field_names)
-                    val = obj.comObjectInfo.comProperties.(field_names{index});
+                fieldNames = fields(obj.comObjectInfo.comProperties);
+                for index = 1:numel(fieldNames)
+                    val = obj.comObjectInfo.comProperties.(fieldNames{index});
                     val = str2num(val);
                     if ~isempty(val)
-                        obj.comObjectInfo.comProperties.(field_names{index}) =  val;
+                        obj.comObjectInfo.comProperties.(fieldNames{index}) =  val;
                     end
                 end
                 set(obj.comObject,obj.comObjectInfo.comProperties);%set all the properties; this also handles debugging
