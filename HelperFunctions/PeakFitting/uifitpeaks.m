@@ -42,13 +42,16 @@ if ~isempty(findall(ax,'tag',mfilename))
     warning('UIFITPEAKS already initialized on this axis');
     return % Already running on this axes
 end
-p = inputParser();
-p.KeepUnmatched = true;
-addParameter(p,'Init',[],@isstruct);
-addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
-addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
-addParameter(p,'StepSize',10,@(x) isnumeric(x) && numel(x)==1);
-addParameter(p,'InitWidth',5,@(x) isnumeric(x) && numel(x)==1);
+persistent p
+if isempty(p) % Avoid having to rebuild on each function call
+    p = inputParser();
+    p.KeepUnmatched = true;
+    addParameter(p,'Init',[],@isstruct);
+    addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+    addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
+    addParameter(p,'StepSize',10,@(x) isnumeric(x) && numel(x)==1);
+    addParameter(p,'InitWidth',5,@(x) isnumeric(x) && numel(x)==1);
+end
 parse(p,varargin{:});
 fittype = lower(p.Results.FitType);
 
