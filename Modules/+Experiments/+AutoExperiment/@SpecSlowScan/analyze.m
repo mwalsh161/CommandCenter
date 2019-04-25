@@ -11,6 +11,13 @@ function varargout = analyze(data,varargin)
 %       [alt+] left/right arrows to change site index. The alt is only
 %           necessary if viewonly=false, which is default.
 %       Right clicking on axis will allow you to choose lorentz/gauss for that axis
+%   Tag info for data:
+%       Axes from left -> right:
+%           'SpatialImageAx', 'SpectraAx', 'OpenLoopAx', 'ClosedLoopAx'
+%       Image in 'SpatialImageAx': 'SpatialImage'; Scatter plot: 'sites'
+%       All lines in 'SpectraAx': 'Spectra'
+%       All errorfill children (line & patch) in 'OpenLoopAx': 'OpenLoop'
+%       All errorfill children (line & patch) in 'ClosedLoopAx': 'ClosedLoop'
 %   When viewonly = false, main keyboard functionality goes to UIFITPEAKS
 %       Click on circle node to select it, use arrows to change its
 %       location (and corresponding guess value).
