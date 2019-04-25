@@ -43,11 +43,11 @@ fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
 uimenu(file_menu,'Text','Export Analysis Data','callback',@export_data,'separator',true);
-ax = subplot(1,5,[1 2],'parent',fig);
+ax = subplot(1,5,[1 2],'parent',fig,'tag','SpatialImageAx');
 hold(ax,'on');
-imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image);
+imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
 positions = reshape([data.sites.position],2,[]);
-sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite);
+sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite,'tag','sites');
 sc.UserData.fig = fig;
 pos = scatter(NaN,NaN,'r+');
 xlabel(ax,'X Position (um)');
@@ -56,9 +56,9 @@ colormap(fig,'gray');
 axis(ax,'image');
 set(ax,'ydir','normal');
 hold(ax,'off');
-ax(2) = subplot(1,5,3,'parent',fig); hold(ax(2),'on');
-ax(3) = subplot(1,5,4,'parent',fig); hold(ax(3),'on');
-ax(4) = subplot(1,5,5,'parent',fig); hold(ax(4),'on');
+ax(2) = subplot(1,5,3,'parent',fig,'tag','SpectraAx'); hold(ax(2),'on');
+ax(3) = subplot(1,5,4,'parent',fig,'tag','OpenLoopAx'); hold(ax(3),'on');
+ax(4) = subplot(1,5,5,'parent',fig,'tag','ClosedLoopAx'); hold(ax(4),'on');
 fig.UserData.new_data = false;
 fig.UserData.viewonly = p.Results.viewonly;
 fig.UserData.FitType = p.Results.FitType;
@@ -176,7 +176,7 @@ for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
         nm_range = fig.UserData.wavenm_range;
         wavelength = experiment.data.wavelength;
         mask = and(wavelength>=min(nm_range),wavelength<=max(nm_range));
-        plot(ax(2),wavelength(mask),experiment.data.intensity(mask));
+        plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra');
     end
     if ~isempty(experiment.err)
         titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',i,experiment.err.message);
@@ -193,7 +193,7 @@ for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
         errorfill(experiment.data.data.freqs_measured,...
                   experiment.data.data.sumCounts,...
                   experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                  'parent',ax(3));
+                  'parent',ax(3),'tag','OpenLoop');
     end
     if ~isempty(experiment.err)
         titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',i,experiment.err.message);
@@ -210,7 +210,7 @@ for i = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}))
         errorfill(experiment.data.data.freqs_measured,...
                   experiment.data.data.sumCounts,...
                   experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                  'parent',ax(4));
+                  'parent',ax(4),'tag','ClosedLoop');
     end
     if ~isempty(experiment.err)
         titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',i,experiment.err.message);
