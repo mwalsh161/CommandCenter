@@ -41,6 +41,7 @@ if isempty(p) % Avoid having to rebuild on each function call
 end
 parse(p,varargin{:});
 assert(isa(scatterObjs,'matlab.graphics.chart.primitive.Scatter'),'scatterObjs must be array of scatter plot handles');
+assert(all(isvalid(scatterObjs)),'One or more scatterObjs invalid.')
 % We have validated all the necessary data here to reset
 if ~isempty(p.Results.reset)
     arrayfun(@clean_up,scatterObjs);
@@ -92,24 +93,32 @@ for i = 1:length(scatterObjs)
     % Store state to use on reset
     scatterObjs(i).UserData.linkScatter.ButtonDownFcn = scatterObjs(i).ButtonDownFcn;
     scatterObjs(i).UserData.linkScatter.BusyAction = scatterObjs(i).BusyAction;
+    % If any of scatter objs get deleted; clean up everything
+    addlistener(scatterObjs(i),'ObjectBeingDestroyed',@clean_up);
 end
 set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
 end
 
 %%% Helpers
-function clean_up(sc)
-if isstruct(sc.UserData) && isfield(sc.UserData,'linkScatter')
-    sc.ButtonDownFcn = sc.UserData.linkScatter.ButtonDownFcn;
-    sc.BusyAction = sc.UserData.linkScatter.BusyAction;
-    delete(sc.UserData.linkScatter.highlighter);
-    % Grab it before we clean the field, but delete after the field is
-    % cleaned to avoid recursion (see next comment)
-    others = sc.UserData.linkScatter.others;
-    sc.UserData = rmfield(sc.UserData,'linkScatter');
-    % Clean up all in this set; note this may be redundant with the
-    % original call to linkScatter(...,'reset'), but the if statement at
-    % the beginning of this method will allow it.
-    arrayfun(@clean_up,others);
+function clean_up(sc,varargin)
+try % Allow this to work on objects being deleted (note isvalid = false in that case)
+    if isstruct(sc.UserData) && isfield(sc.UserData,'linkScatter')
+        sc.ButtonDownFcn = sc.UserData.linkScatter.ButtonDownFcn;
+        sc.BusyAction = sc.UserData.linkScatter.BusyAction;
+        delete(sc.UserData.linkScatter.highlighter);
+        % Grab it before we clean the field, but delete after the field is
+        % cleaned to avoid recursion (see next comment)
+        others = sc.UserData.linkScatter.others;
+        sc.UserData = rmfield(sc.UserData,'linkScatter');
+        % Clean up all in this set; note this may be redundant with the
+        % original call to linkScatter(...,'reset'), but the if statement at
+        % the beginning of this method will allow it.
+        arrayfun(@clean_up,others);
+    end
+catch err
+    if ~strcmp(err,'Invalid or deleted object.')
+        rethrow(err);
+    end
 end
 end
 
