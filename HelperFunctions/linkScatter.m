@@ -189,8 +189,12 @@ function UserData = axes_down_callback(ax,eventdata,scs)
     UserData.rect = patch(ax,'vertices',[pos;pos;pos;pos],...
         'faces',[1,2,3,4],'facealpha',0,'HandleVisibility','off');
 end
-function mouse_move_callback(ax,eventdata,UserData)
+function mouse_move_callback(~,eventdata,UserData)
     pos = eventdata.AxisPositions(end,:);
+    % Rail on axes limits to avoid axes auto scaling
+    ax = eventdata.TargetObj;
+    pos = [min([max([pos(1),min(ax.XLim)]),max(ax.XLim)]),...
+           min([max([pos(2),min(ax.YLim)]),max(ax.YLim)])];
     UserData.rect.Vertices(2:4,:) = [eventdata.AxisPositions(1,1), pos(2);...
                             pos;...
                             pos(1), eventdata.AxisPositions(1,2)];
