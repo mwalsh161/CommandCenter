@@ -98,17 +98,31 @@ for i = 1:length(scatterObjs)
     % If any of scatter objs get deleted; clean up everything
     addlistener(scatterObjs(i),'ObjectBeingDestroyed',@clean_up);
 end
+set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
 % Use mouseTrack to draw selection rectangles (keep in mind this won't
 % hinder click callbacks on the objects above the axis (any scatter plot
 % data point, for example).
 [ax,~,ic] = unique(ax);
+errs = MException.empty(1,0);
 for i = 1:length(ax)
+    try
     mouseTrack(ax(i),'UserData',scatterObjs(ic==i),'n',Inf,...
         'start_fcn',@axes_down_callback,...
         'update_fcn',@mouse_move_callback,...
         'stop_fcn',@(~,~,UserData)delete(UserData.rect)); % simply deletes the rectangle we draw
+    catch err
+        % Surpress errors here because they are likely releated to already
+        % having mouseTrack on one of the target axes; will issue warning
+        % at end.
+        errs(end+1) = err;
+    end
 end
-set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
+if ~isempty(errs)
+    msgs = unique({errs.message});
+    warning('LINKSCATTER:mouseTrack',...
+        'Error(s) occurred attaching mouseTrack to axes:\n%s',...
+        strjoin(msgs,newline));
+end
 end
 
 %%% Helpers
