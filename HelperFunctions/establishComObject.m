@@ -67,10 +67,7 @@ classdef establishComObject < handle
         
         function connectDriver(obj)
             %% Description
-            %  Helper function that handles connecting to your driver. Uses the helper
-            %  function Connect_Device. The handle to your device will be returned and
-            %  it will be open and ready to use.
-            
+            %  This handles connecting to your driver. 
             
             %% try opening your device
             
@@ -147,7 +144,7 @@ classdef establishComObject < handle
         end
         
         function openHandle(obj)
-            
+          %check if their is already an open channel that matches the one your trying to make  
             handles = instrfindall;
             for index =  1 : numel(handles)
                 fieldName = handles(index).name;
@@ -285,6 +282,10 @@ classdef establishComObject < handle
             assert(ismember(lower(class(obj.comObject)),lower(comOptions)),'error comObject is not a comType');
         end
         
-        
+        function delete(obj)
+            if strcmpi(obj.comObject.status,'open')
+                fclose(obj.comObject)
+            end
+        end
     end
 end
