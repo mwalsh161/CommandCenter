@@ -76,9 +76,9 @@ for i = 1:length(scatterObjs)
     % Make another scatter object that is not clickable but is the "mask"
     ax(i) = get_axes(scatterObjs(i));
     held = ishold(ax(i)); hold(ax(i),'on');
-    sc = scatter(scatterObjs(i).Parent,[],[],'hittest','off','pickableparts','none','HandleVisibility','off');
+    sc(i) = scatter(scatterObjs(i).Parent,[],[],'hittest','off','pickableparts','none','HandleVisibility','off');
     if ~held; hold(ax(i),'off'); end
-    set(sc,'CData',scatterObjs(i).CData(1,:),... % Grab first row only [if multiple rows, updated in highlight]
+    set(sc(i),'CData',scatterObjs(i).CData(1,:),... % Grab first row only [if multiple rows, updated in highlight]
            'LineWidth',p.Results.linewidth_factor*scatterObjs(i).LineWidth,...
            'Marker',scatterObjs(i).Marker,...
            'MarkerEdgeAlpha',scatterObjs(i).MarkerEdgeAlpha,...
@@ -86,21 +86,27 @@ for i = 1:length(scatterObjs)
            'MarkerFaceAlpha',scatterObjs(i).MarkerFaceAlpha,...
            'MarkerFaceColor',scatterObjs(i).MarkerFaceColor);
     if ~isempty(user_settings)
-        set(sc,user_settings{:}); % This will also serve as a validation on varargin
+        set(sc(i),user_settings{:}); % This will also serve as a validation on varargin
     end
-    sc.UserData = user_settings;
-    scatterObjs(i).UserData.linkScatter.highlighter = sc;
+    sc(i).UserData = user_settings;
+    scatterObjs(i).UserData.linkScatter.highlighter = sc(i);
     % Store state to use on reset
     scatterObjs(i).UserData.linkScatter.ButtonDownFcn = scatterObjs(i).ButtonDownFcn;
     scatterObjs(i).UserData.linkScatter.BusyAction = scatterObjs(i).BusyAction;
     scatterObjs(i).UserData.linkScatter.AxButtonDownFcn = ax(i).ButtonDownFcn;
-    scatterObjs(i).UserData.linkScatter.AxButtonUpFcn = ax(i).ButtonUpFcn;
     % If any of scatter objs get deleted; clean up everything
     addlistener(scatterObjs(i),'ObjectBeingDestroyed',@clean_up);
 end
-% Use mouseTrack to draw selection rectangles
-mouseTrack(ax,'start_fcn',@axes_down_callback,...
-    'update_fcn',@mouse_move_callback,'stop_fcn',@axes_up_callback);
+% Use mouseTrack to draw selection rectangles (keep in mind this won't
+% hinder click callbacks on the objects above the axis (any scatter plot
+% data point, for example).
+[ax,~,ic] = unique(ax);
+for i = 1:length(ax)
+    mouseTrack(ax(i),'UserData',scatterObjs(ic==i),'n',Inf,...
+        'start_fcn',@axes_down_callback,...
+        'update_fcn',@mouse_move_callback,...
+        'stop_fcn',@(~,~,UserData)delete(UserData.rect)); % simply deletes the rectangle we draw
+end
 set(scatterObjs,'ButtonDownFcn',@point_clicked_callback,'BusyAction','cancel');
 end
 
@@ -113,7 +119,6 @@ try % Allow this to work on objects being deleted (note isvalid = false in that 
         delete(sc.UserData.linkScatter.highlighter);
         ax = get_axes(sc);
         ax.ButtonDownFcn = sc.UserData.linkScatter.AxButtonDownFcn;
-        ax.ButtonUpFcn = sc.UserData.linkScatter.AxButtonUpFcn;
         % Grab it before we clean the field, but delete after the field is
         % cleaned to avoid recursion (see next comment)
         others = sc.UserData.linkScatter.others;
@@ -134,6 +139,9 @@ function obj = get_axes(obj)
 % Given a descendant of an axes, return the axes
 while ~isempty(obj) && ~strcmp('axes', get(obj,'type'))
   obj = get(obj,'parent');
+end
+if ~strcmp('axes', get(obj,'type'))
+    obj = [];
 end
 end
 
@@ -156,21 +164,31 @@ end
 end
 
 %%% Callbacks
-function rect = axes_down_callback(ax,eventdata)
+function UserData = axes_down_callback(ax,eventdata,scs)
     pos = eventdata.AxisPositions(1,:);
-              rect = patch(ax,'vertices',[pos;pos;pos;pos],...
-              'faces',[1,2,3,4],'facealpha',0);
+    UserData.scs = scs; % scatter objs associated with this axis
+    UserData.rect = patch(ax,'vertices',[pos;pos;pos;pos],...
+        'faces',[1,2,3,4],'facealpha',0,'HandleVisibility','off');
 end
-function mouse_move_callback(ax,eventdata,rect)
+function mouse_move_callback(ax,eventdata,UserData)
     pos = eventdata.AxisPositions(end,:);
-          rect.Vertices(2:4,:) = [eventdata.AxisPositions(1,1), pos(2);...
-                                  pos;...
-                                  pos(1), eventdata.AxisPositions(1,2)];
-end
-function axes_up_callback(ax,eventdata,rect)
-% All this does is reset the mouseTrack
-mouseTrack(ax,'start_fcn',@axes_down_callback,...
-    'update_fcn',@mouse_move_callback,'stop_fcn',@axes_up_callback);
+    UserData.rect.Vertices(2:4,:) = [eventdata.AxisPositions(1,1), pos(2);...
+                            pos;...
+                            pos(1), eventdata.AxisPositions(1,2)];
+    for i = 1:length(UserData.scs)
+        scatterObjs = UserData.scs(i).UserData.linkScatter.others;
+        new_inds = find(inpolygon(UserData.scs(i).XData,UserData.scs(i).YData,...
+            UserData.rect.Vertices(:,1),UserData.rect.Vertices(:,2)));
+        switch eventdata.Button
+            case 1
+                inds = new_inds;
+            case 3
+                inds = scatterObjs(1).UserData.linkScatter.selected;
+                inds = setxor(inds,new_inds);
+        end
+        scatterObjs(1).UserData.linkScatter.selected = inds;
+        highlight(scatterObjs,inds);
+    end
 end
 
 function point_clicked_callback(hObj,eventdata)
@@ -179,16 +197,11 @@ scatterObjs = hObj.UserData.linkScatter.others;
 [~,this_ind] = min(D);
 % See if it is already in selected set
 inds = scatterObjs(1).UserData.linkScatter.selected;
-already_selected = this_ind==inds;
 switch eventdata.Button
     case 1
         inds = this_ind;
     case 3
-        if any(already_selected) % Then remove them
-            inds(already_selected) = [];
-        else
-            inds(end+1) = this_ind;
-        end
+        inds = setxor(inds,this_ind);
 end
 scatterObjs(1).UserData.linkScatter.selected = inds;
 highlight(scatterObjs,inds);
