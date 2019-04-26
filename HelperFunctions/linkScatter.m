@@ -20,7 +20,10 @@ function linkScatter(scatterObjs,varargin)
 %   will error.
 %   Interactivity:
 %     - Clicking on a data point will select it (removing all others)
-%     - Right clicking will add/remove points to the selection
+%     - Clicking and dragging will create a rectangle to select everything
+%       in the rectangle.
+%     - Right clicking for either of the above actions will modify to
+%       perform an xor on the new selection and old selection.
 %
 %   EXAMPLES:
 %     - Make the linewidth 10 times larger
@@ -29,8 +32,6 @@ function linkScatter(scatterObjs,varargin)
 %       linkScatter(scatterObjs,'MarkerFaceColor','flat')
 %     - Same as above, but keeping linewidth the same
 %       linkScatter(scatterObjs,'MarkerFaceColor','flat','linewidth_factor',1)
-%
-%   ENHANCEMENTS: make box selection!
 
 persistent p
 if isempty(p) % Avoid having to rebuild on each function call
@@ -60,11 +61,11 @@ for i = 1:length(scatterObjs)
     end
 end
 % Map a struct back into a cell aray of name, value pairs
-user_settings = {};
 input_keys = fields(p.Unmatched);
+user_settings = cell(1,length(input_keys)*2);
 for i = 1:length(input_keys)
-    user_settings{end+1} = input_keys{i};
-    user_settings{end+1} = p.Unmatched.(input_keys{i});
+    user_settings{i*2-1} = input_keys{i};
+    user_settings{i*2} = p.Unmatched.(input_keys{i});
 end
 
 % Link up interactivity
@@ -76,9 +77,9 @@ for i = 1:length(scatterObjs)
     % Make another scatter object that is not clickable but is the "mask"
     ax(i) = get_axes(scatterObjs(i));
     held = ishold(ax(i)); hold(ax(i),'on');
-    sc(i) = scatter(scatterObjs(i).Parent,[],[],'hittest','off','pickableparts','none','HandleVisibility','off');
+    sc = scatter(scatterObjs(i).Parent,[],[],'hittest','off','pickableparts','none','HandleVisibility','off');
     if ~held; hold(ax(i),'off'); end
-    set(sc(i),'CData',scatterObjs(i).CData(1,:),... % Grab first row only [if multiple rows, updated in highlight]
+    set(sc,'CData',scatterObjs(i).CData(1,:),... % Grab first row only [if multiple rows, updated in highlight]
            'LineWidth',p.Results.linewidth_factor*scatterObjs(i).LineWidth,...
            'Marker',scatterObjs(i).Marker,...
            'MarkerEdgeAlpha',scatterObjs(i).MarkerEdgeAlpha,...
@@ -86,10 +87,10 @@ for i = 1:length(scatterObjs)
            'MarkerFaceAlpha',scatterObjs(i).MarkerFaceAlpha,...
            'MarkerFaceColor',scatterObjs(i).MarkerFaceColor);
     if ~isempty(user_settings)
-        set(sc(i),user_settings{:}); % This will also serve as a validation on varargin
+        set(sc,user_settings{:}); % This will also serve as a validation on varargin
     end
-    sc(i).UserData = user_settings;
-    scatterObjs(i).UserData.linkScatter.highlighter = sc(i);
+    sc.UserData = user_settings;
+    scatterObjs(i).UserData.linkScatter.highlighter = sc;
     % Store state to use on reset
     scatterObjs(i).UserData.linkScatter.ButtonDownFcn = scatterObjs(i).ButtonDownFcn;
     scatterObjs(i).UserData.linkScatter.BusyAction = scatterObjs(i).BusyAction;
@@ -167,6 +168,10 @@ end
 function UserData = axes_down_callback(ax,eventdata,scs)
     pos = eventdata.AxisPositions(1,:);
     UserData.scs = scs; % scatter objs associated with this axis
+    for i = 1:length(scs)
+        scatterObjs = scs(i).UserData.linkScatter.others;
+        UserData.init_inds{i} = scatterObjs(1).UserData.linkScatter.selected;
+    end
     UserData.rect = patch(ax,'vertices',[pos;pos;pos;pos],...
         'faces',[1,2,3,4],'facealpha',0,'HandleVisibility','off');
 end
@@ -183,8 +188,7 @@ function mouse_move_callback(ax,eventdata,UserData)
             case 1
                 inds = new_inds;
             case 3
-                inds = scatterObjs(1).UserData.linkScatter.selected;
-                inds = setxor(inds,new_inds);
+                inds = setxor(UserData.init_inds{i},new_inds);
         end
         scatterObjs(1).UserData.linkScatter.selected = inds;
         highlight(scatterObjs,inds);
