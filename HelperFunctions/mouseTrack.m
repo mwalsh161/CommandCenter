@@ -33,7 +33,9 @@ function varargout = mouseTrack(target,varargin)
 %       call is blocking; this means it needs to be explicit; varargout will
 %       not work.
 %   NOTE: This method will use target.UserData.mouseTrack if available
-%   otherwise error.
+%       otherwise error.
+%   NOTE: Keep in mind other graphics above the target will only pass the
+%      click through if their 'HitTest' property is 'off'
 %
 %   EXAMPLES:
 %       >> f = figure; ax = axes;
@@ -80,9 +82,10 @@ if isempty(p) % Avoid having to rebuild on each function call
     addParameter(p,'start_fcn','',@(x)isa(x,'function_handle'));
     addParameter(p,'update_fcn','',@(x)isa(x,'function_handle'));
     addParameter(p,'stop_fcn','',@(x)isa(x,'function_handle'));
-    addParameter(p,'n',1,@(x)validateattributes(x,{'numeric'},{'positive','scalar','integer'}));
+    addParameter(p,'n',1,@(x)validateattributes(x,{'numeric'},{'positive','scalar'}));
 end
 parse(p,target,varargin{:});
+assert(isinf(p.Results.n)||isinteger(p.Results.n),"The value of 'n' is invalid. Expected input to be integer-valued or Inf.")
 if ~isempty(p.Results.reset)
     clean_up(target);
     return
@@ -181,6 +184,7 @@ end
 
 function stopTrack(fig,eventdata,target)
 handles = target.UserData.mouseTrack;
+err = [];
 if ~isempty(handles.args.stop_fcn)
     handles.Positions(end+1,:) = get(fig,'CurrentPoint');
     if ~isempty(handles.ax)
@@ -198,18 +202,18 @@ if ~isempty(handles.args.stop_fcn)
             handles.args.stop_fcn(fig,eventdata,handles.UserData);
         end
     catch err
-        if handles.args.n == 0
-            clean_up(target);
-        else % Suspend button motion fcn until click again
-            handles.fig.WindowButtonMotionFcn = [];
-        end
-        rethrow(err)
     end
 end
 if handles.args.n == 0
     clean_up(target);
-else % Suspend button motion fcn until click again
+else % Suspend button motion fcn until click again and reset vectors
     handles.fig.WindowButtonMotionFcn = [];
+    handles.Positions = NaN(0,2);
+    handles.AxisPositions = NaN(0,2);
+    target.UserData.mouseTrack = handles;
+end
+if ~isempty(err)
+    rethrow(err);
 end
 end
 
