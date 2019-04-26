@@ -1,7 +1,7 @@
 function varargout = mouseTrack(target,varargin)
 %MOUSETRACK Evaluate callbacks when moving mouse while button held on target
 %   When user clicks on a target graphic object, this will call:
-%       [UserData] = start_fcn(target,eventdata) when first clicked
+%       [UserData] = start_fcn(target,eventdata,UserData) when first clicked
 %       [UserData] = update_fcn(figure,eventdata,UserData) while mouse moves
 %       [output] = stop_fcn(figure,eventdata,UserData) when mouse button released
 %           - NOTE: if output is supplied here; mouseTrack turns into a
@@ -12,6 +12,7 @@ function varargout = mouseTrack(target,varargin)
 %       AxisPositions: position in figure's current axis or target's
 %          closest parent.
 %           - if no axis, it will be NaN(0,2)
+%       Button: carried over from the ButtonDownFcn eventdata.Button
 %       TargetObj: the target supplied to MOUSETRACK
 %   UserData begins is empty array, but can be anything; useful to persist
 %       data between callbacks. It is an optional return argument.
@@ -22,6 +23,7 @@ function varargout = mouseTrack(target,varargin)
 %       [start_fcn]: see above
 %       [update_fcn]: see above
 %       [stop_fcn]: see above
+%       [UserData]: initial value for UserData past to start_fcn
 %       [n]: number of times to allow interaction (default Inf)
 %   OUTPUT:
 %       figure: the parent figure used
@@ -44,10 +46,10 @@ function varargout = mouseTrack(target,varargin)
 %               @(~,b,~)fprintf('%i, %i\n',b.Positions(end,:)))
 %     - Print out location in axes (axis units):
 %       >> mouseTrack(ax,'update_fcn',...
-%               @(a,b)fprintf('%i, %i\n',b.AxisPositions(end,:)))
+%               @(~,b,~)fprintf('%i, %i\n',b.AxisPositions(end,:)))
 %     - Draw a box on axes (using the UserData to store data between callbacks):
 %       >> mouseTrack(ax,'start_fcn',@makeRect,'update_fcn',@updateRect,'stop_fcn',@done)
-%          function rect = makeRect(ax,eventdata)
+%          function rect = makeRect(ax,eventdata,UserData)
 %              pos = eventdata.AxisPositions(1,:);
 %              rect = patch(ax,'vertices',[pos;pos;pos;pos],...
 %                  'faces',[1,2,3,4],'facealpha',0);
@@ -69,7 +71,7 @@ function varargout = mouseTrack(target,varargin)
 %                      'XData',[get(ln,'XData'),a.AxisPositions(end,1)],...
 %                      'YData',[get(ln,'YData'),a.AxisPositions(end,2)]),...
 %            'stop_fcn',  @(~,~,ln)delete(ln));
-%           function line = makeLine(ax,eventdata)
+%           function line = makeLine(ax,eventdata,UserData)
 %               pos = eventdata.AxisPositions(1,:);
 %               line = plot(ax,pos(1),pos(2));
 %           end
@@ -82,6 +84,7 @@ if isempty(p) % Avoid having to rebuild on each function call
     addParameter(p,'start_fcn','',@(x)isa(x,'function_handle'));
     addParameter(p,'update_fcn','',@(x)isa(x,'function_handle'));
     addParameter(p,'stop_fcn','',@(x)isa(x,'function_handle'));
+    addParameter(p,'UserData',[]); % Anything goes
     addParameter(p,'n',1,@(x)validateattributes(x,{'numeric'},{'positive','scalar'}));
 end
 parse(p,target,varargin{:});
@@ -101,7 +104,10 @@ if isempty(ax)
     ax = fig.CurrentAxes; % This can also be empty
 end
 
+% Store all relevant variables in target's UserData since this can be
+% called on multiple graphics
 handles.args = struct(p.Results);
+handles.Button = NaN; % This will be the button pressed in initial callback
 handles.fig = fig;
 handles.ax = ax;
 handles.Output = [];
@@ -138,6 +144,7 @@ function startTrack(target,eventdata)
 handles = target.UserData.mouseTrack;
 % Link button up first in case start_fcn errors
 handles.fig.WindowButtonUpFcn = {@stopTrack,target};
+handles.Button = eventdata.Button;
 warning('off','MATLAB:structOnObject')
 handles.Positions(end+1,:) = get(handles.fig,'CurrentPoint');
 if ~isempty(handles.ax)
@@ -150,9 +157,9 @@ if ~isempty(handles.args.start_fcn)
     eventdata.AxisPositions = handles.AxisPositions;
     eventdata.TargetObj = target;
     if nargout(handles.args.start_fcn) > 0
-        handles.UserData = handles.args.start_fcn(target,eventdata);
+        handles.UserData = handles.args.start_fcn(target,eventdata,handles.args.UserData);
     else
-        handles.args.start_fcn(target,eventdata);
+        handles.args.start_fcn(target,eventdata,handles.args.UserData);
     end
 end
 handles.args.n = handles.args.n - 1;
@@ -173,6 +180,7 @@ if ~isempty(handles.args.update_fcn)
     eventdata.Positions = handles.Positions;
     eventdata.AxisPositions = handles.AxisPositions;
     eventdata.TargetObj = target;
+    eventdata.Button = handles.Button;
     if nargout(handles.args.update_fcn) > 0
         handles.UserData = handles.args.update_fcn(fig,eventdata,handles.UserData);
     else
@@ -195,6 +203,7 @@ if ~isempty(handles.args.stop_fcn)
     eventdata.Positions = handles.Positions;
     eventdata.AxisPositions = handles.AxisPositions;
     eventdata.TargetObj = target;
+    eventdata.Button = handles.Button;
     try
         if nargout(handles.args.stop_fcn) > 0
             handles.Output = handles.args.stop_fcn(target,eventdata,handles.UserData);
