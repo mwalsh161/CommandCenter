@@ -70,25 +70,12 @@ end
 
 choice = defOption;
 
-%% define size of figure
-%units of pixels
+%% 
 numOptions = numel(dlgOptions);
-Pos(1) = 900;
-Pos(2) = 500;
-Pos(3) = 200;
-Pos(4) = (numOptions - 1)*55;
-maxHeight = 500;
-minHeight = 270;
-if Pos(4) > maxHeight
-   Pos(4) = maxHeight;
-end
-if  Pos(4) < minHeight
-    Pos(4) = minHeight;
-end
+
 %%  create figure window
 
 figWindow = figure('Visible','off','Units','pixels','numbertitle', 'off');
-figWindow.Position = Pos;
 figWindow.Name = dlgTitle;
 figWindow.MenuBar ='none';
 figWindow.ToolBar ='none';
