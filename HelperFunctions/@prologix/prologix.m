@@ -45,7 +45,7 @@ classdef prologix < handle
         EOTEnable = {'on';'off'};  % EOTEnable to on will translate instrument EOI to Terminator [default off]
     end
     properties(Constant)
-        type = 'prologix';
+        Type = 'prologix';
     end
     properties(Access=private)
         serial
