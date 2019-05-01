@@ -18,6 +18,8 @@ function linkScatter(scatterObjs,varargin)
 %   store the previous state. Specifically, it will use a struct field
 %   named linkScatter. If UserData is not a struct and is not empty, it
 %   will error.
+%   NOTE: mouseTrack will error of LINKSCATTER is called twice with
+%   scatterObjs that share a parent axes.
 %   Interactivity:
 %     - Clicking on a data point will select it (removing all others)
 %     - Clicking and dragging will create a rectangle to select everything
@@ -70,6 +72,7 @@ end
 
 % Link up interactivity
 scatterObjs(1).UserData.linkScatter.selected = []; % This will be the master list
+ax = gobjects(1,length(scatterObjs));
 for i = 1:length(scatterObjs)
     % For each scatter obj, we will keep the list of all scatter objs, and
     % just know in the callbacks that the first one in the list is the master
@@ -181,11 +184,17 @@ end
 %%% Callbacks
 function UserData = axes_down_callback(ax,eventdata,scs)
     pos = eventdata.AxisPositions(1,:);
-    UserData.scs = scs; % scatter objs associated with this axis
+    % Preallocate x and y data for mouse_move_callback
+    sz = [length(scs(1).XData), length(scs)];
+    UserData.x = NaN(sz);
+    UserData.y = NaN(sz);
     for i = 1:length(scs)
-        scatterObjs = scs(i).UserData.linkScatter.others;
-        UserData.init_inds{i} = scatterObjs(1).UserData.linkScatter.selected;
+        UserData.x(:,i) = scs(i).XData;
+        UserData.y(:,i) = scs(i).YData;
     end
+    scatterObjs = scs(1).UserData.linkScatter.others; % Same for all scs, but the order matters
+    UserData.init_inds = scatterObjs(1).UserData.linkScatter.selected; % First one is the master
+    UserData.scs = scatterObjs; % ordered scatter objs associated with this axis
     UserData.rect = patch(ax,'vertices',[pos;pos;pos;pos],...
         'faces',[1,2,3,4],'facealpha',0,'HandleVisibility','off');
 end
@@ -195,22 +204,22 @@ function mouse_move_callback(~,eventdata,UserData)
     ax = eventdata.TargetObj;
     pos = [min([max([pos(1),min(ax.XLim)]),max(ax.XLim)]),...
            min([max([pos(2),min(ax.YLim)]),max(ax.YLim)])];
-    UserData.rect.Vertices(2:4,:) = [eventdata.AxisPositions(1,1), pos(2);...
-                            pos;...
-                            pos(1), eventdata.AxisPositions(1,2)];
-    for i = 1:length(UserData.scs)
-        scatterObjs = UserData.scs(i).UserData.linkScatter.others;
-        new_inds = find(inpolygon(UserData.scs(i).XData,UserData.scs(i).YData,...
-            UserData.rect.Vertices(:,1),UserData.rect.Vertices(:,2)));
-        switch eventdata.Button
-            case 1
-                inds = new_inds;
-            case 3
-                inds = setxor(UserData.init_inds{i},new_inds);
-        end
-        scatterObjs(1).UserData.linkScatter.selected = inds;
-        highlight(scatterObjs,inds);
+    UserData.rect.Vertices(2:4,:) =[eventdata.AxisPositions(1,1), pos(2);...
+                                    pos;...
+                                    pos(1), eventdata.AxisPositions(1,2)];
+    scatterObjs = UserData.scs;
+    new_inds = inpolygon(UserData.x,UserData.y,...
+        UserData.rect.Vertices(:,1),UserData.rect.Vertices(:,2));
+    new_inds = any(new_inds,2); % logical OR operation (set AND operation)
+    new_inds = find(new_inds);  % Convert to index
+    switch eventdata.Button
+        case 1
+            inds = new_inds;
+        case 3
+            inds = setxor(UserData.init_inds,new_inds);
     end
+    scatterObjs(1).UserData.linkScatter.selected = inds;
+    highlight(scatterObjs,inds);
 end
 
 function point_clicked_callback(hObj,eventdata)
