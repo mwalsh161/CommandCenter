@@ -276,7 +276,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             assert(val >= min(obj.range) && val <= max(obj.range),...
                 sprintf('Laser frequency must be in range [%g,%g] THz',obj.range(1),obj.range(2)))
         end
-        function calibrate(obj) 
+        function calibrate(obj,ax) 
             %calibrates the frequency as read by the wavemeter to the 
             %wavelength as set by the diode motor
             if ~obj.diode_on
@@ -290,18 +290,48 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
             set_range = findprop(obj,'range'); 
             set_range = obj.c./set_range.DefaultValue; %get the actual settable range in nm, which is the default value of range
-            setpoints = linspace(set_range(1),set_range(end),10); %take 10 points across the range of the laser
-            wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
-            for i=1:length(setpoints)
-                obj.serial.Wavelength = setpoints(i); pause(1); %allow to settle
-                wavelocs(i) = obj.getFrequency;
+
+            f= [];
+            if nargin < 2
+                f = figure;
+                ax = axes('parent',f);
             end
-            fit_type = fittype('a/(x-b)+c');
-            options = fitoptions(fit_type);
-            options.Start = [obj.c,0,0];
-            [temp.THz2nm,temp.gof] = fit(wavelocs',setpoints',fit_type,options);
-            temp.datetime = datetime;
-            obj.cal_local = temp;
+            try
+                setpoints = linspace(obj.set_range(1),obj.set_range(end),10); %take 10 points across the range of the laser
+                wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
+                obj.wavemeter.setDeviationChannel(false);
+                for i=1:length(setpoints)
+                    obj.serial.Wavelength = setpoints(i); pause(1); %allow to settle
+                    wavelocs(i) = obj.getFrequency;
+                end
+                fit_type = fittype('a/(x-b)+c');
+                options = fitoptions(fit_type);
+                options.Start = [obj.c,0,0];
+                [temp.THz2nm,temp.gof] = fit(wavelocs',setpoints',fit_type,options);
+                temp.datetime = datetime;
+                obj.cal_local = temp;
+                cla(ax)
+                plotx = linspace(min(obj.c/max(setpoints),min(wavelocs)),max(obj.c/min(setpoints),max(wavelocs)),10*length(setpoints));
+                plot(ax,wavelocs,setpoints,'bo');
+                hold(ax,'on')
+                plot(ax,plotx,temp.THz2nm(plotx));
+                fitbounds = predint(temp.THz2nm,plotx,0.95,'functional','on'); %get confidence bounds on fit
+                errorfill(plotx,temp.THz2nm(plotx)',[abs(temp.THz2nm(plotx)'-fitbounds(:,1)');abs(fitbounds(:,2)'-temp.THz2nm(plotx)')],'parent',ax);
+                hold(ax,'off')
+                xlabel(ax,'Wavemeter Reading')
+                ylabel(ax,'Wavelength Set Command')
+                answer = questdlg('Calibration satisfactory?','Velocity Calibration Verification','Yes','No, retake','No, abort','No, abort');
+                if strcmp(answer,'No, retake')
+                    obj.calibrate(ax)
+                elseif strcmp(answer,'No, abort')
+                    error('Failed calibration validation')
+                end
+            catch err
+                obj.cal_local = [];
+                delete(f)
+                rethrow(err)
+            end
+            delete(f)
         end
         function cal = calibration(obj)
             %get the calibration of the frequency as read by the wavemeter
