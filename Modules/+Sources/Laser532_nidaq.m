@@ -49,6 +49,7 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
             delete(obj.listeners)
         end
         function on(obj)
+            on@Sources.Verdi_invisible(obj);
             obj.ni.WriteDOLines('532 Laser',1)
         end
         function off(obj)

@@ -71,6 +71,7 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
             end
         end
         function on(obj)
+            on@Sources.Verdi_invisible(obj);
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             obj.PulseBlaster.lines(obj.PBline) = true;
             obj.source_on = true;

@@ -19,6 +19,11 @@ classdef Verdi_invisible < handle
                 obj.enabled = true;
             end
         end
+        function on(obj)
+            if ~obj.enabled % Will only slow down if forgot to arm
+                obj.arm()
+            end
+        end
         function delete(obj)
             obj.inactive;
         end
