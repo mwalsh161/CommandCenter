@@ -12,7 +12,7 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
     properties
         placeHolderVariable = 1; %all APD bins are acquired in one shot, no variable is swept
         counterDuration = 0; %calculated in set.resTime_us
-        tauTimes = zeros(nCounterBins); %calculated in set.resTime_us
+        tauTimes = 0; %calculated in set.resTime_us
     end
     properties(Constant)
         nCounterBins = 20; %number of APD bins for this pulse sequence (with more than 20 the PB errors)
