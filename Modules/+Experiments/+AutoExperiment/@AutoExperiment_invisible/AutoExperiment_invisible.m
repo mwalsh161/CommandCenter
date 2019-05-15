@@ -19,7 +19,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
     end
     properties(SetAccess=protected,Hidden)
         data = [] % Useful for saving data from run method
-        meta = [] % Useful to store meta data in run method
+        meta = struct() % Useful to store meta data in run method [THIS IS IMMUTABLE in that once a field is set it can't be changed]
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
@@ -97,7 +97,12 @@ classdef AutoExperiment_invisible < Modules.Experiment
             metric = NaN;
         end
     end
-
+    methods(Access=private)
+        function reset_meta(obj)
+            % The only function allowed to delete obj.meta; used to reset between runs
+            obj.meta = struct();
+        end
+    end
     methods
         function obj = AutoExperiment_invisible()
             obj.run_type = obj.SITES_FIRST;
@@ -139,6 +144,33 @@ classdef AutoExperiment_invisible < Modules.Experiment
         function PreRun(obj,status,managers,ax)
         end
         function PostRun(obj,status,managers,ax)
+        end
+        function set.meta(obj,val)
+            % To make it immutable, we will go through each field in val
+            % and add it to obj.meta if it is new, otherwise we error.
+            assert(isstruct(val),'obj.meta must be a struct!');
+            st = dbstack(1,'-completenames'); % omit this call in stack
+            % Allow obj.reset_meta to do anything
+            if strcmp(st(1).name,'AutoExperiment_invisible.reset_meta')
+                obj.meta = val;
+                return
+            end
+            fields = fieldnames(val);
+            to_add = false(size(fields));
+            for i = 1:length(fields)
+                if isfield(obj.meta,fields{i})
+                    if ~isequal(obj.meta.(fields{i}),val.(fields{i}))
+                        % Only error if the values aren't the same
+                        error('Field "%s" already exists in obj.meta!',fields{i});
+                    end
+                else % Not a field yet
+                    to_add(i) = true;
+                end
+            end
+            % Now that there weren't errors, add the new ones
+            for i = find(to_add) % Find all true indices
+                obj.meta.(fields{i}) = val.(fields{i});
+            end
         end
         function set.run_type(obj,val)
             obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
