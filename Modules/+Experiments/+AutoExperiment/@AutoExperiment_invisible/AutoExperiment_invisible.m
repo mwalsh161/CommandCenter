@@ -144,14 +144,15 @@ classdef AutoExperiment_invisible < Modules.Experiment
             obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
         end
         function set.continue_experiment(obj,val)
+            %val is boolean; true = continue experiment, false = start anew
             obj.continue_experiment = val;
-            pan = get(gcbo,'parent');
+            pan = get(gcbo,'parent'); %grab handle to settings panel
             site_sel = findobj(pan,'tag','site_selection');
             if isempty(site_sel) || ~isvalid(site_sel)
                 return;
             end
             if val
-                set(site_sel,'enable','off');
+                set(site_sel,'enable','off'); %require use of old sites, so disable site selection
             else
                 set(site_sel,'enable','on');
             end
