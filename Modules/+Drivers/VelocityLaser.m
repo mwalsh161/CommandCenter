@@ -15,7 +15,7 @@ classdef VelocityLaser < Modules.Driver
         idn
     end
     properties
-        TuningTimeout = 0;
+        TuningTimeout = 0; % Timeout = 0 signifies not to wait for the hwserver to return
     end
     properties (SetObservable)
         PiezoPercent = [];
