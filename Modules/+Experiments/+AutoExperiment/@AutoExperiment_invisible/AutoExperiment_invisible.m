@@ -102,8 +102,8 @@ classdef AutoExperiment_invisible < Modules.Experiment
         function obj = AutoExperiment_invisible()
             obj.run_type = obj.SITES_FIRST;
             obj.loadPrefs;
-            assert(all(cellfun(@(x)ismethod(obj,x)||isempty(x),obj.patch_functions)),'One or more named patch_function do not have corresponding methods.') %make sure all patch funcitons are valid
-            assert(all(cellfun(@(x)ismethod(obj,x)||isempty(x),obj.prerun_functions)),'One or more named prerun_functions do not have corresponding methods.') %make sure all patch funcitons are valid
+            assert(all(cellfun(@(x)ismethod(obj,x)||isempty(x),obj.patch_functions)),'One or more named patch_function do not have corresponding methods.') %make sure all patch functions are valid
+            assert(all(cellfun(@(x)ismethod(obj,x)||isempty(x),obj.prerun_functions)),'One or more named prerun_functions do not have corresponding methods.') %make sure all patch functions are valid
         end
         run(obj,statusH,managers,ax)
         function delete(obj)

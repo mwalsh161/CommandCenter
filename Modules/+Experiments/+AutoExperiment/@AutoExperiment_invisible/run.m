@@ -22,7 +22,7 @@ end
 % Initialize with whatever data user chose
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
-    % Tag all this data as not new by incrememting continued flag
+    % Tag all this data as not new by incrementing continued flag
     for i = 1:length(obj.data.sites)
         for j = 1:length(obj.data.sites(i).experiments)
             obj.data.sites(i).experiments(j).continued = obj.data.sites(i).experiments(j).continued + 1;
