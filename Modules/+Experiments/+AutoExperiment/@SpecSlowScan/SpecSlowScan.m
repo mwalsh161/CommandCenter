@@ -163,6 +163,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             managers.Path.select_path('spectrometer'); %this may be unnecessary
             calibration = specH.calibration(laserH,obj.freq_range,obj.SpecCalExposure,ax);
             obj.nm2THz = calibration.nm2THz; %grab the calibration function
+            obj.meta = obj.nm2THz; % And add to metadata
             
             %set SlowScan Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;

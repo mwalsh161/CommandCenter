@@ -7,6 +7,10 @@ classdef AutoExperiment_invisible < Modules.Experiment
     % AcquireSites abstract method must also be created. Subclasses may
     % find it useful to take advantage of some static helper methods
     % defined here as well.
+    %
+    % It is safe for subclasses to add any meta data to obj.meta. This
+    % property is programmed to be immutable to subclasses. This can be
+    % done in pre/post/patch functions (or anything with access to obj).
     
     properties
         prefs = {'run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
