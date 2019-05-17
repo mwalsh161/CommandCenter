@@ -115,7 +115,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 range = find(x>=min(299792./obj.freq_range) & x<=max(299792./obj.freq_range)); %clip to only range of interest
                 x = spec.data.wavelength(range);
                 y = spec.data.intensity(range);
-                specfit = fitpeaks(x,y','fittype','gauss','NoiseModel','empirical','StopMetric','r'); %fit spectrum peaks (non calibrated camera; empirical noise)
+                specfit = fitpeaks(x,y,'fittype','gauss','NoiseModel','empirical','StopMetric','r'); %fit spectrum peaks (non calibrated camera; empirical noise)
                 for j=1:length(specfit.locations)
                     if specfit.SNRs(j)>=obj.SpecPeakThresh
                         params(end+1).freq_THz = obj.nm2THz(specfit.locations(j)); %add a new parameter set for each peak found

@@ -152,9 +152,6 @@ try
                 obj.logger.logTraceback(sprintf('Error on queue index %i (repetition %i): %s',i,repetition,queue_err.message),...
                         queue_err.stack,Base.Logger.ERROR);
             end
-            if length(obj.meta.errs) >= obj.err_thresh
-                error('Experienced %i errors during run. Last error: %s',length(obj.meta.errs),obj.meta.errs(end).err.message)
-            end
             drawnow; assert(~obj.abort_request,'User aborted');
         end
     end
