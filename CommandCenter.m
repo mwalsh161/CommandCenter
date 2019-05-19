@@ -22,7 +22,7 @@ function varargout = CommandCenter(varargin)
 
 % Edit the above text to modify the response to help CommandCenter
 
-% Last Modified by GUIDE v2.5 16-Mar-2019 17:34:16
+% Last Modified by GUIDE v2.5 28-Mar-2019 13:48:26
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -529,7 +529,7 @@ function colormap_option_set(hObject,eventdata,handles)
 handles.Managers.Imaging.set_colormap = get(hObject,'tag');
 set(allchild(handles.menu_colormap),'checked','off')
 set(hObject,'checked','on')
-colormap(handles.axImage,handles.Managers.Imaging.set_colormap)
+colormap(handles.figure1,handles.Managers.Imaging.set_colormap)
 guidata(hObject,handles)
 
 % --- Executes during object creation, after setting all properties.
@@ -777,3 +777,14 @@ function send_logs_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 handles.logger.sendLogs;
+
+
+% --------------------------------------------------------------------
+function file_load_image_Callback(hObject, eventdata, handles)
+% hObject    handle to file_load_image (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+path = handles.Managers.Imaging.get_im_path;
+if path
+    handles.Managers.Imaging.load_im(path);
+end

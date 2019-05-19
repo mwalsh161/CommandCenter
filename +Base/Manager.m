@@ -452,6 +452,7 @@ classdef Manager < handle
             for i = 1:numel(modulesTemp)
                 if ~isempty(modulesTemp{i})&&isobject(modulesTemp{i})&&isvalid(modulesTemp{i})
                     delete(modulesTemp{i})
+                    drawnow; % Let other callbacks listening to delete event take place
                 end
             end
             obj.log('%s %s Destroyed',obj.type,mfilename)

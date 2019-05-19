@@ -25,7 +25,7 @@ classdef WinSpec < Modules.Driver
     properties(Hidden)
         prefs = {'grating','position','exposure','cal_local'};
     end
-    properties(SetAccess={?Base.Module},Hidden)
+    properties(Access={?Base.Module},Hidden) % Allow Base.Module for set/get prefs
         cal_local = struct('nm2THz',[],'gof',[],'datetime',[],'source',[],'expired',{}); %local-only calibration data for going from nm to THz
     end
     properties(SetAccess=private,Hidden)
@@ -287,6 +287,7 @@ classdef WinSpec < Modules.Driver
             N = out(1); pos = out(2); exp = out(3);
         end
         function calibrate(obj,laser,range,exposure,ax) %when fed a tunable laser, will sweep the laser's range to calibrate itself, outputting a calibration function
+            assert(~isempty(laser),'No laser supplied to Winspec calibration');
             assert(isvalid(laser),'Invalid laser handle passed to Winspec calibration')
             assert(isnumeric(range) && length(range)==2,'Laser range for calibration should be array [min,max] in units of THz')
             f = [];
@@ -298,22 +299,28 @@ classdef WinSpec < Modules.Driver
             try
                 oldExposure = obj.exposure;
                 obj.setExposure(exposure); %exposure is in seconds
-                setpoints = linspace(range(1),range(2),5); %take 10 points across the range of the laser
+                npoints = 5;
+                colors = lines(npoints);
+                setpoints = linspace(range(1),range(2),npoints);
                 specloc = NaN(1,length(setpoints));
                 laserloc = NaN(1,length(setpoints));
                 laser.on;
-                title(ax,'Calibrating spectrometer')
+                hold(ax,'on')
                 for i=1:length(setpoints)
                     laser.TuneCoarse(setpoints(i));
                     laserspec = obj.acquire;
-                    plot(ax,laserspec.x,laserspec.y);
+                    plt(i) = plot(ax,laserspec.x,laserspec.y,'color',colors(i,:));
                     xlabel(ax,'Wavelength (nm)');
-                    ylabel(ax,'Intensity');drawnow;
+                    ylabel(ax,'Intensity');
+                    title(ax,'Calibrating spectrometer');drawnow;
                     specfit = fitpeaks(laserspec.x,laserspec.y,'fittype','gauss');
                     assert(length(specfit.locations) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
                     specloc(i) = specfit.locations;
                     laserloc(i) = laser.getFrequency;
+                    plot(ax,specloc(i)*[1 1],get(ax,'ylim'),'--k');
+                    legend(plt,strsplit(num2str(laserloc(1:i),'%g THz,'),',')); drawnow;
                 end
+                hold(ax,'off')
                 fit_type = fittype('a/(x-b)+c');
                 options = fitoptions(fit_type);
                 options.Start = [obj.c,0,0];
@@ -352,7 +359,7 @@ classdef WinSpec < Modules.Driver
             %cal_local. This can be called with additional inputs
             %(laser,range,exposure,ax), in which case the user will be
             %prompted to calibrate now if the calibration is expired or
-            %does not exist.
+            %does not exist. Otherwise, it will error.
             if isempty(obj.cal_local)
                 % If called in savePref method, ignore and return default
                 st = dbstack;

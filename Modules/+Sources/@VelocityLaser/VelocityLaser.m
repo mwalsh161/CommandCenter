@@ -29,14 +29,17 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     end
     properties(Constant,Hidden)
         calibration_timeout = 7; %duration in days after which velocity will give warning to recalibrate
-        set_range = [634.8,639.4]; %the range of valid inputs for the driver's set.Wavelength method (in nm)
     end
     properties(SetAccess=protected)
-        range = 299792./[635.4,640.1]; %tunable range in THz
+        %'range' is the range of valid inputs for the driver's set.Wavelength method (in nm);
+        % note that calling get.range will run this value through the
+        % calibration function before returning
+        range = Sources.VelocityLaser.c./[634.8,639.4];  
         Vrange = [-2.3, 2.3]; %setting the piezo percentage maps (0,100)
         resolution = 0.01; %frequency tuning resolution in THz
     end
     properties(SetObservable)
+        TuningTimeout = 60; %Timeout for home-built PID used in TuneCoarse
         pb_ip = 'No Server';         % IP of computer with PB and server
         PBline = 12;
         velocity_ip = 'No Server';
@@ -85,18 +88,35 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             assert(~isempty(obj.wavemeter)&&~isempty(obj.serial),'Wavemeter and velocity do not exist')
             obj.diode_on = true;
             obj.wavemeter_active = true;
+            % Make sure piezo is reset correctly
+            obj.TunePercent(50); % Should center input voltage range
+            obj.serial.PiezoPercent = 50; % Force to mid point
+            p = obj.serial.getPiezoPercent; % Verify
+            assert(abs(p-50)<5,sprintf('Attempted to set laser to 50%%, but currently reads %g%%',p));
         end
         function deactivate(obj)
             % Deactivate where we can
+            errs = {};
             if ~isempty(obj.wavemeter)
-                obj.wavemeter_active = false;
+                try
+                    obj.wavemeter_active = false;
+                catch err
+                    errs{end+1} = err.message;
+                end
             else
                 warning('Wavemeter not hooked up!');
             end
             if ~isempty(obj.serial)
-                obj.diode_on = false;
+                try
+                    obj.diode_on = false;
+                catch err
+                    errs{end+1} = err.message;
+                end
             else
                 warning('Velocity hwserver not connected!');
+            end
+            if ~isempty(errs)
+                error(strjoin(errs,[newline newline]))
             end
         end
         function delete(obj)
@@ -208,6 +228,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
             obj.wavemeter_active = obj.wavemeter.GetSwitcherSignalState;
         end
+        function range = get.range(obj)
+            %run set_range through calibration to get actual range
+            cal = obj.calibration.THz2nm;
+            range = sort(cal.a./(obj.c./obj.range-cal.c)+cal.b);
+        end
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             if ~obj.diode_on
@@ -263,6 +288,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                         obj.diode_on = true;
                 end
             end
+            set_range = findprop(obj,'range'); 
+            set_range = obj.c./set_range.DefaultValue; %get the actual settable range in nm, which is the default value of range
+
             f= [];
             if nargin < 2
                 f = figure;

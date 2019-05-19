@@ -39,7 +39,7 @@ classdef ImagingManager < Base.Manager
             set(handles.image_ROIreset,'callback',@obj.resetROI);
             set(handles.image_ROI,'CellEditCallback',@obj.roiCallback);
             set(handles.image_save,'ClickedCallback',@obj.save)
-            colormap(obj.handles.axImage,obj.set_colormap)
+            colormap(obj.handles.figure1,obj.set_colormap)
             set(handles.clim_lock,'value',obj.climLock)  % Set to previous value
             set(handles.clim_low,'string',num2str(obj.climLow))
             set(handles.clim_high,'string',num2str(obj.climHigh))
@@ -62,7 +62,16 @@ classdef ImagingManager < Base.Manager
                 cal = 1;
             end
         end
-        
+        function load_im(obj,path)
+            im = load(path);
+            delete(obj.current_image)
+            cla(obj.handles.axImage)
+            obj.current_image = Base.SmartImage(im.image,obj.handles.axImage,obj.handles.Managers.Stages,obj,obj.dumbimage);
+            if strcmp(obj.handles.colorbar_toggle.State,'on')
+                % This leaves it permanently on after SmartImage replaces the temp image
+                colorbar(obj.handles.axImage);
+            end
+        end
         function open_im(obj,path)
             im = load(path);
             newFig = figure('numbertitle','off','HandleVisibility','off');

@@ -68,6 +68,11 @@ classdef Spectrum < Modules.Experiment
                 set(status,'string','Unknown error. WinSpec did not return anything.')
             end
             obj.data.position = managers.Stages.position;
+            try
+                obj.data.WinSpec_calibration = obj.WinSpec.calibration;
+            catch
+                obj.data.WinSpec_calibration = [];
+            end
         end
         
         function set.ip(obj,val)
@@ -120,9 +125,11 @@ classdef Spectrum < Modules.Experiment
             if ~isempty(obj.data)
                 dat.diamondbase.data_name = 'Spectrum';
                 dat.diamondbase.data_type = 'local';
-                dat.meta = obj.data;
                 dat.wavelength = obj.data.x;
                 dat.intensity = obj.data.y;
+                rmfield(obj.data,'x');
+                rmfield(obj.data,'y');
+                dat.meta = obj.data;
             end
         end
         

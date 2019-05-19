@@ -11,7 +11,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         StdsPerPeak = 5; %how wide of a bin around peaks for SlowScanClosed
     end
     properties
-        patch_functions = {'PreSpec','Spec2Open','Open2Closed'};
+        patch_functions = {'','Spec2Open','Open2Closed'};
+        prerun_functions = {'PreSpec','PreSlow','PreSlow'};
         nm2THz = []; %this will be a function pulled from calibrating the spectrometer in the prerun method
     end
     methods(Access=private)
@@ -19,7 +20,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.experiments = [Experiments.Spectrum.instance,...
                                 Experiments.SlowScan.Open.instance,...
                                 Experiments.SlowScan.Closed.instance];
-            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','nm2THz'},obj.prefs];
+            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak'},obj.prefs];
             obj.show_prefs = [{'freq_range','SpecCalExposure','SpecPeakThresh','PointsPerPeak','StdsPerPeak'},obj.show_prefs];
             obj.loadPrefs;
         end
@@ -81,48 +82,54 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         end
     end
     methods
+        % the below pre-run functions will run immediately before the run
+        % method of the corresponding experiment each time it is called
+        function PreSpec(obj,spec_experiment)
+            % Can't assume these are the same lasers for exp 2 and 3
+            obj.experiments(2).resLaser.off;
+            obj.experiments(3).resLaser.off;
+            obj.experiments(2).repumpLaser.off;
+            obj.experiments(3).repumpLaser.off;
+            obj.imaging_source.on;
+            obj.experiments(2).resLaser.SpecSafeMode(obj.freq_range);
+            obj.experiments(3).resLaser.SpecSafeMode(obj.freq_range);
+        end
+        function PreSlow(obj,slow_experiment)
+            % turn off spectrometer laser before PLE
+            obj.imaging_source.off;
+            slow_experiment.resLaser.arm;
+        end
         %the below patch functions will be run at the beginning of each
         %(site, experiment) in the run_queue for any experiment that isn't
         %the first one, and will be passed the relevant emitter site 
         %(containing) all previous experiments.
-        function params = PreSpec(obj,site)
-            obj.experiments(2).resLaser.off;
-            obj.experiments(2).repumpLaser.off; 
-            obj.imaging_source.on;
-            obj.experiments(2).resLaser.SpecSafeMode(obj.freq_range);
-            params = struct; %empty struct of length 1
-        end
         function params = Spec2Open(obj,site)
-            % turn off spectrometer laser before PLE and set APD path
-            obj.imaging_source.off;
-
             params = struct('freq_THz',{}); %structure of params beings assigned
-            specs = site.experiments(strcmpi([{site.experiments.name}],'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
+            specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
             for i=1:length(specs)
                 spec = specs(i); %grab ith spectrum experiment
-                if isempty(spec.data)
+                if ~spec(i).completed || spec(i).skipped
                     continue
                 end
                 x = spec.data.wavelength;
                 range = find(x>=min(299792./obj.freq_range) & x<=max(299792./obj.freq_range)); %clip to only range of interest
                 x = spec.data.wavelength(range);
                 y = spec.data.intensity(range);
-                specfit = fitpeaks(x,y,'fittype','gauss'); %fit spectrum peaks
+                specfit = fitpeaks(x,y,'fittype','gauss','NoiseModel','empirical','StopMetric','r'); %fit spectrum peaks (non calibrated camera; empirical noise)
                 for j=1:length(specfit.locations)
                     if specfit.SNRs(j)>=obj.SpecPeakThresh
                         params(end+1).freq_THz = obj.nm2THz(specfit.locations(j)); %add a new parameter set for each peak found
                     end
                 end
             end
-            obj.experiments(2).resLaser.arm;
         end
         function params = Open2Closed(obj,site)
-            params = struct('scan_points',{}); %structure of params beings assigned
-            scans = site.experiments(strcmpi([{site.experiments.name}],'Experiments.SlowScan.Open')); %get all experiments named 'SlowScan_Open' associated with site
+            params = struct('freqs_THz',{}); %structure of params beings assigned
+            scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Open')); %get all experiments named 'SlowScan_Open' associated with site
             composite.freqs = [];
             composite.counts = [];
             for i=1:length(scans) %compile all scans
-                if isempty(scans(i).err) %only grab if no errors
+                if scans(i).completed && ~scans(i).skipped
                     composite.freqs = [composite.freqs, scans(i).data.data.freqs_measured];
                     composite.counts = [composite.counts, scans(i).data.data.sumCounts];
                 end
@@ -130,13 +137,21 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             if ~isempty(composite.counts) %if no data, return empty struct from above
                 [composite.freqs,I] = sort(composite.freqs); %sort in ascending order
                 composite.counts = composite.counts(I);
-                scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss');
+                scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss','NoiseModel','shot'); % Literally photon counts; shot noise
+                scanfit.widths = scanfit.widths*2*sqrt(2*log(2)); % sigma to FWHM
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
                 for i=1:length(regions)
-                    params(end+1).scan_points = regions{i};
+                    % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x).
+                    % Same precision as wavemeter driver: 0.1 MHz
+                    vals = num2str(regions{i},'%0.7f ');
+                    test = str2num(vals); %#ok<ST2NM> % Truncated precision
+                    vals = num2str(unique(test),'%0.7f '); % Remove duplicates caused by truncated precision
+                    if length(test)~=length(regions{i})
+                        warning('7 digit precision in freqs_THz caused removal of duplicate points');
+                    end
+                    params(end+1).freqs_THz = vals;
                 end
             end
-            obj.experiments(3).resLaser.arm;
         end
         function sites = AcquireSites(obj,managers)
             sites = Experiments.AutoExperiment.AutoExperiment_invisible.SiteFinder_Confocal(managers,obj.imaging_source,obj.site_selection);
@@ -148,6 +163,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             managers.Path.select_path('spectrometer'); %this may be unnecessary
             calibration = specH.calibration(laserH,obj.freq_range,obj.SpecCalExposure,ax);
             obj.nm2THz = calibration.nm2THz; %grab the calibration function
+            obj.meta = obj.nm2THz; % And add to metadata
             
             %set SlowScan Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;
