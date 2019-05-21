@@ -45,7 +45,7 @@ classdef prologix < handle
         EOTEnable = {'on';'off'};  % EOTEnable to on will translate instrument EOI to Terminator [default off]
     end
     properties(Constant)
-        Type = 'serial-gpib';
+        Type = 'prologix';
     end
     properties(Access=private)
         serial
@@ -125,6 +125,7 @@ classdef prologix < handle
                 end % Don't need warning if default was used
                 obj.serial.Timeout = 0.5;
             end
+            obj.serial.name = sprintf('Prologix-%d',obj.PrimaryAddress);
         end
         function disp(obj)
             % This is called when no semicolon is used (overloading matlab builtin)
@@ -144,21 +145,60 @@ classdef prologix < handle
                 B = subsref(obj.serial,S);
             end
         end
-        function A = set(obj)
-            A = set(obj.serial);
-            % Add in prologix settable properties
-            mc = metaclass(obj);
-            props = mc.PropertyList(cellfun(@(a)strcmp(a,'public'),{mc.PropertyList.SetAccess}));
-            for i = 1:length(props)
-                % Only add if it doesn't exist, or more strict default
-                % options (this is to prevent clobbering existing options)
-                if ~isfield(A,props(i).Name)
-                    A.(props(i).Name) = {};
+        function pro_set(obj,prop,val)
+            if isprop(obj,prop)
+                obj.(prop) = val;
+            else
+                obj.serial.(prop) = val;
+            end
+        end
+        function varargout = set(obj,varargin)
+            varargout = {};
+            if ~nargout
+                if length(varargin) == 2 && iscell(varargin{1}) && iscell(varargin{2})
+                    % set(obj,PN,PV)
+                    PN = varargin{1};
+                    PV = varargin{2};
+                    assert(length(PN)==length(PV),'Missing property value.')
+                    for i = 1:length(PN)
+                        obj.pro_set(PN{i},PV{i});
+                    end
+                elseif length(varargin) == 1 && isstruct(varargin{1})
+                    % set(obj,S)
+                    S = varargin{1};
+                    props = fieldnames(S);
+                    for i = 1:length(props)
+                        obj.pro_set(props{i},S.(props{i}));
+                    end
+                else
+                    % set(obj,'PropertyName',PropertyValue,...)
+                    assert(~mod(length(varargin),2),'Missing property value.')
+                    for i = 1:2:length(varargin)
+                        obj.pro_set(varargin{i},varargin{2});
+                    end
                 end
-                if (props(i).HasDefault && iscell(props(i).DefaultValue))
-                    % Override value options
-                    A.(props(i).Name) = props(i).DefaultValue;
+            else
+                % props = set(obj)
+                A = set(obj.serial);
+                % Add in prologix settable properties
+                mc = metaclass(obj);
+                props = mc.PropertyList(cellfun(@(a)strcmp(a,'public'),{mc.PropertyList.SetAccess}));
+                for i = 1:length(props)
+                    % Only add if it doesn't exist, or more strict default
+                    % options (this is to prevent clobbering existing options)
+                    if ~isfield(A,props(i).Name)
+                        A.(props(i).Name) = {};
+                    end
+                    if (props(i).HasDefault && iscell(props(i).DefaultValue))
+                        % Override value options
+                        A.(props(i).Name) = props(i).DefaultValue;
+                    end
                 end
+                % props = set(obj,'PropertyName')
+                if length(varargin) == 1
+                    A = A.(varargin{1});
+                end
+                varargout{1} = A;
             end
         end
         function A = get(obj)
