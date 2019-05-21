@@ -20,6 +20,15 @@ classdef Database < Base.Module
         % Saving experiment data
         SaveExp(data,ax,active_module,notes)
     end
-    
+    methods % Opt-in methods
+        function im = LoadIm(obj) % FOR FUTURE USE
+            % Should return image_struct in SaveIm
+            error('Not implemented');
+        end
+        function data = LoadExp(obj)
+            % Should return data from SaveExp
+            error('Not implemented');
+        end
+    end
 end
 

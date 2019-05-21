@@ -257,6 +257,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
         function TuneCoarse(obj,target)
             obj.tune(obj.c/target);
             if obj.locked
+                pause(3); % Required for the EMM to reach the target wavelength
                 obj.WavelengthLock(false);
             end
         end
@@ -269,7 +270,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
             assert(target>=0&&target<=100,'Target must be a percentage')
             % tune at a limited rate per step
             currentPercent = obj.GetPercent;
-            numberSteps = mod(abs(currentPercent-target),obj.resonator_tune_speed);
+            numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
                 obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
