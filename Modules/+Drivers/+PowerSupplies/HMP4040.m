@@ -91,9 +91,11 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             pause(1);
             switch lower(sourceMode)
                 case {'current'}
+                    limType = 'voltage';
                     [upperLimit,lowerLimit] = obj.getVoltageLimit(channel);
                     measured_value = obj.measureVoltage(channel);
                 case {'voltage'}
+                    limType = 'current';
                     [upperLimit,lowerLimit] = obj.getCurrentLimit(channel);
                     measured_value = obj.measureCurrent(channel);
                 otherwise
@@ -109,7 +111,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
                 lowerRange = lowerLimit*(1.1);
             end
             if (measured_value>=lowerRange && measured_value<=upperRange)
-                warndlg([obj.dev_id,'''s channel ',channel,' is railing against its ',sourceMode,' limit'],['Limit Hit ',channel],'modal')
+                warndlg([obj.dev_id,'''s channel ',channel,' is railing against its ',limType,' limit'],['Limit Hit ',channel],'modal')
             end
         end
         
