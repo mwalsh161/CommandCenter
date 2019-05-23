@@ -136,6 +136,8 @@ classdef prologix < handle
         function delete(obj)
             delete(obj.serial)
         end
+        varargout = set(obj,varargin);
+        A = get(obj,varargin);
         function B = subsref(obj,S)
             % This is a dot notation dispatching method - called when
             % "obj.something" is executed
@@ -143,72 +145,6 @@ classdef prologix < handle
                 B = obj.(S.subs);
             else
                 B = subsref(obj.serial,S);
-            end
-        end
-        function pro_set(obj,prop,val)
-            if isprop(obj,prop)
-                obj.(prop) = val;
-            else
-                obj.serial.(prop) = val;
-            end
-        end
-        function varargout = set(obj,varargin)
-            varargout = {};
-            if ~nargout
-                if length(varargin) == 2 && iscell(varargin{1}) && iscell(varargin{2})
-                    % set(obj,PN,PV)
-                    PN = varargin{1};
-                    PV = varargin{2};
-                    assert(length(PN)==length(PV),'Missing property value.')
-                    for i = 1:length(PN)
-                        obj.pro_set(PN{i},PV{i});
-                    end
-                elseif length(varargin) == 1 && isstruct(varargin{1})
-                    % set(obj,S)
-                    S = varargin{1};
-                    props = fieldnames(S);
-                    for i = 1:length(props)
-                        obj.pro_set(props{i},S.(props{i}));
-                    end
-                else
-                    % set(obj,'PropertyName',PropertyValue,...)
-                    assert(~mod(length(varargin),2),'Missing property value.')
-                    for i = 1:2:length(varargin)
-                        obj.pro_set(varargin{i},varargin{2});
-                    end
-                end
-            else
-                % props = set(obj)
-                A = set(obj.serial);
-                % Add in prologix settable properties
-                mc = metaclass(obj);
-                props = mc.PropertyList(cellfun(@(a)strcmp(a,'public'),{mc.PropertyList.SetAccess}));
-                for i = 1:length(props)
-                    % Only add if it doesn't exist, or more strict default
-                    % options (this is to prevent clobbering existing options)
-                    if ~isfield(A,props(i).Name)
-                        A.(props(i).Name) = {};
-                    end
-                    if (props(i).HasDefault && iscell(props(i).DefaultValue))
-                        % Override value options
-                        A.(props(i).Name) = props(i).DefaultValue;
-                    end
-                end
-                % props = set(obj,'PropertyName')
-                if length(varargin) == 1
-                    A = A.(varargin{1});
-                end
-                varargout{1} = A;
-            end
-        end
-        function A = get(obj)
-            A = get(obj.serial);
-            % Add in prologix settable properties
-            mc = metaclass(obj);
-            props = mc.PropertyList(cellfun(@(a)strcmp(a,'public'),{mc.PropertyList.GetAccess}));
-            for i = 1:length(props)
-                % Overwrite all "overloaded" properties
-                A.(props(i).Name) = obj.(props(i).Name);
             end
         end
         function obj = subsasgn(obj,S,B)
