@@ -1,40 +1,27 @@
 classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible
     % ODMR_singleLaser optically initialize the spin state, apply a MW pulse of
     % changing frequency, and measures the signal from the initial spin transition.
-    % Pulse sequence: (Bin1)Laser(Bin2) -> MW -> ...
+    % Pulse sequence: (Bin1)Laser -> MW -> (Bin2)Laser...
     % It requires SignalGenerator driver and one laser source.
 
     properties(SetObservable)
         % These should be preferences you want set in default settings method
-        laser = Modules.Source.empty;
-        laserTime_us = 10;
-        laserOffset_us = 0;
+        Laser = Modules.Source.empty(0,1);
+        Laser_Time_us = 10;
         
-        APDline = 1;
-        APDTime_us = 1;
-        APDInset_us = 1;
+        APD_line = 'APD1';
+        APD_Gate_line = 1; % Indexed from 1
+        APD_Time_us = 0.2;
+        APD_Offset_us = 0;
         
-        SignalGenerator = Modules.Source.empty;
-        MWfreqs_GHz = 'linspace(2.85,2.91,101)';
-        MWPower_dBm = -30;
-        MWTime_us = 1;
-        MWPad_us = 1;
-        
-        dummyLine = 15;
-    end
-    properties
-        laserHandle
-        SignalGeneratorHandle
-        sweepTimes = linspace(0,100,101);
-        %pb
+        SignalGenerator = Modules.Source.empty(0,1);
+        MW_freqs_GHz = 'linspace(2.85,2.91,101)';
+        MW_Power_dBm = -30;
+        MW_Time_us = 1;
+        MW_Pad_us = 1;
     end
     properties(SetAccess=protected,Hidden)
-        % Internal properties that should not be accessible by command line
-        % Advanced users should feel free to alter these properties (keep in mind methods: abort, GetData)
-        %data = [] % Useful for saving data from run method
-        %abort_request = false; % Flag that will be set to true upon abort. Use in run method!
-        freq_list = linspace(0,100,101)*1e9; % Internal, set using MHz
-        isLaserOnAtStart = false;
+        freq_list = linspace(2.85,2.91,101)*1e9; % Internal, set using MW_freqs_GHz
     end
     properties(Constant)
         nCounterBins = 2; %number of APD bins for this pulse sequence
@@ -49,7 +36,11 @@ classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
     methods(Access=private)
         function obj = ODMR_singleLaser()
             % Constructor (should not be accessible to command line!)
-            obj.prefs = [obj.prefs, { 'laser', 'laserTime_us', 'laserOffset_us', 'APDline', 'APDTime_us', 'APDInset_us', 'SignalGenerator', 'MWfreqs_GHz', 'MWPower_dBm', 'MWTime_us', 'MWPad_us', 'dummyLine'}]; %additional preferences not in superclass
+            obj.prefs = [... %additional preferences not in superclass
+                {'MW_freqs_GHz','MW_Power_dBm','MW_Time_us','Laser_Time_us'}...
+                {'APD_Time_us','APD_Offset_us','MW_Pad_us'},...
+                obj.prefs, {'APD_line','Laser','SignalGenerator','APD_Gate_line'}...
+            ];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -59,85 +50,66 @@ classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
         
         function PreRun(obj,~,~,ax)
             % Save laser frequency at the beginning, if this is an option
-            if ismethod(obj.laser, 'getFrequency')
-                obj.meta.preFreq = obj.laser.getFrequency;
+            if ismethod(obj.Laser, 'getFrequency')
+                obj.meta.preFreq = obj.Laser.getFrequency;
             end
             
             % Set SignalGenerator
-            obj.SignalGenerator.MWPower = obj.MWPower_dBm;
+            obj.SignalGenerator.MWPower = obj.MW_Power_dBm;
             obj.SignalGenerator.on;
             
             % Prepare axes for plotting
             hold(ax,'on');
             
-%             plotH(1) = plot(ax,obj.freq_list/1e9,obj.data.sumCounts(1,:,3)./obj.data.sumCounts(1,:,1),'color','k');
-%             plotH(1) = plot(ax, obj.freq_list/1e9, obj.data.sumCounts(1,:,2)./obj.data.sumCounts(1,:,1), 'color', 'k');
-            plotH(1) = errorbar(ax, obj.freq_list/1e9, obj.data.sumCounts(1,:,1), obj.data.sumCounts(1,:,1), 'color', 'k');
-            
-            ylabel(ax,'ODMR (a.u.)');
+            plotH(1) = plot(obj.freq_list/1e9, obj.data.sumCounts(1,:,1),...
+                'color', 'k','parent',ax);
+            ylabel(ax,'ODMR (normalized)');
             
             yyaxis(ax, 'right')
-            
-            plotH(2) = errorbar(ax, obj.freq_list/1e9, obj.data.sumCounts(1,:,1), obj.data.sumCounts(1,:,1), 'color', 'b');
-            plotH(3) = errorbar(ax, obj.freq_list/1e9, obj.data.sumCounts(1,:,1), obj.data.sumCounts(1,:,1), 'color', 'r');
+            cs = lines(2);
+            plotH(2) = plot(obj.freq_list/1e9, obj.data.sumCounts(1,:,1),...
+                obj.data.sumCounts(1,:,1), 'color', cs(1,:),'linestyle','-','parent',ax);
+            plotH(3) = plot(obj.freq_list/1e9, obj.data.sumCounts(1,:,1),...
+                obj.data.sumCounts(1,:,1), 'color', cs(2,:),'parent','linestyle','-',ax);
+            legend(plotH,{'Normalized (left axis)','Signal (right axis)','Normalization (right axis)'})
+            ylabel(ax,'Sum Counts');
             
             ax.UserData.plots = plotH;
             
-            ylabel(ax,'Signal (cts) [blue - before, red - after]');
             xlabel(ax,'MW frequency (GHz)');
-            
             hold(ax,'off');
             set(ax,'xlimmode','auto','ylimmode','auto','ytickmode','auto');
-            
             drawnow;
         end
         function UpdateRun(obj,~,~,ax,~,~)
             if obj.averages > 1
-                averagedData = squeeze(nanmean(obj.data.sumCounts,1))/obj.samples;
-%                 summedError =  sqrt(squeeze(nansum(obj.data.stdCounts.^2,1))) ./ numnan(obj.data.stdCounts, 1);
+                averagedData = squeeze(nanmean(obj.data.sumCounts,1));
             else
-                averagedData = squeeze(obj.data.sumCounts)/obj.samples;
-%                 summedError =  squeeze(obj.data.stdCounts);
+                averagedData = squeeze(obj.data.sumCounts);
             end
             
-            beforeMW = averagedData(:, 2);
-            afterMW =  averagedData(:,   1);
-            
-            data = 2 * afterMW ./ (afterMW + beforeMW);
-            
+            norm   = averagedData(:, 1);
+            signal = averagedData(:, 2);
+            data = 2 * signal ./ (signal + norm);
+           
             ax.UserData.plots(1).YData = data;
-            
-%             beforeMWfracErrSq = (summedError(:, 2) ./ beforeMW) .^ 2;
-%             afterMWfracErrSq =  (summedError(:, 1) ./ afterMW ) .^ 2;
-%             
-%             err = data .* sqrt(beforeMWfracErrSq + afterMWfracErrSq) * sqrt(2);
-%             
-%             ax.UserData.plots(1).YPositiveDelta = err;
-%             ax.UserData.plots(1).YNegativeDelta = err;
+            ax.UserData.plots(2).YData = signal;
+            ax.UserData.plots(3).YData = norm;
 
-            ax.UserData.plots(2).YData = beforeMW*obj.samples;
-            ax.UserData.plots(3).YData = afterMW*obj.samples;
-            
-%             ax.UserData.plots(2).YPositiveDelta = summedError(:, 2);
-%             ax.UserData.plots(2).YNegativeDelta = summedError(:, 2);
-%             ax.UserData.plots(3).YPositiveDelta = summedError(:, 1);
-%             ax.UserData.plots(3).YNegativeDelta = summedError(:, 1);
-            
             drawnow;
         end
         function PostRun(obj,~,~,~)
-            if ismethod(obj.laser, 'getFrequency')
-                obj.meta.postFreq = obj.laser.getFrequency;
+            if ismethod(obj.Laser, 'getFrequency')
+                obj.meta.postFreq = obj.Laser.getFrequency;
             end
-            
-            obj.SignalGenerator.off;
         end
         
         function AnalyzeData(obj)
         end
         
-        function clean_up_exp(obj,varargin)
-            obj.SignalGeneratorHandle.off;
+        function CleanUp(obj,varargin)
+            % Run regardless of error/abort/finished
+            obj.SignalGenerator.off;
         end
         
         function abort(obj)
@@ -145,10 +117,10 @@ classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             obj.abort_request = true;
         end
         
-        function set.MWfreqs_GHz(obj,val)
+        function set.MW_freqs_GHz(obj,val)
             tempvals = eval(val)*1e9;
             obj.freq_list = tempvals;
-            obj.MWfreqs_GHz = val;
+            obj.MW_freqs_GHz = val;
         end
     end
 end

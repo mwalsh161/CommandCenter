@@ -15,7 +15,8 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     %       are intialized to NaN
     %   UpdateRun(status,managers,ax,current_average,index1,index2,...) -> Useful 
     %       to update plot data
-    %   PostRun(status,managers,ax) -> Turn locally created equipment off, clean up, etc.
+    %   PostRun(status,managers,ax) -> Grab any data at the end or meta data
+    %   CleanUp(status,managers,ax) -> Turn locally created equipment off, clean up, etc.
     % NOTE to extend set of prefs, subclasses must extend in constructor.
     %   DO NOT overload the prefs property
     %   
@@ -107,6 +108,8 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         function UpdateRun(obj,varargin)
         end
         function PostRun(obj,varargin)
+        end
+        function CleanUp(obj,varargin)
         end
     end
 end
