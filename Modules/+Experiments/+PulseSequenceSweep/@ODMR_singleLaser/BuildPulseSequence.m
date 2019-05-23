@@ -6,9 +6,9 @@ obj.SignalGenerator.MWFrequency = obj.freq_list(ind);
 
 s = sequence('ODMR_singleLaser');
 
-laserChannel =  channel('laser',    'color', 'g', 'hardware', obj.laser.PBline-1);
+laserChannel =  channel('laser',    'color', 'g', 'hardware', obj.Laser.PBline-1);
 APDchannel =    channel('APDgate',  'color', 'k', 'hardware', obj.APD_Gate_line-1, 'counter', obj.APD_line);
-MWchannel =     channel('MW',       'color', 'm', 'hardware', obj.SignalGenerator.MW_switch_PB_line-1);
+MWchannel =     channel('MW',       'color', 'b', 'hardware', obj.SignalGenerator.MW_switch_PB_line-1);
 
 s.channelOrder = [laserChannel, APDchannel, MWchannel];
 

@@ -59,19 +59,19 @@ classdef ODMR_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             obj.SignalGenerator.on;
             
             % Prepare axes for plotting
+            y = NaN(1,size(obj.data.sumCounts(1,:,1),2));
             hold(ax,'on');
             
-            plotH(1) = plot(obj.freq_list/1e9, obj.data.sumCounts(1,:,1),...
-                'color', 'k','parent',ax);
+            plotH(1) = plot(obj.freq_list/1e9, y,'color', 'k','parent',ax);
             ylabel(ax,'ODMR (normalized)');
             
             yyaxis(ax, 'right')
             cs = lines(2);
-            plotH(2) = plot(obj.freq_list/1e9, obj.data.sumCounts(1,:,1),...
-                obj.data.sumCounts(1,:,1), 'color', cs(1,:),'linestyle','-','parent',ax);
-            plotH(3) = plot(obj.freq_list/1e9, obj.data.sumCounts(1,:,1),...
-                obj.data.sumCounts(1,:,1), 'color', cs(2,:),'parent','linestyle','-',ax);
-            legend(plotH,{'Normalized (left axis)','Signal (right axis)','Normalization (right axis)'})
+            plotH(2) = plot(obj.freq_list/1e9, y,...
+                'color', cs(1,:),'linestyle','-','parent',ax);
+            plotH(3) = plot(obj.freq_list/1e9, y,...
+                'color', cs(2,:),'linestyle','-','parent',ax);
+            legend(plotH,{'Normalized (left)','Signal (right)','Normalization (right)'})
             ylabel(ax,'Sum Counts');
             
             ax.UserData.plots = plotH;
