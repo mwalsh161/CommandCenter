@@ -1,6 +1,11 @@
 classdef PowerSupply_invisible < Modules.Source
     %SuperClass for MW sources
     
+    properties(Abstract)
+        connectDevice
+        comObjectInfo
+    end
+    
     properties(SetObservable)
         Source_Mode = {'Voltage','Current'}
         Channel = '1';
@@ -124,6 +129,7 @@ classdef PowerSupply_invisible < Modules.Source
         function delete(obj)
             delete(obj.listeners)
             obj.serial.delete;
+            obj.connectDevice.delete;
         end
         
         function on(obj)

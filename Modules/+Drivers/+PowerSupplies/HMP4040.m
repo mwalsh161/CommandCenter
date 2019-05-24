@@ -350,8 +350,6 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.reset;
             string = sprintf('SYSTEM:LOCAL '); %set the supply back to local control
             obj.writeOnly(string);
-            fclose(obj.comObject);
-            delete(obj.comObject);
         end
         
     end

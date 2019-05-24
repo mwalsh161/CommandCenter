@@ -2,8 +2,10 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     %Hewlett Packard MW source class
     properties
         serial
-        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
         connectDevice
+        comObjectInfo
+        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit','comObjectInfo'};
+        show_prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
     end
     
     properties(SetAccess=private)
@@ -12,9 +14,10 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     methods(Access=protected)
         function obj = HMP4040_Source()
-            obj.connectDevice = establishComObject('PowerSupply');
-            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,obj.connectDevice.comObject);
             obj.loadPrefs;
+            obj.connectDevice = establishComObject('PowerSupply',obj.comObjectInfo);
+            obj.comObjectInfo = obj.connectDevice.comObjectInfo;
+            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,obj.connectDevice.comObject);
         end
     end
     
@@ -29,10 +32,4 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
         end
     end
     
-    methods
-        function  delete(obj)
-            fclose(obj.connectDevice.comObject);
-            fdelete(obj.connectDevice.comObject)
-        end
-    end
 end

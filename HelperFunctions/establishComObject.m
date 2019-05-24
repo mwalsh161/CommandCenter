@@ -283,9 +283,7 @@ classdef establishComObject < handle
         end
         
         function delete(obj)
-            if strcmpi(obj.comObject.status,'open')
-                fclose(obj.comObject)
-            end
+            delete(obj.comObject);
         end
     end
 end
