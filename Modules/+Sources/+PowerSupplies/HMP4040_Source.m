@@ -22,9 +22,10 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Sources.PowerSupplies.HMP4040_Source();
+                Object = Sources.PowerSupplies.HMP4040_Source(); %Object.serial.comObject mysteriously closes here
             end
             obj = Object;
+            fopen(obj.serial.comObject) %reopen comObject
         end
     end
 end
