@@ -11,7 +11,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     methods(Access=protected)
         function obj = HMP4040_Source()
-            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name);
+            connectDevice = establishComObject('PowerSupply');
+            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,connectDevice.comObject);
             obj.loadPrefs;
         end
     end
