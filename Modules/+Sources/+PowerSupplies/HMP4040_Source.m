@@ -3,6 +3,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     properties
         serial
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
+        connectDevice
     end
     
     properties(SetAccess=private)
@@ -11,8 +12,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     methods(Access=protected)
         function obj = HMP4040_Source()
-            connectDevice = establishComObject('PowerSupply');
-            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,connectDevice.comObject);
+            obj.connectDevice = establishComObject('PowerSupply');
+            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,obj.connectDevice.comObject);
             obj.loadPrefs;
         end
     end
@@ -25,7 +26,13 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
                 Object = Sources.PowerSupplies.HMP4040_Source(); %Object.serial.comObject mysteriously closes here
             end
             obj = Object;
-            fopen(obj.serial.comObject) %reopen comObject
+        end
+    end
+    
+    methods
+        function  delete(obj)
+            fclose(obj.connectDevice.comObject);
+            fdelete(obj.connectDevice.comObject)
         end
     end
 end
