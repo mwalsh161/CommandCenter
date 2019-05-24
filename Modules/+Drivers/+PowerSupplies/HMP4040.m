@@ -11,9 +11,8 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
     end
     
     properties
-        prefs = {'comObjectInfo'};
-        comObjectInfo = struct('comType','','comAddress','','comProperties','')
-        comObject;     % USB-Serial/GPIB/Prologix
+        deviceID = [];
+        comObject = [];
     end
     
     properties (Constant)
@@ -24,7 +23,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
     
     methods(Static)
         
-        function obj = instance(name)
+        function obj = instance(name,comObject)
             mlock;
             persistent Objects
             if isempty(Objects)
@@ -36,31 +35,35 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
                     return
                 end
             end
-            obj = Drivers.PowerSupplies.HMP4040();
-            obj.singleton_id = name;
+            obj = Drivers.PowerSupplies.HMP4040(comObject);
+            obj.deviceId = name;
             Objects(end+1) = obj;
         end
         
     end
     
     methods(Access=private)
-        function [obj] = HMP4040()
+        function [obj] = HMP4040(comObject)
             obj.loadPrefs;
-            display('setting comInfo for HMP4040.')
-
-            %establish connection
-            [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = ...
-                Connect_Device(obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties);
+            if ~isempty(obj.comObject) %if the comObject is empty don't do anything
+                if isvalid(obj.comObject) %and it is vlaid
+                    if strcmpi(obj.comObject.Status,'open') %and is open
+                        fclose(obj.comObject); %then close and delete it
+                        delete(obj.comObject);
+                    end
+                end
+            end
+            obj.comObject = comObject; %replace old comObject handle with new user-supplied one
             
-            try
-                %try to open comObject if you fail then call
-                %Connect_Device to ask user. They may have changed com
-                %Address or changed their comType
-                fopen(obj.comObject);
-            catch
-                [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] ...
-                    = Connect_Device;
-                fopen(obj.comObject);
+            %If it is closed then try to open
+            if strcmpi(obj.comObject.Status,'closed')
+                try
+                    fopen(obj.comObject);
+                catch ME
+                    messsage = sprintf('Failed to open device. Error message %s', Me.identifier);
+                    f = msgbox(message);
+                    rethrow(ME); %rethrow error when trying to open comObject
+                end
             end
             obj.reset;
         end

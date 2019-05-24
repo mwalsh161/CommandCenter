@@ -7,8 +7,8 @@ classdef PowerSupplies < Modules.Driver
     end
     
     properties (Abstract)
-        comObjectInfo
-        comObject;   
+        deviceID %device name
+        comObject; % handle to device through Serial/GPIB/Prologix
     end
     
     %upon construction you should set the voltage limit to be 5 V and the
