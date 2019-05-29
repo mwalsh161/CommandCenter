@@ -74,7 +74,10 @@ classdef hwserver < handle
                 fprintf(obj.connection,'%s\n',msg);
                 response = obj.receive;
             catch err
-                fprintf(obj.connection,'%s\n',abort);
+                % For future use in more parallel hwserver;
+                % for now, it is redundant with keep_alive: false and is
+                % error-prone server-side if called too quickly
+                % fprintf(obj.connection,'%s\n',abort);
             end
             fclose(obj.connection);
             if ~isempty(err)
