@@ -52,6 +52,16 @@ function CommandCenter_OpeningFcn(hObject, eventdata, handles, varargin)
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to CommandCenter (see VARARGIN)
 
+loggerStartState = 'off';
+if any(strcmpi(varargin,'debug'))
+    loggerStartState = 'on';
+end
+if any(strcmpi(varargin,'reset'))
+    % Remove Manager prefs which is responsible for remembering which
+    % modules were loaded for each manager
+    rmpref('Manager');
+end
+
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
 
 if strcmp(hObject.Visible,'on')
@@ -101,11 +111,7 @@ else % First time running on this computer, generate base64 key
     save(fullfile(path,'.unique_key.mat'),'unique_key');
 end
 
-startState = 'off';
-if ~isempty(varargin)
-    startState = 'on';
-end
-handles.logger = Base.Logger(mfilename,startState);
+handles.logger = Base.Logger(mfilename,loggerStartState);
 handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
 setappdata(hObject,'ALLmodules',{})
 setappdata(hObject,'logger',handles.logger)
