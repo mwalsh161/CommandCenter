@@ -229,7 +229,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.wavemeter_active = obj.wavemeter.GetSwitcherSignalState;
         end
         function range = get.range(obj)
-            %run set_range through calibration to get actual range
+            %run range through calibration to get actual range
             cal = obj.calibration.THz2nm;
             range = sort(cal.a./(obj.c./obj.range-cal.c)+cal.b);
         end
@@ -297,7 +297,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 ax = axes('parent',f);
             end
             try
-                setpoints = linspace(obj.set_range(1),obj.set_range(end),10); %take 10 points across the range of the laser
+                setpoints = linspace(set_range(1),set_range(end),10); %take 10 points across the range of the laser
                 wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
                 obj.wavemeter.setDeviationChannel(false);
                 for i=1:length(setpoints)
