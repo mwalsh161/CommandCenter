@@ -52,11 +52,11 @@ switch obj.run_type
         error('Unknown run_type %s',obj.run_type)
 end
 run_queue = [X(:),Y(:)];
-runstart = tic;
 obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = {};
-obj.PreRun(status,managers,ax)
+obj.PreRun(status,managers,ax);
+runstart = tic;
 err = [];
 try
     for repetition = 1:obj.repeat
