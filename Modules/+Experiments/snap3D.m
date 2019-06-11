@@ -45,6 +45,8 @@ classdef snap3D < Modules.Experiment
             sweepDelta = diff([0 sweep]);
             obj.data = NaN(res(2),res(1),1,numel(sweepDelta)*2);
             obj.abort_request = false;   % Reset abort flag
+            obj.wl.arm;
+            obj.gl.arm;
             for i = 1:numel(sweepDelta)
                 set(statusH,'string',...
                     sprintf('Position %i/%i',i,numel(sweepDelta)));

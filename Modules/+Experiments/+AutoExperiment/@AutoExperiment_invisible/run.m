@@ -19,6 +19,7 @@ if length(managers.Stages.modules)>1
         'Yes','No','Yes');
     assert(~strcmp(answer,'No'),'Select desired module as active stage module and rerun')
 end
+obj.imaging_source.arm; % Arm imaging source for experiment
 % Initialize with whatever data user chose
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
