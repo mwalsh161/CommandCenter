@@ -26,6 +26,9 @@ classdef Source < Base.Module
             %necessary such that a call of the "on" method will yield the
             %desired emissions from the source; for example, this may
             %include powering on a source
+            % Note: this method will be called everytime a user manually
+            % turns a source on from CC GUI, so the developer is responsible
+            % for ensuring extra work isn't performed if not necessary.
             warning('SOURCE:notimplemented','arm method not implemented for %s',class(obj))
         end
         function blackout(obj)
