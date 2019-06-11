@@ -14,6 +14,13 @@ classdef SourcesManager < Base.Manager
         
         % Callback to turn laser on
         function turn_on(obj,varargin)
+            % Always call arm method, and if success call on method
+            % Developer is responsible for ensuring arm doesn't slow down on call
+            obj.sandboxed_function({obj.active_module,'arm'});
+            if ~obj.last_sandboxed_fn_eval_success
+                % Sandbox will issue UI error dialog
+                return
+            end
             obj.sandboxed_function({obj.active_module,'on'});
             obj.state_toggle;
             obj.log('%s turned on.',class(obj.active_module))
