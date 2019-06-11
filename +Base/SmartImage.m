@@ -52,10 +52,10 @@ classdef SmartImage < handle
         end
         function stages = get_modules_str(info)
             % Returns same as the stageManager.get_modules_str (but starts with info struct)
-            n = length(info.stage);
+            n = length(info.stages);
             stages = cell(1,n);
             for i = 1:n
-                stages{i} = info.stage.ModuleInfo.module;
+                stages{i} = info.stages(i).ModuleInfo.module;
             end
         end
     end
@@ -74,14 +74,14 @@ classdef SmartImage < handle
                 % Create info struct
                 info.image = firstInp;
                 info.globalPos = obj.getGlobalPosition;
-                stages = struct('module','','position',[],'ModuleInfo',cell(1,numel(stage.modules)));
+                stages = struct('position',[],'ModuleInfo',cell(1,numel(stage.modules)));
                 for i = 1:numel(stage.modules)
                     tempModule = stage.modules{i};
                     temp.ModuleInfo = obj.extractModuleSettings(tempModule); % This will contain uncalibrated position, and calibration factor
                     temp.position = tempModule.getCalibratedPosition;
                     stages(i) = temp;
                 end
-                info.stage = stages;
+                info.stages = stages;
                 info.ROI = imager.ROI;
                 info.ModuleInfo = obj.extractModuleSettings(imager.active_module);
                 obj.info = info;
