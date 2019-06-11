@@ -77,9 +77,8 @@ classdef SmartImage < handle
                 stages = struct('position',[],'ModuleInfo',cell(1,numel(stage.modules)));
                 for i = 1:numel(stage.modules)
                     tempModule = stage.modules{i};
-                    temp.ModuleInfo = obj.extractModuleSettings(tempModule); % This will contain uncalibrated position, and calibration factor
-                    temp.position = tempModule.getCalibratedPosition;
-                    stages(i) = temp;
+                    stages(i).ModuleInfo = obj.extractModuleSettings(tempModule); % This will contain uncalibrated position, and calibration factor
+                    stages(i).position = tempModule.getCalibratedPosition;
                 end
                 info.stages = stages;
                 info.ROI = imager.ROI;
