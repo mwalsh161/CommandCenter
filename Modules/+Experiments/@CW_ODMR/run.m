@@ -25,7 +25,7 @@ function run( obj,status,managers,ax )
     y = NaN(1,n);
     hold(ax,'on');
     plotH(1) = plot(obj.freq_list/1e9, y,'color', 'k','parent',ax);
-    current_freqH = plot(ax,NaN,NaN,'--r')
+    current_freqH = plot(ax,NaN,NaN,'--r');
     ylabel(ax,'ODMR (normalized)');
     
     yyaxis(ax, 'right')
@@ -35,7 +35,9 @@ function run( obj,status,managers,ax )
     plotH(3) = plot(obj.freq_list/1e9, y,...
         'color', cs(2,:),'linestyle','-','parent',ax);
     legend(plotH,{'Normalized (left)','Signal (right)','Normalization (right)'})
-    ylabel(ax,'Sum Counts');
+    ylabel(ax,'Counts (cps)');
+    xlabel(ax,'Frequency (GHz)');
+    yyaxis(ax, 'left');
     try
         obj.SignalGenerator.on;
         obj.Laser.on;
@@ -43,6 +45,7 @@ function run( obj,status,managers,ax )
             status.String = sprintf('Experiment started\nAverage %i',j);
             for i = 1:n
                 current_freqH.XData = [1 1]*obj.freq_list(i)/1e9;
+                current_freqH.YData = NaN(1,2); % To allow ylim to be calculated
                 current_freqH.YData = get(ax,'ylim');
                 drawnow; assert(~obj.abort_request,'User aborted.');
                 % Normalization
