@@ -60,9 +60,12 @@ classdef SmartImage < handle
         end
     end
     methods
-        function obj = SmartImage(firstInp,ax,stage,imager,dumbimage)
-            % The first input can either be the image cdata, or the info
-            % from another SmartImage.
+        function obj = SmartImage(firstInp,ax,stage,source,imager,dumbimage)
+            % The first input can either be the image cdata, or the info from another SmartImage
+            % stage -> stage manager
+            % source -> source manager
+            % imager -> imaging manager
+            % dumbimage -> boolean
             if nargin < 5
                 dumbimage = false;
             end
@@ -81,6 +84,12 @@ classdef SmartImage < handle
                     stages(i).position = tempModule.getCalibratedPosition;
                 end
                 info.stages = stages;
+                sources = struct('ModuleInfo',cell(1,numel(stage.modules)));
+                for i = 1:numel(source.modules)
+                    tempModule = source.modules{i};
+                    sources(i).ModuleInfo = obj.extractModuleSettings(tempModule);
+                end
+                info.sources = stages;
                 info.ROI = imager.ROI;
                 info.ModuleInfo = obj.extractModuleSettings(imager.active_module);
                 obj.info = info;
