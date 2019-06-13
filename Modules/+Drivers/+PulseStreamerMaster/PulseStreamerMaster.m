@@ -68,10 +68,7 @@ classdef PulseStreamerMaster < Modules.Driver
     % PSM.delete();
     
     
-    properties(SetAccess=private,SetObservable)
-        % physical IP address of Pulse Streamer hardware
-        ipAddress='192.168.11.2';
-    end
+    % ipAddress='192.168.11.2';
     
     properties(SetAccess=private)
         % Object that provides the interface to the
@@ -100,13 +97,21 @@ classdef PulseStreamerMaster < Modules.Driver
     end
         
     methods(Static)
-         function obj = instance()
+         function obj = instance(ip)
              mlock;
-             persistent Object
-             if isempty(Object) || ~isvalid(Object)
-                 Object = Drivers.PulseStreamerMaster.PulseStreamerMaster();
+             persistent Objects
+             if isempty(Objects) || ~isvalid(Objects)
+                 Object = Drivers.PulseStreamerMaster.PulseStreamerMaster.empty(1,0);
              end
-             obj = Object;
+             [~,resolvedIP] = resolvehost(ip);
+             for i = 1:length(Objects)
+                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
+                    error('%s driver is already instantiated!',mfilename)
+                end
+            end
+            obj = Drivers.PulseStreamerMaster.PulseStreamerMaster(ip);
+            obj.singleton_id = resolvedIP;
+            Objects(end+1) = obj;
          end    
     end
     
@@ -128,11 +133,6 @@ classdef PulseStreamerMaster < Modules.Driver
          %    It contains a builder method for building pulse sequences
          %    in the format required by the PulseStreamer class.
         
-            switch nargin
-                case 0
-                    ip = obj.ipAddress;
-            end
-            
             obj.PS  = PulseStreamer.PulseStreamer(ip);
             obj.triggerStart = PulseStreamer.TriggerStart.SOFTWARE();
             obj.triggerMode  = PulseStreamer.TriggerRearm.AUTO();
