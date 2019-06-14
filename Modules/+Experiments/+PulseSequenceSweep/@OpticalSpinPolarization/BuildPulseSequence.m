@@ -2,6 +2,8 @@ function s = BuildPulseSequence(obj,~)
 %BuildPulseSequence Builds pulse sequence for performing Optical Spin
 %Polarization measurements
 
+nCounters = obj.nCounterBins;
+
 s = sequence('OpticalSpinPolarization');
 repumpChannel = channel('repump','color','g','hardware',obj.repumpLaser.PBline-1);
 resChannel = channel('resonant','color','r','hardware',obj.resLaser.PBline-1);
