@@ -2,8 +2,17 @@ classdef pref
     %PREF Abstract Class for prefs.
     %   The only required part of a pref is having a value field
     
-    properties(Abstract)
+    properties
         value
+    end
+    methods % To be overloaded by subclass pref
+        % These methods are called prior to the data being set to "value"
+        % start set -> validate -> clean -> complete set
+        function validate(obj,val)
+            % May throw an error if not valid
+        end
+        function val = clean(obj,val)
+        end
     end
     
     methods
@@ -26,6 +35,11 @@ classdef pref
                 error('Unknown type of call!')
             end
             B = builtin('subsref',obj,S);
+        end
+        function obj = set.value(obj,val)
+            obj.validate(val);
+            val = obj.clean(val);
+            obj.value = val;
         end
     end
     

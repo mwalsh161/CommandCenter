@@ -6,11 +6,15 @@ classdef Boolean < Base.pref
     end
     
     methods
-    function set.value(obj,val)
-        assert(islogical(val), 'Boolean prefs must be a logical.')
-        assert(numel(val)==1, 'Boolean prefs do not support arrays.')
-        obj.value = val;
-    end
+        function obj = Boolean()
+            obj.value = false;
+        end
+        function validate(obj,val)
+            validateattributes(val,{'numeric','logical'},{'binary','scalar'})
+        end
+        function val = clean(obj,val)
+            val = logical(val);
+        end
     end
     
 end

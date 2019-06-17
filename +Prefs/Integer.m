@@ -2,18 +2,18 @@ classdef Integer < Base.pref
     %INTEGER Allows any integer within max and min limits
     
     properties
-        value = 0;
         max = Inf;
         min = -Inf;
     end
     
     methods
-        function set.value(obj,val)
+        function obj = Integer()
+            obj.value = 0;
+        end
+        function validate(obj,val)
             validateattributes(val,{'numeric'},{'integer','scalar'})
-            assert(isinteger(val), 'Integer prefs must be integers.')
-            assert(val <= obj.max, 'Attempted to set value greater than max.')
-            assert(val >= obj.min, 'Attempted to set value less than min.')
-            obj.value = val;
+            assert(val <= obj.max, 'Cannot set value greater than max.')
+            assert(val >= obj.min, 'Cannot set value less than min.')
         end
     end
     

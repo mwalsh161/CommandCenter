@@ -2,15 +2,19 @@ classdef Double < Base.pref
     %DOUBLE Any numeric value
     
     properties
-        value = false;
+        allow_nan = true;
     end
     
     methods
-    function set.value(obj,val)
-        assert(isnumeric(val), 'Double prefs must be a logical.')
-        assert(numel(val)==1, 'Double prefs do not support arrays.')
-        obj.value = val;
-    end
+        function obj = Double()
+            obj.value = 0;
+        end
+        function validate(obj,val)
+            validateattributes(val,{'numeric'},{'scalar'})
+            if ~obj.allow_nan
+                assert(~isnan(val),'Attempted to set NaN. allow_nan is set to false.')
+            end
+        end
     end
     
 end
