@@ -1,4 +1,4 @@
-classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
+classdef Module < Base.Singleton% & matlab.mixin.Heterogeneous
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties.
     %
@@ -57,6 +57,28 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         warning('MODULE:save_prefs','Error on savePrefs. Skipped pref ''%s'': %s',obj.prefs{i},err.message)
                     end
                 end
+            end
+        end
+    end
+    methods(Sealed)
+        % These next two methods will be used to change which object's builtins gets called for the case of prefs
+        % when referecing them; as such they need to be sealed so they won't be redefined
+        function obj = subsasgn(obj,S,B)
+            % Used when assigning something with dot notation (e.g. obj.foo = bar)
+            prop = obj.(S(1).subs);
+            if S(1).type == '.' && ismember(superclasses(prop),'Base.pref')
+                obj = prop.pref_subsasgn(S,B);
+            else
+                obj = builtin('subsasgn',obj,S,newB);
+            end
+        end
+        function B = subsref(obj,S)
+            % Used when fetching something with dot notation (e.g. bar = obj.foo)
+            prop = obj.(S(1).subs);
+            if S(1).type == '.' && ismember(superclasses(prop),'Base.pref')
+                B = prop.pref_subsref(S);
+            else
+                B = builtin('subsref',obj,S);
             end
         end
     end

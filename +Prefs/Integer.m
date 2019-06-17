@@ -9,8 +9,8 @@ classdef Integer < Base.pref
     
     methods
         function set.value(obj,val)
+            validateattributes(val,{'numeric'},{'integer','scalar'})
             assert(isinteger(val), 'Integer prefs must be integers.')
-            assert(numel(val)==1, 'Integer prefs do not support arrays.')
             assert(val <= obj.max, 'Attempted to set value greater than max.')
             assert(val >= obj.min, 'Attempted to set value less than min.')
             obj.value = val;
