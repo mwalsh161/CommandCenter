@@ -66,8 +66,9 @@ classdef Module < Base.Singleton% & matlab.mixin.Heterogeneous
         function obj = subsasgn(obj,S,B)
             % Used when assigning something with dot notation (e.g. obj.foo = bar)
             prop = obj.(S(1).subs);
-            if S(1).type == '.' && ismember(superclasses(prop),'Base.pref')
-                obj = prop.pref_subsasgn(S,B);
+            if S(1).type == '.' && ismember('Base.pref',superclasses(prop))
+                % pref types are not handle classes, so need to reset output of subsasgn
+                obj.(S(1).subs) = prop.pref_subsasgn(S,B);
             else
                 obj = builtin('subsasgn',obj,S,newB);
             end
@@ -75,7 +76,7 @@ classdef Module < Base.Singleton% & matlab.mixin.Heterogeneous
         function B = subsref(obj,S)
             % Used when fetching something with dot notation (e.g. bar = obj.foo)
             prop = obj.(S(1).subs);
-            if S(1).type == '.' && ismember(superclasses(prop),'Base.pref')
+            if S(1).type == '.' && ismember('Base.pref',superclasses(prop))
                 B = prop.pref_subsref(S);
             else
                 B = builtin('subsref',obj,S);
