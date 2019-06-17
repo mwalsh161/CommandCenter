@@ -18,6 +18,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
     properties(SetObservable,AbortSet)
         resonator_percent = 0;
         tuning = false;
+        cwave_ip = Sources.CWave.no_server;
+        pulseStreamer_ip = Sources.CWave.no_server;
     end
 
     properties(SetAccess=private)
@@ -26,28 +28,28 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         cwaveHandle
     end
 
-    methods(Access=private)
-        function obj = CWave()
-            obj.loadPrefs;
-        end
-        function err = connect_driver(obj,propname,drivername,varargin)
-            err = [];
-            if ~isempty(obj.(propname))
-                delete(obj.(propname)); %remove any old connection
-            end
-            if ischar(varargin{1}) && strcmpi(varargin{1},obj.no_server) %first input is always an ip address
-                obj.(propname) = [];
-            else
-                try
-                    obj.(propname) = Drivers.(drivername).instance(varargin{:});
-                catch err
-                    obj.(propname) = [];
-                end
-            end
-        end
+    properties(Constant,Hidden)
+        no_server = 'No Server';  % Message when not connected
     end
 
     methods
+
+        % source methods
+
+        function on(obj)
+            assert(~isempty(obj.PulseStreamer), 'No IP set for PulseStreamer!')
+            % TODO say something to PulseStreamer
+            obj.source_on = true;
+            
+        end
+        function off(obj)
+            assert(~isempty(obj.PulseStreamer), 'No IP set for PulseStreamer!')
+            % TODO say something to PulseStreamer
+            obj.source_on = false;
+        end
+
+        % tunable laser methods
+
         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   frequency = desired setpoint in THz or nm
@@ -68,26 +70,35 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
             %   target = frequency in THz
         end
 
-        function TunePercent(obj, ppercent)
-            %TunePercent sets the cavity piezo percentage
+        function TunePercent(obj, percent)
+            %TunePercent sets the resonator cavity piezo percentage
             %
-            % ppercent = desired piezo percentage from 1 to 100
+            % percent = desired piezo percentage from 1 to 100
+            assert(~isempty(obj.cwaveHandle)&&isobject(obj.cwaveHandle) && isvalid(obj.cwaveHandle),'no cwave handle')
+            assert(percent>=0 && percent<=100,'Target must be a percentage')
+            obj.resonator_percent = obj.cwaveHandle.tune_ref_cavity(percent)
         end
 
-        function on(obj)
-            %{
-            assert(~isempty(obj.PulseStreamer),'No IP set!')
-            if ~obj.diode_on
-                obj.activate;
-            end
-            obj.PulseStreamer.lines(obj.PBline) = true;
-            obj.source_on = true;
-            %}
+        function GetPercent(obj)
+            % TODO get piezo percent from cwave
         end
-        function off(obj)
-            %{
-            assert(~isempty(obj.PulseStreamer),'No IP set!')
-            obj.source_on = false;
-            obj.PulseStreamer.lines(obj.PBline) = false;
-            %}
+
+        % set methods
+
+        function set.cwave_ip(obj,ip)
+            err = obj.connect_driver('cwaveHandle', cwave, ip);
+            if ~isempty(err)
+                obj.cwave_ip = obj.no_server;
+                rethrow(err)
+            end
+            obj.cwave_ip = ip;
+        end
+
+        function set.pulseStreamer_ip(obj, ip)
+            err = obj.connect_driver('PulseStreamer', PulseStreamerMaster.PulseStreamerMaster, ip);
+            if ~isempty(err)
+                obj.pulseStreamer_ip = obj.no_server;
+                rethrow(err)
+            end
+            pulseStreamer_ip = ip;
         end

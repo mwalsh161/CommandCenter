@@ -3,10 +3,10 @@ classdef CWave < Modules.Driver
     %   
     %   for fine-tuning best used with a wavemeter feedback loop
     
-    properties(SetAccess = immutable)
+    %properties(SetAccess = immutable)
         %ip = '192.168.11.3';
         %password = 457; %457 gives engineering access. 111 gives full superuser access. Not recommended...why?
-    end
+    %end
     
     properties
         target_wavelength = 615.000001; % Target Wavelength
