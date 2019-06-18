@@ -152,13 +152,13 @@ classdef CWave < Modules.Driver
             end
         end
         
-        function status = LibraryFunction(obj,FunctionName,varargin)
+        function [status,varargout] = LibraryFunction(obj,FunctionName,varargin)
             % use this function to call arbitrary library functions from
             % CWAVE DLL. Checks for error, and returns all bit status
             
             nargs = Base.libnargout(obj.LibraryName,FunctionName);
             if nargs < 2
-                varargout = '';
+                varargout = {};
                 status = calllib(obj.LibraryName,FunctionName,varargin{:});
             else
                 [status,varargout{1:nargs-1}] = calllib(obj.LibraryName,FunctionName,varargin{:});
@@ -610,7 +610,7 @@ classdef CWave < Modules.Driver
 
         function piezo = get_ref_cavity_percent(obj)
             % returns reference cavity piezo percent value
-            piezo_voltage = obj.get_intvalue(x);
+            piezo_voltage = obj.get_intvalue('x');
             piezo = piezo_voltage/obj.Piezo_maxBit;
         end
         
