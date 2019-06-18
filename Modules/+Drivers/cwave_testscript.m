@@ -1,5 +1,3 @@
-%import Modules.Drivers.CWave.*
-
 cwave = Drivers.CWave.instance('192.168.11.3');
 
 %{

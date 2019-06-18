@@ -282,7 +282,7 @@ classdef CWave < Modules.Driver
             measure_status = LibraryFunction(obj.LibraryName,obj.UpdateStatus);
         end
 
-        function intvalue = get_intvalue(cmd)
+        function intvalue = get_intvalue(obj, cmd)
             %Description: Reads the value of an integer parameter.
             %Arguments: Parameter as string. See parameter list for valid parameters.
             %Returns: Returns the requested integer value.
@@ -357,7 +357,7 @@ classdef CWave < Modules.Driver
             intvalue = calllib(obj.LibraryName,obj.Get_IntValue,cmd);
         end
         
-        function floatvalue = get_floatvalue(cmd)
+        function floatvalue = get_floatvalue(obj, cmd)
             %Description: Reads the value of an floating point parameter.
             %Arguments: Parameter as string. See parameter list for valid parameters.
             %Returns: Returns the requested floating point value.
@@ -398,7 +398,7 @@ classdef CWave < Modules.Driver
             optimize_status = obj.LibraryFunction(obj.LibraryName, obj.Is_Ready); 
         end
 
-        function status = set_floatvalue(cmd,value)
+        function status = set_floatvalue(obj, cmd,value)
             % Description: Sets the value of an floating point parameter.
             % Arguments: cmd is the Parameter as string. See parameter list 
             % for valid parameters. value is the desired new value of the parameter.
@@ -409,7 +409,7 @@ classdef CWave < Modules.Driver
             status = obj.LibraryFunction(obj.LibraryName, obj.Set_FloatValue,cmd, value); 
         end
 
-        function status = set_command(cmd)
+        function status = set_command(obj, cmd)
             % Description: Executes a command which has no numerical argument.
             % Arguments: cmd is the command as string. See the command list for reference.
             % Returns: Returns 0 (1 before inversion) if the new command was executed correctly. Returns 1 (-1 before inversion)
@@ -503,7 +503,7 @@ classdef CWave < Modules.Driver
             obj.CheckErrorStatus(status,obj.StatusReport) 
         end
    
-        function WLM_PID_Compute(wl_measured)
+        function WLM_PID_Compute(obj, wl_measured)
             % Description: This function executes automatic wavelength regulation of the 
             %  C-Wave if the current output wavelength is measured by an external wavemeter 
             %  and monitored back into the C-Wave by this function. See WLM parameters for
@@ -632,7 +632,7 @@ classdef CWave < Modules.Driver
             %Piezo voltage is passed a a percentage of the total range
             %Total range is 0-65535
             %Convert from percentage to integer
-            flag = LibraryFunction(obj.LibraryName,obj.Set_IntValue,obj.ThickEtalon_Piezo_hr,relative_wl_pm);
+            flag = obj.LibraryFunction(obj.Set_IntValue,obj.ThickEtalon_Piezo_hr,relative_wl_pm);
             if (flag == 1)
                 piezo = piezo_percent;
             elseif (flag == -1)
@@ -665,7 +665,7 @@ classdef CWave < Modules.Driver
             % Returns: Returns 1 if the new command was executed correctly. Returns -1 if an error occurred.
             %% external commands for WS8-10 High Finesse wavemeter
             %% set command for external module (i.e. the wavemeter)
-            status = LibraryFunction(obj.LibraryName,obj.Ext_SetCommand,cmd);
+            status = obj.LibraryFunction(obj.Ext_SetCommand,cmd);
         end
        
         function [ext_intvalue] = ext_get_intvalue(cmd)
@@ -689,7 +689,7 @@ classdef CWave < Modules.Driver
             % Arguments: none
             % Returns: Returns 0 (1 before inversion) if the pump laser is active and the laser shutter is open. 
             %  Returns 1 (0 before inversion) if no or not sufficient laser power is available.
-            laser_status = LibraryFunction(obj.LibraryName,obj.LaserStatus);
+            laser_status = obj.LibraryFunction(obj.LaserStatus);
         end
 
         function [ref_temp_status] = get_status_temp_ref(obj)
