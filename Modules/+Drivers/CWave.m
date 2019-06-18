@@ -561,7 +561,7 @@ classdef CWave < Modules.Driver
         function disconnect_cwave(obj)
             % Probably easiset if using a disconnect function to disconnect
             % CWAVE
-            LibraryFunction(obj.LibraryName,obj.Disconnect); 
+            obj.LibraryFunction(obj.Disconnect); 
         end
         
         function set_target_wavelength(obj)
