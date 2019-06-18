@@ -11,6 +11,8 @@ classdef CWave < Modules.Driver
     properties
         init_warnings
         dll_ver
+        ip
+        status
         target_wavelength = 615.000001; % Target Wavelength
         all_shutters = 'open';
         shg_shutter = 'close';
@@ -89,6 +91,7 @@ classdef CWave < Modules.Driver
     methods(Static)
         function obj = instance(ip)
             mlock;
+            obj.ip = ip
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.CWave.empty(1,0);
@@ -114,8 +117,8 @@ classdef CWave < Modules.Driver
             obj.shutter_lsr();
             obj.shutter_shg();
             %obj.initialize_shutters; 
-            ret = obj.set_intvalue(WLM_BigSteps, 0);
-            assert(ret == 1, 'Turning off large steps in PID failed');
+            %ret = obj.set_intvalue(obj.WLM_BigSteps, 0);
+            %assert(ret == 1, 'Turning off large steps in PID failed');
          end
     end
     
@@ -149,10 +152,10 @@ classdef CWave < Modules.Driver
             end
         end
         
-        function [varargout] = LibraryFunction(obj,FunctionName,varargin)
+        function status = LibraryFunction(obj,FunctionName,varargin)
             % use this function to call arbitrary library functions from
             % CWAVE DLL. Checks for error, and returns all bit status
-    
+            
             nargs = Base.libnargout(obj.LibraryName,FunctionName);
             if nargs < 2
                 varargout = '';
@@ -160,7 +163,7 @@ classdef CWave < Modules.Driver
             else
                 [status,varargout{1:nargs-1}] = calllib(obj.LibraryName,FunctionName,varargin{:});
             end
-            obj.CheckErrorStatus(status);
+            obj.CheckErrorStatus(status, FunctionName);
         end
         
         function CheckErrorStatus(obj,status,FunctionName)
@@ -179,19 +182,19 @@ classdef CWave < Modules.Driver
                     assert(status == 0, ['CWAVE Error: Unauthorized CWAVE DLL version loaded']);
                 case obj.Admin
                     % 0==admin rights granted, 1=no admin rights granted
-                    assert(admin_status == 0, ['CWAVE Error: Admin Rights Not Granted. Incorrect password given']);
+                    assert(status == 0, ['CWAVE Error: Admin Rights Not Granted. Incorrect password given']);
                 case obj.UpdateStatus
                     %  0==update succeeded, 1=update failed
-                    assert(measure_status == 0, ['CWAVE Error: Measurement status of C-wave not updated']);
+                    assert(status == 0, ['CWAVE Error: Measurement status of C-wave not updated']);
                 case obj.Set_IntValue
                     %  0== integer value set, 1= integer value not set
-                    assert(measure_status == 0, ['CWAVE Error: Int value not set']);
+                    assert(status == 0, ['CWAVE Error: Int value not set']);
                 case obj.Is_Ready
                     % 0=C-wave is ready, Optimization has completed; 1==C-wave still optimizing
-                     assert(optimize_status == 0, ['CWAVE Error: C-Wave not ready. Optimization still in progress']);
+                     assert(status == 0, ['CWAVE Error: C-Wave not ready. Optimization still in progress']);
                 case obj.Set_FloatValue
                     %  0==update succeeded, 1=update failed
-                    assert(measure_status == 0, ['CWAVE Error: float value not set']);
+                    assert(status == 0, ['CWAVE Error: float value not set']);
                 case obj.SetCommand
                     % 0=update succeeded,  1=update failed
                     assert(status == 0, ['CWAVE Error: command not executed. Check that set_command input are valid.']);
@@ -212,26 +215,26 @@ classdef CWave < Modules.Driver
                     assert(status == 0, ['Insufficient Laser power. Check that pump laser is active and that the laser shutter is open']);
                 case obj.Reference_TempStatus
                     % 0=referance temperature stabilized, 1==reference temperature not at setpoint
-                    assert(ref_temp_status == 0, ['Reference temperature not at setpoint']);
+                    assert(status == 0, ['Reference temperature not at setpoint']);
                 case obj.OPO_TempStatus
                     % 0=referance temperature stabilized, 1==reference temperature not at setpoint
-                    assert(opo_temp_status == 0, ['OPO temperature not at setpoint']);
+                    assert(status == 0, ['OPO temperature not at setpoint']);
                 case obj.SHG_TempStatus
                     % 0=SHG temperature stabilized, 1==SHG temperature not at setpoint
-                    assert(shg_temp_status == 0, ['SHG temperature not at setpoint']);
+                    assert(status == 0, ['SHG temperature not at setpoint']);
                 case obj.OPO_LockStatus
                     % 0=OPO lock stabilized, 1==OPO not locked to reference cavity. Still optimizing
-                    assert(opo_lock_status == 0, ['OPO not locked to reference cavity. Optimization still in progress']);
+                    assert(status == 0, ['OPO not locked to reference cavity. Optimization still in progress']);
                 case obj.SHG_LockStatus
                     % 0=SHG lock stabilized, 1==SHG not locked to reference cavity. Still optimizing
-                    assert(shg_lock_status == 0, ['SHG not locked to reference cavity. Optimization still in progress']);
+                    assert(status == 0, ['SHG not locked to reference cavity. Optimization still in progress']);
                 case obj.Etalon_LockStatus
                     % 0=etalon lock stabilized, 1==etalon not locked to reference cavity. Still optimizing
-                    assert(etalon_lock_status == 0, ['etalon not locked to reference cavity. Optimization still in progress']);
+                    assert(status == 0, ['etalon not locked to reference cavity. Optimization still in progress']);
                 case obj.WLM_PID_Optimize
                 case obj.Ext_SetCommand
                     % 0=command executed correctly, 1==error command not executed by external module
-                    assert(etalon_lock_status == 1, ['Command not executed by external module. Check that it is on.']);
+                    assert(status == 1, ['Command not executed by external module. Check that it is on.']);
             end
         end
         
@@ -241,10 +244,10 @@ classdef CWave < Modules.Driver
             %Returns: int value, 0 means connection failed, 1 means successfully connected. 
             %Logic inverted from original DLL status bit by LibraryFunction.
             %% connect to device
-            status = obj.LibraryFunction(obj.LibraryName, obj.ConnectCwave, ip);
+            status = obj.LibraryFunction(obj.ConnectCwave, ip);
             % mitigate bug in DLL, first connection attempt might fail -> retry
             if (status == 0)
-                status = LibraryFunction(obj.LibraryName,obj.ConnectCwave, ip);
+                status = LibraryFunction(obj.ConnectCwave, ip);
             end
         end
        
@@ -376,7 +379,7 @@ classdef CWave < Modules.Driver
             floatvalue = calllib(obj.LibraryName,obj.Get_floatValue,cmd);        
         end
             
-        function status = set_intvalue( cmd,value)
+        function status = set_intvalue(obj, cmd,value)
             % Description: Sets the value of an integer parameter.
             % Arguments: cmd is the Parameter as string. See parameter list 
             % for valid parameters. value is the desired new value of the parameter.
@@ -384,7 +387,7 @@ classdef CWave < Modules.Driver
             % Returns 1 (-1 before inversion) if an error occurred.
             %% Writable Int Parameters are listed above in get_intvalue function comments
             %% Writable Wavelength stabilization parameters are listed above in get_intvalue function comments
-            status = LibraryFunction(obj.LibraryName,obj.Set_IntValue,cmd, value);
+            status = obj.LibraryFunction(obj.Set_IntValue,cmd, value);
         end
        
         function optimize_status = is_ready(obj)
@@ -392,7 +395,7 @@ classdef CWave < Modules.Driver
             %Arguments: none
             %Returns: Returns an integer value. 0 means no errors, C-Wave is ready. 1 means C-Wave is still in optimization
             %% Check if optimization is complete
-            optimize_status = LibraryFunction(obj.LibraryName, obj.Is_Ready); 
+            optimize_status = obj.LibraryFunction(obj.LibraryName, obj.Is_Ready); 
         end
 
         function status = set_floatvalue(cmd,value)
@@ -403,7 +406,7 @@ classdef CWave < Modules.Driver
             % Returns 1 (-1 before inversion) if an error occurred.
             %% Writable Int Parameters are listed above in get_floatvalue function comments
             %% Writable Wavelength stabilization parameters are listed above in get_floatvalue function comments
-            status = LibraryFunction(obj.LibraryName, obj.Set_FloatValue,cmd, value); 
+            status = obj.LibraryFunction(obj.LibraryName, obj.Set_FloatValue,cmd, value); 
         end
 
         function status = set_command(cmd)
@@ -418,7 +421,7 @@ classdef CWave < Modules.Driver
             %%                     If SHG output is required, a successive SHG temperature search may be required.
             %  opt_stop         Stop all optimizations. Usefull for full manual control of the C-Wave.
             %% Set Command
-            status = LibraryFunction(obj.LibraryName, obj.SetCommand,cmd);   
+            status = obj.LibraryFunction(obj.SetCommand,cmd);   
         end
         
         function [status,laser_power] = get_photodiode_laser(obj)
@@ -432,7 +435,7 @@ classdef CWave < Modules.Driver
             else 
                 status = 0;
             end
-            obj.CheckErrorStatus(obj,status,obj.LaserPower)
+            obj.CheckErrorStatus(status,obj.LaserPower)
         end
 
         function [status,opo_power] = get_photodiode_opo(obj)
@@ -446,7 +449,7 @@ classdef CWave < Modules.Driver
             else
                 status = 0;
             end
-            obj.CheckErrorStatus(obj,status,obj.OPO_Power);
+            obj.CheckErrorStatus(status,obj.OPO_Power);
         end
         
         function [shg_power] = get_photodiode_shg(obj)
@@ -460,7 +463,7 @@ classdef CWave < Modules.Driver
             else 
                 status = 0;
             end
-            obj.CheckErrorStatus(obj,status,obj.SHG_Power);
+            obj.CheckErrorStatus(status,obj.SHG_Power);
         end
         
         function status = get_statusbits(obj)
@@ -497,7 +500,7 @@ classdef CWave < Modules.Driver
             else 
                 status = 0;
             end
-            obj.CheckErrorStatus(obj,status,obj.StatusReport) 
+            obj.CheckErrorStatus(status,obj.StatusReport) 
         end
    
         function WLM_PID_Compute(wl_measured)
@@ -511,16 +514,16 @@ classdef CWave < Modules.Driver
             %  provide fundamental or SHG measurement. However, measuring the fundamental 
             %  wavelength will be more reliable for complete automation.
             % Returns: none
-            LibraryFunction(obj.LibraryName,obj.WLM_PID_Optimize,wl_measured); % suggest change to callib
+            obj.LibraryFunction(obj.WLM_PID_Optimize,wl_measured); % suggest change to callib
         end
         
         function shutter_lsr(obj)
             %open or close internal pump laser shutter
             if strcmp(obj.lsr_shutter, obj.Open)
-                ret = set_intvalue(obj.ShutterLaser,1);
+                ret = obj.set_intvalue(obj.ShutterLaser,1);
                 assert(ret == 1, 'Opening pump laser shutter failed'); 
             elseif strcmp(obj.lsr_shutter, obj.Close)
-                ret = set_intvalue(obj.ShutterLaser,0);
+                ret = obj.set_intvalue(obj.ShutterLaser,0);
                 assert(ret == 0, 'Closing pump laser shutter failed'); 
             end 
         end 
@@ -528,11 +531,11 @@ classdef CWave < Modules.Driver
         function shutter_shg(obj)
             %open or close SHG shutter
             if strcmp(obj.shg_shutter, obj.Open)
-                ret = set_intvalue(obj.ShutterSHG,1);
+                ret = obj.set_intvalue(obj.ShutterSHG,1);
                 assert(ret == 1, 'Opening SHG shutter failed'); 
-            elseif strcmp(shg.lsr_shutter, obj.Close)
-                ret = set_intvalue(obj.ShutterSHG,0);
-                assert(ret == 0, 'Closing SHG shutter failed'); 
+            elseif strcmp(obj.shg_shutter, obj.Close)
+                ret = obj.set_intvalue(obj.ShutterSHG,0);
+                assert(ret == 1, 'Closing SHG shutter failed'); 
             end 
         end 
         
@@ -540,7 +543,7 @@ classdef CWave < Modules.Driver
             % poll connection status if CWAVE
             % Function Call currently not avialable waiting DLL file info
             % from Hubner
-            status = obj.cwave_connect(ipAddr);
+            status = obj.cwave_connect(obj.ip);
         end
         
         function status = delete(obj)
@@ -695,7 +698,7 @@ classdef CWave < Modules.Driver
             % Returns: Returns 0 if the reference temperature is stable. 
             %  Returns 1 if the reference temperature is not at setpoint.
             %% Poll temperature status
-            ref_temp_status = LibraryFunction(obj.LibraryName, obj.Reference_TempStatus);
+            ref_temp_status = obj.LibraryFunction(obj.Reference_TempStatus);
         end
         
         function [opo_temp_status] = get_status_temp_opo(obj)
@@ -704,7 +707,7 @@ classdef CWave < Modules.Driver
             % Returns: Returns 0 if the OPO temperature is stable. 
             %  Returns 1 if the OPO temperature is not at setpoint.
             %% Poll OPO Temperature Status
-            opo_temp_status = LibraryFunction(obj.LibraryName, obj.OPO_TempStatus);
+            opo_temp_status = obj.LibraryFunction(obj.OPO_TempStatus);
         end
 
         function [shg_temp_status] = get_status_temp_shg(obj)
@@ -713,7 +716,7 @@ classdef CWave < Modules.Driver
             % Returns: Returns 0 if the SHG temperature is stable. 
             %  Returns 1 if the SHG temperature is not at setpoint.
             %% Poll SHG temperature Status
-            shg_temp_status = LibraryFunction(obj.LibraryName, obj.SHG_TempStatus); 
+            shg_temp_status = obj.LibraryFunction(obj.SHG_TempStatus); 
         end
 
         function [opo_lock_status] = get_status_lock_opo(obj)
@@ -722,7 +725,7 @@ classdef CWave < Modules.Driver
             % Returns: Returns 0 if the OPO is locked to the reference cavity and 
             %  produces stable output. Returns 1 if optimization is still in progress.
             %% Poll opo_lock_status...What exactly is the OPO lock?
-            opo_lock_status = LibraryFunction(obj.LibraryName, obj.OPO_LockStatus);
+            opo_lock_status = obj.LibraryFunction(obj.OPO_LockStatus);
         end
 
         function [shg_lock_status] = get_status_lock_shg(obj)
@@ -730,14 +733,14 @@ classdef CWave < Modules.Driver
             % Arguments: none
             % Returns: Returns 0 if the SHG cavity is locked and produces stable output. 
             %  Returns 1 if optimization is still in progress.
-            shg_lock_status = LibraryFunction(obj.LibraryName, obj.SHG_LockStatus);
+            shg_lock_status = obj.LibraryFunction(obj.SHG_LockStatus);
         end
         
         function [etalon_lock_status] = get_status_lock_etalon(obj)
             % Description: Reads the current status of the etalon lock.
             % Arguments: none
             % Returns: Returns 0 if the etalon is locked. Returns 1 if optimization is still in progress.
-            etalon_lock_status = LibraryFunction(obj.LibraryName, obj.Etalon_LockStatus);
+            etalon_lock_status = obj.LibraryFunction(obj.Etalon_LockStatus);
         end
     end
         

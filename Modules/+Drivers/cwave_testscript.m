@@ -2,8 +2,10 @@
 
 cwave = Drivers.CWave.instance('192.168.11.3');
 
+%{
 disp('status:')
 disp(cwave.getStatus())
+%}
 
 disp('ref temp:')
 disp(cwave.get_status_temp_ref())
