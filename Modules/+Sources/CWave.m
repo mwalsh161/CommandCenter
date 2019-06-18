@@ -13,6 +13,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
 
     properties(SetObservable,SetAccess=private)
         source_on = false;
+        locked = false;
     end
 
     properties(SetObservable,AbortSet)
@@ -20,6 +21,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         tuning = false;
         cwave_ip = Sources.CWave.no_server;
         pulseStreamer_ip = Sources.CWave.no_server;
+        wavemeter_ip = Sources.CWave.no_server;
+        wavemeter_channel = 1; % set to integer value
     end
 
     properties(SetAccess=private)
@@ -50,24 +53,35 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
 
         % tunable laser methods
 
-        function TuneSetpoint(obj,setpoint)
-            %TuneSetpoint Sets the wavemeter setpoint
-            %   frequency = desired setpoint in THz or nm
-            
-            %check if in range
+        function tune(obj, setpoint, coarse)
+            assert(~isempty(cwaveHandle), 'no cwave handle')
+            cwaveHandle.set_pid_target_wavelength(setpoint);
+            wavelength = wavemeter.getWavelength();
+            if coarse
+                cwaveHandle.coarse_tune(wavelength);
+            else
+                cwaveHandle.fine_tune(wavelength);
+            end
         end
 
-        function TuneCoarse(obj, target)
+        function TuneSetpoint(obj,setpoint)
+            %TuneSetpoint Sets the wavemeter setpoint
+            %   setpoint = setpoint in nm
+            obj.tune(setpoint, false);
+        end
+
+        function TuneCoarse(obj, setpoint)
             %TuneCoarse moves the laser to the target frequency
             %
-            %   It assumes the laser is close enough to not require
-            %   changing of the OPO temperature to reach the target.
+            %   It assumes the laser is already close enough to not 
+            %   require changing of the OPO temperature to reach the target.
             %
             %   First it achieves accuracy to within a picometer by 
             %   changing the thick etalon piezo, then adjusts with
             %   the cavity piezo.
             % 
-            %   target = frequency in THz
+            %   setpoint = setpoint in nm
+            obj.tune(setpoint, true);
         end
 
         function TunePercent(obj, percent)
@@ -79,8 +93,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
             obj.resonator_percent = obj.cwaveHandle.tune_ref_cavity(percent)
         end
 
-        function GetPercent(obj)
-            % TODO get piezo percent from cwave
+        function piezo = GetPercent(obj)
+            piezo = cwaveHandle.get_ref_cavity_percent();
         end
 
         % set methods
@@ -101,4 +115,22 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
                 rethrow(err)
             end
             pulseStreamer_ip = ip;
+        end
+
+        function set.wavemeter_ip(obj, ip)
+            err = obj.connect_driver('Wavemeter', Wavemeter.Wavemeter, ip, obj.wavemeter_channel);
+            if ~isempty(err)
+                obj.wavemeter_ip = obj.no_server;
+                rethrow(err)
+            end
+            wavemeter_ip = ip;
+        end
+
+        function set.wavemeter_channel(obj, channel)
+            assert(round(channel)==channel&&channel>0,'wavemeter_channel must be an integer greater than 0.')
+            obj.wavemeter_channel = channel
+            err = obj.connect_driver('wavemeter','Wavemeter',obj.wavemeter_ip,val);
+            if ~isempty(err)
+                rethrow(err)
+            end
         end

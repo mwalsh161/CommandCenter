@@ -554,7 +554,6 @@ classdef CWave < Modules.Driver
             LibraryFunction(obj.LibraryName,obj.Disconnect); 
         end
         
-        %{
         function set_target_wavelength(obj)
             %set target wavelength with a coarse 0.01 nm resolution
             ret = obj.set_intvalue('opo_lambda',round(obj.target_wavelength*100));
@@ -563,13 +562,14 @@ classdef CWave < Modules.Driver
             % IMPORTANT: wait one second before starting to poll for ready
             pause(1);       
         end
-        %}
-
-        function set_target_wavelength(obj, setpoint)
+        
+        function set_pid_target_wavelength(obj, setpoint)
             % set the target wavelength to fine tune toward
-            ret = obj.set_intvalue(WLM_PID_Setpoint, round(setpoint*100));
+            typecheck = isa(setpoint, 'double')
+            assert(typecheck == 1, 'Setpoint must be double precision float')
+            ret = obj.set_intvalue(WLM_PID_Setpoint, setpoint);
             assert(ret == 1, 'Setting setpoint wavelength failed');
-            disp(['Setpoint wavelength set: ' num2str(round(setpoint*100)/100) 'nm']);
+            disp(['Setpoint wavelength set: ' num2str(setpoint) 'nm']);
             % IMPORTANT: wait one second before starting to poll for ready
             pause(1);
         end
@@ -577,14 +577,18 @@ classdef CWave < Modules.Driver
         function fine_tune(obj, measured_wavelength)
             % fine tune based on wavemeter measurement
             ret = obj.set_intvalue(WLM_PiezoSteps, 1);
-            assert(ret == 1, 'Turning on cavity piezo in PID failed');
+            assert(ret == 1, 'Turning on cavity piezo during PID failed');
+            ret = obj.set_intvalue(WLM_etalonsteps, 0);
+            assert(ret == 1, 'Turning off etalon steps during PID failed');
             obj.WLM_PID_Compute(measured_wavelength);
         end
 
         function coarse_tune(obj, measured_wavelength)
             % coarse tune based on wavemeter measurement
-            ret = obj.set_intvalue(WLM_PiezoSteps, 0);
-            assert(ret == 1,'Turning off cavity piezo in PID failed');
+            ret = obj.set_intvalue(WLM_PiezoSteps, 1);
+            assert(ret == 1,'Turning on cavity piezo during PID failed');
+            ret = obj.set_intvalue(WLM_etalonsteps, 1);
+            assert(ret == 1, 'Turning on etalon steps during PID failed');
             obj.WLM_PID_Compute(measured_wavelength);
         end
         
@@ -592,6 +596,12 @@ classdef CWave < Modules.Driver
             %Stops optimization of wavelength tuning.
             flag = obj.set_command(obj.StopOptimization);
             assert(flag==1, 'Optimization has not stopped');
+        end
+
+        function piezo = get_ref_cavity_percent(obj)
+            % returns reference cavity piezo percent value
+            piezo_voltage = obj.get_intvalue(x);
+            piezo = piezo_voltage/obj.Piezo_maxBit;
         end
         
         function piezo = tune_ref_cavity(obj,piezo_percent)
@@ -604,8 +614,7 @@ classdef CWave < Modules.Driver
             if (flag == 1)
                 piezo = piezo_percent;
             elseif (flag == -1)
-                piezo_voltage = LibraryFunction(obj.LibraryName,obj.Get_IntValue);
-                piezo = piezo_voltage/obj.Piezo_maxBit;
+                piezo = get_ref_cavity_percent();
             end    
         end
         
@@ -617,8 +626,7 @@ classdef CWave < Modules.Driver
             if (flag == 1)
                 piezo = piezo_percent;
             elseif (flag == -1)
-                piezo_voltage = LibraryFunction(obj.LibraryName,obj.Get_IntValue);
-                piezo = piezo_voltage/obj.Piezo_maxBit;
+                piezo = get_ref_cavity_percent();
             end    
         end     
     end

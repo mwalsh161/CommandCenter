@@ -26,6 +26,12 @@ disp(cwave.get_photodiode_laser())
 disp('current OPO infrared power:')
 disp(cwave.get_photodiode_opo())
 
+disp('current piezo percent:')
+disp(cwave.get_ref_cavity_percent())
+
 cwave.target_wavelength = 615.000001
 cwave.set_wavelength()
+
+disp('new piezo percent:')
+disp(cwave.get_ref_cavity_percent())
 
