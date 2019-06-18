@@ -1,6 +1,6 @@
-import cwave.*
+%import Modules.Drivers.CWave.*
 
-cwave = instance('192.168.11.3')
+cwave = Drivers.CWave.instance('192.168.11.3');
 
 disp('status:')
 disp(cwave.getStatus())

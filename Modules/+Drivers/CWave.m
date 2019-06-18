@@ -9,6 +9,8 @@ classdef CWave < Modules.Driver
     %end
     
     properties
+        init_warnings
+        dll_ver
         target_wavelength = 615.000001; % Target Wavelength
         all_shutters = 'open';
         shg_shutter = 'close';
@@ -27,8 +29,9 @@ classdef CWave < Modules.Driver
     
     properties(Constant,Hidden)
     % constants for C library
-        Pathx64 = 'C:\Program Files (x86)\H�bner\C-WAVE Control\MatlabControl\x64\';
-        Pathx86 = 'C:\Program Files (x86)\H�bner\C-WAVE Control\MatlabControl\x86\';
+        Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x64\';
+        Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x86\';
+        HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\';
         LibraryName = 'CWAVE_DLL';            % alias for library
         LibraryFilePath = 'CWAVE_DLL.dll';     % Path to dll
         LibraryHeader = 'CWAVE_DLL.h';
@@ -36,7 +39,7 @@ classdef CWave < Modules.Driver
         ComputerArch = 'arch';
         ConnectCwave = 'cwave_connect';
         DLL_Version= 'DLL_Version';
-        DLL_identity = 1;
+        DLL_identity = 20;
         Admin = 'admin_elevate';
         UpdateStatus = 'cwave_updatestatus';
         Get_IntValue = 'get_intvalue';
@@ -103,10 +106,10 @@ classdef CWave < Modules.Driver
     end
     
     %% Constructor Method
-    methods(Access=private)
-         function obj = CWave()
+    methods(Access={?Drivers.CWave})
+         function obj = CWave(ip)
             obj.dll_ver =  load_cwave_dll(obj); %load dll for cwave
-            obj.status = cwave_connect(); %connect cwave
+            obj.status = obj.cwave_connect(ip); %connect cwave
             % open all internal and output shutters in cwave system
             obj.shutter_lsr();
             obj.shutter_shg();
@@ -128,18 +131,20 @@ classdef CWave < Modules.Driver
                 %properties 
                     %loadlibrary('x64/CWAVE_DLL',  obj.LibraryHeader);    
                     path = fullfile(obj.Pathx64 ,obj.LibraryFilePath); % 64bit
-                    [~,obj.init_warnings] = loadlibrary(path, obj.LibraryHeader, 'alias',obj.LibraryName);
+                    hpath = fullfile(obj.HPath, obj.LibraryHeader);
+                    [~,obj.init_warnings] = loadlibrary(path, hpath, 'alias',obj.LibraryName);
                 else
-                    %loadlibrary('x86/CWAVE_DLL', obj.LibraryHeader);    
+                    %loadlibrary('x86/CWAVE_DLL', obj.LibraryHeader);  
                     path = fullfile(obj.Pathx86 ,obj.LibraryFilePath); % 32bit
-                    [~,obj.init_warnings] = loadlibrary(path, obj.LibraryHeader, 'alias',obj.LibraryName);
+                    hpath = fullfile(obj.HPath, obj.LibraryHeader);
+                    [~,obj.init_warnings] = loadlibrary(path, hpath, 'alias',obj.LibraryName);
                 end
             end
             if (libisloaded(obj.LibraryName))
                 %% return dll version
-                dll_ver = obj.dll_version();
+                [~,dll_ver] = obj.dll_version();
                 if (dll_ver ~= obj.DLL_identity)
-                    assert(dll_ver == obj.DLL_version, ['CWAVE DLL library not loaded, DLL version ' dll_ver ' not equal to ' obj.DLL_version]);
+                    assert(dll_ver == obj.DLL_identity, ['CWAVE DLL library not loaded, DLL version ' dll_ver ' not equal to ' obj.DLL_identity]);
                 end   
             end
         end
@@ -230,16 +235,16 @@ classdef CWave < Modules.Driver
             end
         end
         
-        function [status] = cwave_connect(obj)
+        function [status] = cwave_connect(obj, ip)
             %Description: Connects to the C-Wave. This function has to be executed once during runtime.
             %Arguments: ipAddress is the IP address of the CWAVE as string in the format 123.123.123.123
             %Returns: int value, 0 means connection failed, 1 means successfully connected. 
             %Logic inverted from original DLL status bit by LibraryFunction.
             %% connect to device
-            status = LibraryFunction(obj.LibraryName, obj.ConnectCwave, obj.ip);
+            status = obj.LibraryFunction(obj.LibraryName, obj.ConnectCwave, ip);
             % mitigate bug in DLL, first connection attempt might fail -> retry
             if (status == 0)
-                status = LibraryFunction(obj.LibraryName,obj.ConnectCwave, obj.ip);
+                status = LibraryFunction(obj.LibraryName,obj.ConnectCwave, ip);
             end
         end
        
@@ -249,13 +254,15 @@ classdef CWave < Modules.Driver
             % also return status bit (0 =  correct dll version, 1 =
             % incorrect dll version).
             dllVer = calllib(obj.LibraryName, obj.DLL_Version);
+            disp('dllver:')
+            disp(dllVer)
             if( dllVer ~= obj.DLL_identity)
                 status = 1;
             else 
                 status = 0;
             end
             disp(['C-WAVE DLL loaded. Version: ' num2str(dllVer)]);
-            obj.CheckErrorStatus(obj,status,obj.DLL_Version);
+            obj.CheckErrorStatus(status,obj.DLL_Version);
         end 
         
         function admin_status = admin_elevate(obj,password)
@@ -377,7 +384,7 @@ classdef CWave < Modules.Driver
             % Returns 1 (-1 before inversion) if an error occurred.
             %% Writable Int Parameters are listed above in get_intvalue function comments
             %% Writable Wavelength stabilization parameters are listed above in get_intvalue function comments
-            status = LibraryFunction(obj.LibraryName,obj.Set_IntValue,cmd, value);\
+            status = LibraryFunction(obj.LibraryName,obj.Set_IntValue,cmd, value);
         end
        
         function optimize_status = is_ready(obj)
@@ -645,7 +652,7 @@ classdef CWave < Modules.Driver
                 ret_lsr = set_intvalue(obj.ShutterLaser,0);
                 assert(ret_lsr == 1, 'Closing pump laser shutter failed'); 
                 ret_shg = set_intvalue(obj.ShutterSHG,0);
-                assert(ret_shg == 1, 'Closing shg shutter failed'); ]  
+                assert(ret_shg == 1, 'Closing shg shutter failed'); 
             end
         end
         

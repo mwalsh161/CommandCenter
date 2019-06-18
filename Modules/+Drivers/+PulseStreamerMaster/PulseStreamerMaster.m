@@ -101,7 +101,8 @@ classdef PulseStreamerMaster < Modules.Driver
              mlock;
              persistent Objects
              if isempty(Objects) || ~isvalid(Objects)
-                 Object = Drivers.PulseStreamerMaster.PulseStreamerMaster.empty(1,0);
+                 Objects = Drivers.PulseStreamerMaster.PulseStreamerMaster.empty(1,0);
+                 %changed from Object to Objects in above line
              end
              [~,resolvedIP] = resolvehost(ip);
              for i = 1:length(Objects)
