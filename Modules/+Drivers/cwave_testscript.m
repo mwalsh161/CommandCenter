@@ -13,6 +13,9 @@ disp(cwave.get_status_temp_shg())
 
 disp('opo temp:')
 disp(cwave.get_status_temp_opo())
+cwave.delete()
+
+cwave.abort_tune()
 
 disp('OPO lock:')
 disp(cwave.get_status_lock_opo())

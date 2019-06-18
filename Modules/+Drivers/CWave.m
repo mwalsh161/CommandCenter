@@ -91,7 +91,6 @@ classdef CWave < Modules.Driver
     methods(Static)
         function obj = instance(ip)
             mlock;
-            obj.ip = ip
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.CWave.empty(1,0);
@@ -103,6 +102,7 @@ classdef CWave < Modules.Driver
                 end
             end
             obj = Drivers.CWave(ip);
+            obj.ip = ip;
             obj.singleton_id = {ip};
             Objects(end+1) = obj;
         end
