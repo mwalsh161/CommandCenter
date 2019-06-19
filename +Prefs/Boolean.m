@@ -1,13 +1,10 @@
 classdef Boolean < Base.pref
     %BOOLEAN True/False data
     
-    properties
-        value = false;
-    end
-    
     methods
-        function obj = Boolean()
-            obj.value = false;
+        function obj = Boolean(varargin)
+            obj.default = false;
+            obj = obj.init(varargin{:});
         end
         function validate(obj,val)
             validateattributes(val,{'numeric','logical'},{'binary','scalar'})

@@ -6,6 +6,9 @@ classdef MultipleChoice < Base.pref
     end
     
     methods
+        function obj = MultipleChoice(varargin)
+            obj = obj.init(varargin{:});
+        end
         function validate(obj,val)
             error('Not implemented')
         end

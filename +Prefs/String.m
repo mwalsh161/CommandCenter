@@ -6,13 +6,9 @@ classdef String < Base.pref
     end
     
     methods
-        function obj = String(default)
-            if nargin
-                obj.value = default;
-            else
-                obj.value = '';
-            end
-
+        function obj = String(varargin)
+            obj.default = '';
+            obj = obj.init(varargin{:});
         end
         function validate(obj,val)
             validateattributes(val,{'numeric','logical'},{'scalartext'})

@@ -34,6 +34,9 @@ classdef debug < Modules.Imaging
         end
     end
     methods
+        function set.new_style(obj,val)
+            
+        end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>
