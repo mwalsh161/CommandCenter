@@ -79,7 +79,7 @@ classdef CWave < Modules.Driver
         RefCavity_Piezo = 'x';
         ThickEtalon_Piezo_hr = 'thicketa_rel_hr';
         ThickEtalon_Piezo = 'thicketa_rel';
-        RefCavityPiezo_maxBit = 65535/100;
+        Piezo_maxBit = 65535/100;
         Laser_MaxPower = 1000000; %dummy value. value needs to be calibrated (testing needed)
         Laser_MinPower = 0; %dummy value. value needs to be calibrated (testing needed)
         OPO_MaxPower = 1000000; %dummy value. value needs to be calibrated (testing needed)
@@ -157,7 +157,11 @@ classdef CWave < Modules.Driver
             % CWAVE DLL. Checks for error, and returns all bit status
             
             nargs = Base.libnargout(obj.LibraryName,FunctionName);
-            if nargs < 2
+            if nargs == 0
+                varargout = {};
+                status = [];
+                calllib(obj.LibraryName, FunctionName, varargin{:});
+            elseif nargs < 2
                 varargout = {};
                 status = calllib(obj.LibraryName,FunctionName,varargin{:});
             else
@@ -395,7 +399,7 @@ classdef CWave < Modules.Driver
             %Arguments: none
             %Returns: Returns an integer value. 0 means no errors, C-Wave is ready. 1 means C-Wave is still in optimization
             %% Check if optimization is complete
-            optimize_status = obj.LibraryFunction(obj.LibraryName, obj.Is_Ready); 
+            optimize_status = obj.LibraryFunction(obj.Is_Ready); 
         end
 
         function status = set_floatvalue(obj, cmd,value)
@@ -406,7 +410,7 @@ classdef CWave < Modules.Driver
             % Returns 1 (-1 before inversion) if an error occurred.
             %% Writable Int Parameters are listed above in get_floatvalue function comments
             %% Writable Wavelength stabilization parameters are listed above in get_floatvalue function comments
-            status = obj.LibraryFunction(obj.LibraryName, obj.Set_FloatValue,cmd, value); 
+            status = obj.LibraryFunction(obj.Set_FloatValue,cmd, value); 
         end
 
         function status = set_command(obj, cmd)
