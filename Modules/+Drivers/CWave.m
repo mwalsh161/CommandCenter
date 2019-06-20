@@ -489,6 +489,8 @@ classdef CWave < Modules.Driver
             % Poll cwave status
             cwave_status = calllib(obj.LibraryName, obj.StatusReport); %change to callib
             status_vector = de2bi(cwave_status);
+            disp('status_vector:')
+            disp(status_vector)
             obj.opo_stepper_stat = status_vector(1);
             obj.opo_temp_stat = status_vector(2);
             obj.shg_stepper_stat = status_vector(3);
