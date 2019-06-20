@@ -2,6 +2,9 @@ classdef pref % value class
     %PREF Superclass for pref properties.
     %   AVAILABLE PROPERTIES TO SET (Defined here):
     %       default (or as first argument)
+    %       name - provide more context
+    %       units - provide units if applicable
+    %       help_text - provide longer text to describe what this pref does (think tooltip)
     %       set*
     %       custom_validate*
     %       custom_clean*
@@ -35,6 +38,9 @@ classdef pref % value class
         value
     end
     properties
+        name
+        units
+        help_text
         default = []; % Allows subclass to provide default value when user does not supply it
         % optional functions supplied by user (subclasses should allow
         % setting in constructor)
