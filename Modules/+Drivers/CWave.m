@@ -488,6 +488,8 @@ classdef CWave < Modules.Driver
             %       9	Reference temperature
             % Poll cwave status
             cwave_status = calllib(obj.LibraryName, obj.StatusReport); %change to callib
+            disp('cwavestatus')
+            disp(cwave_status)
             status_vector = de2bi(cwave_status);
             disp('status_vector:')
             disp(status_vector)
