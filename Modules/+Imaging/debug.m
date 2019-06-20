@@ -6,7 +6,7 @@ classdef debug < Modules.Imaging
         prefs = {'resolution','continuous'};
      %   show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
     end
-    properties(SetObservable)
+    properties(GetObservable,SetObservable)
         new_style = Prefs.Integer();
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
@@ -34,9 +34,6 @@ classdef debug < Modules.Imaging
         end
     end
     methods
-        function set.new_style(obj,val)
-            
-        end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>

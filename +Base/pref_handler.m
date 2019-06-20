@@ -27,13 +27,15 @@ classdef pref_handler < handle
             external_ls_struct.PostGet = {};
             for i = 1:length(props)
                 prop = props(i);
-                if contains('pref',superclasses(prop.DefaultValue))
+                if contains('Base.pref',superclasses(prop.DefaultValue))
                     % Add listeners to get and set so we can swap the value
                     % in/out behind the scenes. All listeners relate to
                     % this object, so no need to clean them up.
                     assert(isempty(prop.GetMethod)&&isempty(prop.SetMethod),...
                         ['Cannot use get/set methods with class-based prefs! ',...
                          'Instead use the callback methods available in the class-based pref.']);
+                    assert(prop.GetObservable&&prop.SetObservable,...
+                        sprintf('Class-based pref ''%s'' must be defined to be GetObservable and SetObservable.',prop.Name));
                     % Bind callback methods to this object if specified as strings
                     if ~isempty(obj.(prop.Name).set) && ischar(obj.(prop.Name).set)
                         fn = str2func(obj.(prop.Name).set);
@@ -108,13 +110,36 @@ classdef pref_handler < handle
             % NOTE: this is a value class, so changing anything in the
             % returned instance does nothing.
             % NOTE: This by-passes pref get listeners
-            obj.prop_listener_ctrl(name,false);
-            
-            val = obj.(name);
-            obj.prop_listener_ctrl(name,true);
-            if ~contains('pref',superclasses(val))
-                % old style prefs: auto generate default type here?!
+            if isfield(obj.ls,name) % Indicates class-based pref
+                obj.prop_listener_ctrl(name,false);
+                val = obj.(name);
+                obj.prop_listener_ctrl(name,true);
+                return
             end
+            % old style prefs: auto generate default type here
+            val = obj.(name);
+            prop = findprop(obj,name);
+            if isnumeric(val) % There are many numeric classes
+                val = Prefs.Double(val);
+            elseif prop.HasDefault && ...
+                (iscell(prop.DefaultValue) || isa(prop.DefaultValue,'function_handle'))
+                if iscell(prop.DefaultValue)
+                    choices = prop.DefaultValue;
+                else % function handle
+                    choices = prop.DefaultValue();
+                end
+                val = Prefs.MultipleChoice(val,'choices',choices);
+            else
+                switch class(val)
+                    case {'char'}
+                        val = Prefs.String(val);
+                    case {'logical'}
+                        val = Prefs.Boolean(val);
+                    otherwise
+                        error('Not implemented for %s',class(val))
+                end
+            end
+            val.auto_generated = true;
         end
         
     end
@@ -122,6 +147,8 @@ classdef pref_handler < handle
         function prop_listener_ctrl(obj,name,enabled)
             % name: string name of property
             % enabled: true/false
+            assert(isprop(obj,name),sprintf('No appropriate method, property, or field ''%s'' for class ''%s''.',name,class(obj)))
+            assert(isfield(obj.ls,name),sprintf('''%s'' is not a class-based pref.',name))
             for i = 1:4 % Disable this prop's listeners
                 obj.ls.(name)(i).Enabled = enabled;
             end

@@ -41,6 +41,7 @@ classdef pref % value class
         name
         units
         help_text
+        auto_generated = false; % Used by Base.pref_handler to handle non class-based prefs
         default = []; % Allows subclass to provide default value when user does not supply it
         % optional functions supplied by user (subclasses should allow
         % setting in constructor)
@@ -76,9 +77,11 @@ classdef pref % value class
             % If user supplied odd number of inputs, then we expect the
             % call syntax to be: subclass(default,property1,value1,...);
             if mod(length(varargin),2)
+                default_in_parser = false;
                 default = varargin{1}; %#ok<*PROPLC>
                 varargin(1) = [];
             else % subclass(property1,value1,...); (where default could be a property)
+                default_in_parser = true;
                 addParameter(p,'default',obj.default);
             end
             for i = 1:length(props)
@@ -86,8 +89,7 @@ classdef pref % value class
             end
             parse(p,varargin{:});
             % NOTE: item was removed from varargin earlier switching the parity
-            if mod(length(varargin),2)
-                % default in inputParser
+            if default_in_parser
                 default = p.Results.default;
             end
             % Assign non-empty props
