@@ -176,7 +176,11 @@ classdef CWave < Modules.Driver
             inversion_condition = {obj.ConnectCwave,obj.Admin,obj.UpdateStatus,obj.Set_IntValue, ...
                                    obj.Set_FloatValue,obj.SetCommand,obj.LaserStatus, obj.Ext_SetCommand};
             if(ismember(FunctionName, inversion_condition))
-                status = ~status;
+                if status == 1:
+                    status = 0
+                else
+                    status = 1
+                end
             end
             switch FunctionName
                 case obj.ConnectCwave
@@ -476,23 +480,19 @@ classdef CWave < Modules.Driver
             % Returns: Returns an 16-bit integer value. Each bit corresponds to the 
             % status of one component. 0 means, the component is ready for operation, 
             % 1 means the component is not yet stable. Current valid bits from LSB to MSB are:
-            %       0	OPO stepper
-            %       1	OPO temperature
-            %       2	SHG stepper
-            %       3	SHG temperature
-            %       4	Thin etalon
-            %       5	OPO lock
-            %       6	SHG lock
-            %       7	Etalon lock
-            %       8	Laser emission (inverted)
-            %       9	Reference temperature
+            %       1	OPO stepper
+            %       2	OPO temperature
+            %       3	SHG stepper
+            %       4	SHG temperature
+            %       5	Thin etalon
+            %       6	OPO lock
+            %       7	SHG lock
+            %       8	Etalon lock
+            %       9	Laser emission (inverted)
+            %       10	Reference temperature
             % Poll cwave status
             cwave_status = calllib(obj.LibraryName, obj.StatusReport); %change to callib
-            disp('cwavestatus')
-            disp(cwave_status)
             status_vector = de2bi(cwave_status);
-            disp('status_vector:')
-            disp(status_vector)
             obj.opo_stepper_stat = status_vector(1);
             obj.opo_temp_stat = status_vector(2);
             obj.shg_stepper_stat = status_vector(3);
@@ -503,7 +503,8 @@ classdef CWave < Modules.Driver
             obj.etalon_lock_stat = status_vector(8);
             obj.laser_emission_stat = ~status_vector(9);
             obj.ref_temp_stat = status_vector(10); 
-            if(cwave_status ~=0)
+            if(~all(status_vector(1:10) == 0))
+                % there is an 11th bit with no documented hw meaning; should be ignored
                 status = 1;
             else 
                 status = 0;
