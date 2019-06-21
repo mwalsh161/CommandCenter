@@ -103,6 +103,20 @@ classdef pref % value class
             % case we should error
             obj.value = default;
         end
+        function summary = validation_summary(obj,indent)
+            mc = metaclass(obj);
+            props = mc.PropertyList([mc.PropertyList.DefiningClass]==mc);
+            longest_name = max(cellfun(@length,{props.Name}))+indent;
+            summary = pad({props.Name},longest_name,'left');
+            for i  =1:length(summary) % integers of floats
+                if isnumeric(obj.(props(i).Name)) || islogical(obj.(props(i).Name))
+                    summary{i} = sprintf('%s: %g',summary{i},obj.(props(i).Name));
+                else % characters/strings
+                    summary{i} = sprintf('%s: %s',summary{i},obj.(props(i).Name));
+                end
+            end
+            summary = strjoin(summary,newline);
+        end
 
         function obj = set.custom_validate(obj,val)
             assert(isa(val,'function_handle')||ischar(val),...

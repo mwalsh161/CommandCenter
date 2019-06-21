@@ -7,9 +7,10 @@ classdef pref_handler < handle
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
     end
-    events
-        
+    properties
+        pref_handler_indentation = 2;
     end
+
     methods
         % This requires SetObservable to be true, and careful use of
         % temp_prop in case a set method sets a different property. MATLAB
@@ -21,10 +22,10 @@ classdef pref_handler < handle
             mc = metaclass(obj);
             props = mc.PropertyList;
             props = props([props.HasDefault]);
-            external_ls_struct.PreSet = {};
-            external_ls_struct.PostSet = {};
-            external_ls_struct.PreGet = {};
-            external_ls_struct.PostGet = {};
+            external_ls_struct.PreSet = Base.preflistener.empty(1,0);
+            external_ls_struct.PostSet = Base.preflistener.empty(1,0);
+            external_ls_struct.PreGet = Base.preflistener.empty(1,0);
+            external_ls_struct.PostGet = Base.preflistener.empty(1,0);
             for i = 1:length(props)
                 prop = props(i);
                 if contains('Base.pref',superclasses(prop.DefaultValue))
@@ -63,45 +64,15 @@ classdef pref_handler < handle
             % el = addlistener(hSource,PropertyName,EventName,callback)
             varargout = {};
             if nargin == 4 && isfield(obj.external_ls,varargin{1}) % externals_ls field names are all pref properties
-                error('addlistener not supported for prefs. Use addpreflistener instead');
+                el = Base.preflistener(obj,varargin{:});
+                obj.external_ls.(varargin{1}).(varargin{2})(end+1) = el;
+                addlistener(el,'ObjectBeingDestroyed',@obj.preflistener_deleted);
             else
                 el = addlistener@handle(obj,varargin{:});
-                if nargout
-                    varargout = {el};
-                end
+                el = Base.preflistener(el); % Wrap it to make array compatible
             end
-        end
-        
-        function varargout = addpreflistener(obj,PropertyName,EventName,callback)
-            % ID = addpreflistener(hSource,PropertyName,EventName,callback)
-            % Very similar to addlistener, but returns an ID instead of a
-            % listener object. This ID can be used to remove the listener.
-            % Will not be recursive; executed when obj.ls are all disabled
-            assert(isa(callback,'function_handle'),'callback for pref listener must be a function_handle');
-            assert(isprop(obj,PropertyName),sprintf('The name ''%s'' is not an accessible property for an instance of class ''%s''.',PropertyName,class(obj)));
-            assert(isfield(obj.external_ls,PropertyName),'addpreflistener not supported for standard properties. Use addlistener instead');
-            varargout = {};
-            EventName = validatestring(EventName,fields(obj.external_ls.(PropertyName)));
-            ind = length(obj.external_ls.(PropertyName).(EventName)) + 1;
-            for i = 1:ind-1
-                if isempty(obj.external_ls.(PropertyName).(EventName){i})
-                    ind = i; % First empty slot (if one was deleted)
-                    break
-                end
-            end
-            obj.external_ls.(PropertyName).(EventName){ind} = callback;
-            ID = {PropertyName,EventName,ind};
             if nargout
-                varargout = {ID};
-            end
-        end
-        
-        function removepreflistener(obj,ID)
-            try
-                % addpreflistener recycles empty slots; not a memory leak
-                obj.external_ls.(ID{1}).(ID{2}){ID{3}} = [];
-            catch
-                error('Invalid ID supplied; nothing removed');
+                varargout = {el};
             end
         end
 
@@ -144,6 +115,14 @@ classdef pref_handler < handle
         
     end
     methods(Access = private)
+        function preflistener_deleted(obj,el,~)
+            % Clean-up method for preflisteners
+            obj.external_ls.(el.PropertyName) ...
+                .(el.EventName)(...
+                obj.external_ls.(el.PropertyName)...
+                .(el.EventName)==el...
+                ) = [];
+        end
         function prop_listener_ctrl(obj,name,enabled)
             % name: string name of property
             % enabled: true/false
@@ -156,8 +135,19 @@ classdef pref_handler < handle
         
         function execute_external_ls(obj,prop,event)
             for i = 1:length(obj.external_ls.(prop.Name).(event.EventName))
-                if ~isempty(obj.external_ls.(prop.Name).(event.EventName){i})
-                    obj.external_ls.(prop.Name).(event.EventName){i}(prop,event);
+                % Do not allow recursive calls and only call Enabled ones
+                if  obj.external_ls.(prop.Name).(event.EventName)(i).Enabled && ...
+                        (obj.external_ls.(prop.Name).(event.EventName)(i).Recursive || ...
+                         ~obj.external_ls.(prop.Name).(event.EventName)(i).executing) % "Recursive or not executing"
+                    obj.external_ls.(prop.Name).(event.EventName)(i).executing = true;
+                    try
+                        obj.external_ls.(prop.Name).(event.EventName)(i).Callback(prop,event);
+                    catch err
+                        warning('MATLAB:callback:PropertyEventError',...
+                            'Error occurred while executing the listener callback for the %s class %s property %s event:\n%s',...
+                            class(obj),prop.Name,event.EventName,getReport(err.message));
+                    end
+                    obj.external_ls.(prop.Name).(event.EventName)(i).executing = false;
                 end
             end
         end
@@ -172,12 +162,7 @@ classdef pref_handler < handle
             obj.temp_prop.(prop.Name) = obj.(prop.Name);
             obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
             % Execute any external listeners
-            try
-                obj.execute_external_ls(prop,event);
-            catch err
-                obj.prop_listener_ctrl(prop.Name,true);
-                rethrow(err)
-            end
+            obj.execute_external_ls(prop,event);
             obj.prop_listener_ctrl(prop.Name,true);
         end
         
@@ -185,26 +170,31 @@ classdef pref_handler < handle
             % Disable other listeners on this since we will be both getting
             % and setting this prop in this method
             obj.prop_listener_ctrl(prop.Name,false);
-            % Execute any external listeners
-            try
-                obj.execute_external_ls(prop,event);
-            catch ext_err % rethrow at the end
-            end
             % Update stash, then copy back to prop (get listeners can alter
             % obj.(prop.Name) as well as the obvious SetEvent does)
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
             try
-                new_val.value = obj.(prop.Name);
-            catch err
-                obj.(prop.Name) = obj.temp_prop.(prop.Name);
-                obj.prop_listener_ctrl(prop.Name,true);
-                rethrow(err) %%% CHANGE TO CC ERROR HANDLING %%%
+                new_val.value = obj.(prop.Name); % validation occurs here
+            catch err % Revert to old value (exclusively for external listeners)
+                obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
+                % Grab all properties defined in the subclass to help with
+                % error message
+                val_help = new_val.validation_summary(obj.pref_handler_indentation);
+                % Escape tex modifiers
+                val_help = strrep(val_help,'\','\\');
+                val_help = strrep(val_help,'_','\_');
+                val_help = strrep(val_help,'^','\^');
+                opts.WindowStyle = 'non-modal';
+                opts.Interpreter = 'tex';
+                errordlg(sprintf('%s:\n\\fontname{Courier}%s',err.message,val_help),...
+                    sprintf('%s Error',class(obj.temp_prop.(prop.Name))),opts);
             end
+            % Execute any external listeners
+            obj.execute_external_ls(prop,event);
+            % Update the class-pref and re-engage listeners
+            % Note if the above try block failed; this is still the old value
             obj.(prop.Name) = new_val;
             obj.prop_listener_ctrl(prop.Name,true);
-            if exist('ext_err','var')
-                rethrow(ext_err);
-            end
         end
     end
     

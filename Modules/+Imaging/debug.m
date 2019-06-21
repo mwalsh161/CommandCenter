@@ -3,11 +3,11 @@ classdef debug < Modules.Imaging
     
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'resolution','continuous'};
+        prefs = {'new_style','resolution','continuous'};
      %   show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
     end
     properties(GetObservable,SetObservable)
-        new_style = Prefs.Integer();
+        new_style = Prefs.Integer('min',0);
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
  %       database = Modules.Database.empty(0); % Should never do this
