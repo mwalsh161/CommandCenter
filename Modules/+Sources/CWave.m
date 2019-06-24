@@ -13,7 +13,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
 
     properties(SetObservable,SetAccess=private)
         source_on = false;
-        locked = false;
     end
 
     properties(SetObservable,AbortSet)
@@ -38,6 +37,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
     methods(Access=private)
         function obj = CWave()
             obj.loadPrefs;
+        end
     end
 
     methods(Static)
@@ -162,3 +162,5 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
                 rethrow(err)
             end
         end
+    end
+end

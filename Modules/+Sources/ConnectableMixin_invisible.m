@@ -1,5 +1,5 @@
-classdef(Abstract) ConnectableMixin
-    methods(Acces=private)
+classdef(Abstract) ConnectableMixin_invisible < handle
+    methods(Access=private)
         function err = connect_driver(obj,propname,drivername,varargin)
             err = [];
             if ~isempty(obj.(propname))
