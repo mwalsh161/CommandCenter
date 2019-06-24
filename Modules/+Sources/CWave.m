@@ -15,6 +15,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         source_on = false;
     end
 
+    properties(SetAccess=protected)
+        range = Sources.TunableLaser_invisible.c/[300, 1000]
+    end
+
     properties(SetObservable,AbortSet)
         resonator_percent = 0;
         tuning = false;
@@ -26,7 +30,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         show_prefs = {'tuning', 'cwave_ip', 'pulseStreamer_ip', 'wavemeter_ip'};
         readonly_prefs = {'tuning'};
         % TODO I have no idea what the cwave's range is
-        range = Sources.TunableLaser_invisible.c/[300, 1000]
     end
 
     properties(SetAccess=private)
