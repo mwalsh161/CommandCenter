@@ -2,14 +2,17 @@ clear CWave;
 clc;
 
 cwave = Drivers.CWave.instance('192.168.11.3');
-wavemeter = Drivers.Wavemeter.Wavemeter.instance('0.0.0.0') % IP address of wavemeter?
+wavemeter = Drivers.Wavemeter.instance('0.0.0.0', 1, 1); % IP address of wavemeter?
 
 disp('wavemeter:')
 disp(wavemeter.getWavelength())
 
+%cwave.abort_tune()
 
-disp('status:')
-disp(cwave.get_statusbits())
+%disp(cwave.get_status_temp_ref())
+
+%disp('status:')
+%disp(cwave.get_statusbits())
 
 disp('ref temp:')
 disp(cwave.get_status_temp_ref())
@@ -21,7 +24,7 @@ disp('opo temp:')
 disp(cwave.get_status_temp_opo())
 
 %failed status=1, 'optimization has not stopped'
-%cwave.abort_tune()
+cwave.abort_tune()
 
 %failed status=1, 'opo not locked, optimization still in progress'
 %disp('OPO lock:')

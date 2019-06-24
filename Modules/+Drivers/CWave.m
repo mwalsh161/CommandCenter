@@ -176,11 +176,11 @@ classdef CWave < Modules.Driver
             inversion_condition = {obj.ConnectCwave,obj.Admin,obj.UpdateStatus,obj.Set_IntValue, ...
                                    obj.Set_FloatValue,obj.SetCommand,obj.LaserStatus, obj.Ext_SetCommand};
             if(ismember(FunctionName, inversion_condition))
-                if status == 1:
-                    status = 0
-                else
-                    status = 1
-                end
+                disp('pre inversion')
+                disp(FunctionName)
+                disp('status')
+                disp(status)
+                status = ~status;
             end
             switch FunctionName
                 case obj.ConnectCwave
