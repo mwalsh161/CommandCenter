@@ -176,10 +176,6 @@ classdef CWave < Modules.Driver
             inversion_condition = {obj.ConnectCwave,obj.Admin,obj.UpdateStatus,obj.Set_IntValue, ...
                                    obj.Set_FloatValue,obj.SetCommand,obj.LaserStatus, obj.Ext_SetCommand};
             if(ismember(FunctionName, inversion_condition))
-                disp('pre inversion')
-                disp(FunctionName)
-                disp('status')
-                disp(status)
                 status = ~status;
             end
             switch FunctionName
@@ -593,22 +589,24 @@ classdef CWave < Modules.Driver
             pause(1);
         end
 
-        function fine_tune(obj, measured_wavelength)
+        function set_target_deviation(obj, target_dev)
+            obj.set_intvalue(obj.WLM_targetdeviation, target_dev);
+        end
+
+        function fine_tune(obj)
             % fine tune based on wavemeter measurement
             ret = obj.set_intvalue(WLM_PiezoSteps, 1);
             assert(ret == 1, 'Turning on cavity piezo during PID failed');
             ret = obj.set_intvalue(WLM_etalonsteps, 0);
             assert(ret == 1, 'Turning off etalon steps during PID failed');
-            obj.WLM_PID_Compute(measured_wavelength);
         end
 
-        function coarse_tune(obj, measured_wavelength)
+        function coarse_tune(obj)
             % coarse tune based on wavemeter measurement
             ret = obj.set_intvalue(WLM_PiezoSteps, 1);
             assert(ret == 1,'Turning on cavity piezo during PID failed');
             ret = obj.set_intvalue(WLM_etalonsteps, 1);
             assert(ret == 1, 'Turning on etalon steps during PID failed');
-            obj.WLM_PID_Compute(measured_wavelength);
         end
         
         function flag = abort_tune(obj)

@@ -35,6 +35,22 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         no_server = 'No Server';  % Message when not connected
     end
 
+    methods(Access=private)
+        function obj = CWave()
+            obj.loadPrefs;
+    end
+
+    methods(Static)
+        function obj = instance()
+            mlock;
+            persistent Object
+            if isempty(Object) || ~isvalid(Object)
+                Object = Sources.CWave();
+            end
+            obj = Object;
+        end
+    end
+
     methods
 
         % source methods
@@ -53,21 +69,32 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
 
         % tunable laser methods
 
-        function tune(obj, setpoint, coarse)
+        function tune(obj, setpoint)
+            tuning = true;
             assert(~isempty(cwaveHandle), 'no cwave handle')
-            cwaveHandle.set_pid_target_wavelength(setpoint);
-            wavelength = wavemeter.getWavelength();
-            if coarse
-                cwaveHandle.coarse_tune(wavelength);
-            else
-                cwaveHandle.fine_tune(wavelength);
+            target_dev = 0.5;
+            measured_wavelength = wavemeter.getWavelength();
+            mid_setpoint = measured_wavelength;
+            while round(target_dev, 5) > 0
+                while abs(mid_setpoint - setpoint) > 2*target_dev
+                    mid_setpoint = mid_setpoint + 2*target_dev;
+                    cwave.set_target_deviation(target_dev);
+                    cwaveHandle.set_pid_target_wavelength(mid_setpoint);
+                    while abs(measured_wavelength - mid_setpoint) > target_dev
+                        cwave.WLM_PID_Compute(measured_wavelength);
+                        pause(0.001);
+                    end
+                end
+                target_dev = target_dev/10;
             end
+            tuning = false;
         end
 
         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   setpoint = setpoint in nm
-            obj.tune(setpoint, false);
+            cwaveHandle.fine_tune();
+            obj.tune(setpoint);
         end
 
         function TuneCoarse(obj, setpoint)
@@ -81,7 +108,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
             %   the cavity piezo.
             % 
             %   setpoint = setpoint in nm
-            obj.tune(setpoint, true);
+            cwaveHandle.coarse_tune();
+            obj.tune(setpoint);
         end
 
         function TunePercent(obj, percent)
