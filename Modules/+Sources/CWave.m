@@ -22,6 +22,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         pulseStreamer_ip = Sources.CWave.no_server;
         wavemeter_ip = Sources.CWave.no_server;
         wavemeter_channel = 1; % set to integer value
+        % TODO fill in prefs all the way
+        show_prefs = {'tuning', 'cwave_ip', 'pulseStreamer_ip', 'wavemeter_ip'};
+        readonly_prefs = {'tuning'};
+        % TODO I have no idea what the cwave's range is
+        range = Sources.TunableLaser_invisible.c/[300, 1000]
     end
 
     properties(SetAccess=private)
@@ -123,6 +128,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
 
         function piezo = GetPercent(obj)
             piezo = cwaveHandle.get_ref_cavity_percent();
+        end
+
+        function freq = getFrequency(obj)
+            wavelength = wavemeter.getWavelength();
+            freq = Sources.TunableLaser_invisible.c/wavelength
         end
 
         % set methods
