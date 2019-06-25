@@ -16,6 +16,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
     end
 
     properties(SetAccess=protected)
+        % TODO I have no idea what the cwave's range is
         range = Sources.TunableLaser_invisible.c./[300, 1000];
     end
 
@@ -29,7 +30,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
         % TODO fill in prefs all the way
         show_prefs = {'tuning', 'cwave_ip', 'pulseStreamer_ip', 'wavemeter_ip'};
         readonly_prefs = {'tuning'};
-        % TODO I have no idea what the cwave's range is
     end
 
     properties(SetAccess=private)
@@ -54,8 +54,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
             persistent Object
             if isempty(Object) || ~isvalid(Object)
                 Object = Sources.CWave();
+                disp('instantiated cwave')
             end
+            disp('assigning Object')
             obj = Object;
+            disp('function returning')
         end
     end
 

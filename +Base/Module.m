@@ -184,10 +184,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             assert(ischar(obj.namespace),'Namespace must be a string!')
             if isprop(obj,'prefs')
                 assert(iscell(obj.prefs),'Property "prefs" must be a cell array')
-                disp('number of prefs:')
-                disp(numel(obj.prefs))
                 for i = 1:numel(obj.prefs)
-                    disp(i)
                     if ~ischar(obj.prefs{i})
                         warning('MODULE:load_prefs','Error on loadPrefs (position %i): %s',i,'Must be a string!')
                         continue
@@ -200,10 +197,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                                 if isempty(pref)% Means it is the default value, and not set
                                     continue
                                 end
-                                disp('length of prefs:')
-                                disp(length(pref))
                                 for j = 1:length(pref)
-                                    disp(j)
                                     temp(j) = eval(sprintf('%s.instance',pref{j})); % Grab instance(s) from string
                                 end
                                 pref = temp;
@@ -214,9 +208,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         end
                     end
                 end
-                disp('for loop successful')
             end
-            disp('function returning')
         end
         function delete(obj)
             obj.savePrefs;
