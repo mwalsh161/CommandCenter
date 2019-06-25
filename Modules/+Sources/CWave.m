@@ -70,11 +70,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             persistent Object
             if isempty(Object) || ~isvalid(Object)
                 Object = Sources.CWave();
-                disp('instantiated cwave')
             end
-            disp('assigning Object')
             obj = Object;
-            disp('function returning')
         end
     end
 
@@ -135,7 +132,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             %   the cavity piezo.
             % 
             %   setpoint = setpoint in nm
-            cwaveHandle.coarse_tune();
+            obj.cwaveHandle.coarse_tune();
             obj.tune(setpoint);
         end
 
@@ -145,22 +142,22 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             % percent = desired piezo percentage from 1 to 100
             assert(~isempty(obj.cwaveHandle)&&isobject(obj.cwaveHandle) && isvalid(obj.cwaveHandle),'no cwave handle')
             assert(percent>=0 && percent<=100,'Target must be a percentage')
-            obj.resonator_percent = obj.cwaveHandle.tune_ref_cavity(percent)
+            obj.resonator_percent = obj.cwaveHandle.tune_ref_cavity(percent);
         end
 
         function piezo = GetPercent(obj)
-            piezo = cwaveHandle.get_ref_cavity_percent();
+            piezo = obj.cwaveHandle.get_ref_cavity_percent();
         end
 
         function freq = getFrequency(obj)
-            wavelength = wavemeter.getWavelength();
-            freq = Sources.TunableLaser_invisible.c/wavelength
+            wavelength = obj.wavemeter.getWavelength();
+            freq = Sources.TunableLaser_invisible.c/wavelength;
         end
 
         % set methods
 
         function set.cwave_ip(obj,ip)
-            err = obj.connect_driver('cwaveHandle', cwave, ip);
+            err = obj.connect_driver('cwaveHandle', 'CWave', ip);
             if ~isempty(err)
                 obj.cwave_ip = obj.no_server;
                 rethrow(err)
@@ -174,21 +171,21 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 obj.pulseStreamer_ip = obj.no_server;
                 rethrow(err)
             end
-            pulseStreamer_ip = ip;
+            obj.pulseStreamer_ip = ip;
         end
 
         function set.wavemeter_ip(obj, ip)
-            err = obj.connect_driver('Wavemeter', Wavemeter.Wavemeter, ip, obj.wavemeter_channel);
+            err = obj.connect_driver('wavemeter', 'Wavemeter', ip, obj.wavemeter_channel);
             if ~isempty(err)
                 obj.wavemeter_ip = obj.no_server;
                 rethrow(err)
             end
-            wavemeter_ip = ip;
+            obj.wavemeter_ip = ip;
         end
 
         function set.wavemeter_channel(obj, channel)
             assert(round(channel)==channel&&channel>0,'wavemeter_channel must be an integer greater than 0.')
-            obj.wavemeter_channel = channel
+            obj.wavemeter_channel = channel;
             err = obj.connect_driver('wavemeter','Wavemeter',obj.wavemeter_ip,val);
             if ~isempty(err)
                 rethrow(err)
