@@ -208,7 +208,9 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         end
                     end
                 end
+                disp('for loop successful')
             end
+            disp('function returning')
         end
         function delete(obj)
             obj.savePrefs;
