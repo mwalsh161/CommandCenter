@@ -16,7 +16,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible & Sources.Conne
     end
 
     properties(SetAccess=protected)
-        range = Sources.TunableLaser_invisible.c/[300, 1000]
+        range = Sources.TunableLaser_invisible.c./[300, 1000];
     end
 
     properties(SetObservable,AbortSet)
