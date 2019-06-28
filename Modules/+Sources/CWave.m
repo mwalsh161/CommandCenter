@@ -94,16 +94,16 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         % tunable laser methods
 
         function tune(obj, setpoint)
-            tuning = true;
-            assert(~isempty(cwaveHandle), 'no cwave handle')
+            obj.tuning = true;
+            assert(~isempty(obj.cwaveHandle), 'no cwave handle')
             target_dev = 0.5;
-            measured_wavelength = wavemeter.getWavelength();
+            measured_wavelength = obj.wavemeter.getWavelength();
             mid_setpoint = measured_wavelength;
             while round(target_dev, 5) > 0
                 while abs(mid_setpoint - setpoint) > 2*target_dev
                     mid_setpoint = mid_setpoint + 2*target_dev;
                     cwave.set_target_deviation(target_dev);
-                    cwaveHandle.set_pid_target_wavelength(mid_setpoint);
+                    obj.cwaveHandle.set_pid_target_wavelength(mid_setpoint);
                     while abs(measured_wavelength - mid_setpoint) > target_dev
                         cwave.WLM_PID_Compute(measured_wavelength);
                         pause(0.001);
@@ -111,13 +111,13 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 end
                 target_dev = target_dev/10;
             end
-            tuning = false;
+            obj.tuning = false;
         end
 
         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   setpoint = setpoint in nm
-            cwaveHandle.fine_tune();
+            obj.cwaveHandle.fine_tune();
             obj.tune(setpoint);
         end
 

@@ -625,13 +625,13 @@ classdef CWave < Modules.Driver
             %Piezo voltage is passed a a percentage of the total range
             %Total range is 0-65535
             %Convert from percentage to integer
-            peizo_voltage = round(piezo_percent*obj.Piezo_maxBit);
+            piezo_voltage = round(piezo_percent*obj.Piezo_maxBit);
           
-            flag = LibraryFunction(obj.LibraryName,obj.Set_IntValue,obj.RefCavity_Piezo,peizo_voltage);
+            flag = obj.LibraryFunction(obj.Set_IntValue,obj.RefCavity_Piezo,piezo_voltage);
             if (flag == 1)
                 piezo = piezo_percent;
             elseif (flag == -1)
-                piezo = get_ref_cavity_percent();
+                piezo = obj.get_ref_cavity_percent();
             end    
         end
         
