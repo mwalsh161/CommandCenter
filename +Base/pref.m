@@ -88,7 +88,6 @@ classdef pref % value class
                 addParameter(p,props(i).Name,[]);
             end
             parse(p,varargin{:});
-            % NOTE: item was removed from varargin earlier switching the parity
             if default_in_parser
                 default = p.Results.default;
             end
