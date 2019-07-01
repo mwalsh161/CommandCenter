@@ -336,7 +336,7 @@ classdef Manager < handle
                 stack(1) = []; % Remove this method
             end
             
-            obj.log(logMsg,stack,Base.Logger.ERROR)
+            obj.logTraceback(logMsg,stack,Base.Logger.ERROR)
             if ~isempty(obj.handles.Managers.error_dlg) && isvalid(obj.handles.Managers.error_dlg)
                 txt = findall(obj.handles.Managers.error_dlg,'type','Text');
                 if ~strcmp(strjoin(txt.String,'\n'),dlgMsg)
