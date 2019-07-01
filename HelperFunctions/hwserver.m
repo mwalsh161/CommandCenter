@@ -109,8 +109,11 @@ classdef hwserver < handle
             end
             response = jsondecode(urldecode(response));
             if response.error
+                % Make sure we escape the % character because it will likely go 
+                % through another format string during error handling
                 ME = MException('HWSERVER:error',...
-                    'hwserver error: %s\n%s',response.response,response.traceback);
+                    'hwserver error: %s\n%s',strrep(response.response,'%','%%'),...
+                    strrep(response.traceback,'%','%%'));
                 throwAsCaller(ME);
             end
             response = response.response;
