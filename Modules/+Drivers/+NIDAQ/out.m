@@ -52,9 +52,12 @@ classdef out < handle
             obj.dev = dev;
             obj.line = line;
             obj.name = name;
-            if nargin < 4
+            if nargin < 4 % This obviously does not matter for digital
                 limits = [dev.AnalogOutMinVoltage dev.AnalogOutMaxVoltage];
             end
+            assert(numel(limits)==2,'Limits should have two elements: [min max]');
+            assert(limits(1) >= dev.AnalogOutMinVoltage, sprintf('Lower limit is below device min voltage (%g V)',dev.AnalogOutMinVoltage));
+            assert(limits(2) <= dev.AnalogOutMaxVoltage, sprintf('Upper limit is above device max voltage (%g V)',dev.AnalogOutMaxVoltage));
             obj.limits = limits;
             obj.check;
         end

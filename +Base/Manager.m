@@ -47,6 +47,7 @@ classdef Manager < handle
         handles         % All handles to GUI
         type            % Specify type to have separate namespaces in prefs
         frozen_state    % State of panel controls before frozen (active_module is empty)
+        module_settings_reload_listener;
     end
     
     methods(Static)
@@ -206,11 +207,16 @@ classdef Manager < handle
         end
         % Callback when obj.active_module is modified (DO NOT OVERRIDE THIS)
         function master_active_module_changed(obj,varargin)
+            % Delete last module's listner. No need to clean up on CC exit since
+            % CC will delete all modules anyway.
+            delete(obj.module_settings_reload_listener); % Empty/already deleted listener does not error
             obj.update_settings;
             if isempty(obj.active_module)
                 obj.disable;
             else
                 obj.enable;
+                obj.module_settings_reload_listener = ...
+                    addlistener(obj.active_module,'update_settings',@(~,~)obj.update_settings);
             end
             obj.active_module_changed(varargin{:});
         end
@@ -270,6 +276,7 @@ classdef Manager < handle
                     scrollPanel.addPanel(settings_panel,'Settings');
                 end
                 delete(temp)
+                
             end
         end
         % Redefines all uicontrol elements in contents to go through sandbox
@@ -336,7 +343,7 @@ classdef Manager < handle
                 stack(1) = []; % Remove this method
             end
             
-            obj.logTraceback(logMsg,stack,Base.Logger.ERROR)
+            obj.log(logMsg,stack,Base.Logger.ERROR)
             if ~isempty(obj.handles.Managers.error_dlg) && isvalid(obj.handles.Managers.error_dlg)
                 txt = findall(obj.handles.Managers.error_dlg,'type','Text');
                 if ~strcmp(strjoin(txt.String,'\n'),dlgMsg)
@@ -445,6 +452,7 @@ classdef Manager < handle
             for i = 1:numel(modulesTemp)
                 if ~isempty(modulesTemp{i})&&isobject(modulesTemp{i})&&isvalid(modulesTemp{i})
                     delete(modulesTemp{i})
+                    drawnow; % Let other callbacks listening to delete event take place
                 end
             end
             obj.log('%s %s Destroyed',obj.type,mfilename)

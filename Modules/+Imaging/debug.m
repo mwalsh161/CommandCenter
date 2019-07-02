@@ -4,12 +4,11 @@ classdef debug < Modules.Imaging
     properties
         maxROI = [-1 1; -1 1];
         prefs = {'resolution','continuous','driver','database','imager','stage'};
-        show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};;
-        readonly_prefs = {'source'};
+        show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
     end
     properties(SetObservable)
         driver = Modules.Driver.empty(1,0); % Will only work without inputs
-        source = Sources.msquared.EMM.instance;
+        source = Modules.Source.empty(1,0);
         database = Modules.Database.empty(0); % Should never do this
         imager = Modules.Imaging.empty;
         stage = Modules.Stage.empty;

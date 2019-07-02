@@ -31,7 +31,13 @@ classdef Experiment < Base.Module
         % Return the data object to be saved. Ideally a structure, not a class.
         data = GetData(obj,stage,imager)
     end
-    
+    methods % Opt-in
+        function LoadData(obj,data)
+            % Given the data struct that is produced in "GetData", you have
+            % the option to load it back into memory here
+            error('Not implemented');
+        end
+    end
     methods(Static)
         function new(experiment_name)
             % Pull templates into correct folder

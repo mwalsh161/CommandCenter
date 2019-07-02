@@ -21,6 +21,9 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
     properties(Abstract,Constant,Hidden)
         modules_package;
     end
+    events
+        update_settings % Listened to by CC to allow modules to request settings to be reloaded
+    end
     
     methods(Access=private)
         function savePrefs(obj)
@@ -387,7 +390,15 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 end
                 obj.(prop_name) = new_val;
             catch err % Reset value in GUI
-                hObj.UserData.setValue(obj.GUI_handle,prop_name,obj.(prop_name))
+                % obj.(prop_name) = new_val could result in a module set
+                % method to update_settings. If that happens, THEN that set
+                % method subsequently errors, we end up here with a deleted
+                % hObj. The update_settings should have taken care of
+                % updating CC, so we can just ignore this and continue to
+                % rethrow the err
+                if isvalid(hObj)
+                    hObj.UserData.setValue(obj.GUI_handle,prop_name,obj.(prop_name))
+                end
                 rethrow(err)
             end
             % the GUI will be udpated on the PostSet callback

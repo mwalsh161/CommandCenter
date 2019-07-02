@@ -28,7 +28,7 @@ try
     
     t = tic;
     while abs(laserloc - target) > FineThresh %threshold for catching NV in scan
-        assert(toc(t) < obj.TuningTimeout,'Tuning timed out');
+        assert(toc(t) < obj.TuningTimeout,'Unable to complete tuning within timeout.');
         if abs(laserloc - target) > CorThresh %coarse threshold
             LaserFreqSet = LaserFreqSet-Pgain*(laserloc- target); %take difference, use to set again
         else %we're close; use small steps
