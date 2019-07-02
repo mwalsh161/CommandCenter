@@ -1,4 +1,4 @@
-classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
+classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneous
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties.
     %
@@ -14,8 +14,10 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         GUI_handle                  % Handle to uicontrolgroup panel
     end
-    properties(Access=protected)
+    properties
         logger                      % Handle to log object
+    end
+    properties(Access=protected)
         module_delete_listener      % Used in garbage collecting
     end
     properties(Abstract,Constant,Hidden)
@@ -272,10 +274,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     continue
                 elseif prop_md.HasDefault && ~strcmp(class(prop_md.DefaultValue),class(obj.(prop_md.Name)))
                     % There are some exceptions
+                    handleClassException = ismember('Base.pref',superclasses(prop_md.DefaultValue));
                     multChoiceException = iscell(prop_md.DefaultValue)||isa(prop_md.DefaultValue,'function_handle');
                     logicalException = islogical(prop_md.DefaultValue)&&(obj.(prop_md.Name)==0||obj.(prop_md.Name)==1);
                     moduleException = contains('Base.Module',superclasses(prop_md.DefaultValue));
-                    if ~(multChoiceException||logicalException||moduleException)
+                    if ~(handleClassException||multChoiceException||logicalException||moduleException)
                         warning('MODULE:settings','Ignored "%s"; Current property value does not match default value type.',prop_names{i})
                         continue
                     elseif logicalException
@@ -369,7 +372,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 end
                 if reset
                     if mp.HasDefault % Querying DefaultValue will error if HasDefault is false
-                        obj.(prop_name) = mp.DefaultValue;
+                        if ismember('Base.pref',superclasses(mp.DefaultValue)) % patch for class-based prefs
+                            obj.(prop_name) = mp.DefaultValue.default;
+                        else
+                            obj.(prop_name) = mp.DefaultValue;
+                        end
                     else
                         obj.(prop_name) = []; % Matlab assigns [] to properties without explicit default
                     end
