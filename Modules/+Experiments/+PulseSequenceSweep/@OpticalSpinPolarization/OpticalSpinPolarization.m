@@ -33,21 +33,23 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
     methods
         pulseSeq = BuildPulseSequence(obj,tauIndex) %Defined in separate file
         
-        function PreRun(obj,~,~,ax)
+        function PreRun(obj,~,managers,ax)
             %prepare axes for plotting
             hold(ax,'on');
+            colors = lines(2);
             %plot data bin 1
-            plotH = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1),'color','b');
-            %plot data bin 1 errors
-            plotH(2) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1)+obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
-            plotH(3) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1)-obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
+            plotH{1} = errorfill(([1:obj.nCounterBins]-1)*(obj.counterDuration+obj.counterSpacing),...
+                              obj.data.sumCounts(:,1,1),...
+                              obj.data.stdCounts(:,1,1),...
+                              'parent',ax,'color',colors(1,:));
+            ylabel(ax,'Intensity (a.u.)');
+            xlabel(ax,'Delay time (\mus)');
+            
+            % Store for UpdateRun
             ax.UserData.plots = plotH;
-            ylabel(ax,'Normalized PL');
-            xlabel(ax,'Delay Time \tau (\mus)');
             hold(ax,'off');
             set(ax,'xlimmode','auto','ylimmode','auto','ytickmode','auto')
         end
-        
         function UpdateRun(obj,~,~,ax,~,~)
             if obj.averages > 1
                 averagedData = squeeze(nanmean(obj.data.sumCounts,3));
@@ -58,10 +60,11 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
             end
             
             %grab handles to data from axes plotted in PreRun
-            ax.UserData.plots(1).YData = averagedData(:,1);
-            ax.UserData.plots(2).YData = averagedData(:,1) + meanError(:,1);
-            ax.UserData.plots(3).YData = averagedData(:,1) - meanError(:,1);
-            drawnow;
+            ax.UserData.plots{1}.YData = averagedData(1,:);
+            ax.UserData.plots{1}.YNegativeDelta = meanError(1,:);
+            ax.UserData.plots{1}.YPositiveDelta = meanError(1,:);
+            ax.UserData.plots{1}.update;
+            drawnow limitrate;
         end
         
         function set.resTime_us(obj,val)
@@ -70,6 +73,5 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
             obj.counterDuration = obj.resTime_us / obj.nCounterBins - obj.counterSpacing;
             obj.tauTimes = linspace(0,obj.resTime_us-obj.counterDuration-obj.counterSpacing,obj.nCounterBins);
         end
-        
     end
 end
