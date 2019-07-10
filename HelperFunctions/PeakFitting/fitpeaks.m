@@ -58,10 +58,17 @@ validLimit = @(x)assert(validNumericArray(x)&&length(x)==2,...
 addRequired(p,'x',@(x)validNumericArray(x)&&validColumnArray(x))
 addRequired(p,'y',@(x)validNumericArray(x)&&validColumnArray(x))
 parse(p,x,y);
-% Order data
+% Order data and remove NaNs in y
 [x,I] = sort(x);
 y = y(I);
-dx = min(diff(x));
+remove = isnan(y);
+x(remove) = [];
+y(remove) = [];
+% Prepare input for findpeaks (strictly increasing)
+[xp,~,idx] = unique(x,'stable');
+yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
+dx = min(diff(xp));
+assert(dx>0,'dx calculated to be <= 0');
 
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
@@ -108,9 +115,10 @@ switch lower(p.FitType)
         fit_function = @lorentzfit;
 end
 
-proms_y = smooth(y,p.Span);
-proms_y = [min(proms_y); proms_y; min(proms_y)];
-[~, init.locations, init.widths, init.amplitudes] = findpeaks(proms_y,[x(1)-dx; x; x(end)+dx]);
+yp = smooth(yp,p.Span);
+xp = [x(1)-dx; xp; x(end)+dx];
+yp = [min(yp); yp; min(yp)];
+[~, init.locs, init.wids, init.proms] = findpeaks(yp,xp);
 [init.amplitudes,I] = sort(init.amplitudes,'descend');
 init.locations = init.locations(I);
 init.widths = init.widths(I);
@@ -130,8 +138,8 @@ if usingN
     [f,new_gof,output] = fit_function(x, y, n, init, limits);
     noise = noise_model(x,y,f(x),p.NoiseModel);
     new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
-    fit_results{end+1} = f; %#ok<AGROW> (relatively small arrays and unknown number of peaks)
-    gofs(end+1) = new_gof; %#ok<AGROW> (relatively small arrays and unknown number of peaks)
+    fit_results{end+1} = f;
+    gofs(end+1) = new_gof;
 else
     stop_condition = NaN;
     for n = 1:length(init.amplitudes)
@@ -184,7 +192,7 @@ assert(isequal(size(noise),size(y)),sprintf('Noise model function returned a mat
 end
 function noise = empirical_noise(~,observed_y,modeled_y)
     residuals = observed_y - modeled_y;
-    noise = std(residuals)^2*ones(size(residuals));
+    noise = var(residuals)*ones(size(residuals));
 end
 function noise = shot_noise(~,~,modeled_y)
     noise = modeled_y;
