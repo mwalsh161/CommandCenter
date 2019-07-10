@@ -118,7 +118,7 @@ end
 yp = smooth(yp,p.Span);
 xp = [x(1)-dx; xp; x(end)+dx];
 yp = [min(yp); yp; min(yp)];
-[~, init.locs, init.wids, init.proms] = findpeaks(yp,xp);
+[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp,xp);
 [init.amplitudes,I] = sort(init.amplitudes,'descend');
 init.locations = init.locations(I);
 init.widths = init.widths(I);

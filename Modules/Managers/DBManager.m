@@ -22,6 +22,7 @@ classdef DBManager < Base.Manager
             obj.blockOnLoad = handles.menu_saving;
             set(handles.image_save,'ClickedCallback',@(hObj,eventdata)obj.imSave(false,hObj,eventdata))
             set(handles.experiment_save,'Callback',@(hObj,eventdata)obj.expSave(false,hObj,eventdata))
+            set(handles.experiment_load,'Callback',@(hObj,eventdata)obj.expLoad(hObj,eventdata))
             addlistener(obj.handles.Managers.Experiment,'experiment_finished',@(hObj,eventdata)obj.expSave(true,hObj,eventdata));
             addlistener(obj.handles.Managers.Imaging,'image_taken',@(hObj,eventdata)obj.imSave(true,hObj,eventdata));
         end
@@ -129,6 +130,25 @@ classdef DBManager < Base.Manager
             ax = obj.handles.axExp;
             data.data = temp;
             obj.Save('SaveExp',data,auto,ax,obj.handles.Managers.Experiment.active_module)
+        end
+        function expLoad(obj,varargin)
+            assert(~isempty(obj.active_module),'No module loaded.')
+            assert(~isempty(obj.handles.Managers.Experiment.active_module),'No experiment module loaded.')
+            err = [];
+            h = msgbox('Loading data.','DBManager','help','modal');
+            h.KeyPressFcn='';  % Prevent esc from closing window
+            delete(findall(h,'tag','OKButton')); drawnow;
+            try
+                data = obj.sandboxed_function({obj.active_module,'LoadExp'});
+                if obj.last_sandboxed_fn_eval_success
+                    obj.handles.Managers.Experiment.sandboxed_function({obj.handles.Managers.Experiment.active_module,'LoadData'},data);
+                end
+            catch err
+            end
+            delete(h);
+            if ~isempty(err)
+                rethrow(err)
+            end
         end
     end
 end

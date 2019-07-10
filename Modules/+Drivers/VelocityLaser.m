@@ -15,7 +15,7 @@ classdef VelocityLaser < Modules.Driver
         idn
     end
     properties
-        TuningTimout = 60;
+        TuningTimeout = 0; % Timeout = 0 signifies not to wait for the hwserver to return
     end
     properties (SetObservable)
         PiezoPercent = [];
@@ -48,7 +48,7 @@ classdef VelocityLaser < Modules.Driver
             obj.connection = hwserver(ip);
             try % Init laser
                 obj.idn = obj.com('idn');
-                obj.PiezoPercent = obj.com('getPiezoPercent');
+                obj.PiezoPercent = obj.getPiezoPercent;
                 obj.Wavelength = obj.measuredWavelength;
                 obj.Power = obj.com('getPower');
             catch err
@@ -68,6 +68,9 @@ classdef VelocityLaser < Modules.Driver
         end
         function on = getDiodeState(obj)
             on = obj.com('getDiodeState');
+        end
+        function percent = getPiezoPercent(obj)
+            percent = obj.com('getPiezoPercent');
         end
         function wl = measuredWavelength(obj)
             wl = obj.com('getWavelength');
@@ -126,9 +129,11 @@ classdef VelocityLaser < Modules.Driver
         function set.Wavelength(obj,val)
             if ~obj.init
                 start_timeout = obj.connection.connection.Timeout;
-                obj.connection.connection.Timeout = obj.TuningTimout;
+                if obj.TuningTimeout > 0
+                    obj.connection.connection.Timeout = obj.TuningTimeout;
+                end
                 try
-                    obj.com('setWavelength',val,obj.TuningTimout);
+                    obj.com('setWavelength',val,obj.TuningTimeout);
                 catch err
                     obj.connection.connection.Timeout = start_timeout;
                     rethrow(err);

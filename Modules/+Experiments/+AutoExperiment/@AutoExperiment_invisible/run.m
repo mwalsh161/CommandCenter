@@ -19,31 +19,45 @@ if length(managers.Stages.modules)>1
         'Yes','No','Yes');
     assert(~strcmp(answer,'No'),'Select desired module as active stage module and rerun')
 end
-obj.data = [];
-sites = obj.AcquireSites(managers);
-if obj.imaging_source.source_on
-    obj.imaging_source.off;
-end
-obj.data.image.image = sites.image;
-obj.data.image.meta = sites.meta;
-for i=1:size(sites.positions,1)
-    obj.data.sites(i).position = sites.positions(i,:);
-    obj.data.sites(i).experiments = [];
+obj.imaging_source.arm; % Arm imaging source for experiment
+% Initialize with whatever data user chose
+if obj.continue_experiment
+    assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
+    % Tag all this data as not new by incrementing continued flag
+    for i = 1:length(obj.data.sites)
+        for j = 1:length(obj.data.sites(i).experiments)
+            obj.data.sites(i).experiments(j).continued = obj.data.sites(i).experiments(j).continued + 1;
+        end
+    end
+else % Start a new experiment
+    obj.data = [];
+    sites = obj.AcquireSites(managers);
+    if obj.imaging_source.source_on
+        obj.imaging_source.off;
+    end
+    obj.data.image.image = sites.image;
+    obj.data.image.meta = sites.meta;
+    for i = 1:size(sites.positions,1)
+        obj.data.sites(i).position = sites.positions(i,:);
+        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{},'continued',{});
+    end
 end
 
 %set up looping if breadth or depth
-if strcmpi(obj.run_type,obj.SITES_FIRST)
-    [Y,X] = meshgrid(1:length(obj.experiments),1:length(obj.data.sites));
-elseif strcmpi(obj.run_type,obj.EXPERIMENTS_FIRST)
-    [X,Y] = meshgrid(1:length(obj.data.sites),1:length(obj.experiments));
-else
-    error('Unknown run_type %s',run_type)
+switch obj.run_type
+    case obj.SITES_FIRST
+        [Y,X] = meshgrid(1:length(obj.experiments),1:length(obj.data.sites));
+    case obj.EXPERIMENTS_FIRST
+        [X,Y] = meshgrid(1:length(obj.data.sites),1:length(obj.experiments));
+    otherwise
+        error('Unknown run_type %s',obj.run_type)
 end
 run_queue = [X(:),Y(:)];
-obj.PreRun(status,managers,ax)
-runstart = tic;
+obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = {};
+obj.PreRun(status,managers,ax);
+runstart = tic;
 err = [];
 try
     for repetition = 1:obj.repeat
@@ -51,18 +65,47 @@ try
             try
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
-                managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
-                if exp_index==1
-                    [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
-                    obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
-                end
                 experiment = obj.experiments(exp_index); %grab experiment instance
+                mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
+                new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==1); % Previous run, continued = 1 
+                if any(mask) && all([obj.data.sites(site_index).experiments(new_mask).completed])&&...
+                        ~any([obj.data.sites(site_index).experiments(new_mask).skipped])
+                    % If any over all time and the ones from the last run
+                    % are all completed and not skipped, then good to
+                    % continue
+                    obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
+                    continue
+                end
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
                 else
                     params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
                 end
+                if ~isempty(params)
+                    managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
+                    if exp_index==1
+                        [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
+                        obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                    end
+                    for j = 1:length(params)
+                        obj.data.sites(site_index).experiments(end+1).name = class(experiment);
+                        obj.data.sites(site_index).experiments(end).continued = 0;
+                        obj.data.sites(site_index).experiments(end).prefs = struct();
+                        obj.data.sites(site_index).experiments(end).err = [];
+                        obj.data.sites(site_index).experiments(end).completed = false;
+                        obj.data.sites(site_index).experiments(end).skipped = false;
+                    end
+                else
+                    % No need to move stage if nothing to do here
+                    obj.data.sites(site_index).experiments(end+1).name = class(experiment);
+                    obj.data.sites(site_index).experiments(end).continued = 0;
+                    obj.data.sites(site_index).experiments(end).prefs = struct();
+                    obj.data.sites(site_index).experiments(end).err = [];
+                    obj.data.sites(site_index).experiments(end).completed = true;
+                    obj.data.sites(site_index).experiments(end).skipped = true;
+                end
                 for j=1:length(params)
+                    local_exp_index = length(obj.data.sites(site_index).experiments)-length(params)+j; % So sorry
                     try
                         fields = fieldnames(params(j)); %grab list of parameter names
                         for k = 1:length(fields) %write all parameters to experiment
@@ -72,14 +115,16 @@ try
                             experiment.(fields{k}) = params(j).(fields{k});
                         end
                         msg = sprintf('Running iteration %i of %s on site %i',j,class(experiment),site_index);
-                        obj.logger.log(msg)
+                        obj.logger.log(msg,obj.logger.DEBUG)
                         status.String = msg;
                         drawnow;
-                        obj.data.sites(site_index).experiments(end+1).name = class(experiment);
-                        obj.data.sites(site_index).experiments(end).prefs = experiment.prefs2struct;
-                        obj.data.sites(site_index).experiments(end).err = [];
+                        obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
+                        if ~isempty(obj.prerun_functions{exp_index})
+                            obj.(obj.prerun_functions{exp_index})(experiment);
+                        end
                         RunExperiment(obj,managers,experiment,site_index,ax)
-                        obj.data.sites(site_index).experiments(end).data = experiment.GetData;
+                        obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
+                        obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
                         %track
@@ -95,7 +140,7 @@ try
                             end
                         end
                     catch param_err
-                        obj.data.sites(site_index).experiments(end).err = param_err;
+                        obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
                         obj.meta.errs(end+1).site = site_index;
                         obj.meta.errs(end).exp = exp_index;
                         obj.meta.errs(end).err = param_err;
@@ -108,15 +153,13 @@ try
                 obj.logger.logTraceback(sprintf('Error on queue index %i (repetition %i): %s',i,repetition,queue_err.message),...
                         queue_err.stack,Base.Logger.ERROR);
             end
-            if length(obj.meta.errs) >= obj.err_thresh
-                error('Experienced %i errors during run. Last error: %s',length(obj.meta.errs),obj.meta.errs(end).err.message)
-            end
             drawnow; assert(~obj.abort_request,'User aborted');
         end
     end
 catch err
 end
 obj.PostRun(status,managers,ax)
+obj.continue_experiment = false;
 if ~isempty(err)
     rethrow(err)
 end
