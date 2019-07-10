@@ -1,4 +1,4 @@
-function [ClusterNums, I] = clusterSpectra(Spectra, varargin)
+function [ClusterNums, I, H] = clusterSpectra(Spectra, varargin)
 %CLUSTESPECTRA Groups unkown spectra by similarity
 %   Takes a set of spectra and tries to group them together based on
 %   their similarity. Does not try to fit peaks, so may be better for
@@ -34,6 +34,7 @@ function [ClusterNums, I] = clusterSpectra(Spectra, varargin)
 %   ClusterNums: Mx1 array listing index of cluster each spectrum is
 %                associated with.
 %   I: Mx1 array listing order of spectra in dendrogram
+%   H: figure handle or cell array of figure handles
 
 % Input validation
 % Find number of spectra and pixel intensities
@@ -83,7 +84,7 @@ ClusterNums = cluster(Z, 'Cutoff', inp.Thr, 'criterion', 'distance');
 %Create plots
 switch inp.Show
     case 'all'
-        figure()
+        H = figure();
         subplot(2,1,1)
         [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
         ylabel('Distance')
@@ -92,7 +93,7 @@ switch inp.Show
         ylabel('Wavelength')
         xlabel('Site #')
     case 'allBlurred'
-        figure()
+        H = figure();
         subplot(2,1,1)
         [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
         ylabel('Distance')
@@ -101,17 +102,18 @@ switch inp.Show
         ylabel('Wavelength')
         xlabel('Site #')
     case 'spec'
-        figure()
+        H = figure();
         imagesc( 1:Nspectra, inp.Wav, Spectra' )
         ylabel('Wavelength')
         xlabel('Site #')
     case 'specBlurred'
-        figure()
+        H = figure();
         imagesc( 1:Nspectra, inp.Wav, filtSpectra' )
         ylabel('Wavelength')
         xlabel('Site #')
     case 'clusters'
-        figure()
+        H = cell(2,1);
+        H{1} = figure();
         subplot(2,1,1)
         [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
         ylabel('Distance')
@@ -120,7 +122,7 @@ switch inp.Show
         ylabel('Wavelength')
         xlabel('Site #')
         
-        figure()
+        H{2} = figure();
         Nclus = max(ClusterNums);
         for i = 1:Nclus
             subplot( Nclus, 1, i)
