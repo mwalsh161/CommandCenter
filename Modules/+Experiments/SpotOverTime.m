@@ -59,6 +59,8 @@ classdef SpotOverTime < Modules.Experiment
             ims = NaN([fliplr(managers.Imaging.active_module.resolution),obj.N]);
             dt = NaN(1,obj.N);
             err = [];
+            obj.wl.arm;
+            obj.gl.arm;
             try
                 for i = 1:obj.N
                     tic;

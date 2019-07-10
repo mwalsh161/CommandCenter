@@ -74,7 +74,10 @@ classdef hwserver < handle
                 fprintf(obj.connection,'%s\n',msg);
                 response = obj.receive;
             catch err
-                fprintf(obj.connection,'%s\n',abort);
+                % For future use in more parallel hwserver;
+                % for now, it is redundant with keep_alive: false and is
+                % error-prone server-side if called too quickly
+                % fprintf(obj.connection,'%s\n',abort);
             end
             fclose(obj.connection);
             if ~isempty(err)
@@ -106,8 +109,11 @@ classdef hwserver < handle
             end
             response = jsondecode(urldecode(response));
             if response.error
+                % Make sure we escape the % character because it will likely go 
+                % through another format string during error handling
                 ME = MException('HWSERVER:error',...
-                    'hwserver error: %s\n%s',response.response,response.traceback);
+                    'hwserver error: %s\n%s',strrep(response.response,'%','%%'),...
+                    strrep(response.traceback,'%','%%'));
                 throwAsCaller(ME);
             end
             response = response.response;

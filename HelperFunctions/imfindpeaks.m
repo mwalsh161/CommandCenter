@@ -157,8 +157,8 @@ else
     % Switch px -> units
     x = handles.im.XData([1 end]);
     y = handles.im.YData([1 end]);
-    cal = mean((size(handles.im.CData)-1)./[diff(y) diff(x)]);
-    candidates = (candidates-1)/cal + [x(1) y(1)];
+    cal = (fliplr(size(handles.im.CData))-1)./[diff(x) diff(y)];
+    candidates = (candidates-1)./cal + [x(1) y(1)];
     handles.scatterH.XData = candidates(:,1);
     handles.scatterH.YData = candidates(:,2);
 end
