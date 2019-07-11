@@ -176,10 +176,8 @@ classdef AutoExperiment_invisible < Modules.Experiment
                     to_add(i) = true;
                 end
             end
-            % Now that there weren't errors, add the new ones
-            for i = find(to_add) % Find all true indices
-                obj.meta.(fields{i}) = val.(fields{i});
-            end
+            % Now that there weren't errors, update meta
+            obj.meta = val;
         end
         function set.run_type(obj,val)
             obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
