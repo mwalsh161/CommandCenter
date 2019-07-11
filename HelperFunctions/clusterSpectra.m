@@ -1,4 +1,4 @@
-function [ClusterNums, I, H] = clusterSpectra(Spectra, varargin)
+function [ClusterNums, I] = clusterSpectra(Spectra, varargin)
 %CLUSTESPECTRA Groups unkown spectra by similarity
 %   Takes a set of spectra and tries to group them together based on
 %   their similarity. Does not try to fit peaks, so may be better for
@@ -29,12 +29,12 @@ function [ClusterNums, I, H] = clusterSpectra(Spectra, varargin)
 %       'specBlurred': plot only clustered blurred spectra
 %       'clusters': plot dendrogram, corresponding spectra and mean spectra
 %                 for each cluster.
-%       'none': plot nothing
+%       'None': plot nothing
+%   [Parent]: Parent figure handle
 % Outputs:
 %   ClusterNums: Mx1 array listing index of cluster each spectrum is
 %                associated with.
 %   I: Mx1 array listing order of spectra in dendrogram
-%   H: figure handle or cell array of figure handles
 
 % Input validation
 % Find number of spectra and pixel intensities
@@ -61,8 +61,15 @@ addParameter( inp, 'ClustMethod', 'complete', @(x) any(isstring(x), ...
     ischar(x) ))
 addParameter( inp, 'Show', 'all', @(x) any(validatestring(x, ...
     {'all','allBlurred','spec','specBlurred','clusters','None'})))
+addParameter( inp, 'Parent', false, ...
+    @(f) isa(f,'matlab.ui.container.Panel') )
 inp.KeepUnmatched = false;
 parse( inp, Spectra, varargin{:});
+
+
+if ~ismember('Parent',inp.UsingDefaults)
+    inp.Results.Parent = figure();
+end
 
 inp = inp.Results;
 
@@ -84,50 +91,56 @@ ClusterNums = cluster(Z, 'Cutoff', inp.Thr, 'criterion', 'distance');
 %Create plots
 switch inp.Show
     case 'all'
-        H = figure();
-        subplot(2,1,1)
-        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
-        ylabel('Distance')
-        subplot(2,1,2)
-        imagesc( 1:Nspectra, inp.Wav, Spectra(I,:)' )
-        ylabel('Wavelength')
-        xlabel('Site #')
+        ax = subplot(2,1,1,'Parent',inp.Parent);
+        [~,~,I] = dendrogram(Z, Nspectra, 'ColorThreshold', inp.Thr);
+        ylabel(ax, 'Distance')
+        ax = subplot(2,1,2,'Parent',inp.Parent);
+        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
+        ylabel(ax, 'Wavelength')
+        xlabel(ax, 'Site #')
     case 'allBlurred'
-        H = figure();
-        subplot(2,1,1)
+        ax = subplot(2,1,1,'Parent',inp.Parent);
         [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
-        ylabel('Distance')
-        subplot(2,1,2)
-        imagesc( 1:Nspectra, inp.Wav, filtSpectra(I,:)' )
-        ylabel('Wavelength')
-        xlabel('Site #')
+        ylabel(ax, 'Distance')
+        ax = subplot(2,1,2,'Parent',inp.Parent);
+        imagesc( ax, 1:Nspectra, inp.Wav, filtSpectra(I,:)' )
+        ylabel(ax, 'Wavelength')
+        xlabel(ax, 'Site #')
     case 'spec'
-        H = figure();
-        imagesc( 1:Nspectra, inp.Wav, Spectra' )
-        ylabel('Wavelength')
-        xlabel('Site #')
+        ax = axes(inp.Parent);
+        imagesc(ax, 1:Nspectra, inp.Wav, Spectra')
+        ylabel(ax, 'Wavelength')
+        xlabel(ax, 'Site #')
     case 'specBlurred'
-        H = figure();
-        imagesc( 1:Nspectra, inp.Wav, filtSpectra' )
-        ylabel('Wavelength')
-        xlabel('Site #')
+        ax = axes(inp.Parent);
+        imagesc( ax, 1:Nspectra, inp.Wav, filtSpectra' )
+        ylabel(ax, 'Wavelength')
+        xlabel(ax, 'Site #')
     case 'clusters'
-        H = cell(2,1);
-        H{1} = figure();
-        subplot(2,1,1)
-        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
-        ylabel('Distance')
-        subplot(2,1,2)
-        imagesc( 1:Nspectra, inp.Wav, Spectra(I,:)' )
-        ylabel('Wavelength')
-        xlabel('Site #')
-        
-        H{2} = figure();
         Nclus = max(ClusterNums);
-        for i = 1:Nclus
-            subplot( Nclus, 1, i)
-            plot( inp.Wav, mean( Spectra( ClusterNums==i,:),1) )
-            ylabel( strcat( num2str(sum(ClusterNums==i)), ' sites') )
+        NrowPlots = max( [Nclus 2] );
+        
+        span = @(x) ceil(x/2)*2-1;
+        
+        ax = subplot(NrowPlots,2,[1 span(NrowPlots)]);
+        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
+        ylabel(ax, 'Distance')
+        ax = subplot(NrowPlots,2,[span(NrowPlots)+2 2*NrowPlots-1]);
+        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
+        ylabel(ax, 'Wavelength')
+        xlabel(ax, 'Site #')
+        
+        
+        if NrowPlots > 2
+            for i = 1:Nclus
+                ax = subplot( NrowPlots,2, 2*i);
+                plot(ax, inp.Wav, mean( Spectra( ClusterNums==i,:),1) )
+                ylabel(ax, strcat( num2str(sum(ClusterNums==i)), ' sites') )
+            end
+        elseif NrowPlots == 2
+           ax = subplot( NrowPlots,2,[2 4] );
+           plot(ax, inp.Wav, mean( Spectra( ClusterNums==1,:),1) )
+           ylabel(ax, strcat( num2str(sum(ClusterNums==1)), ' sites') )
         end
         xlabel( 'Wavelength' )
     case 'None'
