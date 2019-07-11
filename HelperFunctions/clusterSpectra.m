@@ -66,12 +66,11 @@ addParameter( inp, 'Parent', false, ...
 inp.KeepUnmatched = false;
 parse( inp, Spectra, varargin{:});
 
-
-if ~ismember('Parent',inp.UsingDefaults)
-    inp.Results.Parent = figure();
-end
-
+createFigure = ismember('Parent',inp.UsingDefaults);
 inp = inp.Results;
+if createFigure
+    inp.Parent = figure();
+end
 
 
 % Apply smoothing and wavelength limits to input spectra
@@ -108,12 +107,14 @@ switch inp.Show
         xlabel(ax, 'Site #')
     case 'spec'
         ax = subplot(1,1,1,'Parent',inp.Parent);
-        imagesc(ax, 1:Nspectra, inp.Wav, Spectra')
+        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
+        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'specBlurred'
         ax = subplot(1,1,1,'Parent',inp.Parent);
-        imagesc( ax, 1:Nspectra, inp.Wav, filtSpectra' )
+        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
+        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'clusters'
