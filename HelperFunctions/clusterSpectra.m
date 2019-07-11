@@ -107,12 +107,12 @@ switch inp.Show
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'spec'
-        ax = axes(inp.Parent);
+        ax = subplot(1,1,1,'Parent',inp.Parent);
         imagesc(ax, 1:Nspectra, inp.Wav, Spectra')
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'specBlurred'
-        ax = axes(inp.Parent);
+        ax = subplot(1,1,1,'Parent',inp.Parent);
         imagesc( ax, 1:Nspectra, inp.Wav, filtSpectra' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
