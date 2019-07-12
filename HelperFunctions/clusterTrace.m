@@ -77,9 +77,9 @@ if createFigure
     inp.Parent = figure();
 end
 
-H.figure = inp.Parent;
-H.axes = [];
-H.lines = [];
+H.parent = inp.Parent;
+H.axes = gobjects(0);
+H.lines = gobjects(0);
 
 % Apply smoothing and wavelength limits to input traces
 filtTraces = NaN(Ntraces,  sum(inp.Vals>inp.Limits(1) & ...
