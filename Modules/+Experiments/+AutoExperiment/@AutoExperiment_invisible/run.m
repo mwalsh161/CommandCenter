@@ -55,7 +55,7 @@ end
 run_queue = [X(:),Y(:)];
 obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
-obj.meta.errs = {};
+obj.meta.errs = struct('site',{},'exp',{},'err',{});
 obj.PreRun(status,managers,ax);
 runstart = tic;
 err = [];
@@ -141,15 +141,17 @@ try
                         end
                     catch param_err
                         obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
-                        obj.meta.errs(end+1).site = site_index;
-                        obj.meta.errs(end).exp = exp_index;
-                        obj.meta.errs(end).err = param_err;
+                        err_struct.site = site_index;
+                        err_struct.exp = exp_index;
+                        err_struct.err = param_err;
+                        obj.meta.errs(end+1) = err_struct;
                     end
                 end
             catch queue_err
-                obj.meta.errs(end+1).site = site_index;
-                obj.meta.errs(end).exp = exp_index;
-                obj.meta.errs(end).err = queue_err;
+                err_struct.site = site_index;
+                err_struct.exp = exp_index;
+                err_struct.err = queue_err;
+                obj.meta.errs(end+1) = err_struct;
                 obj.logger.logTraceback(sprintf('Error on queue index %i (repetition %i): %s',i,repetition,queue_err.message),...
                         queue_err.stack,Base.Logger.ERROR);
             end
