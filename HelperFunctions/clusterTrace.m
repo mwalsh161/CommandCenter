@@ -80,6 +80,7 @@ end
 H.parent = inp.Parent;
 H.axes = gobjects(0);
 H.lines = gobjects(0);
+H.image = gobjects(0);
 
 % Apply smoothing and wavelength limits to input traces
 filtTraces = NaN(Ntraces,  sum(inp.Vals>inp.Limits(1) & ...
@@ -104,7 +105,7 @@ switch inp.Show
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
         H.axes(end+1) = ax;
-        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
+        H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'allBlurred'
@@ -114,21 +115,21 @@ switch inp.Show
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
         H.axes(end+1) = ax;
-        imagesc( ax, 1:Ntraces, inp.Vals, filtTraces(I,:)' )
+        H.image(end+1)= imagesc(ax, 1:Ntraces, inp.Vals, filtTraces(I,:)');
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'spec'
         ax = subplot(1,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
-        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
+        H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'specBlurred'
         ax = subplot(1,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
-        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
+        H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'clusters'
@@ -143,22 +144,25 @@ switch inp.Show
         ylabel(ax, 'Distance')
         ax = subplot(NrowPlots,2,[span(NrowPlots)+2 2*NrowPlots-1]);
         H.axes(end+1) = ax;
-        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
+        H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
         
+        H.plotLines = gobjects(0);
         
         if NrowPlots > 2
             for i = 1:Nclus
                 ax = subplot( NrowPlots,2, 2*i);
                 H.axes(end+1) = ax;
-                plot(ax, inp.Vals, mean( Traces( ClusterNums==i,:),1) )
+                H.plotLines(end+1) = plot(ax, inp.Vals, mean( Traces( ...
+                    ClusterNums==i,:),1) );
                 ylabel(ax, strcat( num2str(sum(ClusterNums==i)), ' sites'))
             end
         elseif NrowPlots == 2
            ax = subplot( NrowPlots,2,[2 4] );
            H.axes(end+1) = ax;
-           plot(ax, inp.Vals, mean( Traces( ClusterNums==1,:),1) )
+           H.plotLines(end+1) = plot(ax, inp.Vals, mean( Traces( ...
+               ClusterNums==1,:),1) );
            ylabel(ax, strcat( num2str(sum(ClusterNums==1)), ' sites') )
         end
         xlabel( 'Wavelength' )
