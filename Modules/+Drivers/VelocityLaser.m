@@ -15,6 +15,7 @@ classdef VelocityLaser < Modules.Driver
         idn
     end
     properties
+        debug = false;     % See what is sent to hwserver
         TuningTimeout = 0; % Timeout = 0 signifies not to wait for the hwserver to return
     end
     properties (SetObservable)
@@ -59,6 +60,9 @@ classdef VelocityLaser < Modules.Driver
             obj.TrackMode = false;
         end
         function response = com(obj,funcname,varargin) %keep this
+            if obj.debug
+                fprintf('%s %s\n',funcname,jsonencode(varargin));
+            end
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
         end
     end

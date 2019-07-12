@@ -30,11 +30,13 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     properties(Constant,Hidden)
         calibration_timeout = 7; %duration in days after which velocity will give warning to recalibrate
     end
-    properties(SetAccess=protected)
+    properties(SetAccess=protected,Hidden) % Hidden to avoid call to calibration when displayed
         %'range' is the range of valid inputs for the driver's set.Wavelength method (in nm);
         % note that calling get.range will run this value through the
         % calibration function before returning
-        range = Sources.VelocityLaser.c./[634.8,639.4];  
+        range = Sources.VelocityLaser.c./[634.8,639.4];
+    end
+    properties(SetAccess=protected)
         Vrange = [-2.3, 2.3]; %setting the piezo percentage maps (0,100)
         resolution = 0.01; %frequency tuning resolution in THz
     end
@@ -105,8 +107,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 catch err
                     errs{end+1} = err.message;
                 end
-            else
-                warning('Wavemeter not hooked up!');
+            elseif ~strcmp(obj.wavemeter_ip,'No Server')
+                warning('Wavemeter IP set, but not connected!');
             end
             if ~isempty(obj.serial)
                 try
@@ -114,8 +116,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 catch err
                     errs{end+1} = err.message;
                 end
-            else
-                warning('Velocity hwserver not connected!');
+            elseif ~strcmp(obj.velocity_ip,'No Server')
+                warning('Velocity IP set, but not connected!');
             end
             if ~isempty(errs)
                 error(strjoin(errs,[newline newline]))
@@ -281,19 +283,19 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         function calibrate(obj,ax) 
             %calibrates the frequency as read by the wavemeter to the 
             %wavelength as set by the diode motor
-            if ~obj.diode_on
-                answer = questdlg('Diode off; turn diode on for calibration?','Diode off', 'Yes','No','No');
+            if ~obj.diode_on || ~obj.wavemeter_active
+                answer = questdlg('Unarmed; Arm laser on for calibration?','Unarmed', 'Yes','No','No');
                 switch answer
                     case 'No'
-                        error('Diode must be on for wavelength calibration');
+                        error('Laser must be armed for wavelength calibration');
                     case 'Yes'
-                        obj.diode_on = true;
+                        obj.arm;
                 end
             end
             set_range = findprop(obj,'range'); 
             set_range = obj.c./set_range.DefaultValue; %get the actual settable range in nm, which is the default value of range
-
-            f= [];
+            obj.serial.TrackMode = 'on'; % Keep trackmode on through calibration
+            f = [];  % Placeholder if axes is supplied
             if nargin < 2
                 f = figure;
                 ax = axes('parent',f);
@@ -302,9 +304,14 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 setpoints = linspace(set_range(1),set_range(end),10); %take 10 points across the range of the laser
                 wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
                 obj.wavemeter.setDeviationChannel(false);
+                cla(ax);
+                hold(ax,'on');
                 for i=1:length(setpoints)
+                    title(ax,sprintf('Sweeping %i/%i points, please wait',i,length(setpoints)))
                     obj.serial.Wavelength = setpoints(i); pause(1); %allow to settle
                     wavelocs(i) = obj.getFrequency;
+                    plt = plot(ax,wavelocs,setpoints,'bo');
+                    drawnow nocallbacks;
                 end
                 fit_type = fittype('a/(x-b)+c');
                 options = fitoptions(fit_type);
@@ -312,14 +319,12 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 [temp.THz2nm,temp.gof] = fit(wavelocs',setpoints',fit_type,options);
                 temp.datetime = datetime;
                 obj.cal_local = temp;
-                cla(ax)
-                plotx = linspace(min(obj.c/max(setpoints),min(wavelocs)),max(obj.c/min(setpoints),max(wavelocs)),10*length(setpoints));
-                plot(ax,wavelocs,setpoints,'bo');
-                hold(ax,'on')
+                plotx = linspace(min(obj.c/max(setpoints),min(wavelocs)),...
+                    max(obj.c/min(setpoints),max(wavelocs)),10*length(setpoints));
                 plot(ax,plotx,temp.THz2nm(plotx));
                 fitbounds = predint(temp.THz2nm,plotx,0.95,'functional','on'); %get confidence bounds on fit
                 errorfill(plotx,temp.THz2nm(plotx)',[abs(temp.THz2nm(plotx)'-fitbounds(:,1)');abs(fitbounds(:,2)'-temp.THz2nm(plotx)')],'parent',ax);
-                hold(ax,'off')
+                hold(ax,'off');
                 xlabel(ax,'Wavemeter Reading')
                 ylabel(ax,'Wavelength Set Command')
                 answer = questdlg('Calibration satisfactory?','Velocity Calibration Verification','Yes','No, retake','No, abort','No, abort');
