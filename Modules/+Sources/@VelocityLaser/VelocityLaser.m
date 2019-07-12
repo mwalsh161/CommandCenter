@@ -385,7 +385,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             %to send a wavelength command to the motor
             cal = obj.calibration; %grab the calibration function
             obj.serial.Wavelength = cal.THz2nm(val); %convert THz on wavemeter to nm in laser's hardware
-            obj.serial.TrackMode = 'off'; %obj.serial.Wavelength turns TrackMode on, so turn back off
         end
         function SpecSafeMode(obj,~)
             %turns the diode of the laser off to make it safe for taking
