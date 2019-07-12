@@ -1,21 +1,24 @@
-function [ClusterNums, I] = clusterSpectra(Spectra, varargin)
-%CLUSTESPECTRA Groups unkown spectra by similarity
-%   Takes a set of spectra and tries to group them together based on
-%   their similarity. Does not try to fit peaks, so may be better for
-%   comparing spectra when number or location of peaks is not known a
+function [ClusterNums, I] = clusterTrace(Traces, varargin)
+%CLUSTETRACE Groups unkown traces by similarity
+%   Takes a set of traces (e.g. spectra) and tries to group them together
+%   based on their similarity. Does not try to fit peaks, so may be better
+%   for comparing spectra when number or location of peaks is not known a
 %   priori. This is essentially a wrapper for pdist, linkage and
 %   dendrogram.
 % Inputs: brackets indicate name, value optional pair:
-%   Spectra: MxN matrix of M spectra, each with N pixel intensities
-%   [Wav]: 1xN wavelengths corresponding to each pixel for plotting
-%   [Smoothing]: Scalar value of blurring applied to spectra in pixels.
-%                Recommended 2 to 3x inhomogeneous linewidth of spectra.
+%   Traces: MxN matrix of M traces (e.g. spectra), each with N pixel
+%            intensities
+%   [Vals]: 1xN values (e.g. wavelenghts) corresponding to each pixel for
+%           plotting
+%   [Smoothing]: Scalar value of blurring applied to traces in pixels.
+%                For comparing spectra, recommended 2 to 3x inhomogeneous
+%                linewidth of spectra.
 %       Default: 5
 %   [Thr]: Scalar threshold to define clusters
 %       Default: 0.5
 %   [Limits]: 1x2 array of wavelength range to focus on
-%       Default: [min(Wav) max(Wav)]
-%   [DistMetric]: Metric used to calculate distance between spectra. Can be
+%       Default: [min(Vals) max(Vals)]
+%   [DistMetric]: Metric used to calculate distance between traces. Can be
 %                 either a default for pdist or a function handle to a
 %                 custom function
 %       Default: 'correlation'
@@ -23,37 +26,37 @@ function [ClusterNums, I] = clusterSpectra(Spectra, varargin)
 %                  any of the 'method' strings from linkage function.
 %       Default: 'complete'
 %   [Show]: String indicating what to plot after the calculation
-%       'all' (default): plot dendrogram along with corresponding spectra
-%       'allBlurred': plot dendrogram and blurred spectra
-%       'spec': plot only clustered spectra
-%       'specBlurred': plot only clustered blurred spectra
-%       'clusters': plot dendrogram, corresponding spectra and mean spectra
+%       'all' (default): plot dendrogram along with corresponding traces
+%       'allBlurred': plot dendrogram and blurred traces
+%       'spec': plot only clustered traces
+%       'specBlurred': plot only clustered blurred traces
+%       'clusters': plot dendrogram, corresponding traces and mean traces
 %                 for each cluster.
 %       'None': plot nothing
 %   [Parent]: Parent figure handle
 % Outputs:
 %   ClusterNums: Mx1 array listing index of cluster each spectrum is
 %                associated with.
-%   I: Mx1 array listing order of spectra in dendrogram
+%   I: Mx1 array listing order of traces in dendrogram
 
 % Input validation
-% Find number of spectra and pixel intensities
+% Find number of traces and pixel intensities
 inp = inputParser;
-addRequired( inp, 'Spectra', @(x) isnumeric(x) && ismatrix(x) )
-parse( inp, Spectra );
-[Nspectra, Npixel] = size(Spectra);
+addRequired( inp, 'Traces', @(x) isnumeric(x) && ismatrix(x) )
+parse( inp, Traces );
+[Ntraces, Npixel] = size(Traces);
 
 %Find wavelengths
-addParameter( inp, 'Wav', linspace(1,Npixel,Npixel), @(x) isnumeric(x) ...
+addParameter( inp, 'Vals', linspace(1,Npixel,Npixel), @(x) isnumeric(x) ...
     && ismatrix(x) && size(x,1)==1 && size(x,2)==Npixel);
 inp.KeepUnmatched = true;
-parse( inp, Spectra, varargin{:})
+parse( inp, Traces, varargin{:})
 inpTmp = inp.Results;
 
 %Parse rest of inputs
 addParameter( inp, 'Smoothing', 5, @(x) isscalar(x) && (x>=0) );
 addParameter( inp, 'Thr', 0.5, @(x) isscalar(x) && (x>=0) );
-addParameter( inp, 'Limits', [min(inpTmp.Wav) max(inpTmp.Wav)], @(x) ...
+addParameter( inp, 'Limits', [min(inpTmp.Vals) max(inpTmp.Vals)], @(x) ...
     ismatrix(x) && size(x,1)==1 && size(x,2)==2)
 addParameter( inp, 'DistMetric', 'correlation', @(x) any(isstring(x), ...
     ischar(x), isa(x,'function_handle')))
@@ -64,7 +67,7 @@ addParameter( inp, 'Show', 'all', @(x) any(validatestring(x, ...
 addParameter( inp, 'Parent', false, @(f) ...
     any([isa(f,'matlab.ui.container.Panel') isa(f,'matlab.ui.Figure')]) )
 inp.KeepUnmatched = false;
-parse( inp, Spectra, varargin{:});
+parse( inp, Traces, varargin{:});
 
 createFigure = ismember('Parent',inp.UsingDefaults);
 inp = inp.Results;
@@ -73,16 +76,16 @@ if createFigure
 end
 
 
-% Apply smoothing and wavelength limits to input spectra
-filtSpectra = NaN(Nspectra,  sum(inp.Wav>inp.Limits(1) & ...
-    inp.Wav<inp.Limits(2)) );
-for i = 1:Nspectra
-    filtSpectra(i,:) = imgaussfilt(Spectra(i, inp.Wav>inp.Limits(1) & ...
-        inp.Wav<inp.Limits(2)), inp.Smoothing);
+% Apply smoothing and wavelength limits to input traces
+filtTraces = NaN(Ntraces,  sum(inp.Vals>inp.Limits(1) & ...
+    inp.Vals<inp.Limits(2)) );
+for i = 1:Ntraces
+    filtTraces(i,:) = imgaussfilt(Traces(i, inp.Vals>inp.Limits(1) & ...
+        inp.Vals<inp.Limits(2)), inp.Smoothing);
 end
 
 %Create linkage
-Z = linkage( filtSpectra, inp.ClustMethod, inp.DistMetric );
+Z = linkage( filtTraces, inp.ClustMethod, inp.DistMetric );
 
 %Define clusters
 ClusterNums = cluster(Z, 'Cutoff', inp.Thr, 'criterion', 'distance');
@@ -91,30 +94,30 @@ ClusterNums = cluster(Z, 'Cutoff', inp.Thr, 'criterion', 'distance');
 switch inp.Show
     case 'all'
         ax = subplot(2,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram(Z, Nspectra, 'ColorThreshold', inp.Thr);
+        [~,~,I] = dendrogram(Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
-        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
+        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'allBlurred'
         ax = subplot(2,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
+        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
-        imagesc( ax, 1:Nspectra, inp.Wav, filtSpectra(I,:)' )
+        imagesc( ax, 1:Ntraces, inp.Vals, filtTraces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'spec'
         ax = subplot(1,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
-        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
+        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
+        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'specBlurred'
         ax = subplot(1,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
-        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
+        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
+        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'clusters'
@@ -124,10 +127,10 @@ switch inp.Show
         span = @(x) ceil(x/2)*2-1;
         
         ax = subplot(NrowPlots,2,[1 span(NrowPlots)]);
-        [~,~,I] = dendrogram( Z, Nspectra, 'ColorThreshold', inp.Thr);
+        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(NrowPlots,2,[span(NrowPlots)+2 2*NrowPlots-1]);
-        imagesc(ax, 1:Nspectra, inp.Wav, Spectra(I,:)' )
+        imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
         
@@ -135,12 +138,12 @@ switch inp.Show
         if NrowPlots > 2
             for i = 1:Nclus
                 ax = subplot( NrowPlots,2, 2*i);
-                plot(ax, inp.Wav, mean( Spectra( ClusterNums==i,:),1) )
+                plot(ax, inp.Vals, mean( Traces( ClusterNums==i,:),1) )
                 ylabel(ax, strcat( num2str(sum(ClusterNums==i)), ' sites') )
             end
         elseif NrowPlots == 2
            ax = subplot( NrowPlots,2,[2 4] );
-           plot(ax, inp.Wav, mean( Spectra( ClusterNums==1,:),1) )
+           plot(ax, inp.Vals, mean( Traces( ClusterNums==1,:),1) )
            ylabel(ax, strcat( num2str(sum(ClusterNums==1)), ' sites') )
         end
         xlabel( 'Wavelength' )
