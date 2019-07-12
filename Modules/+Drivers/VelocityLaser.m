@@ -132,6 +132,8 @@ classdef VelocityLaser < Modules.Driver
         end
         function set.Wavelength(obj,val)
             if ~obj.init
+                turn_track_mode_off = strcmpi(obj.TrackMode,'off');
+                obj.TrackMode = 'on'; % despite the documentation, this needs to be explicitly on to tune
                 start_timeout = obj.connection.connection.Timeout;
                 if obj.TuningTimeout > 0
                     obj.connection.connection.Timeout = obj.TuningTimeout;
@@ -143,7 +145,7 @@ classdef VelocityLaser < Modules.Driver
                     rethrow(err);
                 end
                 obj.connection.connection.Timeout = start_timeout;
-                if strcmpi(obj.TrackMode,'off')
+                if turn_track_mode_off
                     obj.TrackMode = 'off'; %set.TrackMode affirms local setting with hardware
                 end
             end
