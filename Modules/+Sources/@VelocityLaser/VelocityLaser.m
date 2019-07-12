@@ -50,6 +50,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         percent_setpoint = NaN; %local memory of tuning percent as applied by the wavemeter
     end
     properties(SetObservable,SetAccess=private)
+        calibration_timeout_override = false; %if user chooses to ignore, ignore until inactive
         source_on = false;
         running                      % Boolean specifying if StaticLines program running
         PB_status
@@ -80,7 +81,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     end
     methods
         function task = inactive(obj)
-            task = 'Turning diode power off and wavemeter switch channel';
+            task = 'Turning diode power and wavemeter switch channel off';
+            obj.calibration_timeout_override = false;
             obj.deactivate;
         end
         function activate(obj)
@@ -354,12 +356,13 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
             obj.cal_local.expired = false;
-            if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout
+            if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout && ~obj.calibration_timeout_override
                 warnstring = sprintf('Calibration not performed since %s. Recommend recalibrating by running VelocityLaser.calibrate.',datestr(obj.cal_local.datetime));
                 answer = questdlg([warnstring, ' Calibrate now?'],'VelocityLaser Calibration Expired','Yes','No','No');
                 if strcmp(answer,'Yes')
                     obj.calibrate
                 else
+                    obj.calibration_timeout_override = true;
                     obj.cal_local.expired = true;
                 end
             end
