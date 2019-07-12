@@ -50,9 +50,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         diode_on = false;         % Power state of diode (on/off); assume off everytime because we cant check easily
         wavemeter_active = false; % Wavemeter channel active
         percent_setpoint = NaN; %local memory of tuning percent as applied by the wavemeter
+        calibration_timeout_override = false; %if user chooses to ignore, ignore until inactive
     end
     properties(SetObservable,SetAccess=private)
-        calibration_timeout_override = false; %if user chooses to ignore, ignore until inactive
         source_on = false;
         running                      % Boolean specifying if StaticLines program running
         PB_status
@@ -360,16 +360,22 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                     end
                 end
             end
-            obj.cal_local.expired = false;
-            if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout && ~obj.calibration_timeout_override
-                warnstring = sprintf('Calibration not performed since %s. Recommend recalibrating by running VelocityLaser.calibrate.',datestr(obj.cal_local.datetime));
-                answer = questdlg([warnstring, ' Calibrate now?'],'VelocityLaser Calibration Expired','Yes','No','No');
-                if strcmp(answer,'Yes')
-                    obj.calibrate
-                else
-                    obj.calibration_timeout_override = true;
-                    obj.cal_local.expired = true;
+            if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout % expired
+                obj.cal_local.expired = true;
+                if  ~obj.calibration_timeout_override
+                    warnstring = sprintf('Calibration not performed since %s. Recommend recalibrating by running VelocityLaser.calibrate.',datestr(obj.cal_local.datetime));
+                    answer = questdlg([warnstring, ' Calibrate now?'],'VelocityLaser Calibration Expired','Yes','No','No');
+                    if strcmp(answer,'Yes')
+                        obj.calibrate
+                        obj.cal_local.expired = false; % Retaken, so not expired
+                    else
+                        msgbox('Calibration timeout override in effect until inactivity timeout occurs.',...
+                            'Calibration ignored','modal')
+                        obj.calibration_timeout_override = true;
+                    end
                 end
+            else % Not expired block
+                obj.cal_local.expired = false;
             end
             cal = obj.cal_local;
         end
