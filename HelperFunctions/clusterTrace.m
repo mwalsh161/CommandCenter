@@ -1,4 +1,4 @@
-function [ClusterNums, I] = clusterTrace(Traces, varargin)
+function [ClusterNums, I, H] = clusterTrace(Traces, varargin)
 %CLUSTETRACE Groups unkown traces by similarity
 %   Takes a set of traces (e.g. spectra) and tries to group them together
 %   based on their similarity. Does not try to fit peaks, so may be better
@@ -38,6 +38,8 @@ function [ClusterNums, I] = clusterTrace(Traces, varargin)
 %   ClusterNums: Mx1 array listing index of cluster each spectrum is
 %                associated with.
 %   I: Mx1 array listing order of traces in dendrogram
+%   H: Struct containing the graphical handles in the figure, axes, and
+%      lines fields
 
 % Input validation
 % Find number of traces and pixel intensities
@@ -75,6 +77,9 @@ if createFigure
     inp.Parent = figure();
 end
 
+H.figure = inp.Parent;
+H.axes = [];
+H.lines = [];
 
 % Apply smoothing and wavelength limits to input traces
 filtTraces = NaN(Ntraces,  sum(inp.Vals>inp.Limits(1) & ...
@@ -94,29 +99,35 @@ ClusterNums = cluster(Z, 'Cutoff', inp.Thr, 'criterion', 'distance');
 switch inp.Show
     case 'all'
         ax = subplot(2,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram(Z, Ntraces, 'ColorThreshold', inp.Thr);
+        H.axes(end+1) = ax;
+        [H.lines,~,I] = dendrogram(Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
+        H.axes(end+1) = ax;
         imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'allBlurred'
         ax = subplot(2,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
+        H.axes(end+1) = ax;
+        [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
+        H.axes(end+1) = ax;
         imagesc( ax, 1:Ntraces, inp.Vals, filtTraces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'spec'
         ax = subplot(1,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
+        H.axes(end+1) = ax;
+        [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
     case 'specBlurred'
         ax = subplot(1,1,1,'Parent',inp.Parent);
-        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
+        H.axes(end+1) = ax;
+        [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
@@ -127,9 +138,11 @@ switch inp.Show
         span = @(x) ceil(x/2)*2-1;
         
         ax = subplot(NrowPlots,2,[1 span(NrowPlots)]);
-        [~,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
+        H.axes(end+1) = ax;
+        [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(NrowPlots,2,[span(NrowPlots)+2 2*NrowPlots-1]);
+        H.axes(end+1) = ax;
         imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' )
         ylabel(ax, 'Wavelength')
         xlabel(ax, 'Site #')
@@ -138,11 +151,13 @@ switch inp.Show
         if NrowPlots > 2
             for i = 1:Nclus
                 ax = subplot( NrowPlots,2, 2*i);
+                H.axes(end+1) = ax;
                 plot(ax, inp.Vals, mean( Traces( ClusterNums==i,:),1) )
-                ylabel(ax, strcat( num2str(sum(ClusterNums==i)), ' sites') )
+                ylabel(ax, strcat( num2str(sum(ClusterNums==i)), ' sites'))
             end
         elseif NrowPlots == 2
            ax = subplot( NrowPlots,2,[2 4] );
+           H.axes(end+1) = ax;
            plot(ax, inp.Vals, mean( Traces( ClusterNums==1,:),1) )
            ylabel(ax, strcat( num2str(sum(ClusterNums==1)), ' sites') )
         end
