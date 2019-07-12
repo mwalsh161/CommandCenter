@@ -1,7 +1,7 @@
 function starts_with = matrix_starts_with(a,b)
 %MATRIX_STARTS_WITH See if matrix a starts with matrix b
-%   Give that a and b are the same shape, but perhaps different size, test
-%   that matrix a has matrix b as a sub-matrix
+%   Given that a and b are the same shape, but perhaps different sizes,
+%   test that matrix a has matrix b as a sub-matrix
 %   For example, in the 2d case:
 %   > a = [1 2 3 4;    > b = [1 2;
 %   >      5 6 7 8];   >      5 6];
