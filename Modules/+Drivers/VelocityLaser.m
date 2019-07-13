@@ -61,9 +61,12 @@ classdef VelocityLaser < Modules.Driver
         end
         function response = com(obj,funcname,varargin) %keep this
             if obj.debug
-                fprintf('%s %s\n',funcname,jsonencode(varargin));
+                fprintf('--> %s %s',funcname,jsonencode(varargin));
             end
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
+            if obj.debug
+                fprintf('  <-- %s',jsonencode(response));
+            end
         end
     end
     methods
