@@ -33,7 +33,10 @@ function [ClusterNums, I, H] = clusterTrace(Traces, varargin)
 %       'clusters': plot dendrogram, corresponding traces and mean traces
 %                 for each cluster.
 %       'None': plot nothing
-%   [Parent]: Parent figure handle
+%   [Parent]: Parent figure handle. If unspecified, will create a new
+%             figure.
+%   [ValLabel]: String to label 'Vals' axes with in plot
+%       Default: 'Wavelength (nm)'
 % Outputs:
 %   ClusterNums: Mx1 array listing index of cluster each spectrum is
 %                associated with.
@@ -60,15 +63,17 @@ addParameter( inp, 'Smoothing', 5, @(x) isscalar(x) && (x>=0) );
 addParameter( inp, 'Thr', 0.5, @(x) isscalar(x) && (x>=0) );
 addParameter( inp, 'Limits', [min(inpTmp.Vals) max(inpTmp.Vals)], @(x) ...
     ismatrix(x) && size(x,1)==1 && size(x,2)==2)
-addParameter( inp, 'DistMetric', 'correlation', @(x) any(isstring(x), ...
-    ischar(x), isa(x,'function_handle')))
-addParameter( inp, 'ClustMethod', 'complete', @(x) any(isstring(x), ...
-    ischar(x) ))
+addParameter( inp, 'DistMetric', 'correlation', @(x) any([isstring(x), ...
+    ischar(x), isa(x,'function_handle')]))
+addParameter( inp, 'ClustMethod', 'complete', @(x) any([isstring(x), ...
+    ischar(x) ]))
 addParameter( inp, 'Show', 'all', @(x) any(validatestring(x, ...
-    {'all','allBlurred','spec','specBlurred','clusters','None'})))
+    {'all','allBlurred','spec','specBlurred','clusters','None'})) )
 addParameter( inp, 'Parent', false, @(f) ...
     any([isa(f,'matlab.ui.container.Panel') isa(f,'matlab.ui.Figure')]) )
 inp.KeepUnmatched = false;
+addParameter( inp, 'ValLabel', 'Wavelength (nm)', @(x) any([isstring(x),...
+    ischar(x)]))
 parse( inp, Traces, varargin{:});
 
 createFigure = ismember('Parent',inp.UsingDefaults);
@@ -106,7 +111,7 @@ switch inp.Show
         ax = subplot(2,1,2,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
-        ylabel(ax, 'Wavelength')
+        ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
     case 'allBlurred'
         ax = subplot(2,1,1,'Parent',inp.Parent);
@@ -116,21 +121,21 @@ switch inp.Show
         ax = subplot(2,1,2,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         H.image(end+1)= imagesc(ax, 1:Ntraces, inp.Vals, filtTraces(I,:)');
-        ylabel(ax, 'Wavelength')
+        ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
     case 'spec'
         ax = subplot(1,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
-        ylabel(ax, 'Wavelength')
+        ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
     case 'specBlurred'
         ax = subplot(1,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
-        ylabel(ax, 'Wavelength')
+        ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
     case 'clusters'
         Nclus = max(ClusterNums);
@@ -145,7 +150,7 @@ switch inp.Show
         ax = subplot(NrowPlots,2,[span(NrowPlots)+2 2*NrowPlots-1]);
         H.axes(end+1) = ax;
         H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
-        ylabel(ax, 'Wavelength')
+        ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
         
         H.plotLines = gobjects(0);
@@ -165,7 +170,7 @@ switch inp.Show
                ClusterNums==1,:),1) );
            ylabel(ax, strcat( num2str(sum(ClusterNums==1)), ' sites') )
         end
-        xlabel( 'Wavelength' )
+        xlabel( inp.ValLabel )
     case 'None'
 end
 end
