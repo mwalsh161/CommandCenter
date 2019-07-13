@@ -66,7 +66,7 @@ classdef SmartImage < handle
             % source -> source manager
             % imager -> imaging manager
             % dumbimage -> boolean
-            if nargin < 5
+            if nargin < 6
                 dumbimage = false;
             end
             obj.stage = stage;
