@@ -15,6 +15,7 @@ classdef VelocityLaser < Modules.Driver
         idn
     end
     properties
+        debug = false;     % See what is sent to hwserver
         TuningTimeout = 0; % Timeout = 0 signifies not to wait for the hwserver to return
     end
     properties (SetObservable)
@@ -59,7 +60,13 @@ classdef VelocityLaser < Modules.Driver
             obj.TrackMode = false;
         end
         function response = com(obj,funcname,varargin) %keep this
+            if obj.debug
+                fprintf('--> %s %s',funcname,jsonencode(varargin));
+            end
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
+            if obj.debug
+                fprintf('  <-- %s',jsonencode(response));
+            end
         end
     end
     methods
@@ -128,6 +135,8 @@ classdef VelocityLaser < Modules.Driver
         end
         function set.Wavelength(obj,val)
             if ~obj.init
+                turn_track_mode_off = strcmpi(obj.TrackMode,'off');
+                obj.TrackMode = 'on'; % despite the documentation, this needs to be explicitly on to tune
                 start_timeout = obj.connection.connection.Timeout;
                 if obj.TuningTimeout > 0
                     obj.connection.connection.Timeout = obj.TuningTimeout;
@@ -139,7 +148,7 @@ classdef VelocityLaser < Modules.Driver
                     rethrow(err);
                 end
                 obj.connection.connection.Timeout = start_timeout;
-                if strcmpi(obj.TrackMode,'off')
+                if turn_track_mode_off
                     obj.TrackMode = 'off'; %set.TrackMode affirms local setting with hardware
                 end
             end
