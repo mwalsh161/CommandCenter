@@ -66,7 +66,10 @@ classdef ImagingManager < Base.Manager
             im = load(path);
             delete(obj.current_image)
             cla(obj.handles.axImage)
-            obj.current_image = Base.SmartImage(im.image,obj.handles.axImage,obj.handles.Managers.Stages,obj,obj.dumbimage);
+            obj.current_image = Base.SmartImage(im.image, obj.handles.axImage,...
+                                                    obj.handles.Managers.Stages,...
+                                                    obj.handles.Managers.Sources,...
+                                                    obj, obj.dumbimage);
             if strcmp(obj.handles.colorbar_toggle.State,'on')
                 % This leaves it permanently on after SmartImage replaces the temp image
                 colorbar(obj.handles.axImage);
@@ -209,7 +212,10 @@ classdef ImagingManager < Base.Manager
                 obj.sandboxed_function({obj.active_module,'snap'},temp);
                 imPixels = get(temp,'cdata');
                 % Use ImageManager default for obj.dumbimage.  This could be queried directly in SmartImage if that is better
-                obj.current_image = Base.SmartImage(imPixels,obj.handles.axImage,obj.handles.Managers.Stages,obj,obj.dumbimage);
+                obj.current_image = Base.SmartImage(imPixels, obj.handles.axImage,...
+                                                    obj.handles.Managers.Stages,...
+                                                    obj.handles.Managers.Sources,...
+                                                    obj, obj.dumbimage);
                 
                 if strcmp(obj.handles.colorbar_toggle.State,'on')
                     % This leaves it permanently on after SmartImage replaces the temp image

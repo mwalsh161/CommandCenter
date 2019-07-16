@@ -162,19 +162,22 @@ classdef AutoExperiment_invisible < Modules.Experiment
             fields = fieldnames(val);
             to_add = false(size(fields));
             for i = 1:length(fields)
-                if isfield(obj.meta,fields{i})
-                    if ~isequal(obj.meta.(fields{i}),val.(fields{i}))
-                        % Only error if the values aren't the same
-                        error('Field "%s" already exists in obj.meta!',fields{i});
+                if isfield(obj.meta,fields{i}) && ~matrix_starts_with(val.(fields{i}),obj.meta.(fields{i}))
+                    sz = ''; % Provide additional error help
+                    if numel(obj.meta,fields{i}) > 1
+                        sz = '(';
+                        for ind = size(obj.meta.(fields{i}))
+                            sz = [sz sprintf('1:%i,',ind)];
+                        end
+                        sz(end) = ')'; % Replace last "," with the closing paren
                     end
+                    error('Field "%s%s" already exists in obj.meta!',fields{i},sz);
                 else % Not a field yet
                     to_add(i) = true;
                 end
             end
-            % Now that there weren't errors, add the new ones
-            for i = find(to_add) % Find all true indices
-                obj.meta.(fields{i}) = val.(fields{i});
-            end
+            % Now that there weren't errors, update meta
+            obj.meta = val;
         end
         function set.run_type(obj,val)
             obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});

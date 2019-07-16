@@ -19,6 +19,7 @@ if length(managers.Stages.modules)>1
         'Yes','No','Yes');
     assert(~strcmp(answer,'No'),'Select desired module as active stage module and rerun')
 end
+obj.imaging_source.arm; % Arm imaging source for experiment
 % Initialize with whatever data user chose
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
@@ -52,11 +53,11 @@ switch obj.run_type
         error('Unknown run_type %s',obj.run_type)
 end
 run_queue = [X(:),Y(:)];
-obj.PreRun(status,managers,ax)
-runstart = tic;
 obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
-obj.meta.errs = {};
+obj.meta.errs = struct('site',{},'exp',{},'err',{});
+obj.PreRun(status,managers,ax);
+runstart = tic;
 err = [];
 try
     for repetition = 1:obj.repeat
@@ -140,15 +141,17 @@ try
                         end
                     catch param_err
                         obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
-                        obj.meta.errs(end+1).site = site_index;
-                        obj.meta.errs(end).exp = exp_index;
-                        obj.meta.errs(end).err = param_err;
+                        err_struct.site = site_index;
+                        err_struct.exp = exp_index;
+                        err_struct.err = param_err;
+                        obj.meta.errs(end+1) = err_struct;
                     end
                 end
             catch queue_err
-                obj.meta.errs(end+1).site = site_index;
-                obj.meta.errs(end).exp = exp_index;
-                obj.meta.errs(end).err = queue_err;
+                err_struct.site = site_index;
+                err_struct.exp = exp_index;
+                err_struct.err = queue_err;
+                obj.meta.errs(end+1) = err_struct;
                 obj.logger.logTraceback(sprintf('Error on queue index %i (repetition %i): %s',i,repetition,queue_err.message),...
                         queue_err.stack,Base.Logger.ERROR);
             end

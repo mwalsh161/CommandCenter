@@ -42,7 +42,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.singleton_id = varargin;
             Objects(end+1) = obj;
         end
-        
+        varargout = analyze(data,varargin)
         regions = peakRegionBin(peaks,wids,ppp,scanDevs,maxRange)
         function [dx,dy,dz,metric] = Track(Imaging,Stage,track_thresh) 
             % Imaging = handle to active imaging module
@@ -163,7 +163,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             managers.Path.select_path('spectrometer'); %this may be unnecessary
             calibration = specH.calibration(laserH,obj.freq_range,obj.SpecCalExposure,ax);
             obj.nm2THz = calibration.nm2THz; %grab the calibration function
-            obj.meta = obj.nm2THz; % And add to metadata
+            obj.meta.nm2THz = obj.nm2THz; % And add to metadata
             
             %set SlowScan Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;

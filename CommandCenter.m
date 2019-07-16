@@ -1,4 +1,9 @@
 function varargout = CommandCenter(varargin)
+% CommandCenter debug -> will start with logger visible during launch
+% CommandCenter reset -> will remove all previously loaded modules before launching
+% Any combination of the above two will also work
+% -> Note `CommandCenter string1 string2` is equivalent to `CommandCenter('string1','string2')`
+%
 % COMMANDCENTER MATLAB code for CommandCenter.fig
 %      COMMANDCENTER, by itself, creates a new COMMANDCENTER or raises the existing
 %      singleton*.
@@ -43,6 +48,11 @@ else
 end
 % End initialization code - DO NOT EDIT
 
+function [tf,varargin] = parseInput(varargin,arg)
+% Check for existance of string in cell array and return cell array with arg removed
+mask = strcmpi(varargin,arg);
+tf = any(mask); % If varargin is empty `any([])` is false as expected
+varargin = varargin(~mask);
 
 % --- Executes just before CommandCenter is made visible.
 function CommandCenter_OpeningFcn(hObject, eventdata, handles, varargin)
@@ -51,147 +61,171 @@ function CommandCenter_OpeningFcn(hObject, eventdata, handles, varargin)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to CommandCenter (see VARARGIN)
-
-key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
-
 if strcmp(hObject.Visible,'on')
-    % Means it already exists
+    % Means it already exists, so do nothing
     return
 end
-[path,~,~] = fileparts(mfilename('fullpath'));
-warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
-if ~exist(fullfile(path,'dbquit.m'),'file')
-    copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
-end
-[loading_fig,textH]=Base.loadIm('load.png','CommandCenter Loading','initialmagnification',40);
-addpath(path)
-addpath(genpath(fullfile(path,'overload_builtin')))
-addpath(genpath(fullfile(path,'HelperFunctions')))
-addpath(genpath(fullfile(path,'VerdiClient')))
-addpath(genpath(fullfile(path,'slackAPI')))
-addpath(fullfile(path,'Modules'))
-addpath(fullfile(path,'Modules','Managers'))
+key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
 
-set(textH,'String','Checking Git (see Command Window)'); drawnow;
-oldPath = cd(path);
-try
-    fprintf('Running "git fetch", please wait... ');
-    [~] = git('fetch'); % Toss output
-    fprintf('done.\n');
-    out = git('status');
-    if contains(out,'nothing to commit, working tree clean')&&contains(strrep(out,'-',' '),'branch is up to date with')
-        fprintf('%s\n',out);
-    else
-        fprintf(2,'%s\n',out); % red (via stderr fid)
+% Allocate names in case error for things that need to be cleaned up
+loading_fig = [];
+handles.logger = [];
+handles.inactivity_timer = [];
+try 
+    % Parse inputs
+    assert(all(cellfun(@ischar,varargin)),'All inputs provided to CommandCenter must be strings')
+    [debug,varargin] = parseInput(varargin,'debug');
+    [reset,varargin] = parseInput(varargin,'reset');
+    % Prepare state based on inputs
+    loggerStartState = 'off';
+    if ~isempty(varargin)
+        error('Invalid argument(s) provided to CommandCenter upon launching:\n  %s',...
+            strjoin(varargin,'\n  '));
     end
+    if debug
+        loggerStartState = 'on';
+    end
+    if reset
+        % Remove Manager prefs which is responsible for remembering which
+        % modules were loaded for each manager
+        if ispref('Manager')
+            rmpref('Manager');
+        end
+    end
+    
+    % Update path
+    [path,~,~] = fileparts(mfilename('fullpath'));
+    warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
+    if ~exist(fullfile(path,'dbquit.m'),'file')
+        copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
+    end
+    [loading_fig,textH]=Base.loadIm('load.png','CommandCenter Loading','initialmagnification',40);
+    addpath(path)
+    addpath(genpath(fullfile(path,'overload_builtin')))
+    addpath(genpath(fullfile(path,'HelperFunctions')))
+    addpath(genpath(fullfile(path,'VerdiClient')))
+    addpath(genpath(fullfile(path,'slackAPI')))
+    addpath(fullfile(path,'Modules'))
+    addpath(fullfile(path,'Modules','Managers'))
+
+    % Check Git
+    set(textH,'String','Checking Git (see Command Window)'); drawnow;
+    oldPath = cd(path);
+    try
+        fprintf('Running "git fetch", please wait... ');
+        [~] = git('fetch'); % Toss output
+        fprintf('done.\n');
+        out = git('status');
+        if contains(out,'nothing to commit, working tree clean')&&contains(strrep(out,'-',' '),'branch is up to date with')
+            fprintf('%s\n',out);
+        else
+            fprintf(2,'%s\n',out); % red (via stderr fid)
+        end
+    catch git_err
+        fprintf(2,'Initial git commands failed (continuing): %s\n',git_err.message);
+    end
+    cd(oldPath);
+    
+    % Prepare Key
+    if exist(fullfile(path,'.unique_key.mat'),'file')
+        unique_key = load(fullfile(path,'.unique_key.mat'));
+        unique_key = unique_key.unique_key;
+    else % First time running on this computer, generate base64 key
+        % NOTE: technically not quite base64. ignoring two characters from
+        % base64 alphabet that don't work in URL easily: "+" and "/"
+        rng('shuffle'); % Use current time to seed
+        unique_key = randsample(char([48:57 65:90 97:122]),43,true);
+        save(fullfile(path,'.unique_key.mat'),'unique_key');
+    end
+    
+    % Setup Logging
+    handles.logger = Base.Logger(mfilename,loggerStartState);
+    handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
+    setappdata(hObject,'ALLmodules',{})
+    setappdata(hObject,'logger',handles.logger)
+    set(handles.file_logger,'checked',handles.logger.visible)
+    
+    % Convert panels to scrollPanels
+    handles.panelStage = Base.UIscrollPanel(handles.panelStage);
+    handles.panelImage = Base.UIscrollPanel(handles.panelImage);
+    handles.panelSource = Base.UIscrollPanel(handles.panelSource);
+    handles.panelExperiment = Base.UIscrollPanel(handles.panelExperiment);
+    handles.panelSave = Base.UIscrollPanel(handles.panelSave);
+    controls = [handles.panelStage,handles.panelImage,handles.panelSource,...
+        handles.panelExperiment,handles.panelSave];
+    Base.UIScrollPanelContainer(handles.LeftPanel,controls,5);
+    Base.Resizable(handles.panelStage);
+    Base.Resizable(handles.panelImage);
+    Base.Resizable(handles.panelSource);
+    Base.Resizable(handles.panelExperiment);
+    Base.Resizable(handles.panelSave);
+    
+    % Convert Axes panels to Split panels
+    handles.AxesPanels = Base.SplitPanel(handles.panel_im,handles.panel_exp,'horizontal');
+    set(handles.AxesPanels.dividerH,'BorderType','etchedin')
+    pos = get(handles.panel_im,'position');
+    handles.AxesPanelsH = pos(4);  % Necessary to allow GlobalPosition to hang out up there.
+    axes_im_only_Callback(hObject,[],handles)  % Set default to just image
+    
+    handles.Managers = Base.ManagerContainer;   % So every Manager has same access to other managers
+    handles.Managers.Logger = handles.logger;   % Make more accessible
+    handles.Managers.handles = handles;         % Give the manager container a handle to figure handles
+    
+    % Inactivity timer
+    handles.Managers.timeout = 30*60;  % seconds
+    handles.inactivity_timer = timer('Executionmode','SingleShot',...
+        'TimerFcn',@inactivity,'startdelay',handles.Managers.timeout+1,...
+        'name','Inactivity Timer','tag',mfilename,'busymode','queue','ObjectVisibility','off');
+    handles.inactivity_timer.UserData = handles.Managers;
+    
+    % Init managers
+    set(textH,'String','Loading StageManager'); drawnow;
+    handles.Managers.Stages = StageManager(handles);
+    
+    set(textH,'String','Loading Experiment module');
+    handles.Managers.Experiment = ExperimentManager(handles);
+    
+    set(textH,'String','Loading Imaging module'); drawnow;
+    handles.Managers.Imaging = ImagingManager(handles);
+    set(handles.(handles.Managers.Imaging.set_colormap),'checked','on') % Tags correspond to colormaps
+    set(allchild(handles.menu_colormap),'callback',...
+        @(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
+    
+    set(textH,'String','Loading Database module'); drawnow;
+    handles.Managers.DB = DBManager(handles);
+    
+    set(textH,'String','Loading Source modules'); drawnow;
+    handles.Managers.Sources = SourcesManager(handles);
+    
+    set(textH,'String','Loading paths'); drawnow;
+    handles.Managers.Path = PathManager(handles); % Generates its own menu item
+    
+    set(textH,'String','Preparing GUI'); drawnow;
+    set(textH,'String','Done.'); drawnow;
 catch err
-    fprintf(2,'Initial git commands failed (continuing): %s\n',err.message);
-end
-cd(oldPath);
-
-% Set up log
-if exist(fullfile(path,'.unique_key.mat'),'file')
-    unique_key = load(fullfile(path,'.unique_key.mat'));
-    unique_key = unique_key.unique_key;
-else % First time running on this computer, generate base64 key
-     % NOTE: technically not quite base64. ignoring two characters from
-     % base64 alphabet that don't work in URL easily: "+" and "/"
-    rng('shuffle'); % Use current time to seed
-    unique_key = randsample(char([48:57 65:90 97:122]),43,true);
-    save(fullfile(path,'.unique_key.mat'),'unique_key');
+    close(loading_fig)
+    delete(handles.inactivity_timer)
+    delete(handles.logger)
+    delete(hObject)
+    errordlg(sprintf('%s\n\nDetails in Command Window',err.message),'Error Loading CommandCenter')
+    rethrow(err)
 end
 
-startState = 'off';
-if ~isempty(varargin)
-    startState = 'on';
-end
-handles.logger = Base.Logger(mfilename,startState);
-handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
-setappdata(hObject,'ALLmodules',{})
-setappdata(hObject,'logger',handles.logger)
-set(handles.file_logger,'checked',handles.logger.visible)
-
-% Convert panels to scrollPanels
-handles.panelStage = Base.UIscrollPanel(handles.panelStage);
-handles.panelImage = Base.UIscrollPanel(handles.panelImage);
-handles.panelSource = Base.UIscrollPanel(handles.panelSource);
-handles.panelExperiment = Base.UIscrollPanel(handles.panelExperiment);
-handles.panelSave = Base.UIscrollPanel(handles.panelSave);
-controls = [handles.panelStage,handles.panelImage,handles.panelSource,...
-            handles.panelExperiment,handles.panelSave];
-Base.UIScrollPanelContainer(handles.LeftPanel,controls,5);
-Base.Resizable(handles.panelStage);
-Base.Resizable(handles.panelImage);
-Base.Resizable(handles.panelSource);
-Base.Resizable(handles.panelExperiment);
-Base.Resizable(handles.panelSave);
-
-% Convert Axes panels to Split panels
-handles.AxesPanels = Base.SplitPanel(handles.panel_im,handles.panel_exp,'horizontal');
-set(handles.AxesPanels.dividerH,'BorderType','etchedin')
-pos = get(handles.panel_im,'position');
-handles.AxesPanelsH = pos(4);  % Necessary to allow GlobalPosition to hang out up there.
-axes_im_only_Callback(hObject,[],handles)  % Set default to just image
-
-handles.Managers = Base.ManagerContainer;   % So every Manager has same access to other managers
-handles.Managers.Logger = handles.logger;   % Make more accessible
-handles.Managers.handles = handles;         % Give the manager container a handle to figure handles
-
-% Inactivity timer
-handles.Managers.timeout = 30*60;  % seconds
-handles.inactivity_timer = timer('Executionmode','SingleShot',...
-    'TimerFcn',@inactivity,'startdelay',handles.Managers.timeout+1,...
-    'name','Inactivity Timer','tag',mfilename,'busymode','queue','ObjectVisibility','off');
-handles.inactivity_timer.UserData = handles.Managers;
-
-err=[];
-try
-
-set(textH,'String','Loading StageManager'); drawnow;
-handles.Managers.Stages = StageManager(handles);
-
-set(textH,'String','Loading Experiment module');
-handles.Managers.Experiment = ExperimentManager(handles);
-
-set(textH,'String','Loading Imaging module'); drawnow;
-handles.Managers.Imaging = ImagingManager(handles);
-set(eval(sprintf('handles.%s',handles.Managers.Imaging.set_colormap)),'checked','on') % Tags correspond to colormaps
-set(allchild(handles.menu_colormap),'callback',@(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
-
-set(textH,'String','Loading Database module'); drawnow;
-handles.Managers.DB = DBManager(handles);
-
-set(textH,'String','Loading Source modules'); drawnow;
-handles.Managers.Sources = SourcesManager(handles);
-
-set(textH,'String','Loading paths'); drawnow;
-handles.Managers.Path = PathManager(handles); % Generates its own menu item
-
-set(textH,'String','Preparing GUI'); drawnow;
-set(textH,'String','Done.'); drawnow;
-
+% Provide some useful pointers to ManagerContainer class
 exists = evalin('base','exist(''managers'')==1&&isa(managers,''Base.ManagerContainer'')&&isvalid(managers)');
 if exists
     out = questdlg('Overwrite existing managers variable in base workspace?','CommandCenter','Yes','No','Yes');
     assert(strcmp(out,'Yes'),'CommandCenter needs to overwrite managers to start. Try again.')
 end
 assignin('base','managers',handles.Managers)
-catch err
-    delete(handles.logger);
-end
 hObject.UserData = handles.Managers;
-            
+
 % Choose default command line output for CommandCenter
 handles.output = [];
 
 % Update handles structure
 guidata(hObject, handles);
 close(loading_fig)
-if ~isempty(err)
-    delete(hObject)
-    errordlg(sprintf('Error loading %s.  See command line.',mfilename))
-    rethrow(err)
-end
 if strcmp(handles.inactivity_timer.Running,'off')
     % No modules are loaded on startup (otherwise settings called)
     start(handles.inactivity_timer);
