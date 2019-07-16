@@ -35,6 +35,7 @@ classdef CW_ODMR < Modules.Experiment
     methods(Access=private)
         function obj = CW_ODMR()
             % Constructor (should not be accessible to command line!)
+            obj.path = 'APD1';
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
