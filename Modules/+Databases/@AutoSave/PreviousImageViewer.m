@@ -44,7 +44,7 @@ function open_im(fig)
 obj = fig.UserData.obj;
 if ~isvalid(obj) % Means autosave destroyed
     set(fig,'KeyPressFcn','')
-    obj.error('Standalone mode - KeyPressFcn removed.')
+    error('Standalone mode - KeyPressFcn removed.')
 end
 path = obj.previousImagesDB.old(1,fig.UserData.n);
 path = path{1};
@@ -76,10 +76,11 @@ end
 Managers = CC.UserData;
 colormap(fig,Managers.Imaging.set_colormap)
 try
-    Base.SmartImage(im,NewAx,Managers.Stages,Managers.Imaging);
+    Base.SmartImage(im,NewAx,Managers.Stages,Managers.Sources,...
+                    Managers.Imaging,Managers.Imaging.dumbimage);
     title(NewAx,sprintf('Left/right keys to navigate %i/%i image.',fig.UserData.n,obj.nImages))
 catch err
-    obj.error('SmartImage could not open %s:\n%s',path,err.message)
+    error('SmartImage could not open %s:\n%s',path,err.message)
 end
 if isfield(im,'notes')
     xlabel(im.notes);

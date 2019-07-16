@@ -82,7 +82,10 @@ classdef ImagingManager < Base.Manager
             NewAx = axes('parent',newFig);
             colormap(newFig,obj.set_colormap)
             try
-                Base.SmartImage(im.image,NewAx,obj.handles.Managers.Stages,obj);
+                Base.SmartImage(im.image, NewAx,...
+                                obj.handles.Managers.Stages,...
+                                obj.handles.Managers.Sources,...
+                                obj, obj.dumbimage);
             catch err
                 delete(newFig)
                 obj.error(sprintf('SmartImage could not open %s:\n%s',path,err.message))
