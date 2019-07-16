@@ -2,7 +2,8 @@ classdef Spec < Experiments.AutoExperiment.AutoExperiment_invisible
     %Spec automatically takes spectra at sites
     
     properties
-        patch_functions = {'preSpec'};
+        prerun_functions = {'preSpec'};
+        patch_functions = {''};
     end
     methods(Static)
         function obj = instance(varargin)
@@ -77,9 +78,8 @@ classdef Spec < Experiments.AutoExperiment.AutoExperiment_invisible
             %turn laser off after running
             obj.imaging_source.off;
         end
-        function params = preSpec(obj,site)
+        function preSpec(obj,exp)
             obj.imaging_source.on;
-            params = struct;
         end
     end
 end
