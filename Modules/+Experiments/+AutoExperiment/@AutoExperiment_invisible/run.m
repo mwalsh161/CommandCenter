@@ -57,8 +57,8 @@ obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = struct('site',{},'exp',{},'err',{});
 obj.meta.tstart = datetime('now');
-obj.PreRun(status,managers,ax);
 runstart = tic;
+obj.PreRun(status,managers,ax);
 err = [];
 try
     for repetition = 1:obj.repeat
