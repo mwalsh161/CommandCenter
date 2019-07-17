@@ -10,7 +10,7 @@ classdef CW_ODMR < Experiments.AutoExperiment.AutoExperiment_invisible
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = ExperimentsCW_ODMR();
+                Object = Experiments.AutoExperiment.CW_ODMR();
             end
             obj = Object;
         end
