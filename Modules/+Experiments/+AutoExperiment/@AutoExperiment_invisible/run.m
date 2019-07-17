@@ -163,7 +163,7 @@ try
     end
 catch err
 end
-obj.meta.tstop = toc(runstart);
+obj.meta.tstop = datetime('now');
 obj.meta.tracker = obj.tracker;
 obj.PostRun(status,managers,ax)
 obj.continue_experiment = false;
