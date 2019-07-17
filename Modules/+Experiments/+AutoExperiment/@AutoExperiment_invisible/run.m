@@ -56,8 +56,9 @@ run_queue = [X(:),Y(:)];
 obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = struct('site',{},'exp',{},'err',{});
-obj.PreRun(status,managers,ax);
+obj.meta.tstart = datetime('now');
 runstart = tic;
+obj.PreRun(status,managers,ax);
 err = [];
 try
     for repetition = 1:obj.repeat
@@ -119,11 +120,13 @@ try
                         status.String = msg;
                         drawnow;
                         obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
+                        obj.data.sites(site_index).experiments(local_exp_index).tstart = toc(runstart);
                         if ~isempty(obj.prerun_functions{exp_index})
                             obj.(obj.prerun_functions{exp_index})(experiment);
                         end
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
+                        obj.data.sites(site_index).experiments(local_exp_index).tstop = toc(runstart);
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
@@ -160,6 +163,8 @@ try
     end
 catch err
 end
+obj.meta.tstop = datetime('now');
+obj.meta.tracker = obj.tracker;
 obj.PostRun(status,managers,ax)
 obj.continue_experiment = false;
 if ~isempty(err)
