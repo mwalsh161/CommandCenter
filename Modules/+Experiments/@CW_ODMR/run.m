@@ -11,6 +11,7 @@ function run( obj,status,managers,ax )
 
     % Edit this to include meta data for this experimental run (saved in obj.GetData)
     obj.meta.prefs = obj.prefs2struct;
+    obj.meta.freq_list = obj.freq_list;
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
 
     ctr = Drivers.Counter.instance(obj.APD_line, obj.APD_Sync_line);
