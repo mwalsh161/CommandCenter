@@ -27,6 +27,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
+        fatal_flag = false; % if true, an error becomes fatal
     end
     properties(SetObservable, AbortSet)
         experiments = Modules.Experiment.empty(0); %array of experiment handles

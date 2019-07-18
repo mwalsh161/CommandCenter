@@ -1,5 +1,6 @@
 function run(obj,status,managers,ax)
 obj.abort_request = false;
+obj.fatal_flag = false;
 assert(all(cellfun(@ischar,obj.patch_functions)),'One or more patch function is not a valid handle.');
 assert(length(obj.patch_functions) == length(obj.experiments),'Number of patch functions does not match number of experiments.')
 assert(~isempty(obj.imaging_source),'No imaging source selected, please select one and re-run.')
@@ -87,7 +88,12 @@ try
                     managers.Stages.move([obj.data.sites(site_index).position(1)+dX(1),...
                                           obj.data.sites(site_index).position(2)+dX(2), NaN]); %move to site (Z should already be set)
                     if exp_index==1
+                        % This is to get a metric reading, the thresh of false, instructs tracker to not perform track
                         [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
+                        if ~all(isnan([dx,dy,dz]))
+                            obj.fatal_flag = true;
+                            error('Fatal: Tracker should not have tracked on first track of experiment!');
+                        end
                         obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                     end
                     for j = 1:length(params)
@@ -147,9 +153,16 @@ try
                             % track_func should leave Z in the optimal position, we will just keep that on record for the experiments
                             % note, dx and dy will be used in following positions; keep cumulative because we don't want to edit 
                             % original site positions
+                            if any(isnan([dx,dy,dz]))
+                                obj.fatal_flag = true;
+                                error('Fatal: Tracker returned NaN value during tracking routine! A value of 0 should be returned if no update is necessary.');
+                            end
                             dX = dX + [dx, dy, dz];
                         end
                     catch param_err
+                        if obj.fatal_flag
+                            rethrow(param_err);
+                        end
                         obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
                         err_struct.site = site_index;
                         err_struct.exp = exp_index;
@@ -158,6 +171,9 @@ try
                     end
                 end
             catch queue_err
+                if obj.fatal_flag
+                    rethrow(queue_err);
+                end
                 err_struct.site = site_index;
                 err_struct.exp = exp_index;
                 err_struct.err = queue_err;
