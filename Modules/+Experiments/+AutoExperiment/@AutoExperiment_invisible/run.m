@@ -57,6 +57,7 @@ obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = struct('site',{},'exp',{},'err',{});
 obj.meta.tstart = datetime('now');
+dX = [0,0,0]; % Cumulative tracker offset
 runstart = tic;
 obj.PreRun(status,managers,ax);
 err = [];
@@ -83,7 +84,8 @@ try
                     params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
                 end
                 if ~isempty(params)
-                    managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
+                    managers.Stages.move([obj.data.sites(site_index).position(1)+dX(1),...
+                                          obj.data.sites(site_index).position(2)+dX(2), NaN]); %move to site (Z should already be set)
                     if exp_index==1
                         [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
                         obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
@@ -127,6 +129,7 @@ try
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
                         obj.data.sites(site_index).experiments(local_exp_index).tstop = toc(runstart);
+                        obj.data.sites(site_index).experiments(local_exp_index).dX = dX;
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
@@ -141,6 +144,10 @@ try
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,obj.tracking_threshold*obj.tracker(last_track,4));
                                 obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                             end
+                            % track_func should leave Z in the optimal position, we will just keep that on record for the experiments
+                            % note, dx and dy will be used in following positions; keep cumulative because we don't want to edit 
+                            % original site positions
+                            dX = dX + [dx, dy, dz];
                         end
                     catch param_err
                         obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
