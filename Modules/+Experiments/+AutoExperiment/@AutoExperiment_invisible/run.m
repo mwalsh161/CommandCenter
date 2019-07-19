@@ -86,7 +86,8 @@ try
                 end
                 if ~isempty(params)
                     managers.Stages.move([obj.data.sites(site_index).position(1)+dX(1),...
-                                          obj.data.sites(site_index).position(2)+dX(2), NaN]); %move to site (Z should already be set)
+                                          obj.data.sites(site_index).position(2)+dX(2),...
+                                          obj.data.sites(site_index).position(3)+dX(3)]); %move to site
                     if exp_index==1
                         % This is to get a metric reading, the thresh of false, instructs tracker to not perform track
                         [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
@@ -150,9 +151,6 @@ try
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,obj.tracking_threshold*obj.tracker(last_track,4));
                                 obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                             end
-                            % track_func should leave Z in the optimal position, we will just keep that on record for the experiments
-                            % note, dx and dy will be used in following positions; keep cumulative because we don't want to edit 
-                            % original site positions
                             if any(isnan([dx,dy,dz]))
                                 obj.fatal_flag = true;
                                 error('Fatal: Tracker returned NaN value during tracking routine! A value of 0 should be returned if no update is necessary.');

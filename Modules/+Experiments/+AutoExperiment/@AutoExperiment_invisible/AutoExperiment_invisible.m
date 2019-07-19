@@ -85,6 +85,10 @@ classdef AutoExperiment_invisible < Modules.Experiment
                     title('Click on all positions, then hit enter when done.')
                     sites.positions = ginput();
             end
+            % Add in column of NaNs for Z (this will prevent setting Z when
+            % moving to emitter position; Track can still modify global Z
+            % if desired.
+            sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
             close(f)
             assert(~isempty(sites.positions),'No positions!')
         end
@@ -96,9 +100,10 @@ classdef AutoExperiment_invisible < Modules.Experiment
             %   dy = change in x
             %   dz = change in x
             %   metric = whatever metric used to track (e.g. fluorescence)
-            dx = NaN;
-            dy = NaN;
-            dz = NaN;
+            dx = NaN; dy = NaN; dz = NaN; % Case when told to explicitly not track
+            if ~islogical(thresh)
+                dx = 0; dy = 0; dz = 0;
+            end
             metric = NaN;
         end
     end
