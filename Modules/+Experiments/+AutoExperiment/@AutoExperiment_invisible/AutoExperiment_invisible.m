@@ -27,6 +27,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
+        fatal_flag = false; % if true, an error becomes fatal
     end
     properties(SetObservable, AbortSet)
         experiments = Modules.Experiment.empty(0); %array of experiment handles
@@ -84,6 +85,10 @@ classdef AutoExperiment_invisible < Modules.Experiment
                     title('Click on all positions, then hit enter when done.')
                     sites.positions = ginput();
             end
+            % Add in column of NaNs for Z (this will prevent setting Z when
+            % moving to emitter position; Track can still modify global Z
+            % if desired.
+            sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
             close(f)
             assert(~isempty(sites.positions),'No positions!')
         end
@@ -95,9 +100,10 @@ classdef AutoExperiment_invisible < Modules.Experiment
             %   dy = change in x
             %   dz = change in x
             %   metric = whatever metric used to track (e.g. fluorescence)
-            dx = NaN;
-            dy = NaN;
-            dz = NaN;
+            dx = NaN; dy = NaN; dz = NaN; % Case when told to explicitly not track
+            if ~islogical(thresh)
+                dx = 0; dy = 0; dz = 0;
+            end
             metric = NaN;
         end
     end
