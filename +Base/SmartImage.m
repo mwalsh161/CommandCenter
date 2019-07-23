@@ -89,7 +89,7 @@ classdef SmartImage < handle
                     tempModule = source.modules{i};
                     sources(i).ModuleInfo = obj.extractModuleSettings(tempModule);
                 end
-                info.sources = stages;
+                info.sources = sources;
                 info.ROI = imager.ROI;
                 info.ModuleInfo = obj.extractModuleSettings(imager.active_module);
                 obj.info = info;
