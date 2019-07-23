@@ -58,7 +58,7 @@ obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = struct('site',{},'exp',{},'err',{});
 obj.meta.tstart = datetime('now');
-dX = [0,0,0]; % Cumulative tracker offset
+dR = [0,0,0]; % Cumulative tracker offset
 runstart = tic;
 obj.PreRun(status,managers,ax);
 err = [];
@@ -85,9 +85,9 @@ try
                     params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
                 end
                 if ~isempty(params)
-                    managers.Stages.move([obj.data.sites(site_index).position(1)+dX(1),...
-                                          obj.data.sites(site_index).position(2)+dX(2),...
-                                          obj.data.sites(site_index).position(3)+dX(3)]); %move to site
+                    managers.Stages.move([obj.data.sites(site_index).position(1)+dP(1),...
+                                          obj.data.sites(site_index).position(2)+dP(2),...
+                                          obj.data.sites(site_index).position(3)+dP(3)]); %move to site
                     if exp_index==1
                         % This is to get a metric reading, the thresh of false, instructs tracker to not perform track
                         [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
@@ -136,7 +136,7 @@ try
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
                         obj.data.sites(site_index).experiments(local_exp_index).tstop = toc(runstart);
-                        obj.data.sites(site_index).experiments(local_exp_index).dX = dX;
+                        obj.data.sites(site_index).experiments(local_exp_index).dP = dP;
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
@@ -155,7 +155,7 @@ try
                                 obj.fatal_flag = true;
                                 error('Fatal: Tracker returned NaN value during tracking routine! A value of 0 should be returned if no update is necessary.');
                             end
-                            dX = dX + [dx, dy, dz];
+                            dP = dP + [dx, dy, dz];
                         end
                     catch param_err
                         if obj.fatal_flag
