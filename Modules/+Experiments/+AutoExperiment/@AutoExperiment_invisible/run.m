@@ -58,7 +58,7 @@ obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = struct('site',{},'exp',{},'err',{});
 obj.meta.tstart = datetime('now');
-dR = [0,0,0]; % Cumulative tracker offset
+dP = [0,0,0]; % Cumulative tracker offset
 runstart = tic;
 obj.PreRun(status,managers,ax);
 err = [];
