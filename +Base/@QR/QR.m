@@ -213,8 +213,11 @@ classdef QR
             checksum = bin2dec(code(p:p+cs-1));
             % Remove checksum, and test
             code(end-cs+1:end) = [];
-            if ~isempty(checksum)
-                assert(mod(numel(strfind(code,'1')),2^cs)==checksum,'Checksum failed.')
+            if ~isempty(checksum) && mod(numel(strfind(code,'1')),2^cs)~=checksum
+                if legacy_error
+                    warning('Checksum failure was after a pad failure and attempt to address the legacy error.')
+                end
+                error('Checksum failed.')
             end
             if version > 5 && legacy_error
                 warning('Had to correct for padding error that SHOULD NOT exist in versions > 5! Tell mpwalsh@mit.edu immediately.');
