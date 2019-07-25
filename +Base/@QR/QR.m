@@ -93,7 +93,7 @@ classdef QR
           %  c = [c(1:2:end) c(2:2:end)];
           %  if size(c,1) < 3
                 % If there weren't enough circles for even 1, try harder
-                [c,~]=imfindcircles(im,round([0.8 1.2]*r),'ObjectPolarity','dark','Sensitivity',0.95);
+                [c,~]=imfindcircles(im,round([0.8 1.2]*r),'ObjectPolarity','dark','Sensitivity',0.97);
           %  end
             % Find all QR candidates based on circle locations
             [offset,theta,scaling]=Base.QR.findQR(c,conv);
@@ -177,7 +177,7 @@ classdef QR
             readInfo = struct('qrInfo',qrInfo,'tform',tform.invert(),'err',err,'npoints',npoints);
         end
         
-        function [row,col,version] = analyze(code)
+        function [row,col,version,legacy_error] = analyze(code)
             pad = Base.QR.pad; %#ok<*PROP>
             vb = Base.QR.vb;
             rb = Base.QR.rb;
@@ -189,10 +189,18 @@ classdef QR
             end
             assert(numel(code)==Base.QR.length,'Code is the wrong size')
             % Make sure pad is correct, then remove
-            padVal = num2str(ones(1,numel(pad))*Base.QR.padVal);
-            padVal(padVal==' ') = [];  % Remove spaces from previous cmd
-            assert(strcmp(code(pad),padVal),'Padding bits are incorrect.')
-            code(pad) = [];
+            padVal = num2str(ones(1,numel(pad))*Base.QR.padVal,'%i');
+            legacy_error = false;
+            if ~strcmp(code(pad),padVal)
+                % There was a flaw in some of the generation code, so
+                % attempt altering code to "fix" by swapping bit 5 and 6
+                assert(strcmp(code([1 6]),padVal),'Padding bits are incorrect.')
+                legacy_error = true;
+                code([1 6]) = [];
+                end
+            else
+                code(pad) = [];
+            end
             p = 1;
             version = bin2dec(code(p:p+vb-1));
             p = p + vb;
@@ -203,8 +211,14 @@ classdef QR
             checksum = bin2dec(code(p:p+cs-1));
             % Remove checksum, and test
             code(end-cs+1:end) = [];
-            if ~isempty(checksum)
-                assert(mod(numel(strfind(code,'1')),2^cs)==checksum,'Checksum failed.')
+            if ~isempty(checksum) && mod(numel(strfind(code,'1')),2^cs)~=checksum
+                if legacy_error
+                    warning('Checksum failure was after a pad failure and attempt to address the legacy error.')
+                end
+                error('Checksum failed.')
+            end
+            if version > 5 && legacy_error
+                warning('Had to correct for padding error that SHOULD NOT exist in versions > 5! Tell mpwalsh@mit.edu immediately.');
             end
         end
         [offset,theta,scaling] = findQR(c,conv)
