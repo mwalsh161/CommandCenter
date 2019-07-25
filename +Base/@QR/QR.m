@@ -194,11 +194,9 @@ classdef QR
             if ~strcmp(code(pad),padVal)
                 % There was a flaw in some of the generation code, so
                 % attempt altering code to "fix" by swapping bit 5 and 6
-                if ~strcmp(code([1 6]),padVal)
-                    error('Padding bits are incorrect.')
-                else
-                    legacy_error = true;
-                    code([1 6]) = [];
+                assert(strcmp(code([1 6]),padVal),'Padding bits are incorrect.')
+                legacy_error = true;
+                code([1 6]) = [];
                 end
             else
                 code(pad) = [];
