@@ -53,7 +53,7 @@ uimenu(file_menu,'Text','Export Analysis Data','callback',@export_data,'separato
 ax = subplot(1,5,[1 2],'parent',fig,'tag','SpatialImageAx');
 hold(ax,'on');
 imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
-positions = reshape([data.sites.position],2,[]);
+positions = reshape([data.sites.position],3,[]);
 sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite,'tag','sites');
 sc.UserData.fig = fig;
 pos = scatter(NaN,NaN,'r+');
