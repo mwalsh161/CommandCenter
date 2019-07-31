@@ -33,7 +33,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         experiments = Modules.Experiment.empty(0); %array of experiment handles
         run_type = {Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
                     Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST};
-        site_selection = {'Peak finder','Grid','Manual sites'};
+        site_selection = {'Peak finder','Grid','Manual sites','Load from file'};
         imaging_source = Modules.Source.empty(1,0);
         tracking_threshold = 0.9; %tracking metric will be normalized to 1
         min_tracking_seconds = 0; %in seconds; tracker won't run twice within this amount of time
@@ -54,6 +54,10 @@ classdef AutoExperiment_invisible < Modules.Experiment
             %   positions = [Nx2] array of positions
             %   manual_input = boolean, true if positions were user-supplied
             %   meta = empty if manual_input, else UserData from imfindpeaks
+            persistent last_path
+            if isempty(last_path)
+                last_path = '';
+            end
             sites = struct('image',[],'positions',[],'input_method',site_selection,'meta',[]);
             if isempty(managers.Imaging.current_image)
                 source_on = imaging_source.source_on;
@@ -84,6 +88,21 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 case 'Manual sites'
                     title('Click on all positions, then hit enter when done.')
                     sites.positions = ginput();
+                case 'Load from file'
+                    [file,path] = uigetfile('*.mat','Site Selection',last_path);
+                    if isequal(file,0)
+                        error('Site selection aborted')
+                    else
+                        last_path = path;
+                        temp = load(fullfile(path,file));
+                        f = fieldnames(temp);
+                        assert(numel(f)==1,...
+                            sprintf('The mat file containing sites should only contain a single variable, found:\n\n%s',...
+                            strjoin(f,', ')))
+                        sites.positions = temp.(f{1});
+                        sites.meta = struct('path',fullfile(path,file));
+                        assert(size(sites.positions,2)==2,'Only supports loading x, y coordinates (expected Nx2 array).');
+                    end
             end
             % Add in column of NaNs for Z (this will prevent setting Z when
             % moving to emitter position; Track can still modify global Z
