@@ -59,6 +59,28 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 last_path = '';
             end
             sites = struct('image',[],'positions',[],'input_method',site_selection,'meta',[]);
+            
+            if strcmp(site_selection,'Load from file')
+                [file,path] = uigetfile('*.mat','Site Selection',last_path);
+                    if isequal(file,0)
+                        error('Site selection aborted')
+                    else
+                        last_path = path;
+                        temp = load(fullfile(path,file));
+                        f = fieldnames(temp);
+                        assert(numel(f)==1,...
+                            sprintf('The mat file containing sites should only contain a single variable, found:\n\n%s',...
+                            strjoin(f,', ')))
+                        sites.positions = temp.(f{1});
+                        sites.meta.path = fullfile(path,file);
+                        recvd = num2str(size(sites.positions),'%i, ');
+                        assert(size(sites.positions,2)==2,...
+                            sprintf('Only supports loading x, y coordinates (expected Nx2 array, received [%s]).',recvd(1:end-1)));
+                    end
+                sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
+                return
+            end
+            
             if isempty(managers.Imaging.current_image)
                 source_on = imaging_source.source_on;
                 imaging_source.on;
@@ -86,22 +108,15 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 case 'Grid'
                     sites = Experiments.AutoExperiment.AutoExperiment_invisible.select_grid_sites(sites,ax_temp);
                 case 'Manual sites'
-                    title('Click on all positions, then hit enter when done.')
-                    sites.positions = ginput();
-                case 'Load from file'
-                    [file,path] = uigetfile('*.mat','Site Selection',last_path);
-                    if isequal(file,0)
-                        error('Site selection aborted')
-                    else
-                        last_path = path;
-                        temp = load(fullfile(path,file));
-                        f = fieldnames(temp);
-                        assert(numel(f)==1,...
-                            sprintf('The mat file containing sites should only contain a single variable, found:\n\n%s',...
-                            strjoin(f,', ')))
-                        sites.positions = temp.(f{1});
-                        sites.meta = struct('path',fullfile(path,file));
-                        assert(size(sites.positions,2)==2,'Only supports loading x, y coordinates (expected Nx2 array).');
+                    title(sprintf('Click on all positions\nDrag to adjust\nRight click on point to get menu to delete.\n\nRight click on image to finish (DO NOT CLOSE!)'))
+                    imH.UserData.h = [];
+                    imH.ButtonDownFcn = @im_clicked;
+                    uiwait(f);
+                    sites.positions = NaN(0,2);
+                    for i = 1:length(imH.UserData.h)
+                        if isvalid(imH.UserData.h(i))
+                            sites.positions(end+1,:) = imH.UserData.h(i).getPosition;
+                        end
                     end
             end
             % Add in column of NaNs for Z (this will prevent setting Z when
@@ -110,6 +125,18 @@ classdef AutoExperiment_invisible < Modules.Experiment
             sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
             close(f)
             assert(~isempty(sites.positions),'No positions!')
+            function im_clicked(hObj,eventdata)
+                if eventdata.Button ~= 1
+                    uiresume;
+                    return
+                end
+                h = impoint(hObj.Parent,eventdata.IntersectionPoint(1:2));
+                if isempty(hObj.UserData.h)
+                    hObj.UserData.h = h;
+                else
+                    hObj.UserData.h(end+1) = h;
+                end
+            end
         end
         sites = select_grid_sites(sites,ax_temp)
         varargout = view(varargin);
