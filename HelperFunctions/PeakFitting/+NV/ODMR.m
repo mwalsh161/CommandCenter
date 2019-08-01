@@ -69,7 +69,7 @@ addRequired(p,'frequency',@(n)validateattributes(n,{'numeric'},{'column'}))
 addRequired(p,'intensity',@(n)validateattributes(n,{'numeric'},{'column'}))
 addParameter(p,'FitType','lorentz',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'isotope','14',@(n)any(validatestring(n,isotope_opts)));
-addParameter(p,'C13',{'none'},@(n)validateattributes(n,{'cell'},{'vector'}))
+addParameter(p,'C13',{''},@(n)validateattributes(n,{'cell'},{'vector'}))
 addParameter(p,'fitNormalization',false,@(n)validateattributes(n,{'logical'},{'scalar'}))
 % Default for these will assume fitting normalization
 addParameter(p,'StartPoint',[0.05, 2.87, 5, 1],@(n)validateattributes(n,{'numeric'},{'vector','finite'}))
