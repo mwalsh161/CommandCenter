@@ -15,8 +15,8 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [Locations]: Location limits in x to impose on the fitted peak properties.
 %       Default: [min(x) max(x)]
 %   [ConfLevel]: confidence interval level (default 0.95)
-%   [n]: fit exactly n peaks (n > 0). Not compatible with amplitudeSensitivity or StopMetric.
-%   [amplitudeSensitivity]: Number of standard deviations above median prominence.
+%   [n]: fit exactly n peaks (n > 0). Not compatible with AmplitudeSensitivity or StopMetric.
+%   [AmplitudeSensitivity]: Number of standard deviations above median prominence.
 %       Specifying a prominence threshold will fit the number of peaks > than
 %       the calculated threshold. Not compatible with n or StopMetric.
 %   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
@@ -25,7 +25,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %       rANDchi (default): use both rsquared or chisquared at every step
 %       FirstChi: use chisquared to check the first peak against no peaks,
 %          then rsquared for the rest
-%       Not compatible with amplitudeSensitivity or n.
+%       Not compatible with AmplitudeSensitivity or n.
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
@@ -82,12 +82,12 @@ addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'Location',[min(x) max(x)],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'n',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
-addParameter(p,'amplitudeSensitivity',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
+addParameter(p,'AmplitudeSensitivity',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
 addParameter(p,'NoiseModel','empirical');
 parse(p,x,y,varargin{:});
 % Validate compatibility
-not_compatible = {'n','StopMetric','amplitudeSensitivity'};
+not_compatible = {'n','StopMetric','AmplitudeSensitivity'};
 pSpecified = setdiff(p.Parameters,p.UsingDefaults); % Get parameters specified
 mask = ismember(not_compatible, pSpecified);
 if sum(mask) > 1
@@ -133,10 +133,10 @@ init.widths = init.widths(I);
 init.background = median(y);
 
 usingN = ismember('n',pSpecified);
-if ismember('amplitudeSensitivity',pSpecified)
+if ismember('AmplitudeSensitivity',pSpecified)
     usingN = true;
     % Calculate n
-    thresh = median(init.amplitudes) + p.amplitudeSensitivity * std(init.amplitudes);
+    thresh = median(init.amplitudes) + p.AmplitudeSensitivity * std(init.amplitudes);
     n = sum(init.amplitudes >= thresh);
 end
 
