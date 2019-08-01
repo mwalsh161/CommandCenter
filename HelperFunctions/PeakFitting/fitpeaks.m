@@ -1,5 +1,6 @@
 function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,varargin)
-%FITPEAKS Takes in x, y pair and fits peaks optimizing r^2_adj and \chi^2_red
+%FITPEAKS Takes in x, y pair and fits n peaks or optimizes some metric.
+% The metrics can be r^2_adj, \chi^2_red or a simple prominence threshold
 % r^2_adj == adjrsquared == r == adjusted R squared
 % \chi^2_red == redchisquared == chi == reduced Chi squared
 % Inputs; brackets indicate name,value optional pair:
@@ -14,13 +15,17 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   [Locations]: Location limits in x to impose on the fitted peak properties.
 %       Default: [min(x) max(x)]
 %   [ConfLevel]: confidence interval level (default 0.95)
-%   [n]: fit exactly n peaks (n > 0). This setting will supersede StopMetric.
+%   [n]: fit exactly n peaks (n > 0). Not compatible with amplitudeSensitivity or StopMetric.
+%   [amplitudeSensitivity]: Number of standard deviations above median prominence.
+%       Specifying a prominence threshold will fit the number of peaks > than
+%       the calculated threshold. Not compatible with n or StopMetric.
 %   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
 %       r: only use rsquared (this means there can't be a test for no peaks
 %       chi: only use chisquared (assuming poisson noise)
 %       rANDchi (default): use both rsquared or chisquared at every step
 %       FirstChi: use chisquared to check the first peak against no peaks,
 %          then rsquared for the rest
+%       Not compatible with amplitudeSensitivity or n.
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
@@ -77,17 +82,20 @@ addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'Location',[min(x) max(x)],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'n',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
+addParameter(p,'amplitudeSensitivity',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
 addParameter(p,'NoiseModel','empirical');
 parse(p,x,y,varargin{:});
-% Validate n
-usingN = false;
-if ~ismember('n',p.UsingDefaults)
-    if ~ismember('StopMetric',p.UsingDefaults)
-        error('Cannot specify ''StopMetric'' when also specifying ''n''.')
-    end
-    usingN = true;
+% Validate compatibility
+not_compatible = {'n','StopMetric','amplitudeSensitivity'};
+pSpecified = setdiff(p.Parameters,p.UsingDefaults); % Get parameters specified
+mask = ismember(not_compatible, pSpecified);
+if sum(mask) > 1
+    not_compatible = not_compatible(mask);
+    fmted = cellfun(@(a)sprintf('''%s''',a),not_compatible,'uniformoutput',false);
+    error('Cannot specify %s and %s together.',strjoin(fmted(1:end-1),', '),fmted{end});
 end
+
 p = p.Results;
 % Further validation
 assert(length(x)==length(y),'x and y must be same length');
@@ -123,6 +131,14 @@ yp = [min(yp); yp; min(yp)];
 init.locations = init.locations(I);
 init.widths = init.widths(I);
 init.background = median(y);
+
+usingN = ismember('n',pSpecified);
+if ismember('amplitudeSensitivity',pSpecified)
+    usingN = true;
+    % Calculate n
+    thresh = median(init.amplitudes) + p.amplitudeSensitivity * std(init.amplitudes);
+    n = sum(init.amplitudes >= thresh);
+end
 
 fit_results = {[]};
 % Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
