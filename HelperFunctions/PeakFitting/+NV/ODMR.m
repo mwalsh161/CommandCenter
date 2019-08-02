@@ -42,7 +42,7 @@ function outstruct = ODMR(x,y,varargin)
 %       Default: false
 %     *The following inputs are passed directly to the fit function options*
 %     [StartPoint]: See 'fit' help
-%       Default: (0.05, 2.87, 5/1000, [1])
+%       Default: (0.05, 2.87, 5, [1])
 %     [Lower]: See 'fit' help
 %       Default: (0, 0, 0, [0])
 %     [Upper]: See 'fit' help
@@ -149,7 +149,7 @@ for isoIND = 1:length(isotopes)
             splittingVal = ''; % If zero
             if sub_model.splitting(i)
                 % '%+d' includes "+" for positive
-                splittingVal = num2str(sub_model.splitting(i)/1000,'%+d');
+                splittingVal = num2str(sub_model.splitting(i)/1000,'%+d'); % Splittings (MHz -> GHz)
             end
             sub_model.eq{i} = sprintf(sub_model.eq{i},splittingVal);
         end
