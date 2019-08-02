@@ -202,7 +202,7 @@ classdef MAX302motors < Modules.Stage
                 drawnow;
             end
             % Add new motor
-            obj.motors{axis} = Drivers.APTMotor.instance(val);
+            obj.motors{axis} = Drivers.APTMotor.instance(val, [0 4]);
             % Trick to update position
             obj.Moving = true;
             obj.Moving = false;
