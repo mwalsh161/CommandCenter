@@ -69,8 +69,6 @@ classdef QR
             % READER returns all found qr info
             %   READER(im, [to_plot]) where im is a SmartImage struct.
             %       Expecting ROI to be in um. Output will be in um.
-            %
-            %   ax is either left out or a valid axes handle
             
             % Pasre Input
             assert(size(im.image,3)==1,'Image must be gray scale.')
