@@ -1,4 +1,4 @@
-function [offsets,thetas,scalings] = findQR(c,conv)
+function [offsets,thetas,scalings] = findQR(c,conv,debug_ax)
 % Finds QR code or returns error using imfindcircles
 %% Init
 spacing = Base.QR.spacing/mean(conv);
@@ -30,6 +30,10 @@ while ~isempty(candidate_origins)
                 origin = c(i,:);
                 verts(1,:) = c(j,:)-origin;
                 verts(2,:) = c(k,:)-origin;
+                if all(isvalid(debug_ax))
+                    scatter(debug_ax(1),c([i,j,k],1),c([i,j,k],2),'bo','DisplayName','Confirmed QR');
+                    scatter(debug_ax(2),c([i,j,k],1),c([i,j,k],2),'bo','DisplayName','Confirmed QR');
+                end
                 if (verts(1,1)*verts(2,2)-verts(1,2)*verts(2,1))>0
                     x = verts(1,:);
                 else
