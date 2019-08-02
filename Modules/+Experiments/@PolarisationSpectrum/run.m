@@ -17,9 +17,28 @@ function run( obj,status,managers,ax )
     % Edit this to include meta data for this experimental run (saved in obj.GetData)
     obj.meta.prefs = obj.prefs2struct;
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
+    obj.meta.angles = obj.angles %Angles corresponding to each spectrum
 
     try
-        % EXPERIMENT CODE %
+        % Instantiate driver for the rotation mount
+        obj.rot = Drivers.APTMotor.instance(obj.rot_number);
+        rot.home()
+        waitfor( obj.rot, Moving, false )
+
+        % Sweep through polarisation and get spectra
+        for theta = obj.angles
+            obj.rot.move(theta)
+            waitfor( obj.rot, Moving, false )
+
+            RunExperiment(obj, managers, obj.spec_experiment, theta, ax)
+            obj.data.angle(theta) = obj.spec_experiment.GetData
+            drawnow; assert(~obj.abort_request,'User aborted');
+        end
+
+        obj.meta.spec_meta = obj.spec_experiment.meta; %Get meta data from spectrum experiment
+
+
+
     catch err
     end
     % CLEAN UP CODE %
@@ -27,4 +46,23 @@ function run( obj,status,managers,ax )
         % HANDLE ERROR CODE %
         rethrow(err)
     end
+end
+
+function RunExperiment(obj,managers,experiment,site_index,ax)
+    [abortBox,abortH] = ExperimentManager.abortBox(class(experiment),@(~,~)obj.abort);
+    try
+        drawnow; assert(~obj.abort_request,'User aborted');
+        if ~isempty(experiment.path) %if path defined, select path
+            managers.Path.select_path(experiment.path);
+        end
+        obj.current_experiment = experiment;
+        cla(ax,'reset');
+        experiment.run(abortBox,managers,ax);
+        obj.current_experiment = [];
+    catch exp_err
+        obj.data.sites(site_index).experiments(end).err = exp_err;
+        delete(abortH);
+        rethrow(exp_err)
+    end
+    delete(abortH);
 end

@@ -1,23 +1,26 @@
 classdef PolarisationSpectrum < Modules.Experiment
-    %PolarisationSpectrum Description of experiment
+    %PolarisationSpectrum Measures spectra at specified rotations of a motorised HWP or polariser to
+    %                     give polarisation dependent spectra
     % Useful to list any dependencies here too
 
     properties(SetObservable,AbortSet)
         % These should be preferences you want set in default settings method
-        pref1 = 'string'  % Default type is important; here it is a string for example
-        pref2 = []        % Default type here is numeric
+        spec_experiment = 'string';  % Handle for spectrum experiment to be run
+        angles = 0:10:180;        % List of rotations at which spectra will be measured
+        rot_number = 0; % Serial number for the rotation mount, to be used to create a driver for the rotation mount
     end
     properties
-        prefs = {'pref1','pref2'};  % String representation of desired prefs
-        %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
-        %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
+        prefs = {'angles'};  % String representation of desired prefs
+        show_prefs = {'spec_experiment', 'rot_number'};   % Use for ordering and/or selecting which prefs to show in GUI
+        readonly_prefs = {'spec_experiment'}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
     properties(SetAccess=private,Hidden)
         % Internal properties that should not be accessible by command line
         % Advanced users should feel free to alter these properties (keep in mind methods: abort, GetData)
-        data = [] % Useful for saving data from run method
-        meta = [] % Useful to store meta data in run method
+        data % Useful for saving data from run method
+        meta % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
+        rot
     end
 
     methods(Static)
