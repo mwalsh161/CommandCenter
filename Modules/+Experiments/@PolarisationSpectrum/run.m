@@ -42,6 +42,7 @@ function run( obj,status,managers,ax )
     catch err
     end
     % CLEAN UP CODE %
+    obj.rot.delete()
     if exist('err','var')
         % HANDLE ERROR CODE %
         rethrow(err)
