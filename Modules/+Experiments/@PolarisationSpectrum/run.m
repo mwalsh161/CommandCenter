@@ -17,7 +17,7 @@ function run( obj,status,managers,ax )
     % Edit this to include meta data for this experimental run (saved in obj.GetData)
     obj.meta.prefs = obj.prefs2struct;
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
-    obj.meta.angles = obj.angles %Angles corresponding to each spectrum
+    obj.meta.angles = obj.angles; %Angles corresponding to each spectrum
 
     % Check that rot is not empty and valid
     assert(~isempty(obj.rot) && isvalid(obj.rot),'Motor SN must be a valid number.')
@@ -25,18 +25,22 @@ function run( obj,status,managers,ax )
     try
         % Instantiate driver for the rotation mount
         rot.home()
-        waitfor( obj.rot, Moving, false )
+        while rot.isMoving()
+            drawnow
+        end
 
         % Sweep through polarisation and get spectra
-        for theta = obj.angles
+        for theta = obj.angle_list
             obj.rot.move(theta)
-            waitfor( obj.rot, Moving, false )
+            while rot.isMoving()
+                drawnow
+            end
 
             RunExperiment(obj, managers, obj.spec_experiment, theta, ax)
             %obj.data.angle(theta) = obj.spec_experiment.GetData
-            tempDat = obj.spec_experiment.GetData
-            obj.data.angle(theta).wavelength = tempDat.wavelength
-            obj.data.angle(theta).intensity = tempDat.intensity
+            tempDat = obj.spec_experiment.GetData;
+            obj.data.angle(theta).wavelength = tempDat.wavelength;
+            obj.data.angle(theta).intensity = tempDat.intensity;
             drawnow; assert(~obj.abort_request,'User aborted');
         end
 

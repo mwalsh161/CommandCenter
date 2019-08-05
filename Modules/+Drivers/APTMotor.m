@@ -60,7 +60,7 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
         function obj = APTMotor(serialNum,name,travel)
             obj.initialize('MGMOTOR.MGMotorCtrl.1',serialNum)
             obj.name = name;
-            valildateattributes( travel, {'numeric'}, 'vector', 'numel',2,'nonnan' );
+            validateattributes( travel, {'numeric'}, {'vector', 'numel',2,'nonnan'} );
             travel = sort(travel);
             obj.Travel = travel;
         end

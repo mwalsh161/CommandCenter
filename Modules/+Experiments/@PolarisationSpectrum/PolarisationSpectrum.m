@@ -5,13 +5,13 @@ classdef PolarisationSpectrum < Modules.Experiment
 
     properties(SetObservable,AbortSet)
         % These should be preferences you want set in default settings method
-        spec_experiment % Handle for spectrum experiment to be run
-        angles = 0:10:180;        % List of rotations at which spectra will be measured
+        angles = '0:10:180';        % string of rotations at which spectra will be measured
         serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount
+        spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run
     end
     properties
-        prefs = {'angles', 'serial_number','spec_experiment'};  % String representation of desired prefs
-        %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
+        prefs = {'spec_experiment', 'angles', 'serial_number'};  % String representation of desired prefs
+        %show_prefs = {'spec_experiment', 'angles', 'serial_number'};   % Use for ordering and/or selecting which prefs to show in GUI
         readonly_prefs = {'spec_experiment'}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
     properties(SetAccess=private,Hidden)
@@ -21,6 +21,7 @@ classdef PolarisationSpectrum < Modules.Experiment
         meta % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
         rot %Handle for rotation mount driver
+        angle_list %List of angles at which spectra will be measured
     end
 
     methods(Static)
@@ -65,9 +66,14 @@ classdef PolarisationSpectrum < Modules.Experiment
         end
 
         function set.serial_number(obj,val)
-            assert(isnumeric(val),'Value must be numeric!')
             obj.setMotor(val)
             obj.serial_number = val;
+        end
+        
+        function set.angles(obj,val)
+            ang = num2str(val);
+            obj.angles = val;
+            obj.angle_list = ang;
         end
     end
 end
