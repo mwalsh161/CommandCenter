@@ -5,7 +5,7 @@ classdef PolarisationSpectrum < Modules.Experiment
 
     properties(SetObservable,AbortSet)
         % These should be preferences you want set in default settings method
-        spec_experiment = 'string';  % Handle for spectrum experiment to be run
+        spec_experiment % Handle for spectrum experiment to be run
         angles = 0:10:180;        % List of rotations at which spectra will be measured
         rot_number = 0; % Serial number for the rotation mount, to be used to create a driver for the rotation mount
     end
@@ -20,7 +20,7 @@ classdef PolarisationSpectrum < Modules.Experiment
         data % Useful for saving data from run method
         meta % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
-        rot
+        rot %Handle for rotation mount driver
     end
 
     methods(Static)
@@ -31,6 +31,7 @@ classdef PolarisationSpectrum < Modules.Experiment
     methods(Access=private)
         function obj = PolarisationSpectrum()
             % Constructor (should not be accessible to command line!)
+            obj.spec_experiment = Experiments.Spectrum.instance;
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
