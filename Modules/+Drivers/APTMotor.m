@@ -25,6 +25,15 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
     end
 
     methods (Static)
+        function devices = getAvailMotors()
+            % 0 means no motor
+            f = msgbox('Loading APTSystem',mfilename,'modal');
+            APTSystem = Drivers.APTSystem.instance;
+            devices = APTSystem.getDevices;
+            devices = num2cell(double(devices.USB_STEPPER_DRIVE));
+            devices = [{'0'},cellfun(@num2str,devices,'uniformoutput',false)];
+            delete(f);
+        end
         % Use this to create/retrieve instance associated with serialNum
         function obj = instance(serialNum,travel,name)
             mlock;

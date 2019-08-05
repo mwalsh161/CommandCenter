@@ -11,9 +11,9 @@ classdef MAX302motors < Modules.Stage
         prefs = {'X_Motor','Y_Motor','Z_Motor','direction'};
     end
     properties(SetObservable,AbortSet)
-        X_Motor = @Stages.MAX302motors.getAvailMotors;  % Motor serial number
-        Y_Motor = @Stages.MAX302motors.getAvailMotors;  % Motor serial number
-        Z_Motor = @Stages.MAX302motors.getAvailMotors;  % Motor serial number
+        X_Motor = @Drivers.APTMotor.getAvailMotors;  % Motor serial number
+        Y_Motor = @Drivers.APTMotor.getAvailMotors;  % Motor serial number
+        Z_Motor = @Drivers.APTMotor.getAvailMotors;  % Motor serial number
         direction = [1 1 1];
     end
     properties(SetAccess=private,SetObservable,AbortSet)
@@ -32,15 +32,6 @@ classdef MAX302motors < Modules.Stage
     end
     
     methods(Static)
-        function devices = getAvailMotors()
-            % 0 means no motor
-            f = msgbox('Loading APTSystem',mfilename,'modal');
-            APTSystem = Drivers.APTSystem.instance;
-            devices = APTSystem.getDevices;
-            devices = num2cell(double(devices.USB_STEPPER_DRIVE));
-            devices = [{'0'},cellfun(@num2str,devices,'uniformoutput',false)];
-            delete(f);
-        end
         function obj = instance()
             mlock;
             persistent Object

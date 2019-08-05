@@ -19,9 +19,11 @@ function run( obj,status,managers,ax )
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
     obj.meta.angles = obj.angles %Angles corresponding to each spectrum
 
+    % Check that rot is not empty and valid
+    assert(~isempty(obj.rot) && isvalid(obj.rot),'Motor SN must be a valid number.')
+
     try
         % Instantiate driver for the rotation mount
-        obj.rot = Drivers.APTMotor.instance(obj.serial_number, [0 360]);
         rot.home()
         waitfor( obj.rot, Moving, false )
 
@@ -31,7 +33,10 @@ function run( obj,status,managers,ax )
             waitfor( obj.rot, Moving, false )
 
             RunExperiment(obj, managers, obj.spec_experiment, theta, ax)
-            obj.data.angle(theta) = obj.spec_experiment.GetData
+            %obj.data.angle(theta) = obj.spec_experiment.GetData
+            tempDat = obj.spec_experiment.GetData
+            obj.data.angle(theta).wavelength = tempDat.wavelength
+            obj.data.angle(theta).intensity = tempDat.intensity
             drawnow; assert(~obj.abort_request,'User aborted');
         end
 
@@ -42,7 +47,6 @@ function run( obj,status,managers,ax )
     catch err
     end
     % CLEAN UP CODE %
-    obj.rot.delete()
     if exist('err','var')
         % HANDLE ERROR CODE %
         rethrow(err)
