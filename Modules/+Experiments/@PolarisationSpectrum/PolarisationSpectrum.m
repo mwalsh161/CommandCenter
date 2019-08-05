@@ -22,6 +22,7 @@ classdef PolarisationSpectrum < Modules.Experiment
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
         rot %Handle for rotation mount driver
         angle_list %List of angles at which spectra will be measured
+        active_experiment %actively running experiment used for aborting mid spectrum
     end
 
     methods(Static)
@@ -43,6 +44,9 @@ classdef PolarisationSpectrum < Modules.Experiment
         function abort(obj)
             % Callback for when user presses abort in CC
             obj.abort_request = true;
+            if ~isempty(obj.active_experiment) && isvalid(obj.active_experiment)
+                obj.active_experiment.abort();
+            end
         end
 
         function dat = GetData(obj,stageManager,imagingManager)

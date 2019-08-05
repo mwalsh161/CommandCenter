@@ -27,8 +27,8 @@ function run( obj,status,managers,ax )
         if ~obj.rot.Homed
             status.String = 'Homing motor'; drawnow;
             
-            obj.rot.home()
-            pause4Move(obj, 10)
+            obj.rot.home();
+            pause4Move(obj, 120);
         end
         
         % Sweep through polarisation and get spectra
@@ -38,8 +38,8 @@ function run( obj,status,managers,ax )
             theta = obj.angle_list(i);
             status.String = sprintf( 'Navigating to %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
-            obj.rot.move(theta)
-            pause4Move(obj, 10)
+            obj.rot.move(theta);
+            pause4Move(obj, 10);
             status.String = sprintf( 'Measuring at %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             
@@ -67,9 +67,12 @@ end
 
 % Wait until motor stops moving, or timeout
 function pause4Move(obj,maxTime)
-tic
-while obj.rot.Moving && (toc < maxTime)
+t = tic;
+while obj.rot.Moving && ~obj.rot.Homed && (toc(t) < maxTime)
     drawnow
+    if toc(t) > maxTime
+        error('Motor timed out while moving')
+    end
 end
 end
 
@@ -82,9 +85,11 @@ function RunExperiment(obj,managers,experiment,site_index,ax)
             managers.Path.select_path(experiment.path);
         end
         cla(ax,'reset');
+        obj.active_experiment = experiment;
         experiment.run(abortBox,managers,ax);
+        obj.active_experiment = [];
     catch exp_err
-        obj.data.sites(site_index).experiments(end).err = exp_err;
+        obj.data.angles(site_index).err = exp_err;
         delete(abortH);
         rethrow(exp_err)
     end
