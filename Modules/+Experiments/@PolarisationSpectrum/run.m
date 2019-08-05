@@ -28,7 +28,7 @@ function run( obj,status,managers,ax )
             status.String = 'Homing motor'; drawnow;
             
             obj.rot.home()
-            pause4Move(5)
+            pause4Move(obj, 10)
         end
         
         % Sweep through polarisation and get spectra
@@ -39,7 +39,7 @@ function run( obj,status,managers,ax )
             status.String = sprintf( 'Navigating to %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             obj.rot.move(theta)
-            pause4Move(5)
+            pause4Move(obj, 10)
             status.String = sprintf( 'Measuring at %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             
@@ -51,8 +51,8 @@ function run( obj,status,managers,ax )
         end
         
         %Get meta data from spectrum experiment
-        obj.meta.spec_meta = tempData.meta;
-        obj.meta.diamondbase = tempData.diamondBase;
+        obj.meta.spec_meta = tempDat.meta;
+        obj.meta.diamondbase = tempDat.diamondbase;
 
 
 
@@ -66,7 +66,7 @@ function run( obj,status,managers,ax )
 end
 
 % Wait until motor stops moving, or timeout
-function pause4Move(maxTime)
+function pause4Move(obj,maxTime)
 tic
 while obj.rot.Moving && (toc < maxTime)
     drawnow
