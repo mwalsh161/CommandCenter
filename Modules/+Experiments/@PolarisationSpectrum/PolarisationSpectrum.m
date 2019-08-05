@@ -5,13 +5,13 @@ classdef PolarisationSpectrum < Modules.Experiment
 
     properties(SetObservable,AbortSet)
         % These should be preferences you want set in default settings method
-        spec_experiment % Handle for spectrum experiment to be run
+        spec_experiment = Modules.Experiments.Spectrum % Handle for spectrum experiment to be run
         angles = 0:10:180;        % List of rotations at which spectra will be measured
-        rot_number = 0; % Serial number for the rotation mount, to be used to create a driver for the rotation mount
+        serial_number = 0; % Serial number for the rotation mount, to be used to create a driver for the rotation mount
     end
     properties
-        prefs = {'angles'};  % String representation of desired prefs
-        show_prefs = {'spec_experiment', 'rot_number'};   % Use for ordering and/or selecting which prefs to show in GUI
+        prefs = {'angles', 'serial_number'};  % String representation of desired prefs
+        show_prefs = {'spec_experiment'};   % Use for ordering and/or selecting which prefs to show in GUI
         readonly_prefs = {'spec_experiment'}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
     properties(SetAccess=private,Hidden)
@@ -51,9 +51,9 @@ classdef PolarisationSpectrum < Modules.Experiment
             dat.meta = obj.meta;
         end
 
-        function set.rot_number(obj,val)
+        function set.serial_number(obj,val)
             assert(isnumeric(val),'Value must be numeric!')
-            obj.rot_number = val;
+            obj.serial_number = val;
         end
     end
 end

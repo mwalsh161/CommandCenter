@@ -21,7 +21,7 @@ function run( obj,status,managers,ax )
 
     try
         % Instantiate driver for the rotation mount
-        obj.rot = Drivers.APTMotor.instance(obj.rot_number);
+        obj.rot = Drivers.APTMotor.instance(obj.serial_number, [0 360]);
         rot.home()
         waitfor( obj.rot, Moving, false )
 
