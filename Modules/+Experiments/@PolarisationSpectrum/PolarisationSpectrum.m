@@ -50,14 +50,9 @@ classdef PolarisationSpectrum < Modules.Experiment
             dat.meta = obj.meta;
         end
 
-        % Set methods allow validating property/pref set values
-        function set.pref1(obj,val)
-            obj.pref1 = val;
-        end
-        function set.pref2(obj,val)
-            %assert(isnumeric(val),'Value must be numeric!')
-            %assert(val>=0 && val<=10,'Value must fall between 0 and 10.')
-            obj.pref2 = val;
+        function set.rot_number(obj,val)
+            assert(isnumeric(val),'Value must be numeric!')
+            obj.rot_number = val;
         end
     end
 end
