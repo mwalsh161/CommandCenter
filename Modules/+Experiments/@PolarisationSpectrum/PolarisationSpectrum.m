@@ -46,7 +46,6 @@ classdef PolarisationSpectrum < Modules.Experiment
 
         function dat = GetData(obj,stageManager,imagingManager)
             % Callback for saving methods
-            meta = stageManager.position;
             dat.data = obj.data;
             dat.meta = obj.meta;
         end
