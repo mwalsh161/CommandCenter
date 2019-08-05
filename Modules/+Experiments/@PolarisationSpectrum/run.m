@@ -23,27 +23,37 @@ function run( obj,status,managers,ax )
     assert(~isempty(obj.rot) && isvalid(obj.rot),'Motor SN must be a valid number.')
 
     try
-        % Instantiate driver for the rotation mount
-        rot.home()
-        while rot.isMoving()
-            drawnow
-        end
-
-        % Sweep through polarisation and get spectra
-        for theta = obj.angle_list
-            obj.rot.move(theta)
-            while rot.isMoving()
+        % Home rotation mount
+        if ~obj.rot.Homed
+            status.String = 'Homing motor'; drawnow;
+            
+            obj.rot.home()
+            while obj.rot.Moving
                 drawnow
             end
-
-            RunExperiment(obj, managers, obj.spec_experiment, theta, ax)
-            %obj.data.angle(theta) = obj.spec_experiment.GetData
+        end
+        
+        % Sweep through polarisation and get spectra
+        Nangles = length(obj.angle_list);
+        obj.data.angle = struct('wavelength',[],'intensity',[],'err',cell(1,Nangles));
+        for i = 1:Nangles
+            theta = obj.angle_list(i);
+            status.String = sprintf( 'Navigating to %g (%i/%i)', theta, ...
+                i, Nangles); drawnow;
+            obj.rot.move(theta)
+            while obj.rot.Moving
+                drawnow
+            end
+            status.String = sprintf( 'Measuring at %g (%i/%i)', theta, ...
+                i, Nangles); drawnow;
+            
+            RunExperiment(obj, managers, obj.spec_experiment, i, ax)
             tempDat = obj.spec_experiment.GetData;
-            obj.data.angle(theta).wavelength = tempDat.wavelength;
-            obj.data.angle(theta).intensity = tempDat.intensity;
+            obj.data.angle(i).wavelength = tempDat.wavelength;
+            obj.data.angle(i).intensity = tempDat.intensity;
             drawnow; assert(~obj.abort_request,'User aborted');
         end
-
+        % change to tempData
         obj.meta.spec_meta = obj.spec_experiment.meta; %Get meta data from spectrum experiment
 
 
@@ -57,6 +67,7 @@ function run( obj,status,managers,ax )
     end
 end
 
+%Add rotmoving + timeout
 function RunExperiment(obj,managers,experiment,site_index,ax)
     [abortBox,abortH] = ExperimentManager.abortBox(class(experiment),@(~,~)obj.abort);
     try
@@ -64,10 +75,8 @@ function RunExperiment(obj,managers,experiment,site_index,ax)
         if ~isempty(experiment.path) %if path defined, select path
             managers.Path.select_path(experiment.path);
         end
-        obj.current_experiment = experiment;
         cla(ax,'reset');
         experiment.run(abortBox,managers,ax);
-        obj.current_experiment = [];
     catch exp_err
         obj.data.sites(site_index).experiments(end).err = exp_err;
         delete(abortH);

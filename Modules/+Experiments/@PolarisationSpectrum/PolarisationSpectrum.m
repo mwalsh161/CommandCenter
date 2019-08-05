@@ -71,9 +71,13 @@ classdef PolarisationSpectrum < Modules.Experiment
         end
         
         function set.angles(obj,val)
-            ang = num2str(val);
+            obj.angle_list = str2num(val);
             obj.angles = val;
-            obj.angle_list = ang;
+        end
+        
+        function delete(obj)
+            delete(obj.spec_experiment);
+            delete(obj.rot);
         end
     end
 end
