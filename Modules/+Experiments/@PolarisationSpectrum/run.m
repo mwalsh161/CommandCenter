@@ -28,9 +28,7 @@ function run( obj,status,managers,ax )
             status.String = 'Homing motor'; drawnow;
             
             obj.rot.home()
-            while obj.rot.Moving
-                drawnow
-            end
+            pause4Move(5)
         end
         
         % Sweep through polarisation and get spectra
@@ -41,9 +39,7 @@ function run( obj,status,managers,ax )
             status.String = sprintf( 'Navigating to %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             obj.rot.move(theta)
-            while obj.rot.Moving
-                drawnow
-            end
+            pause4Move(5)
             status.String = sprintf( 'Measuring at %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             
@@ -53,8 +49,10 @@ function run( obj,status,managers,ax )
             obj.data.angle(i).intensity = tempDat.intensity;
             drawnow; assert(~obj.abort_request,'User aborted');
         end
-        % change to tempData
-        obj.meta.spec_meta = obj.spec_experiment.meta; %Get meta data from spectrum experiment
+        
+        %Get meta data from spectrum experiment
+        obj.meta.spec_meta = tempData.meta;
+        obj.meta.diamondbase = tempData.diamondBase;
 
 
 
@@ -67,7 +65,15 @@ function run( obj,status,managers,ax )
     end
 end
 
-%Add rotmoving + timeout
+% Wait until motor stops moving, or timeout
+function pause4Move(maxTime)
+tic
+while obj.rot.Moving && (toc < maxTime)
+    drawnow
+end
+end
+
+% Run spectrum experiment and nicely handle images
 function RunExperiment(obj,managers,experiment,site_index,ax)
     [abortBox,abortH] = ExperimentManager.abortBox(class(experiment),@(~,~)obj.abort);
     try
