@@ -68,7 +68,7 @@ end
 % Wait until motor stops moving, or timeout
 function pause4Move(obj,maxTime)
 t = tic;
-while obj.rot.Moving && ~obj.rot.Homed && (toc(t) < maxTime)
+while (obj.rot.Moving || ~obj.rot.Homed) && (toc(t) < maxTime)
     drawnow
     if toc(t) > maxTime
         error('Motor timed out while moving')

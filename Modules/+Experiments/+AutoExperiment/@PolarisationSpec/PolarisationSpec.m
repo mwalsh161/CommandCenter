@@ -1,5 +1,5 @@
-classdef Spec < Experiments.AutoExperiment.AutoExperiment_invisible
-    %Spec automatically takes a series of polarisation dependent spectra at sites
+classdef PolarisationSpec < Experiments.AutoExperiment.AutoExperiment_invisible
+    %PolarisationSpec automatically takes a series of polarisation dependent spectra at sites
 
     properties
         prerun_functions = {'preSpec'};
@@ -10,7 +10,7 @@ classdef Spec < Experiments.AutoExperiment.AutoExperiment_invisible
             mlock;
             persistent Objects
             if isempty(Objects)
-                Objects = Experiments.AutoExperiment.Spec.empty(1,0);
+                Objects = Experiments.AutoExperiment.PolarisationSpec.empty(1,0);
             end
             for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(varargin,Objects(i).singleton_id)
@@ -18,7 +18,7 @@ classdef Spec < Experiments.AutoExperiment.AutoExperiment_invisible
                     return
                 end
             end
-            obj = Experiments.AutoExperiment.Spec(varargin{:});
+            obj = Experiments.AutoExperiment.PolarisationSpec(varargin{:});
             obj.singleton_id = varargin;
             Objects(end+1) = obj;
         end
@@ -60,7 +60,7 @@ classdef Spec < Experiments.AutoExperiment.AutoExperiment_invisible
         end
     end
     methods(Access=private)
-        function obj = Spec()
+        function obj = PolarisationSpec()
             obj.experiments = Experiments.PolarisationSpectrum.instance;
             obj.loadPrefs;
         end
