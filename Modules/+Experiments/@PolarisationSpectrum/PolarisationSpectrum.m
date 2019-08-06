@@ -6,9 +6,11 @@ classdef PolarisationSpectrum < Modules.Experiment
         angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
         motor_serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
         spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run. Settings for the experiment accessed from GUI
+        motor_move_time = 30;  % Maximum time allowed for motor to move between positions
+        motor_home_time = 120; % Maximum time allowed for the motor to home itself
     end
     properties
-        prefs = {'spec_experiment', 'angles', 'motor_serial_number'};  % String representation of desired prefs
+        prefs = {'spec_experiment', 'angles', 'motor_serial_number', 'motor_move_time', 'motor_home_time'};  % String representation of desired prefs
         %show_prefs = {'spec_experiment', 'angles', 'motor_serial_number'};   % Use for ordering and/or selecting which prefs to show in GUI
         readonly_prefs = {'spec_experiment'}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end

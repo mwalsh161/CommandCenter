@@ -28,7 +28,7 @@ function run( obj,status,managers,ax )
             status.String = 'Homing motor'; drawnow;
             
             obj.rot.home();
-            pause4Move(obj, 120);
+            pause4Move(obj, obj.motor_home_time);
         end
         
         % Sweep through polarisation and get spectra
@@ -39,7 +39,7 @@ function run( obj,status,managers,ax )
             status.String = sprintf( 'Navigating to %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             obj.rot.move(theta);
-            pause4Move(obj, 10);
+            pause4Move(obj, obj.motor_move_time);
             status.String = sprintf( 'Measuring at %g (%i/%i)', theta, ...
                 i, Nangles); drawnow;
             
