@@ -1,13 +1,11 @@
 classdef PolarisationSpectrum < Modules.Experiment
     %PolarisationSpectrum Measures spectra at specified rotations of a motorised HWP or polariser to
     %                     give polarisation dependent spectra
-    % Useful to list any dependencies here too
 
     properties(SetObservable,AbortSet)
-        % These should be preferences you want set in default settings method
-        angles = '0:10:180';        % string of rotations at which spectra will be measured
-        serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount
-        spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run
+        angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
+        serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
+        spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run. Settings for the experiment accessed from GUI
     end
     properties
         prefs = {'spec_experiment', 'angles', 'serial_number'};  % String representation of desired prefs
