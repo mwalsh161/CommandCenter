@@ -4,12 +4,12 @@ classdef PolarisationSpectrum < Modules.Experiment
 
     properties(SetObservable,AbortSet)
         angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
-        serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
+        motor_serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
         spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run. Settings for the experiment accessed from GUI
     end
     properties
-        prefs = {'spec_experiment', 'angles', 'serial_number'};  % String representation of desired prefs
-        %show_prefs = {'spec_experiment', 'angles', 'serial_number'};   % Use for ordering and/or selecting which prefs to show in GUI
+        prefs = {'spec_experiment', 'angles', 'motor_serial_number'};  % String representation of desired prefs
+        %show_prefs = {'spec_experiment', 'angles', 'motor_serial_number'};   % Use for ordering and/or selecting which prefs to show in GUI
         readonly_prefs = {'spec_experiment'}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
     properties(SetAccess=private,Hidden)
@@ -67,9 +67,9 @@ classdef PolarisationSpectrum < Modules.Experiment
             obj.rot = Drivers.APTMotor.instance(val, [0 360]);
         end
 
-        function set.serial_number(obj,val)
+        function set.motor_serial_number(obj,val)
             obj.setMotor(val)
-            obj.serial_number = val;
+            obj.motor_serial_number = val;
         end
         
         function set.angles(obj,val)
