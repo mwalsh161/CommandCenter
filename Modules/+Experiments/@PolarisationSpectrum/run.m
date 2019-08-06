@@ -33,8 +33,11 @@ function run( obj,status,managers,ax )
         
         % Sweep through polarisation and get spectra
         Nangles = length(obj.angle_list);
+        % Fields which will have small fluctuations between runs. Should be updated if Spectrum is changed.
+        volatile_fields = {'TACQ','TMETA','TFETCH','TLOAD','READOUT_TIME_MS','ACTUAL_TEMP'};
         obj.data.angle = struct('wavelength',[],'intensity',[],'err',cell(1,Nangles));
-
+        volatile_values = [volatile_fields; cell(1,numel(volatile_fields))];
+        obj.meta.volatile = struct(volatile_values{:});
         for i = 1:Nangles
             theta = obj.angle_list(i);
             status.String = sprintf( 'Navigating to %g (%i/%i)', theta, ...
@@ -51,7 +54,6 @@ function run( obj,status,managers,ax )
 
             % Store data that is likely to change from run to run
             all_fields = fieldnames(tempDat.meta);
-            volatile_fields = {'TACQ','TMETA','TFETCH','TLOAD','READOUT_TIME_MS','ACTUAL_TEMP'}; % Fields which will have small fluctuations between runs. Should be updated if Spectrum is changed.
             nonvolatile_fields = setdiff( all_fields, volatile_fields );
             tempDat_nonvolatile = rmfield(tempDat.meta, volatile_fields);
             tempDat_volatile = rmfield(tempDat.meta, nonvolatile_fields);
@@ -61,9 +63,9 @@ function run( obj,status,managers,ax )
 
             % Check that the remaining settings for spectrum were not changed within the loop
             if i > 1
-                assert(isequal(lastMeta,tempDat_nonvolatile),'Meta data changed in sub-experiment')
+                assert(isequaln(lastMeta,tempDat_nonvolatile),'Meta data changed in sub-experiment')
             end
-            lastMeta = tempDat_nonvolatile
+            lastMeta = tempDat_nonvolatile;
 
             drawnow; assert(~obj.abort_request,'User aborted');
         end
