@@ -17,7 +17,7 @@ function run( obj,status,managers,ax )
     % Edit this to include meta data for this experimental run (saved in obj.GetData)
     obj.meta.prefs = obj.prefs2struct;
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
-    obj.meta.angles = obj.angles; %Angles corresponding to each spectrum
+    obj.meta.angles = obj.angle_list; %Angles corresponding to each spectrum
 
     % Check that rot is not empty and valid
     assert(~isempty(obj.rot) && isvalid(obj.rot),'Motor SN must be a valid number; motor handle may have been deleted. Check motor serial number/APT Config')
