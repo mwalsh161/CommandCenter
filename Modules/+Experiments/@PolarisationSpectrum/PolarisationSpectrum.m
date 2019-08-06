@@ -57,7 +57,7 @@ classdef PolarisationSpectrum < Modules.Experiment
             val_as_double = str2double(val); % must be double to instantiate motor
             assert(~isnan(val_as_double),'Motor SN must be a valid number.')
 
-            % Handle proper deleting of unused motor driver object
+            % Handle proper deleting of smotor driver object
             delete(obj.rot); % Either motor obj or empty
             obj.rot = [];
 
@@ -66,7 +66,7 @@ classdef PolarisationSpectrum < Modules.Experiment
                 %Leave obj.rot empty if no serial number selected
                 return % Short circuit
             end
-            
+
             % Add new motor
             obj.rot = Drivers.APTMotor.instance(val_as_double, [0 360]);
         end

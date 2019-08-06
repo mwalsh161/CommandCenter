@@ -20,7 +20,7 @@ function run( obj,status,managers,ax )
     obj.meta.angles = obj.angles; %Angles corresponding to each spectrum
 
     % Check that rot is not empty and valid
-    assert(~isempty(obj.rot) && isvalid(obj.rot),'Motor SN must be a valid number.')
+    assert(~isempty(obj.rot) && isvalid(obj.rot),'Motor SN must be a valid number; motor handle may have been deleted. Check motor serial number/APT Config')
 
     try
         % Home rotation mount
