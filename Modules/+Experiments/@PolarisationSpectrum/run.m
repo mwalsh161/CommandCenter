@@ -47,6 +47,13 @@ function run( obj,status,managers,ax )
             tempDat = obj.spec_experiment.GetData;
             obj.data.angle(i).wavelength = tempDat.wavelength;
             obj.data.angle(i).intensity = tempDat.intensity;
+
+            % Check that meta settings for spectrum were not changed since last experiment
+            if i > 1
+                assert(isequal(lastMeta,tempDat.meta),'Meta data changed in sub-experiment')
+            end
+            lastMeta = tempDat.meta;
+
             drawnow; assert(~obj.abort_request,'User aborted');
         end
         
