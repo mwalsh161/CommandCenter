@@ -53,23 +53,22 @@ classdef PolarisationSpectrum < Modules.Experiment
             dat.meta = obj.meta;
         end
 
-        function setMotor(obj,val)
-            val = str2double(val);
-            assert(~isnan(val),'Motor SN must be a valid number.')
-            % Remove old motor if not loaded by other axis
-            motorOld = obj.rot; % Either motor obj or empty
+        function set.motor_serial_number(obj,val)
+            val_as_double = str2double(val); % must be double to instantiate motor
+            assert(~isnan(val_as_double),'Motor SN must be a valid number.')
+
+            % Handle proper deleting of unused motor driver object
+            delete(obj.rot); % Either motor obj or empty
             obj.rot = [];
-            if val == 0
-                delete(motorOld)
+
+            obj.motor_serial_number = val;
+            if val_as_double == 0
+                %Leave obj.rot empty if no serial number selected
                 return % Short circuit
             end
+            
             % Add new motor
-            obj.rot = Drivers.APTMotor.instance(val, [0 360]);
-        end
-
-        function set.motor_serial_number(obj,val)
-            obj.setMotor(val)
-            obj.motor_serial_number = val;
+            obj.rot = Drivers.APTMotor.instance(val_as_double, [0 360]);
         end
         
         function set.angles(obj,val)
