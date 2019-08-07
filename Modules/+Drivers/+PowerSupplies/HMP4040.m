@@ -12,7 +12,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
     
     properties
         deviceID = [];
-        comObject = [];
+        comObject = []; % Should be a prologix connector; all methods defined accordingly
     end
     
     properties (Constant)
@@ -47,7 +47,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.loadPrefs;
             if ~isempty(obj.comObject) %if the comObject is empty don't do anything
                 if isvalid(obj.comObject) %and it is vlaid
-                    if strcmpi(obj.comObject.Status,'open') %and is open
+                    if strcmpi(obj.comObject.serial.Status,'open') %and is open
                         fclose(obj.comObject); %then close and delete it
                         delete(obj.comObject);
                     end
@@ -56,7 +56,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.comObject = comObject; %replace old comObject handle with new user-supplied one
             
             %If it is closed then try to open
-            if strcmpi(obj.comObject.Status,'closed')
+            if strcmpi(obj.comObject.serial.Status,'closed')
                 try
                     fopen(obj.comObject);
                 catch ME
@@ -67,9 +67,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             end
             obj.reset;
         end
-    end
-    
-    methods(Access=private)
+
         function check_channel(obj,channel)
             assert(ischar(channel),'Channel input must be a string!')
             channels=num2str(1:str2num(obj.Number_of_channels));
@@ -78,11 +76,11 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
         end
         
         function writeOnly(obj,string)
-            fprintf(obj.comObject,string);
+            fprintf(obj.comObject.serial,string);
         end
         
         function [output] = writeRead(obj,string)
-            output = query(obj.comObject,string);
+            output = query(obj.comObject.serial,string);
         end
         
         function testLimit(obj,sourceMode,channel)

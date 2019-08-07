@@ -18,6 +18,10 @@ classdef PowerSupply_invisible < Modules.Source
         listeners
         path_button
     end
+
+    properties(Abstract)
+        serial % Handle to the power supply driver
+    end
     
     methods
         function obj = PowerSupply_invisible()
