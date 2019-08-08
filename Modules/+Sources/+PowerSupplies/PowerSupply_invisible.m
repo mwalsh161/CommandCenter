@@ -1,7 +1,7 @@
 classdef PowerSupply_invisible < Modules.Source
     %SuperClass for MW sources
     
-    properties(SetObservable,SetObservable)
+    properties(SetObservable,AbortSet)
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
         Source_Mode = {'Voltage','Current'}
         Channel = '1';
@@ -11,7 +11,7 @@ classdef PowerSupply_invisible < Modules.Source
         Voltage = 0.1;  %Voltage
     end
     
-    properties(SetAccess=private, SetObservable, AbortSet)
+    properties(SetAccess=private, SetObservable)
         source_on=false;
     end
     
@@ -20,14 +20,14 @@ classdef PowerSupply_invisible < Modules.Source
         path_button
     end
 
+    properties(SetAccess=protected)
+        power_supply_connected=false;
+    end
+
     properties(Abstract)
         power_supply % Handle to the power supply driver
-    end
-    
-    methods
-        function obj = PowerSupply_invisible()
-            obj.listeners = addlistener(obj,'Channel','PostSet',@obj.updateValues);
-        end
+        Number_of_channels % Number of channels supported
+        Power_Supply_Name % Name of the power supply
     end
     
     methods(Static)
@@ -41,18 +41,32 @@ classdef PowerSupply_invisible < Modules.Source
         end
         
     end
+
+    methods(SetAccess=protected)
+        function output = queryPowerSupply(obj,command,varargin)
+            % Only attempt to pass command to power_supply if device is connected
+            if obj.power_supply_connected
+                % Perform power_supply specified by command (string), with varargin as arguments
+                obj.power_supply.(command)(varargin{:})
+            end
+        end
+    end
     
     methods
+        function obj = PowerSupply_invisible()
+            obj.listeners = addlistener(obj,'Channel','PostSet',@obj.updateValues);
+        end
+
         %% set methods
         
         function set.Channel(obj,val)
             channel = str2num(val);
             assert(~isempty(channel),'channel must be an integer')
             assert(mod(channel,1)==0,'channel must be an integer')
-            max_channel = str2num(obj.power_supply.Number_of_channels);
+            max_channel = str2num(obj.Number_of_channels);
             if channel>max_channel
                 error([' Attempted to set a channel that is greater than'...
-                    ' the maximum number of channels supported: ',obj.power_supply.Number_of_channels]);
+                    ' the maximum number of channels supported: ',obj.Number_of_channels]);
             end
             if channel < 0
                 error('Channel must be positive')
@@ -62,14 +76,14 @@ classdef PowerSupply_invisible < Modules.Source
         
         function set.Source_Mode(obj,val)
             %debugging happens @ driver level
-            obj.power_supply.setSourceMode(obj.Channel,val); 
+            obj.queryPowerSupply('setSourceMode',obj.Channel,val); 
             obj.Source_Mode = val;
         end
         
         function set.Current(obj,val)
             %debugging happens @ driver level
-            obj.power_supply.setVoltageLimit(obj.Channel,obj.Voltage_Limit);
-            obj.power_supply.setCurrent(obj.Channel,val);
+            obj.queryPowerSupply('setVoltageLimit',obj.Channel,obj.Voltage_Limit);
+            obj.queryPowerSupply('setCurrent',obj.Channel,val);
             obj.Current = val;
         end
         
@@ -77,67 +91,71 @@ classdef PowerSupply_invisible < Modules.Source
 
             %debugging happens @ driver level
             %obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
-            obj.power_supply.setVoltage(obj.Channel,val);
+            obj.queryPowerSupply('setVoltage',obj.Channel,val);
             obj.Voltage = val;
         end
         
         function set.Current_Limit(obj,val)
 
             %debugging happens @ driver level
-            obj.power_supply.setCurrentLimit(obj.Channel,val);
+            obj.queryPowerSupply('setCurrentLimit',obj.Channel,val);
             obj.Current_Limit = val;
         end
         
         function set.Voltage_Limit(obj,val)
-            obj.power_supply.setVoltageLimit(obj.Channel,val);
+            obj.queryPowerSupply('setVoltageLimit',obj.Channel,val);
             obj.Voltage_Limit = val;
         end
+
         %% get methods because these properties are interdependant. 
         
-        function val = get.Current(obj)
+        function val = getCurrent(obj)
             if obj.source_on 
                 %if on return the actual current being output
-                val = obj.power_supply.measureCurrent(obj.Channel);
+                val = obj.queryPowerSupply('measureCurrent',obj.Channel);
             else
-                val = obj.power_supply.getCurrent(obj.Channel);%if the source isn't on return the programmed values
+                val = obj.queryPowerSupply('getCurrent',obj.Channel);%if the source isn't on return the programmed values
             end
         end
         
-        function val = get.Voltage(obj)
+        function val = getVoltage(obj)
 
             if obj.source_on 
                 %if on return the actual voltage being output
-                val = obj.power_supply.measureVoltage(obj.Channel);
+                val = obj.queryPowerSupply('measureVoltage',obj.Channel);
             else
-                val = obj.power_supply.getVoltage(obj.Channel);%if the source isn't on return the programmed values
+                val = obj.queryPowerSupply('getVoltage',obj.Channel);%if the source isn't on return the programmed values
             end
         end
 
-        function val = get.Source_Mode(obj)
-           val = obj.power_supply.getSourceMode(obj.Channel); 
+        function val = getSource_Mode(obj)
+           val = obj.queryPowerSupply('getSourceMode',obj.Channel); 
         end
         
-        function val = get.Current_Limit(obj)
-            val = obj.power_supply.getCurrentLimit(obj.Channel);
+        function val = getCurrent_Limit(obj)
+            val = obj.queryPowerSupply('getCurrentLimit',obj.Channel);
         end
         
-        function val = get.Voltage_Limit(obj)
-           val = obj.power_supply.getVoltageLimit(obj.Channel);
+        function val = getVoltage_Limit(obj)
+           val = obj.queryPowerSupply('getVoltageLimit',obj.Channel);
         end
-        %%
+
+
+        %% generic control functions
         
         function delete(obj)
             delete(obj.listeners);
             delete(obj.power_supply);
+            power_supply_connected=false;
         end
         
         function on(obj)
-            obj.power_supply.on;
+            obj.queryPowerSupply('on');
             obj.source_on=1;
         end
         
         function off(obj)
-            obj.power_supply.off;
+            obj.queryPowerSupply('off');
             obj.source_on=0;
         end
 

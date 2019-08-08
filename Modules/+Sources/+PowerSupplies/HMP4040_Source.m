@@ -2,17 +2,17 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     %Hewlett Packard MW source class
 
     properties(SetObservable,AbortSet)
-        Com_Address = 'None';
-        Primary_Address = 0;
+        Com_Address = 'None'; % Is 'None' if no connection is desired
+        Primary_Address = 0; % Is 0 if no connection is desired
     end
 
     properties
         power_supply = [];
     end
     
-    properties(SetAccess=private)
+    properties(SetAccess=private,Constant)
         Power_Supply_Name='HMP4040';
-        power_supply_connected=false;
+        Number_of_channels=4;
     end
 
     methods(Access=protected)
