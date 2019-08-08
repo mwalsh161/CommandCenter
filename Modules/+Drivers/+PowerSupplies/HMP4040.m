@@ -60,7 +60,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
                 try
                     fopen(obj.comObject);
                 catch ME
-                    message = sprintf('Failed to open device. Error message %s', ME.identifier);
+                    message = sprintf('Failed to open device. Error message:\n%s\nMessage identifier:\n%s', Me.message, ME.identifier);
                     f = msgbox(message);
                     rethrow(ME); %rethrow error when trying to open comObject
                 end

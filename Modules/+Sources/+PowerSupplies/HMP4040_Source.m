@@ -2,8 +2,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     %Hewlett Packard MW source class
 
     properties(SetObservable,AbortSet)
-        Com_Address = 'Not Connected';
-        Primary_Address = 1;
+        Com_Address = 'None';
+        Primary_Address = 0;
     end
 
     properties
@@ -12,6 +12,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     properties(SetAccess=private)
         Power_Supply_Name='HMP4040';
+        power_supply_connected=false;
     end
 
     methods(Access=protected)
@@ -22,13 +23,27 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
         end
         
         function success = connectSerial(obj, Com_Address, Primary_Address)
+            % If using the default non-existant Com_Address/Primary_Address, disconnect device
+            if (Com_Address == 'None') || (Primary_Address == 0)
+                delete(obj.power_supply);
+                obj.power_supply = [];
+                power_supply_connected=false;
+                success = true;
+                return
+            end
+
+            % Otherwise try to connect with input Com/Primary_Address and instantiate power_supply
             oldSerial = obj.power_supply;
             try
                 prologix_device = prologix(Com_Address, Primary_Address);
                 obj.power_supply = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,prologix_device);
+                delete(oldSerial);
+                power_supply_connected=true;
                 success = true;
             catch
+                % If connection fails, keep old instance of power_supply
                 obj.power_supply = oldSerial;
+                power_supply_connected=false;
                 success = false;
             end
         end

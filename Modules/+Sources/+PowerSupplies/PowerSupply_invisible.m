@@ -76,7 +76,7 @@ classdef PowerSupply_invisible < Modules.Source
         function set.Voltage(obj,val)
 
             %debugging happens @ driver level
-%             obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
+            %obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
             obj.power_supply.setVoltage(obj.Channel,val);
             obj.Voltage = val;
         end
@@ -127,8 +127,8 @@ classdef PowerSupply_invisible < Modules.Source
         %%
         
         function delete(obj)
-            delete(obj.listeners)
-            obj.power_supply.delete;
+            delete(obj.listeners);
+            delete(obj.power_supply);
         end
         
         function on(obj)
