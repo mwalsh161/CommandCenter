@@ -127,8 +127,7 @@ classdef Spectrum < Modules.Experiment
                 dat.diamondbase.data_type = 'local';
                 dat.wavelength = obj.data.x;
                 dat.intensity = obj.data.y;
-                rmfield(obj.data,'x');
-                rmfield(obj.data,'y');
+                obj.data = rmfield(obj.data,{'x','y'});
                 dat.meta = obj.data;
             end
         end
