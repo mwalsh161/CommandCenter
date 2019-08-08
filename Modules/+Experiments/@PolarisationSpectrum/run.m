@@ -53,8 +53,10 @@ function run( obj,status,managers,ax )
             obj.data.angle(i).intensity = tempDat.intensity;
 
             % Store data that is likely to change from run to run
-            all_fields = fieldnames(tempDat.meta);
-            nonvolatile_fields = setdiff( all_fields, volatile_fields );
+            if i == 1
+                all_fields = fieldnames(tempDat.meta);
+                nonvolatile_fields = setdiff( all_fields, volatile_fields );
+            end
             tempDat_nonvolatile = rmfield(tempDat.meta, volatile_fields);
             tempDat_volatile = rmfield(tempDat.meta, nonvolatile_fields);
 

@@ -1,7 +1,19 @@
 classdef PolarisationSpectrum < Modules.Experiment
-    %PolarisationSpectrum Measures spectra at specified rotations of a motorised HWP or polariser to
+    % PolarisationSpectrum Measures spectra at specified rotations of a motorised HWP or polariser to
     %                     give polarisation dependent spectra
+    % Data structure for Nangles polarisation angles measured:
+    % data: angle - 1 x Nangles struct array with fields
+    %               intensity - measured intensity at each pixel
+    %               wavelength - vector of wavelengths for each pixel value
+    %               err - error that occured at the experiment
+    % meta: prefs - PolarisationSpectrum prefs
+    %       position - stage position for measurement
+    %       angles - vector of angles corresponding to each of the data.angle
+    %       volatile - 1 x Nangles struct containing the data that fluctuates from spectrum to spectrum
+    %       spec_meta - struct containing the data that should not change from spectrum to spectrum (will error & stop if it changes)
+    %       diamondbase - diamondbase data
 
+    
     properties(SetObservable,AbortSet)
         angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
         motor_serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
