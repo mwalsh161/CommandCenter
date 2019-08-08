@@ -1,5 +1,5 @@
 classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
-    %Hewlett Packard MW source class
+    % Rhode & Schwarz HMP4040 Power Supply
 
     properties(SetObservable,AbortSet)
         Com_Address = 'None'; % Is 'None' if no connection is desired

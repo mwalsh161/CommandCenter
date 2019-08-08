@@ -1,5 +1,6 @@
 classdef PowerSupply_invisible < Modules.Source
-    %SuperClass for MW sources
+    %SuperClass for power supply sources
+    % ***IMPORTANT NOTE***** Experiments should use getVal methods, not corresponding Val property, to get true power supply setting, as these can theoretically be different from the properties if the user manually sets them on the power supply
     
     properties(SetObservable,AbortSet)
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
@@ -142,7 +143,7 @@ classdef PowerSupply_invisible < Modules.Source
 
 
         %% generic control functions
-        
+
         function delete(obj)
             delete(obj.listeners);
             delete(obj.power_supply);
