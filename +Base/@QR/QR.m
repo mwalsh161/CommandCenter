@@ -1,13 +1,11 @@
 classdef QR
     % QR Detect and read "QR" codes
-    % x and y scaling of input images should be similar!
     % Two main methods: READER and ENHANCEDREADER. reader does not use the
     % extra alignment markers and does not fit the main markers precicely.
-    % enhancedReader does all of that (takes about 20 times longer).
-    %   [pos,qrInfo,ax] = reader(im,to_plot)
-    %   [pos,tform,err,npoints,qrInfo] = enhancedReader(im,to_plot)
-    %
-    %   tform returned is sample to lab (moving points are the sample points)
+    % enhancedReader does all of that (takes much longer).  See method
+    % definition for more details.
+    %   [pos,qrInfo] = reader(im,varargin)
+    %   [pos,tform,err,npoints,qrInfo] = enhancedReader([SAME AS READER])
     
     properties(Constant)
         % Bit definitions
@@ -29,10 +27,7 @@ classdef QR
         spacing_between = 40;  % um
         
         % Detection constants
-        diffraction_limit = 0.1; % um
-        leg_len_thresh = 0.05;  % Ratio of length of each leg
-        angle_thresh = 0.1;    % Error from pi/2 between legs
-        BW_std = 5;         % n standard devs below median
+        diffraction_limit = 0.1; % um (used when fitting in enhancedReader)
     end
 
     methods(Static)
@@ -65,102 +60,124 @@ classdef QR
                 end
             end
         end
-        function [pos,readInfo,ax,f_debug] = reader(im,ax,debug)
-            % READER returns all found qr info
-            %   READER(im, [to_plot]) where im is a SmartImage struct.
-            %       Expecting ROI to be in um. Output will be in um.
+        function [pos, err] = estimatePos(readInfos)
+            % ESTIMATEPOS Returns an estimated QR position for the (0,0)
+            % coordinate in the image. It will take as many readInfo
+            % structs as there are QR codes detected.
+     %       pos = [[qrInfo.col]',[qrInfo.row]']*Base.QR.spacing_between; % QR coord
+     %       pos = % pixels?
+     %       pos = % sample coord
+            pos = [NaN,NaN];
+            err = [NaN,NaN];
+        end
+        function [pos,readInfo,f_debug] = reader(im,varargin)
+            % READER Returns QR info if the 3 larger markers are found
+            %   The image should be corrected for flat illumination already.
+            % Inputs; brackets indicate name,value optional pair:
+            %   im: a SmartImage info struct (reader uses the "image" and
+            %       "ROI" fields
+            %   [sensitivity]: (5) n standard deviations above median when
+            %       choosing the binary threshold for finding QR markers
+            %   [leg_len_thresh]: (0.05) 1 - ratio of length of each leg
+            %   [angle_thresh]: (0.1) Error from pi/2 between legs
+            %   [debug]: (false) Creates a figure with relevant graphics at each step
+            % Outputs:
+            %   pos: The estimated position of the image's (0,0) coordinate in
+            %       the QR frame. Based on all QRs detected.
+            %   readInfo: The details about the result. Fields:
+            %       qrInfo*: an array of structs
+            %       tform: the tform that incorporates all QRs found ("average" of qrInfo.QR2imT)
+            %       err: the error as a result of the average in (x,y)
+            %       npoints: n points used to calculate tform. Always zero
+            %           for this function. Reserved for enhancedReader.
+            %   f_debug: either empty gobjects or the figure handle if debug is true
+            %   *qrInfo includes:
+            %       row, col and version: the encoded QR info. If error is
+            %           not empty, row and col are empty doubles and
+            %           version is NaN.
+            %       error: An empty MException, or the MException if one
+            %           occured during decoding
+            %       QR2imT: Affine transform QR(x,y)[um] -> image(x,y)[um].*
+            %       * If error is not empty, these will be from the root
+            %       (0,0) QR code instead of the one encoded.
             
-            % Pasre Input
             assert(size(im.image,3)==1,'Image must be gray scale.')
             x = im.ROI(1,:);
             y = im.ROI(2,:);
             im = double(im.image); % Necessary for some filter operations
-            
-            if nargin < 3
-                debug = false;
-            end
+            p = inputParser;
+            addParameter(p,'sensitivity',5,@(a)validateattributes(a,{'numeric'},{'scalar','nonnegative'}));
+            addParameter(p,'leg_len_thresh',0.05,@(a)validateattributes(a,{'numeric'},{'scalar','nonnegative'}));
+            addParameter(p,'angle_thresh',0.1,@(a)validateattributes(a,{'numeric'},{'scalar','nonnegative'}));
+            addParameter(p,'debug',false,@(a)validateattributes(a,{'logical'},{'scalar'}));
+            parse(p,varargin{:});
+            p = p.Results;
             
             ax_debug = gobjects(1,4);
-            if debug
-                f = figure('name','QR.reader');
-                colormap(f,'gray');
-                for i = 1:4
-                    ax_debug(i) = subplot(2,2,i,'parent',f);
+            f_debug = gobjects(1);
+            if p.debug
+                f_debug = figure('name','QR.reader','units','normalized',...
+                    'position',[0 0 1 1]);
+                colormap(f_debug,'gray');
+                for i = 1:length(ax_debug)
+                    ax_debug(i) = subplot(2,2,i,'parent',f_debug);
                     hold(ax_debug(i),'on');
                     axis(ax_debug(i),'image');
                 end
                 set(ax_debug,'ydir','normal');
-                imagesc(ax_debug(1),im);
-                title(ax_debug(1),'Raw image')
+                imagesc(ax_debug(1),x,y,im);
+                title(ax_debug(1),sprintf('Original (%i x %i)',size(im,2),size(im,1)))
             end
             
             % Resize to square px
             conv = [diff(x)/(size(im,2)-1),diff(y)/(size(im,1)-1)]; % um/pixel
             conv = max(conv); % Reduce to worst resolution
             im = imresize(im,round([diff(y),diff(x)]/conv)+1);
-            % High pass filter to remove background
-            hp = Base.QR.module_size/conv;
-            im = im - imgaussfilt(im,hp);
-            if debug
+            if p.debug
                 imagesc(ax_debug(2),im);
-                title(ax_debug(2),sprintf('Highpass (%0.2f px)',hp))
-                colorbar(ax_debug(2));
+                title(ax_debug(2),sprintf('Square px (%i x %i)',size(im,2),size(im,1)))
             end
             
-            % Find all relevent QR circles
-            c = Base.QR.findMarkers(im,conv,ax_debug(3:4));
+            % Find all relevent QRs
+            marker_cands = Base.QR.findMarkers(im,conv,p.sensitivity,ax_debug(3:4)); % Nx2 double
+            markersBase = [0,0;Base.QR.spacing,0;0,Base.QR.spacing]; % Markers base location (root QR)
+            QR2pxT = Base.QR.findQR(marker_cands,conv,markersBase,...
+                                    p.leg_len_thresh,p.angle_thresh,...
+                                    ax_debug(3:4)); % 1xN affine2d
+            % Note, QR2pxT is not returned because it refers to the resized image (square pixels)
 
-            [offset,theta,scaling]=Base.QR.findQR(c,conv,ax_debug(3:4));
-            version = cell(1,numel(theta));
-            row = cell(1,numel(theta));
-            col = cell(1,numel(theta));
-            if ishandle(ax)&&isvalid(ax)
-                imagesc(im,'parent',ax)
-                axis(ax,'image','off')
-                colormap(ax,'gray')
-                set(ax,'YDir','normal')
-                hold(ax,'on')
-            else
-                ax=false;
-            end
-            toRemove = [];
-            % Go through and attempt to resolve QR codes
-            posAll = NaN(numel(theta),2);
-            for i = 1:numel(theta)
-                drawnow nocallbacks;
-                R = [cos(theta{i}) -sin(theta{i}); sin(theta{i}) cos(theta{i})];
+            % Go through and attempt to decode QR codes
+            nQRs = length(QR2pxT);
+            qrInfo = struct('row',[],'col',[],'version',[],...
+                            'QR2imT',[],'error',cell(1,nQRs));
+            for i = 1:nQRs
+                markersPx = transformPointsForward(QR2pxT(i), markersBase);
+                markersIm = (markersPx - 1).*conv + [x(1), y(1)];
                 try
-                    [code] = Base.QR.digitize(im,offset{i},R*scaling{i},ax,ax_debug(1));
-                    [row{i},col{i},version{i}] = Base.QR.analyze(code);
-                     % Prepare outputs in correct units and format
-                     xPos = col{i}*Base.QR.spacing_between;
-                     yPos = row{i}*Base.QR.spacing_between;
-                    % Shift to center of image
-                    posAll(i,:) = [xPos,yPos] - ((offset{i}-1).*conv+[x(1) y(1)])*R;
+                    [code] = Base.QR.digitize(im,QR2pxT(i),ax_debug(2));
+                    [qrInfo(i).row,...
+                     qrInfo(i).col,...
+                     qrInfo(i).version] = Base.QR.analyze(code);
+                    qrInfo(i).error = MException.empty();
+                    % Calculate QR2imT both being in real coords (no more pixel references)
+                    markersAct = markersBase + [qrInfo(i).col, qrInfo(i).row].*Base.QR.spacing_between;
+                    qrInfo(i).QR2imT = fitgeotrans(markersAct, markersIm,'nonreflectivesimilarity');
+                    markers_c = 'g';
                 catch err
-                    % Remove record of this guy
-                    toRemove(end+1) = i;
+                    qrInfo(i).row = [];
+                    qrInfo(i).col = [];
+                    qrInfo(i).version = NaN;
+                    qrInfo(i).error = err;
+                    % Note this is the QR at (0,0)
+                    qrInfo(i).QR2imT = fitgeotrans(markersBase, markersIm,'nonreflectivesimilarity');
+                    markers_c = 'r';
+                end
+                if p.debug
+                    plot(ax_debug(2),markersPx(:,1),markersPx(:,2),[markers_c 'o'],'LineWidth',2);
                 end
             end
-            offset(toRemove) = [];
-            theta(toRemove) = [];
-            scaling(toRemove) = [];
-            version(toRemove) = [];
-            row(toRemove) = [];
-            col(toRemove) = [];
-            if isempty(offset)
-                % If offset is empty there must have been an err (otherwise
-                % would have already thrown error).
-                rethrow(err)
-            end
-            pos(1) = nanmean(posAll(:,1));
-            errx = nanstd(posAll(:,1));
-            pos(2) = nanmean(posAll(:,2));
-            erry = nanstd(posAll(:,2));
-            err = mean([errx erry]);
-            qrInfo = struct('offset',offset,'theta',theta,'scaling',...
-                scaling,'row',row,'col',col, 'version',version);
-            readInfo = struct('qrInfo',qrInfo,'tform',NaN(3),'err',err,'npoints',0);
+            [pos, err] = Base.QR.estimatePos(qrInfo);
+            readInfo = struct('qrInfo',qrInfo,'tform',affine2d.empty(0),'err',err,'npoints',0);
         end
         function [pos,readInfo,ax] = enhancedReader(im,varargin)
             % Same input as reader
@@ -189,11 +206,6 @@ classdef QR
         end
         
         function [row,col,version,legacy_error] = analyze(code)
-            pad = Base.QR.pad; %#ok<*PROP>
-            vb = Base.QR.vb;
-            rb = Base.QR.rb;
-            cb = Base.QR.cb;
-            cs = Base.QR.cs;
             if ~ischar(code)
                 try
                     code = num2str(code,'%i');
@@ -203,28 +215,26 @@ classdef QR
             end
             assert(numel(code)==Base.QR.length,'Code is the wrong size')
             % Make sure pad is correct, then remove
-            padVal = num2str(ones(1,numel(pad))*Base.QR.padVal,'%i');
+            padVal = num2str(ones(1,numel(Base.QR.pad))*Base.QR.padVal,'%i');
             legacy_error = false;
-            if ~strcmp(code(pad),padVal)
+            if ~strcmp(code(Base.QR.pad),padVal)
                 % There was a flaw in some of the generation code, so
                 % attempt altering code to "fix" by swapping bit 5 and 6
                 assert(strcmp(code([1 6]),padVal),'Padding bits are incorrect.')
                 legacy_error = true;
                 code([1 6]) = [];
             else
-                code(pad) = [];
+                code(Base.QR.pad) = [];
             end
-            p = 1;
-            version = bin2dec(code(p:p+vb-1));
-            p = p + vb;
-            row = bin2dec(code(p:p+rb-1));
-            p = p + rb;
-            col = bin2dec(code(p:p+cb-1));
-            p = p + cb;
-            checksum = bin2dec(code(p:p+cs-1));
+            p = 1; % Pointer into code
+            version = decode(Base.QR.vb,'version');
+            row = decode(Base.QR.rb,'row');
+            col = decode(Base.QR.cb,'column');
+            checksum = decode(Base.QR.cs,'checksum');
             % Remove checksum, and test
-            code(end-cs+1:end) = [];
-            if ~isempty(checksum) && mod(numel(strfind(code,'1')),2^cs)~=checksum
+            code(end-Base.QR.cs+1:end) = [];
+            observed_checksum = mod(sum(code=='1'),2^Base.QR.cs);
+            if observed_checksum ~= checksum
                 if legacy_error
                     warning('Checksum failure was after a pad failure and attempt to address the legacy error.')
                 end
@@ -233,10 +243,18 @@ classdef QR
             if version > 5 && legacy_error
                 warning('Had to correct for padding error that SHOULD NOT exist in versions > 5! Tell mpwalsh@mit.edu immediately.');
             end
+            % Helper function to decode and error check
+            function val = decode(n,name)
+                val = bin2dec(code(p:p + n - 1));
+                assert(~isempty(val),...
+                    sprintf('No %s decoded, check Base.QR constants for consistency.',name));
+                p = p + n;
+            end
         end
-        [offset,theta,scaling] = findQR(c,conv,ax_debug)
-        [c,R] = findMarkers(im,conv,ax_debug);
-        [code,error] = digitize(image,offset,R,to_plot,ax_debug)
+        
+        c = findMarkers(im,conv,sensitivity,ax_debug); % Nx2 double
+        QR2pxT = findQR(c,conv,markersBase,leg_thresh,angle_thresh,debug_ax) % 1xN affine2d
+        code = digitize(image,QR2pxT,ax_debug) % 1xBase.QR.length char
         [offset,theta,scaling] = hone(im,qrInfo,ax);
     end
     
