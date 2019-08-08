@@ -14,13 +14,13 @@ classdef PowerSupply_invisible < Modules.Source
         source_on=false;
     end
     
-    properties(SetAccess=private)
+    properties(SetAccess=private,Hidden)
         listeners
         path_button
     end
 
     properties(Abstract)
-        serial % Handle to the power supply driver
+        power_supply % Handle to the power supply driver
     end
     
     methods
@@ -48,10 +48,10 @@ classdef PowerSupply_invisible < Modules.Source
             channel = str2num(val);
             assert(~isempty(channel),'channel must be an integer')
             assert(mod(channel,1)==0,'channel must be an integer')
-            max_channel = str2num(obj.serial.Number_of_channels);
+            max_channel = str2num(obj.power_supply.Number_of_channels);
             if channel>max_channel
                 error([' Attempted to set a channel that is greater than'...
-                    ' the maximum number of channels supported: ',obj.serial.Number_of_channels]);
+                    ' the maximum number of channels supported: ',obj.power_supply.Number_of_channels]);
             end
             if channel < 0
                 error('Channel must be positive')
@@ -61,34 +61,34 @@ classdef PowerSupply_invisible < Modules.Source
         
         function set.Source_Mode(obj,val)
             %debugging happens @ driver level
-            obj.serial.setSourceMode(obj.Channel,val); 
+            obj.power_supply.setSourceMode(obj.Channel,val); 
             obj.Source_Mode = val;
         end
         
         function set.Current(obj,val)
             %debugging happens @ driver level
-            obj.serial.setVoltageLimit(obj.Channel,obj.Voltage_Limit);
-            obj.serial.setCurrent(obj.Channel,val);
+            obj.power_supply.setVoltageLimit(obj.Channel,obj.Voltage_Limit);
+            obj.power_supply.setCurrent(obj.Channel,val);
             obj.Current = val;
         end
         
         function set.Voltage(obj,val)
 
             %debugging happens @ driver level
-%             obj.serial.setCurrentLimit(obj.Channel,obj.Current_Limit);
-            obj.serial.setVoltage(obj.Channel,val);
+%             obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
+            obj.power_supply.setVoltage(obj.Channel,val);
             obj.Voltage = val;
         end
         
         function set.Current_Limit(obj,val)
 
             %debugging happens @ driver level
-            obj.serial.setCurrentLimit(obj.Channel,val);
+            obj.power_supply.setCurrentLimit(obj.Channel,val);
             obj.Current_Limit = val;
         end
         
         function set.Voltage_Limit(obj,val)
-            obj.serial.setVoltageLimit(obj.Channel,val);
+            obj.power_supply.setVoltageLimit(obj.Channel,val);
             obj.Voltage_Limit = val;
         end
         %% get methods because these properties are interdependant. 
@@ -96,9 +96,9 @@ classdef PowerSupply_invisible < Modules.Source
         function val = get.Current(obj)
             if obj.source_on 
                 %if on return the actual current being output
-                val = obj.serial.measureCurrent(obj.Channel);
+                val = obj.power_supply.measureCurrent(obj.Channel);
             else
-                val = obj.serial.getCurrent(obj.Channel);%if the source isn't on return the programmed values
+                val = obj.power_supply.getCurrent(obj.Channel);%if the source isn't on return the programmed values
             end
         end
         
@@ -106,37 +106,37 @@ classdef PowerSupply_invisible < Modules.Source
 
             if obj.source_on 
                 %if on return the actual voltage being output
-                val = obj.serial.measureVoltage(obj.Channel);
+                val = obj.power_supply.measureVoltage(obj.Channel);
             else
-                val = obj.serial.getVoltage(obj.Channel);%if the source isn't on return the programmed values
+                val = obj.power_supply.getVoltage(obj.Channel);%if the source isn't on return the programmed values
             end
         end
 
         function val = get.Source_Mode(obj)
-           val = obj.serial.getSourceMode(obj.Channel); 
+           val = obj.power_supply.getSourceMode(obj.Channel); 
         end
         
         function val = get.Current_Limit(obj)
-            val = obj.serial.getCurrentLimit(obj.Channel);
+            val = obj.power_supply.getCurrentLimit(obj.Channel);
         end
         
         function val = get.Voltage_Limit(obj)
-           val = obj.serial.getVoltageLimit(obj.Channel);
+           val = obj.power_supply.getVoltageLimit(obj.Channel);
         end
         %%
         
         function delete(obj)
             delete(obj.listeners)
-            obj.serial.delete;
+            obj.power_supply.delete;
         end
         
         function on(obj)
-            obj.serial.on;
+            obj.power_supply.on;
             obj.source_on=1;
         end
         
         function off(obj)
-            obj.serial.off;
+            obj.power_supply.off;
             obj.source_on=0;
         end
 

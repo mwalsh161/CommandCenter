@@ -3,12 +3,12 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
 
     properties(SetObservable,AbortSet)
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit','Com_Address','Primary_Address'};
-        Com_Address = 'COM4';
-        Primary_Address = '1';
+        Com_Address = 'Not Connected';
+        Primary_Address = 1;
     end
 
     properties
-        serial = [];
+        power_supply = [];
     end
     
     properties(SetAccess=private)
@@ -18,11 +18,19 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     methods(Access=protected)
         function obj = HMP4040_Source()
             obj.connectSerial( obj.Com_Address, obj.Primary_Address);
-            obj.loadPrefs;
+            %obj.loadPrefs;
         end
-        function connectSerial(obj, Com_Address, Primary_Address)
-            prologix_device = prologix(Com_Address, Primary_Address);
-            obj.serial = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,prologix_device);
+        
+        function success = connectSerial(obj, Com_Address, Primary_Address)
+            oldSerial = obj.power_supply;
+            try
+                prologix_device = prologix(Com_Address, Primary_Address);
+                obj.power_supply = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,prologix_device);
+                success = true;
+            catch
+                obj.power_supply = oldSerial;
+                success = false;
+            end
         end
     end
     
@@ -40,27 +48,19 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     methods
         % If the Com_Address or Primary_Address changed, need to attempt to reconnect device with new info
         function set.Com_Address(obj,val)
-            oldSerial = obj.serial
-            try
-                obj.connectSerial(val,obj.Primary_Address)
-            catch err
-                obj.serial = oldSerial
-                return
+            success  = obj.connectSerial(val,obj.Primary_Address);
+            
+            if success
+                obj.Com_Address = val;
             end
-
-            obj.Com_Address = val
         end
 
         function set.Primary_Address(obj,val)
-            oldSerial = obj.serial
-            try
-                obj.connectSerial(obj.Com_Address,val)
-            catch err
-                obj.serial = oldSerial
-                return
+            success = obj.connectSerial(obj.Com_Address,val);
+            
+            if success
+                obj.Primary_Address = val;
             end
-
-            obj.Primary_Address = val
         end
     end
 end

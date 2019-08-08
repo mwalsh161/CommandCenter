@@ -47,7 +47,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.loadPrefs;
             if ~isempty(obj.comObject) %if the comObject is empty don't do anything
                 if isvalid(obj.comObject) %and it is vlaid
-                    if strcmpi(obj.comObject.serial.Status,'open') %and is open
+                    if strcmpi(obj.comObject.Status,'open') %and is open
                         fclose(obj.comObject); %then close and delete it
                         delete(obj.comObject);
                     end
@@ -56,11 +56,11 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.comObject = comObject; %replace old comObject handle with new user-supplied one
             
             %If it is closed then try to open
-            if strcmpi(obj.comObject.serial.Status,'closed')
+            if strcmpi(obj.comObject.Status,'closed')
                 try
                     fopen(obj.comObject);
                 catch ME
-                    messsage = sprintf('Failed to open device. Error message %s', Me.identifier);
+                    message = sprintf('Failed to open device. Error message %s', ME.identifier);
                     f = msgbox(message);
                     rethrow(ME); %rethrow error when trying to open comObject
                 end
@@ -76,11 +76,11 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
         end
         
         function writeOnly(obj,string)
-            fprintf(obj.comObject.serial,string);
+            fprintf(obj.comObject,string);
         end
         
         function [output] = writeRead(obj,string)
-            output = query(obj.comObject.serial,string);
+            output = query(obj.comObject,string);
         end
         
         function testLimit(obj,sourceMode,channel)
@@ -348,8 +348,10 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.reset;
             string = sprintf('SYSTEM:LOCAL '); %set the supply back to local control
             obj.writeOnly(string);
-            fclose(obj.comObject);
-            delete(obj.comObject);
+            if ~isempty(obj.comObject) && isvalid(obj.comObject)
+                fclose(obj.comObject);
+                delete(obj.comObject);
+            end
         end
         
     end
