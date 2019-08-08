@@ -1,7 +1,8 @@
 classdef PowerSupply_invisible < Modules.Source
     %SuperClass for MW sources
     
-    properties(SetObservable)
+    properties(SetObservable,SetObservable)
+        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
         Source_Mode = {'Voltage','Current'}
         Channel = '1';
         Current_Limit = 0.1; %Amps

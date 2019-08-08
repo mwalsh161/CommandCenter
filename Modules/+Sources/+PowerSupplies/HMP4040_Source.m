@@ -2,7 +2,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     %Hewlett Packard MW source class
 
     properties(SetObservable,AbortSet)
-        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit','Com_Address','Primary_Address'};
         Com_Address = 'Not Connected';
         Primary_Address = 1;
     end
@@ -18,7 +17,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     methods(Access=protected)
         function obj = HMP4040_Source()
             obj.connectSerial( obj.Com_Address, obj.Primary_Address);
-            %obj.loadPrefs;
+            obj.prefs = {obj.prefs{:},'Com_Address','Primary_Address'};
+            obj.loadPrefs;
         end
         
         function success = connectSerial(obj, Com_Address, Primary_Address)
