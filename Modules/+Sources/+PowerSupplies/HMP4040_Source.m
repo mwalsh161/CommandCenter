@@ -3,7 +3,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
 
     properties(SetObservable,AbortSet)
         Com_Address = 'none'; % Is 'None' if no connection is desired
-        Primary_Address = 0; % Is 0 if no connection is desired
     end
 
     properties
@@ -17,14 +16,14 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
 
     methods(Access=protected)
         function obj = HMP4040_Source()
-            obj.connectSerial( obj.Com_Address, obj.Primary_Address);
-            obj.prefs = {obj.prefs{:},'Com_Address','Primary_Address'};
+            obj.connectSerial( obj.Com_Address );
+            obj.prefs = {obj.prefs{:},'Com_Address'};
             obj.loadPrefs;
         end
         
-        function success = connectSerial(obj, Com_Address, Primary_Address)
-            % If using the default non-existant Com_Address/Primary_Address, disconnect device
-            if strcmp(Com_Address,'none') || (Primary_Address == 0)
+        function success = connectSerial(obj, Com_Address)
+            % If using the default non-existant Com_Address, disconnect device
+            if strcmp(Com_Address,'none')
                 delete(obj.power_supply);
                 obj.power_supply = [];
                 obj.power_supply_connected=false;
@@ -32,11 +31,11 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
                 return
             end
 
-            % Otherwise try to connect with input Com/Primary_Address and instantiate power_supply
+            % Otherwise try to connect with input Com and instantiate power_supply
             oldSerial = obj.power_supply;
             try
-                prologix_device = prologix(Com_Address, Primary_Address);
-                obj.power_supply = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,prologix_device);
+                serial_device = serial(Com_Address);
+                obj.power_supply = Drivers.PowerSupplies.HMP4040.instance(obj.Power_Supply_Name,serial_device);
                 delete(oldSerial);
                 obj.power_supply_connected=true;
                 success = true;
@@ -45,6 +44,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
                 f = msgbox(err_message);
                 
                 % If connection fails, keep old instance of power_supply
+                % and delete serial device
+                delete(serial_device);
                 obj.power_supply = oldSerial;
                 obj.power_supply_connected=false;
                 success = false;
@@ -64,20 +65,12 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     end
 
     methods
-        % If the Com_Address or Primary_Address changed, need to attempt to reconnect device with new info
+        % If the Com_Address changed, need to attempt to reconnect device with new info
         function set.Com_Address(obj,val)
-            success  = obj.connectSerial(val,obj.Primary_Address);
+            success  = obj.connectSerial(val);
             
             if success
                 obj.Com_Address = val;
-            end
-        end
-
-        function set.Primary_Address(obj,val)
-            success = obj.connectSerial(obj.Com_Address,val);
-            
-            if success
-                obj.Primary_Address = val;
             end
         end
     end

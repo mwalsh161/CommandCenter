@@ -36,7 +36,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
                 end
             end
             obj = Drivers.PowerSupplies.HMP4040(comObject);
-            obj.deviceId = name;
+            obj.deviceID = name;
             Objects(end+1) = obj;
         end
         
