@@ -27,6 +27,9 @@ classdef PowerSupply_invisible < Modules.Source
 
     properties(Abstract)
         power_supply % Handle to the power supply driver
+    end
+    
+    properties(Abstract,Constant)
         Number_of_channels % Number of channels supported
         Power_Supply_Name % Name of the power supply
     end
@@ -43,7 +46,7 @@ classdef PowerSupply_invisible < Modules.Source
         
     end
 
-    methods(SetAccess=protected)
+    methods(Access=protected)
         function output = queryPowerSupply(obj,command,varargin)
             % Only attempt to pass command to power_supply if device is connected
             if obj.power_supply_connected
@@ -147,7 +150,7 @@ classdef PowerSupply_invisible < Modules.Source
         function delete(obj)
             delete(obj.listeners);
             delete(obj.power_supply);
-            power_supply_connected=false;
+            obj.power_supply_connected=false;
         end
         
         function on(obj)
