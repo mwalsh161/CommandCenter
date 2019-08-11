@@ -5,7 +5,6 @@ classdef PowerSupply_invisible < Modules.Source
     properties(SetObservable,AbortSet)
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
         Source_Mode = {'Voltage','Current'}
-        Channel = '1';
         Current_Limit = 0.1; %Amps
         Voltage_Limit = 1;   %Voltage
         Current = 0.05; %Amps
@@ -27,7 +26,7 @@ classdef PowerSupply_invisible < Modules.Source
 
     properties(Abstract)
         power_supply % Handle to the power supply driver
-        Number_of_channels % Number of channels supported
+        Channel % cell array of strings of power supply channel names (e.g. {'1','2'})
         Power_Supply_Name % Name of the power supply
     end
     
@@ -57,24 +56,9 @@ classdef PowerSupply_invisible < Modules.Source
         function obj = PowerSupply_invisible()
             obj.listeners = addlistener(obj,'Channel','PostSet',@obj.updateValues);
         end
-
+        
         %% set methods
-        
-        function set.Channel(obj,val)
-            channel = str2num(val);
-            assert(~isempty(channel),'channel must be an integer')
-            assert(mod(channel,1)==0,'channel must be an integer')
-            max_channel = str2num(obj.Number_of_channels);
-            if channel>max_channel
-                error([' Attempted to set a channel that is greater than'...
-                    ' the maximum number of channels supported: ',obj.Number_of_channels]);
-            end
-            if channel < 0
-                error('Channel must be positive')
-            end
-            obj.Channel = val;
-        end
-        
+                
         function set.Source_Mode(obj,val)
             %debugging happens @ driver level
             obj.queryPowerSupply('setSourceMode',obj.Channel,val); 

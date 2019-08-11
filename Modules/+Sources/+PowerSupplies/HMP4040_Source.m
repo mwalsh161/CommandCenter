@@ -4,6 +4,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     properties(SetObservable,AbortSet)
         Com_Address = 'None'; % Is 'None' if no connection is desired
         Primary_Address = 0; % Is 0 if no connection is desired
+        Channel = {'1','2','3','4'}; % List of channel names
     end
 
     properties
@@ -12,7 +13,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     properties(SetAccess=private,Constant)
         Power_Supply_Name='HMP4040';
-        Number_of_channels=4;
     end
 
     methods(Access=protected)
