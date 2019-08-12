@@ -1,18 +1,25 @@
 classdef PowerSupply_invisible < Modules.Source
     %SuperClass for power supply sources
-    % ***IMPORTANT NOTE***** Experiments should use getVal methods, not corresponding Val property, to get true power supply setting, as these can theoretically be different from the properties if the user manually sets them on the power supply
+    % ***IMPORTANT NOTE***** Experiments should use getVal methods, not
+    % corresponding Val property, to get true power supply setting, as
+    % these can theoretically be different from the properties if the user 
+    % manually sets them on the power supply.
+    % 
+    % Setting up the communication with the power supply (e.g. serial
+    % connection) should be handled on a case by case basis by the
+    % subclass.
     
     properties(SetObservable,AbortSet)
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
         Source_Mode = {'Voltage','Current'}
-        Current_Limit = 0.1; %Amps
-        Voltage_Limit = 1;   %Voltage
-        Current = 0.05; %Amps
-        Voltage = 0.1;  %Voltage
+        Current_Limit = 0.1; % Current limit for voltage mode (amps).
+        Voltage_Limit = 1;   % Voltage limit for current mode (volts).
+        Current = 0.05; % Set current for current mode (amps).
+        Voltage = 0.1;  % Set voltage for voltage mode (volts).
     end
     
     properties(SetAccess=private, SetObservable)
-        source_on=false;
+        source_on=false; % Boolean describing whether source is on
     end
     
     properties(SetAccess=private,Hidden)
@@ -20,7 +27,7 @@ classdef PowerSupply_invisible < Modules.Source
     end
 
     properties(SetAccess=protected)
-        power_supply_connected=false;
+        power_supply_connected=false; % Boolean describing whether there is a connected power supply object
     end
 
     properties(Abstract)

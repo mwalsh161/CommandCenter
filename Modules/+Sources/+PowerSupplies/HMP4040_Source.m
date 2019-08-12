@@ -1,8 +1,8 @@
 classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
-    % Rhode & Schwarz HMP4040 Power Supply
+    % Rhode & Schwarz HMP4040 Power Supply (serial connection type).
 
     properties(SetObservable,AbortSet)
-        Com_Address = 'NONE'; % Is 'None' if no connection is desired
+        Com_Address = 'NONE'; % COM address for serial connection. Is 'NONE' if no connection is desired.
         Channel = {'1','2','3','4'};
     end
 
