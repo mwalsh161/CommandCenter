@@ -64,9 +64,11 @@ classdef PowerSupply_invisible < Modules.Source
     
     methods
         function obj = PowerSupply_invisible()
-            
+
         end
         
+        %% set methods
+                
         function set.Source_Mode(obj,val)
             %debugging happens @ driver level
             obj.queryPowerSupply('setSourceMode',obj.Channel,val); 
