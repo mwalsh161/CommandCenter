@@ -1,5 +1,6 @@
 function run(obj,status,managers,ax)
 obj.abort_request = false;
+obj.fatal_flag = false;
 assert(all(cellfun(@ischar,obj.patch_functions)),'One or more patch function is not a valid handle.');
 assert(length(obj.patch_functions) == length(obj.experiments),'Number of patch functions does not match number of experiments.')
 assert(~isempty(obj.imaging_source),'No imaging source selected, please select one and re-run.')
@@ -56,8 +57,10 @@ run_queue = [X(:),Y(:)];
 obj.reset_meta();
 obj.meta.prefs = obj.prefs2struct;
 obj.meta.errs = struct('site',{},'exp',{},'err',{});
-obj.PreRun(status,managers,ax);
+obj.meta.tstart = datetime('now');
+dP = [0,0,0]; % Cumulative tracker offset
 runstart = tic;
+obj.PreRun(status,managers,ax);
 err = [];
 try
     for repetition = 1:obj.repeat
@@ -82,9 +85,16 @@ try
                     params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
                 end
                 if ~isempty(params)
-                    managers.Stages.move([obj.data.sites(site_index).position(1),obj.data.sites(site_index).position(2),NaN]); %move to site
+                    managers.Stages.move([obj.data.sites(site_index).position(1)+dP(1),...
+                                          obj.data.sites(site_index).position(2)+dP(2),...
+                                          obj.data.sites(site_index).position(3)+dP(3)]); %move to site
                     if exp_index==1
+                        % This is to get a metric reading, the thresh of false, instructs tracker to not perform track
                         [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
+                        if ~all(isnan([dx,dy,dz]))
+                            obj.fatal_flag = true;
+                            error('Fatal: Tracker should not have tracked on first track of experiment!');
+                        end
                         obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                     end
                     for j = 1:length(params)
@@ -119,11 +129,14 @@ try
                         status.String = msg;
                         drawnow;
                         obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
+                        obj.data.sites(site_index).experiments(local_exp_index).tstart = toc(runstart);
                         if ~isempty(obj.prerun_functions{exp_index})
                             obj.(obj.prerun_functions{exp_index})(experiment);
                         end
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
+                        obj.data.sites(site_index).experiments(local_exp_index).tstop = toc(runstart);
+                        obj.data.sites(site_index).experiments(local_exp_index).dP = dP;
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
@@ -138,8 +151,16 @@ try
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,obj.tracking_threshold*obj.tracker(last_track,4));
                                 obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                             end
+                            if any(isnan([dx,dy,dz]))
+                                obj.fatal_flag = true;
+                                error('Fatal: Tracker returned NaN value during tracking routine! A value of 0 should be returned if no update is necessary.');
+                            end
+                            dP = dP + [dx, dy, dz];
                         end
                     catch param_err
+                        if obj.fatal_flag
+                            rethrow(param_err);
+                        end
                         obj.data.sites(site_index).experiments(local_exp_index).err = param_err;
                         err_struct.site = site_index;
                         err_struct.exp = exp_index;
@@ -148,6 +169,9 @@ try
                     end
                 end
             catch queue_err
+                if obj.fatal_flag
+                    rethrow(queue_err);
+                end
                 err_struct.site = site_index;
                 err_struct.exp = exp_index;
                 err_struct.err = queue_err;
@@ -160,6 +184,8 @@ try
     end
 catch err
 end
+obj.meta.tstop = datetime('now');
+obj.meta.tracker = obj.tracker;
 obj.PostRun(status,managers,ax)
 obj.continue_experiment = false;
 if ~isempty(err)
