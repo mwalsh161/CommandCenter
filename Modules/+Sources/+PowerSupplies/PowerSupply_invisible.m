@@ -100,10 +100,16 @@ classdef PowerSupply_invisible < Modules.Source
             obj.Voltage_Limit = val;
         end
 
-        %% get methods because these properties are interdependant. 
+        %% get methods because these properties are interdependant.
+        % each get method has an optional boolean argument whether to
+        % measure true value (default) otherwise measure set value. If
+        % source is off, set value will always be measured.
         
-        function val = getCurrent(obj)
-            if obj.source_on 
+        function val = getCurrent(obj, measure)
+            if nargin<2
+                measure = true;
+            end
+            if measure && obj.source_on
                 %if on return the actual current being output
                 val = obj.queryPowerSupply('measureCurrent',obj.Channel);
             else
@@ -111,9 +117,11 @@ classdef PowerSupply_invisible < Modules.Source
             end
         end
         
-        function val = getVoltage(obj)
-
-            if obj.source_on 
+        function val = getVoltage(obj, measure)
+            if nargin<2
+                measure = true;
+            end
+            if measure && obj.source_on
                 %if on return the actual voltage being output
                 val = obj.queryPowerSupply('measureVoltage',obj.Channel);
             else
@@ -157,11 +165,11 @@ classdef PowerSupply_invisible < Modules.Source
             %% triggers after user switches channel. Properties are linked so
             %first get them from the driver by calling get methods
             if obj.power_supply_connected
-                sourceMode = obj.Source_Mode;
+                sourceMode = obj.getSource_Mode;
                 Current_Limit = obj.getCurrent_Limit;
                 Voltage_Limit = obj.getVoltage_Limit;
-                Current = obj.getCurrent;
-                Voltage = obj.getVoltage;
+                Current = obj.getCurrent(false);
+                Voltage = obj.getVoltage(false);
                 %% reassign their values
                 obj.Source_Mode = sourceMode;
                 obj.Current_Limit = Current_Limit;
