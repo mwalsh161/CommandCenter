@@ -3,6 +3,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
 
     properties(SetObservable,AbortSet)
         Com_Address = 'none'; % Is 'None' if no connection is desired
+        Channel = {'1','2','3','4'};
     end
 
     properties
@@ -11,7 +12,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     properties(Constant)
         Power_Supply_Name='HMP4040';
-        Number_of_channels=4;
     end
 
     methods(Access=protected)
@@ -50,6 +50,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
                 obj.power_supply_connected=false;
                 success = false;
             end
+            
+            obj.updateValues(); % Update values if connection is successful
         end
     end
     
@@ -72,6 +74,11 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
             if success
                 obj.Com_Address = val;
             end
+        end
+        
+        function set.Channel(obj,val)
+            obj.Channel = val;
+            obj.updateValues();
         end
     end
 end

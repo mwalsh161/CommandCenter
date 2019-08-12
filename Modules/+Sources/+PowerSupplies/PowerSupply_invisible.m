@@ -5,7 +5,6 @@ classdef PowerSupply_invisible < Modules.Source
     properties(SetObservable,AbortSet)
         prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
         Source_Mode = {'Voltage','Current'}
-        Channel = '1';
         Current_Limit = 0.1; %Amps
         Voltage_Limit = 1;   %Voltage
         Current = 0.05; %Amps
@@ -29,9 +28,12 @@ classdef PowerSupply_invisible < Modules.Source
         power_supply % Handle to the power supply driver
     end
     
+    properties(Abstract,SetObservable,AbortSet)
+        Channel % Array denoting possible channels for the power supply
+    end
+    
     properties(Abstract,Constant)
-        Number_of_channels % Number of channels supported
-        Power_Supply_Name % Name of the power supply
+        Power_Supply_Name % String containing ame of the power supply
     end
     
     methods(Static)
@@ -47,35 +49,22 @@ classdef PowerSupply_invisible < Modules.Source
     end
 
     methods(Access=protected)
-        function output = queryPowerSupply(obj,command,varargin)
+        function varargout = queryPowerSupply(obj,command,varargin)
             % Only attempt to pass command to power_supply if device is connected
             if obj.power_supply_connected
                 % Perform power_supply specified by command (string), with varargin as arguments
-                obj.power_supply.(command)(varargin{:})
+                if nargout > 0
+                    varargout{1} = obj.power_supply.(command)(varargin{:});
+                else
+                    obj.power_supply.(command)(varargin{:});
+                end
             end
         end
     end
     
     methods
         function obj = PowerSupply_invisible()
-            obj.listeners = addlistener(obj,'Channel','PostSet',@obj.updateValues);
-        end
-
-        %% set methods
-        
-        function set.Channel(obj,val)
-            channel = str2num(val);
-            assert(~isempty(channel),'channel must be an integer')
-            assert(mod(channel,1)==0,'channel must be an integer')
-            max_channel = str2num(obj.Number_of_channels);
-            if channel>max_channel
-                error([' Attempted to set a channel that is greater than'...
-                    ' the maximum number of channels supported: ',obj.Number_of_channels]);
-            end
-            if channel < 0
-                error('Channel must be positive')
-            end
-            obj.Channel = val;
+            
         end
         
         function set.Source_Mode(obj,val)
@@ -167,12 +156,12 @@ classdef PowerSupply_invisible < Modules.Source
         function updateValues(obj,~,~)
             %% triggers after user switches channel. Properties are linked so
             %first get them from the driver by calling get methods
-            if obj.source_on == 0
+            if obj.power_supply_connected
                 sourceMode = obj.Source_Mode;
-                Current_Limit = obj.Current_Limit;
-                Voltage_Limit = obj.Voltage_Limit;
-                Current = obj.Current;
-                Voltage = obj.Voltage;
+                Current_Limit = obj.getCurrent_Limit;
+                Voltage_Limit = obj.getVoltage_Limit;
+                Current = obj.getCurrent;
+                Voltage = obj.getVoltage;
                 %% reassign their values
                 obj.Source_Mode = sourceMode;
                 obj.Current_Limit = Current_Limit;
