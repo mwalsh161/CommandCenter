@@ -16,7 +16,6 @@ classdef PowerSupply_invisible < Modules.Source
     end
     
     properties(SetAccess=private,Hidden)
-        listeners
         path_button
     end
 
@@ -52,7 +51,7 @@ classdef PowerSupply_invisible < Modules.Source
         function varargout = queryPowerSupply(obj,command,varargin)
             % Only attempt to pass command to power_supply if device is connected
             if obj.power_supply_connected
-                % Perform power_supply specified by command (string), with varargin as arguments
+                % Perform command specified by command (string), with varargin as arguments, return output if requested
                 if nargout > 0
                     varargout{1} = obj.power_supply.(command)(varargin{:});
                 else
@@ -147,7 +146,6 @@ classdef PowerSupply_invisible < Modules.Source
         %% generic control functions
 
         function delete(obj)
-            delete(obj.listeners);
             delete(obj.power_supply);
             obj.power_supply_connected=false;
         end

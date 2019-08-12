@@ -1,8 +1,8 @@
 classdef PowerSupplies < Modules.Driver
     
     properties(Constant,Abstract)
-        Dual_Polarity       %Can your power supply source a negative voltage? options: Yes or No
-        Number_of_channels  %How many channels are programable? Should be a string. ex: '1', '2', '3'
+        Dual_Polarity       %Can your power supply source a negative voltage? options: true or false
+        Number_of_channels  %Integer representing how many channels are programable
         dev_id              %name of your device. ex: HAMEG
     end
     
