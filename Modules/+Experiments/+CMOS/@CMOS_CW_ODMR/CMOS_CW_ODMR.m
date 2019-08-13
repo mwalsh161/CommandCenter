@@ -14,10 +14,18 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         MW_freqs_GHz = 'linspace(2.85,2.91,101)';
         MW_Power_dBm = -30;
         MW_freq_norm_GHz = 2; % If set to -1, will turn off
+
+        % CMOS control properties
+        PowerSupply = Moules.Source.empty(0,1);
+        MW_Control_line = '?';
+        VDD_VCO = 5;
+        VDD_Driver = 5;
+        Driver_Bias_1 = 5;
+        Driver_Bias_2 = 5;
     end
     properties
         prefs = {'MW_freqs_GHz','MW_freq_norm_GHz','MW_Power_dBm','Exposure_ms','averages','Laser',...
-                 'SignalGenerator','APD_line','APD_Sync_line'};
+                 'SignalGenerator','PowerSupply','VDD_VCO','VDD_Driver','Driver_Bias_1','Driver_Bias_2','APD_line','MW_Control_line','APD_Sync_line'};
     end
     properties(SetAccess=private,Hidden)
         % Internal properties that should not be accessible by command line
