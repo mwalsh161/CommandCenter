@@ -1,4 +1,4 @@
-classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
+classdef HMP4040 < Modules.Driver
     
     properties (SetAccess=private)
         currentLimitEnable = {'Off','Off','Off','Off'};
