@@ -9,14 +9,21 @@ function [ decision, lambda, estimate ] = BinaryUnkownDistTest( ref0, ref1, samp
 %   unless otherwise specified.
 %   
 % Inputs:
-%   ref0: vector array of values for sample known to come from dist. 0.
-%   ref1: vector array of values for sample known to come from dist. 1.
-%   sample: vector array of values from sample to test
+%   ref0: vector array of values for sample known to come from dist. 0. Must
+%         have >1 observation.
+%   ref1: vector array of values for sample known to come from dist. 1. Must
+%         have >1 observation.
+%   sample: vector array of values from sample to test. Must have >1
+%           observation.
 %
 % Outputs:
 %   decision: Boolean whether sample is closer to reference sample 0 or 1.
 %   lambda: likelihood ratio.
 %   estimate: re-scaled likelihood ratio to give metric between 0 and 1.
+
+assert(numel(ref0)>1,'Reference sample 0 must have more than 1 observation')
+assert(numel(ref1)>1,'Reference sample 1 must have more than 1 observation')
+assert(numel(sample)>1,'Sample must have more than 1 observation')
 
 % Check if p0 was given, otherwise give default
 if ~exist('p0','var')
