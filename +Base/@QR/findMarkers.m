@@ -30,7 +30,7 @@ if all(isvalidax(ax_debug)) && ~isempty(st)
     s(2,1) = scatter(ax_debug(1),c(:,1),c(:,2),'o','markeredgecolor',[ 0.9100 0.4100 0.1700]);
     s(2,2) = scatter(ax_debug(2),c(:,1),c(:,2),'o','markeredgecolor',[ 0.9100 0.4100 0.1700]);
 end
-sel = [st.Area]<A*1.5;  % Filter for regions with area less than
+sel = [st.Area]<A*4;  % Filter for regions with area less than
 st = st(sel);
 if all(isvalidax(ax_debug)) && ~isempty(st)
     c = cat(1,st.Centroid);

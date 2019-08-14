@@ -1,79 +1,62 @@
-function [codeOut] = digitize(im,unit2pxT,ax_debug)
+function [code,p,estimate,posPxs] = digitize(im,unit2pxT,alpha)
 modSize = Base.QR.module_size;  % um
-numMods = sqrt(Base.QR.length);
-d = Base.QR.d;
+numMods = sqrt(Base.QR.length)+2;
 
-% Generate coordinates for center of module
-[Y,X] = meshgrid(linspace(modSize*(numMods+1),0,numMods+2),...
-                 linspace(0,modSize*(numMods+1),numMods+2)); % Starts from top left and rasters down
-% Generate coordinates for each square (will need to be translated)
-n = 10;
-[Ymod,Xmod] = meshgrid(linspace(-modSize/4,modSize/4,n));
-for i = 1:numMods/2
-    X(:,i*2) = flipud(X(:,i*2));
-end
-X = X(:)+d-modSize/2;
-Y = Y(:)+d-modSize/2;
+% Generate coordinates QR bits
+[X,Y] = meshgrid(0:numMods-1, numMods-1:-1:0);
+posU = [X(:), Y(:)].*modSize + Base.QR.d - modSize/2;
+posBits = round(transformPointsForward(unit2pxT,posU));
 
-pos = transformPointsForward(unit2pxT,[X Y]);
-posMod = [Xmod(:) Ymod(:)]*unit2pxT.T(1:2,1:2); % Centered around zero
+% Generate relative coordinates for pixels in a bit
+bpolyU = [-1, -1;-1, 1;1, 1;1, -1].*modSize/2/2; % relative bounding box for bit
+bpolyPX = fix(bpolyU*unit2pxT.T(1:2,1:2)); % fix chops off decimal
+[Ymod,Xmod] = meshgrid(min(bpolyPX(:,2)):max(bpolyPX(:,2)),...
+                       min(bpolyPX(:,1)):max(bpolyPX(:,1)));
+posPxs = [Xmod(:), Ymod(:)];
+posPxs = posPxs(inpolygon(posPxs(:,1),posPxs(:,2),bpolyPX(:,1),bpolyPX(:,2)),:);
+nPx = size(posPxs,1);
+assert(nPx>1, 'Need more than 1 reference pixel per bit!');
 
-% Find Sequence
-pos = round(pos);       % Convert to pixel index
-posMod = unique(round(posMod),'row');
-
-rawVals = zeros(size(posMod,1)+1,size(pos,1));
-for i = 1:size(pos,1)
-    temp = [pos(i,:); pos(i,:) + posMod];
-    rawVals(:,i) = im(sub2ind(size(im),temp(:,2),temp(:,1)));
-end
-bin = reshape(kmeans(rawVals(:),2)-1,size(rawVals));
-% kmeans will randomly select clusters, so make sure dark is 1, bright is 0
-mask = bin(:) == 0;
-if median(rawVals(mask)) < median(rawVals(~mask))
-    bin = 1 - bin;
-end
-code_median = median(bin);
-code = logical(round(code_median));
-
-% Reshape
-codeOut = reshape(code,[numMods+2 numMods+2])';
-for i = 1:numMods/2
-    codeOut(i*2,:) = fliplr(codeOut(i*2,:));
+rawVals = NaN(numMods,numMods,size(posPxs,1));
+for i = 1:size(posBits,1)
+    temp = posBits(i,:) + posPxs;
+    [row,col] = ind2sub([numMods,numMods],i);
+    rawVals(row,col,:) = im(sub2ind(size(im),temp(:,2),temp(:,1)));
 end
 
-if isvalidax(ax_debug)
-    plot(ax_debug,pos(1,1),pos(1,2),'m*');
-    scatter(ax_debug,pos(:,1),pos(:,2),36,ones(size(code,1),3).*code_median',...
-        'LineWidth',1.5);
-    scatter(ax_debug,pos(1,1)+posMod(:,1),pos(1,2)+posMod(:,2),10,[0 0 1]);
-    if iscell(ax_debug.Title.String)
-        line_one = ax_debug.Title.String{1};
-    else
-        line_one = ax_debug.Title.String;
+% For this version of digitization, we will use the pad bits as logical 1
+% values, and the border as logical 0. If there is not enough of a
+% difference, we will error.
+assert(all(Base.QR.padVal),'All pad values must be 1 to get reference pixel values.')
+% Assume border is zero
+valCol = rawVals([1,end],1:end,:);
+valRow = rawVals(1:end,[1,end],:);
+ref0 = [valCol(:); valRow(:)];
+
+rawVals = rawVals(2:end-1,2:end-1,:); % Crop out border
+[col,row] = ind2sub([numMods-2,numMods-2],Base.QR.pad); % ** (see below)
+ref1 = NaN(length(col),nPx);
+for i = 1:length(col)
+    ref1(i,:) = reshape(rawVals(row(i),col(i),:),1,nPx);
+end
+ref1 = ref1(:);
+assert(numel(ref0)>1 && numel(ref1)>1, 'Need more than one reference pixel for both 0 and 1 values.')
+% Perform tests (numMods-2 is the actual size of code without the border)
+[h,p] = ttest2(ref0,ref1,'Alpha',alpha,'vartype','unequal');
+assert(h==1,'Not enough significance between logical 0 and logical 1 pixels.');
+code = false(numMods-2);
+estimate = NaN(numMods-2);
+for row = 1:numMods-2
+    for col = 1:numMods-2
+        sample = squeeze(rawVals(row,col,:));
+        [code(row,col), ~, estimate(row,col)] = BinaryUnkownDistTest(ref0, ref1, sample);
     end
-    line_one = [line_one newline];
-    title(ax_debug,[line_one 'Datacursor for bits contains median value before digitization']);
-    dcm_obj = datacursormode(ax_debug.Parent);
-    set(dcm_obj,'UpdateFcn',@tooltip_fn)
 end
 
-% Make sure border is all 0
-valCol = codeOut([1,end],1:end);
-valRow = codeOut(1:end,[1,end]);
-codeOut = codeOut(2:end-1,2:end-1);
-codeOut = codeOut';
-codeOut = reshape(codeOut,[1 Base.QR.length]);
-assert(~(sum(valCol(:))+sum(valRow(:))),'Border is nonzero.')
-
-end
-
-function txt = tooltip_fn(~,event_obj)
-pos = get(event_obj,'Position');
-txt = {['X: ',num2str(pos(1))],...
-       ['Y: ',num2str(pos(2))]};
-if isa(event_obj.Target,'matlab.graphics.chart.primitive.Scatter')
-    I = get(event_obj, 'DataIndex');
-    txt{end+1} = ['C: ',num2str(event_obj.Target.CData(I))];
-end
+% ** Remember, we are working with a "transposed" matrix given how MATLAB
+% indexes it (e.g. indexes a column first).
+code = code';
+code = code(:);
+estimate = estimate';
+estimate = estimate(:);
 end
