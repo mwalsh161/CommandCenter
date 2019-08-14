@@ -207,9 +207,9 @@ classdef QR
             % Find all relevent QRs
             marker_cands = Base.QR.findMarkers(im,conv,p.sensitivity,ax_debug(3:4)); % Nx2 double
             markersBase = [0,0;Base.QR.spacing,0;0,Base.QR.spacing]; % Markers base location (root QR)
-            QR2pxT = Base.QR.findQR(marker_cands,conv,markersBase,...
+            [QR2pxT,QRmarker_px] = Base.QR.findQR(marker_cands,conv,markersBase,...
                                     p.leg_len_thresh,p.angle_thresh,...
-                                    ax_debug(3:4)); % 1xN affine2d
+                                    ax_debug(3:4)); % 1xN affine2d, Nx2 px points
             % Note, QR2pxT is not returned because it refers to the resized image (square pixels)
 
             % Go through and attempt to decode QR codes
@@ -341,7 +341,7 @@ classdef QR
         end
         
         c = findMarkers(im,conv,sensitivity,ax_debug); % Nx2 double
-        QR2pxT = findQR(c,conv,markersBase,leg_thresh,angle_thresh,debug_ax) % 1xN affine2d
+        [QR2pxT,cQR] = findQR(c,conv,markersBase,leg_thresh,angle_thresh,debug_ax) % 1xN affine2d
         [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
         
         [offset,theta,scaling] = hone(im,qrInfo,ax);

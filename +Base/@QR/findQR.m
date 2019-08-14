@@ -1,4 +1,4 @@
-function unit2pxT = findQR(c,conv,markersBase,leg_len_thresh,angle_thresh,debug_ax)
+function [unit2pxT,cQR] = findQR(c,conv,markersBase,leg_len_thresh,angle_thresh,debug_ax)
 % Finds QR code or returns error using imfindcircles
 %% Init
 spacing = Base.QR.spacing/mean(conv);
@@ -6,6 +6,7 @@ dist = @(a,b)sqrt((a(1)-b(1))^2+(a(2)-b(2))^2);
 angle = @(a,b)acos(dot(a,b)/(norm(a)*norm(b)));
 %% Go through all circles in c
 unit2pxT = affine2d.empty(0);
+cQR = NaN(0,2);
 candidate_verts = 1:size(c,1);   % Index into c
 candidate_origins = 1:size(c,1); % Index into c
 while ~isempty(candidate_origins)
@@ -35,9 +36,11 @@ while ~isempty(candidate_origins)
                 if (verts(1,1)*verts(2,2)-verts(1,2)*verts(2,1))>0
                     %                             moving      fixed (order matters)
                     unit2pxT(end+1) = fitgeotrans(markersBase,c([i,j,k],:),'nonreflectivesimilarity');
+                    cQR(end+1,:) = c([i,j,k],:);
                 else
                     %                      `      moving      fixed (order matters)
                     unit2pxT(end+1) = fitgeotrans(markersBase,c([i,k,j],:),'nonreflectivesimilarity');
+                    cQR(end+1,:) = c([i,k,j],:);
                 end
                 % If this was a QR code, we want to remove all of these points from candidate_*
                 candidate_verts(candidate_verts==j) = [];
