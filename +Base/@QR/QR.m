@@ -223,7 +223,7 @@ classdef QR
                 qrInfo(i).estimate = false(0);
                 bitSamples_px = NaN(0,2);
                 try
-                    [code,pVal,estimate,bitSamples_px] = Base.QR.digitize(im,QR2pxT(i),p.significance);
+                    [code,pVal,estimate,bitSamples_px] = Base.QR.digitize(im,QR2pxT(i),p.significance,markersPx);
                     qrInfo(i).code = code;
                     qrInfo(i).estimate = estimate;
                     qrInfo(i).significance = pVal;
@@ -289,6 +289,9 @@ classdef QR
                 end
             end
             assert(length(code)==Base.QR.length,'Code is the wrong size (must be vector)')
+            if size(code,1) > 1 % Make sure a row vector (important for padVal)
+                code = code';
+            end
             % Make sure pad is correct, then remove
             padVal = num2str(ones(1,numel(Base.QR.pad))*Base.QR.padVal,'%i');
             legacy_error = false;
@@ -339,7 +342,7 @@ classdef QR
         
         c = findMarkers(im,conv,sensitivity,ax_debug); % Nx2 double
         QR2pxT = findQR(c,conv,markersBase,leg_thresh,angle_thresh,debug_ax) % 1xN affine2d
-        [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance)
+        [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
         
         [offset,theta,scaling] = hone(im,qrInfo,ax);
     end
