@@ -17,9 +17,7 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
         Moving = false;
         Position           % Current Position. 0 corresponds to mean(Travel)
         Homed              % Flag specifying home status
-    end
-    properties(Constant,GetAccess=private)
-        Travel = [0 4];     % Restrictions on the travel distance
+        Travel             % Restrictions on the travel distance. 2x1 vector
     end
     properties(Access=private)
         newPosition = true;    % Used to speed up position querry
@@ -27,10 +25,19 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
     end
 
     methods (Static)
+        function devices = getAvailMotors()
+            % 0 means no motor
+            f = msgbox('Loading APTSystem',mfilename,'modal');
+            APTSystem = Drivers.APTSystem.instance;
+            devices = APTSystem.getDevices;
+            devices = num2cell(double(devices.USB_STEPPER_DRIVE));
+            devices = [{'0'},cellfun(@num2str,devices,'uniformoutput',false)];
+            delete(f);
+        end
         % Use this to create/retrieve instance associated with serialNum
-        function obj = instance(serialNum,name)
+        function obj = instance(serialNum,travel,name)
             mlock;
-            if nargin < 2
+            if nargin < 3
                 name = serialNum;
             end
             persistent Objects
@@ -43,16 +50,19 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
                     return
                 end
             end
-            obj = Drivers.APTMotor(serialNum,name);
+            obj = Drivers.APTMotor(serialNum,name,travel);
             obj.singleton_id = serialNum;
             Objects(end+1) = obj;
         end
     end    
     methods(Access=private)
         % Constructor should only be called by instance()
-        function obj = APTMotor(serialNum,name)
+        function obj = APTMotor(serialNum,name,travel)
             obj.initialize('MGMOTOR.MGMotorCtrl.1',serialNum)
             obj.name = name;
+            validateattributes( travel, {'numeric'}, {'vector', 'numel',2,'nonnan'} );
+            travel = sort(travel);
+            obj.Travel = travel;
         end
         
         %Method to handle ActiveX events
