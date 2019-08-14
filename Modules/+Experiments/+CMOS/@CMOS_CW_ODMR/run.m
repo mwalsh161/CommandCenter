@@ -14,6 +14,12 @@ function run( obj,status,managers,ax )
     obj.meta.freq_list = obj.freq_list;
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
 
+    % Turn on biasing
+    assert(obj.PowerSupply.power_supply_connected, 'Power supply not connected') % Do not proceed if power supply disconnected
+    if ~obj.keep_bias_on
+        obj.PowerSupply.on();
+    end
+
     ctr = Drivers.Counter.instance(obj.APD_line, obj.APD_Sync_line);
     obj.Laser.arm;
     obj.SignalGenerator.MWPower = obj.MW_Power_dBm;
@@ -21,6 +27,8 @@ function run( obj,status,managers,ax )
     % Pre-allocate obj.data
     n = length(obj.freq_list);
     obj.data = NaN(obj.averages,n,2);
+
+    % Turn on microwave control line
 
     % Setup graphics
     y = NaN(1,n);
@@ -76,6 +84,14 @@ function run( obj,status,managers,ax )
     end
     obj.SignalGenerator.off;
     obj.Laser.off;
+
+    % Turn microwave control off
+
+    % Turn off biasing
+    if ~obj.keep_bias_on
+        obj.PowerSupply.off();
+    end
+
     if exist('err','var')
         % HANDLE ERROR CODE %
         rethrow(err)
