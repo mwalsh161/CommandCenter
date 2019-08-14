@@ -46,23 +46,27 @@ estimate = estimate/(1+estimate);
 end
 
 function t = likelihood( sample1, sample2 )
-% calculate t-statistic likelihood for samples 1 and 2
-% find means, variances and lengths
-m1 = mean(sample1);
-m2 = mean(sample2);
-s1sqr = var(sample1);
-s2sqr = var(sample2);
-n1 = numel(sample1);
-n2 = numel(sample2);
+[~,~,~,stat] = ttest2(sample1,sample2,'vartype','equal');
+T = stat.tstat;
+nu = stat.df;
 
-% define pooled standard deviation
-sp = sqrt(s1sqr/n1+s2sqr/n2);
-
-% define t-statistic
-T = (m1-m2)/sp;
-
-% define degrees of freedom
-nu = (s1sqr/n1+s2sqr/n2)^2/((s1sqr/n1)^2/(n1-1)+(s2sqr/n2)^2/(n2-1));
+% % calculate t-statistic likelihood for samples 1 and 2
+% % find means, variances and lengths
+% m1 = mean(sample1);
+% m2 = mean(sample2);
+% s1sqr = var(sample1);
+% s2sqr = var(sample2);
+% n1 = numel(sample1);
+% n2 = numel(sample2);
+% 
+% % define pooled standard deviation
+% sp = sqrt(s1sqr/n1+s2sqr/n2);
+% 
+% % define t-statistic
+% T = (m1-m2)/sp;
+% 
+% % define degrees of freedom
+% nu = (s1sqr/n1+s2sqr/n2)^2/((s1sqr/n1)^2/(n1-1)+(s2sqr/n2)^2/(n2-1));
 
 % return likelihood
 t = tpdf(T, nu);
