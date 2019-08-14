@@ -123,7 +123,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
             % Check that channel exists and is different from other channels before changing
             if ~isempty(val) % Just set if channel is empty
                 assert(~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
-                obj.PowerSupply.queryPowerSupply('check_channel',val)
+                obj.PowerSupply.checkChannel(val)
             end
             obj.VDD_VCO_Channel = val;
         end
@@ -131,7 +131,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         function set.VDD_Driver_Channel(obj,val)
             if ~isempty(val)
                 assert(~strcmp(val,obj.VDD_VCO_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
-                obj.PowerSupply.queryPowerSupply('check_channel',val)
+                obj.PowerSupply.checkChannel(val)
             end
             obj.VDD_Driver_Channel = val;
         end
@@ -139,7 +139,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         function set.Driver_Bias_1_Channel(obj,val)
             if ~isempty(val)
                 assert(~strcmp(val,obj.Driver_VCO_Channel) && ~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
-                obj.PowerSupply.queryPowerSupply('check_channel',val)
+                obj.PowerSupply.checkChannel(val)
             end
             obj.VDD_Bias_1_Channel = val;
         end
@@ -147,7 +147,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         function set.Driver_Bias_2_Channel(obj,val)
             if ~isempty(val)
                 assert(~strcmp(val,obj.Driver_VCO_Channel) && ~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel), 'Channel already assigned')
-                obj.PowerSupply.queryPowerSupply('check_channel',val)
+                obj.PowerSupply.checkChannel(val)
             end
             obj.VDD_Bias_2_Channel = val;
         end
