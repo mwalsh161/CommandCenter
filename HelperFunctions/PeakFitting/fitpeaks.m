@@ -136,8 +136,14 @@ usingN = ismember('n',pSpecified);
 if ismember('AmplitudeSensitivity',pSpecified)
     usingN = true;
     % Calculate n
-    thresh = median(init.amplitudes) + p.AmplitudeSensitivity * std(init.amplitudes);
-    n = sum(init.amplitudes >= thresh);
+    [~, ~, ~, proms] = findpeaks(y,x); %get list of prominences
+    [f,xi] = ksdensity(proms);
+    [~, prom_locs, prom_wids, prom_proms] = findpeaks(f,xi); %find most prominent prominences
+    [~,I] = sort(prom_proms,'descend');
+    sortwids = prom_wids(I);
+    sortlocs = prom_locs(I);
+    thresh = sortlocs(1)+p.AmplitudeSensitivity *sortwids(1); %assume most prominent prominence corresponds to noise
+    p.n = sum(init.amplitudes >= thresh);
 end
 
 fit_results = {[]};
