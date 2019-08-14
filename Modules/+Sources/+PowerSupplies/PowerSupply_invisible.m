@@ -167,6 +167,9 @@ classdef PowerSupply_invisible < Modules.Source
             obj.source_on=0;
         end
 
+        function checkChannel(obj,val)
+            obj.queryPowerSupply('check_channel',val);
+        end
         
         function updateValues(obj,~,~)
             %% triggers after user switches channel. Properties are linked so
