@@ -1,8 +1,8 @@
 classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
-    % Rhode & Schwarz HMP4040 Power Supply
+    % Rhode & Schwarz HMP4040 Power Supply (serial connection type).
 
     properties(SetObservable,AbortSet)
-        Com_Address = 'none'; % Is 'None' if no connection is desired
+        Com_Address = 'NONE'; % COM address for serial connection. Is 'NONE' if no connection is desired.
         Channel = {'1','2','3','4'};
     end
 
@@ -23,7 +23,8 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
         
         function success = connectSerial(obj, Com_Address)
             % If using the default non-existant Com_Address, disconnect device
-            if strcmp(Com_Address,'none')
+            Com_Address = upper(Com_Address);
+            if strcmp(Com_Address,'NONE')
                 delete(obj.power_supply);
                 obj.power_supply = [];
                 obj.power_supply_connected=false;
@@ -69,6 +70,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     methods
         % If the Com_Address changed, need to attempt to reconnect device with new info
         function set.Com_Address(obj,val)
+            val = upper(val);
             success  = obj.connectSerial(val);
             
             if success

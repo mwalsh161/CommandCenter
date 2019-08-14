@@ -12,13 +12,13 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
     
     properties
         deviceID = [];
-        comObject = []; % Should be a prologix connector; all methods defined accordingly
+        comObject = []; % Should be a serial connector; all methods defined accordingly
     end
     
     properties (Constant)
-        Dual_Polarity='No'
-        Number_of_channels='4'
-        dev_id = 'HMP4040'
+        Dual_Polarity=false;
+        Number_of_channels=4;
+        dev_id = 'HMP4040';
     end
     
     methods(Static)
@@ -70,7 +70,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
 
         function check_channel(obj,channel)
             assert(ischar(channel),'Channel input must be a string!')
-            channels=num2str(1:str2num(obj.Number_of_channels));
+            channels=num2str(1:obj.Number_of_channels);
             possible_channels=strsplit(channels,' ');
             assert(~isempty(strmatch(channel,possible_channels)) ,[channel,' is not a supported channel!'])
         end
