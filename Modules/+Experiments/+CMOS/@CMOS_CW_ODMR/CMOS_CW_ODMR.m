@@ -1,6 +1,13 @@
 classdef CMOS_CW_ODMR < Modules.Experiment
-    %CMOS_CW_ODMR Description of experiment
-    % Useful to list any dependencies here too
+    %CMOS_CW_ODMR Measures CW ODMR with proper control of bias and control of CMOS chip
+    % Data structure
+    % data:
+    % meta: 
+    % Dependencies
+    % Sources/SignalGenerators
+    % Sources/PowerSupplies
+    % Drivers/Counter
+    
 
     properties(SetObservable,AbortSet)
         averages = 2;
