@@ -324,11 +324,10 @@ classdef HMP4040 < Modules.Driver
         end
         
         function reset(obj)
+            obj.writeOnly('*RST');
             obj.off;
-            string = sprintf('*RST');
-            obj.writeOnly(string);
-            obj.currentLimitEnable = {'Off','Off','Off','Off'};
-            obj.voltageLimitEnable = {'Off','Off','Off','Off'};
+            obj.currentLimitEnable(:) = {'Off'};
+            obj.voltageLimitEnable(:) = {'Off'};
             obj.sourceMode = {'Voltage','Voltage','Voltage','Voltage'};
             
             obj.setCurrentLimit('1',0.05);
