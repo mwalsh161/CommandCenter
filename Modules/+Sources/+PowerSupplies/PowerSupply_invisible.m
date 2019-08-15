@@ -10,10 +10,12 @@ classdef PowerSupply_invisible < Modules.Source
     % subclass.
     
     properties(SetObservable,AbortSet)
-        prefs = {'Channel','Source_Mode','Voltage','Current'};
-        Source_Mode = {'Voltage','Current'}
-        Current = 0.05; % Set current for current mode (amps).
-        Voltage = 0.1;  % Set voltage for voltage mode (volts).
+        prefs = {'ChannelNames','Voltages','Currents','SourceModes'};
+        show_prefs = {'Channel','Source_Mode','Voltage','Current','Channel_Name'};
+        Source_Mode = {'Voltage','Current'} % Whether current or voltage mode active for selected channel
+        Current = 0.05; % Set current for selected channel (amps).
+        Voltage = 1;  % Set voltage for selected channel (volts).
+        Channel_Name = '1'; % User-defined name for selected channel
     end
     
     properties(SetAccess=private, SetObservable)
@@ -33,11 +35,16 @@ classdef PowerSupply_invisible < Modules.Source
     end
     
     properties(Abstract,SetObservable,AbortSet)
-        Channel % Array denoting possible channels for the power supply
+        Channel % Cell array denoting selected channels for the power supply
+        ChannelNames % Cell array of user facing channel names
+        Currents % Memory of what all the voltages are to be saved in prefs
+        Voltages % Memory of what all the currents are to be saved in prefs
+        SourceModes % Memory of what all the Source_Modes are to be saved in prefs
     end
     
     properties(Abstract,Constant)
         Power_Supply_Name % String containing ame of the power supply
+        ChannelHWNames % Cell array denoting hardware channel names
     end
     
     methods(Static)
@@ -64,11 +71,16 @@ classdef PowerSupply_invisible < Modules.Source
                 end
             end
         end
+
+        function PowerSupply_invisible()
+        end
     end
     
     methods
-        function obj = PowerSupply_invisible()
-
+        function set.Channel_Name(obj,val)
+            % Change user-facing ChannelNames, and update Channel dropdown
+            obj.ChannelNames{obj.getHWIndex(obj.Channel)} = val;
+            obj.Channel_Name = val;
         end
 
         %% set methods are wrappers for set (no dot) methods
@@ -88,18 +100,21 @@ classdef PowerSupply_invisible < Modules.Source
             obj.Voltage = val;
         end
 
-        %% set (no dot) methods that can be overloaded by subclasses
+        %% set (no dot) methods that can be overloaded by subclasses. They set power supply value and populate appropriate array pref with new value.
                 
         function setSource_Mode(obj,val)
-            obj.queryPowerSupply('setSourceMode',obj.Channel,val); 
+            obj.queryPowerSupply('setSourceMode', obj.getHWChannel(obj.Channel) ,val);
+            obj.SourceModes{getHWIndex(obj.Channel)} = val;
         end
         
         function setCurrent(obj,val)
-            obj.queryPowerSupply('setCurrent',obj.Channel,val);
+            obj.queryPowerSupply('setCurrent',obj.getHWChannel(obj.Channel),val);
+            obj.Currents(getHWIndex(obj.Channel)) = val;
         end
         
         function setVoltage(obj,val)
-            obj.queryPowerSupply('setVoltage',obj.Channel,val);
+            obj.queryPowerSupply('setVoltage',obj.getHWChannel(obj.Channel),val);
+            obj.Voltages(getHWIndex(obj.Channel)) = val;
         end
 
         %% get methods because these properties are interdependant.
@@ -113,9 +128,10 @@ classdef PowerSupply_invisible < Modules.Source
             end
             if measure && obj.source_on
                 %if on return the actual current being output
-                val = obj.queryPowerSupply('measureCurrent',obj.Channel);
+                val = obj.queryPowerSupply('measureCurrent',obj.getHWChannel(obj.Channel));
             else
-                val = obj.queryPowerSupply('getCurrent',obj.Channel);%if the source isn't on return the programmed values
+                val = obj.queryPowerSupply('getCurrent',obj.getHWChannel(obj.Channel));%if the source isn't on return the programmed values
+                obj.Currents(getHWIndex(obj.Channel)) = val;
             end
         end
         
@@ -125,18 +141,36 @@ classdef PowerSupply_invisible < Modules.Source
             end
             if measure && obj.source_on
                 %if on return the actual voltage being output
-                val = obj.queryPowerSupply('measureVoltage',obj.Channel);
+                val = obj.queryPowerSupply('measureVoltage',obj.getHWChannel(obj.Channel));
             else
-                val = obj.queryPowerSupply('getVoltage',obj.Channel);%if the source isn't on return the programmed values
+                val = obj.queryPowerSupply('getVoltage',obj.getHWChannel(obj.Channel));%if the source isn't on return the programmed values
+                obj.Voltages(getHWIndex(obj.Channel)) = val;
             end
         end
 
         function val = getSource_Mode(obj)
-           val = obj.queryPowerSupply('getSourceMode',obj.Channel); 
+           val = obj.queryPowerSupply('getSourceMode',obj.getHWChannel(obj.Channel));
+           obj.SourceModes{getHWIndex(obj.Channel)} = val;
         end
 
-        %% generic control functions
+        function val = getHWIndex(obj,channel)
+            % Given the user facing channel name, get the channel index
+            val = contains(obj.ChannelNames,channel);
+            assert(sum(val,'all')~=0,'Channel not found')
+            assert(sum(val,'all')<2,'More than one channel match this name')
+            val = find(val);
+        end
+        function val = getHWChannel(obj,channel)
+            % Given the user facing channel name, get the channel index
+            val = contains(obj.ChannelNames,channel);
+            assert(sum(val,'all')~=0,'Channel not found')
+            assert(sum(val,'all')<2,'More than one channel match this name')
+            val = obj.ChannelHWNames{find(val)};
+        end
 
+
+        %% generic control functions
+        
         function delete(obj)
             delete(obj.power_supply);
             obj.power_supply_connected=false;
