@@ -1,10 +1,17 @@
-function [lab,sample] = hone(im,qrInfo,ax)
-%HONE Do a more precise fit to determine offset
+function [readInfo,meta] = hone(im,readInfo)
+%HONE From readInfo from READER make a better estimate of tform
+%   INPUT:
+%     im: a SmartImage info struct (reader uses the "image" and
+%         "ROI" fields
+%     readInfo: output readInfo struct of READER using same im
+%   OUTPUT:
+%     readInfo: see READER help. qrInfo completely ignored.
+%     meta: diagnostic data to visualize what hone did for debugging purposes.
+
 x = im.ROI(1,:);
 y = im.ROI(2,:);
 im = im.image;
-theta = qrInfo.theta;
-R = [cos(theta) -sin(theta); sin(theta) cos(theta)];
+qrInfo = readInfo.qrInfo;
 
 % Nearest neighbors
 sample = [];
@@ -34,9 +41,7 @@ end
 lab(toDelete,:) = [];
 sample(toDelete,:) = [];
 rs(toDelete) = [];
-if isa(ax,'matlab.graphics.axis.Axes')&&isvalid(ax)
-    viscircles(ax,lab,rs,'edgecolor',[1 1 1]*0.7);
-end
+
 % Try to fit remaining circles with high accuracy
 labC = lab(:,1);        % Split apart for parfor loop
 labR = lab(:,2);
@@ -65,11 +70,7 @@ lab = [labC labR];
 lab(toDelete,:) = [];
 sample(toDelete,:) = [];
 rs(toDelete) = [];
-if isa(ax,'matlab.graphics.axis.Axes')&&isvalid(ax)
-    s = 3 + 2*Base.QR.NSecondary;
-    viscircles(ax,lab(1:s,:),rs(1:s),'edgecolor','b');
-    viscircles(ax,lab(s+1:end,:),rs(s+1:end));
-end
+
 % Take labframe back to ROI coords
 %           zero frame      scale frame       apply offset
 lab(:,1) = (lab(:,1)-1)*diff(x)/(size(im,2)-1) + x(1);

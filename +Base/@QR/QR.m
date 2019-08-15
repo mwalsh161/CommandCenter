@@ -1,12 +1,8 @@
 classdef QR
     % QR Detect and read "QR" codes
-    % Two main methods: READER and ENHANCEDREADER. reader does not use the
-    % extra alignment markers and does not fit the markers as precicely.
-    % enhancedReader does all of that (takes longer).  See method
-    % definition for more details.
     % Common methods:
-    %   [pos,qrInfo] = reader(im,varargin)
-    %   [pos,tform,err,npoints,qrInfo] = enhancedReader([SAME AS READER])
+    %   [pos,readInfo] = reader(im,varargin)
+    %   [readInfo,meta] = hone(im,readInfo);
     %   [row,col,version,legacy_error] = analyze(code); code can be
     %       anything that can convert to char vector. Must be 1xBase.QR.length.
     %   handles = plotQRinfo(ax,qrInfo);
@@ -35,11 +31,7 @@ classdef QR
         d = Base.QR.module_size + 0.5;  % Newer versions use module_size not r
         spacing = sqrt(Base.QR.length)*Base.QR.module_size + 2*Base.QR.d;
         NSecondary = 3;  % Number of secondary markers (per arm)
-        centralMarks = 0; % Number (n) of central marks (per dim)
         spacing_between = 40;  % um
-        
-        % Detection constants
-        diffraction_limit = 0.1; % um (used when fitting in enhancedReader)
     end
 
     %% Main methods
@@ -140,10 +132,12 @@ classdef QR
             markersBase = [0,0;Base.QR.spacing,0;0,Base.QR.spacing]; % Markers base location (root QR)
             [QR2pxT,markersPx_act] = Base.QR.findQR(marker_cands,conv,markersBase,...
                                     p.leg_len_thresh,p.angle_thresh,...
-                                    ax_debug(3:4)); % 1xN affine2d, Nx2 px points
+                                    ax_debug(3:4)); % 1xN affine2d, 3x2xN px points (3 markers,[x,y],qr ind)
             % Note, QR2pxT is not returned because it refers to the resized image (square pixels)
             % markersPx_act are the actual locations from findMarkers
             % corresponding to the QR codes.
+            
+            % Use markers*Act for final image alignment on all observed QRs
             markersImAct = (markersPx_act - 1).*conv + [x(1), y(1)]; % Translate to image coords
             markersQRAct = NaN(size(markersImAct)); % Filled in as analyzed
             
@@ -152,14 +146,13 @@ classdef QR
             qrInfo = struct('row',[],'col',[],'version',[],'code',[],...
                             'QR2imT',[],'legacy_err',[],'error',cell(1,nQRs));
             for i = 1:nQRs
-                % Calculated theoretical marker position
-                markersPx = transformPointsForward(QR2pxT(i), markersBase);
-                markersIm = (markersPx - 1).*conv + [x(1), y(1)];
                 qrInfo(i).code = false(0);
                 qrInfo(i).estimate = false(0);
                 qrInfo(i).legacy_err = false;
                 bitSamples_px = NaN(0,2);
                 try
+                    % Calculated theoretical marker position and use for digitization
+                    markersPx = transformPointsForward(QR2pxT(i), markersBase);
                     [code,pVal,estimate,bitSamples_px] = Base.QR.digitize(im,QR2pxT(i),p.significance,markersPx);
                     qrInfo(i).code = code;
                     qrInfo(i).estimate = estimate;
@@ -172,15 +165,14 @@ classdef QR
                     qrInfo(i).legacy_err = legacy_error;
                     qrInfo(i).error = MException.empty();
                     % Calculate QR2imT in real coords (no more pixel references)
-                    % NOTE: No need to use markersIm_act since there is no new data; just scaled.
-                    markersQRAct((i-1)*3+1:i*3,:) = markersBase + [col, row].*Base.QR.spacing_between;
-                    qrInfo(i).QR2imT = fitgeotrans(markersQRAct((i-1)*3+1:i*3,:), markersIm,'nonreflectivesimilarity');
+                    markersQRAct(:,:,i) = markersBase + [col, row].*Base.QR.spacing_between;
+                    qrInfo(i).QR2imT = fitgeotrans(markersQRAct(:,:,i), markersImAct(:,:,i),'nonreflectivesimilarity');
                     markers_c = 'g';
                 catch err
                     qrInfo(i).version = NaN;
                     qrInfo(i).error = err;
                     % Note this is the QR at (0,0)
-                    qrInfo(i).QR2imT = fitgeotrans(markersBase, markersIm,'nonreflectivesimilarity');
+                    qrInfo(i).QR2imT = fitgeotrans(markersBase, markersImAct(:,:,i),'nonreflectivesimilarity');
                     markers_c = 'r';
                 end
                 if p.debug
@@ -192,77 +184,45 @@ classdef QR
             end
             % Get overall image transform
             mask = ~isnan(markersQRAct);
-            npoints = sum(mask)/2; % divide by 2 because a x,y pair is 1 point
+            npoints = 0;
             im2QRT = affine2d.empty();
             pos = NaN(1,2);
             err = NaN(1,2);
             if any(mask)
-                markersImAct(~mask) = []; % Remvoing instead of keeping retains array shape
+                % Remvoing instead of keeping retains array shape (3x2xN)
+                markersImAct(~mask) = [];
                 markersQRAct(~mask) = [];
+                % 1) shiftdim:  2xNx3; to get x,y dim first
+                % 2) reshape:   2x3N ; grouped by marker first, then QR index
+                % 3) transpose: 3Nx2 ; dim fitgeotrans wants
+                markersImAct = reshape(shiftdim(markersImAct,1),2,[])';
+                markersQRAct = reshape(shiftdim(markersQRAct,1),2,[])';
                 im2QRT = fitgeotrans(markersImAct,markersQRAct,'nonreflectivesimilarity');
                 % Calculate position and error in control points
                 pos = transformPointsForward(im2QRT, [0,0]);
                 markers_theory = transformPointsForward(im2QRT, markersImAct);
                 err = sqrt(mean((markers_theory-markersQRAct).^2)); % std in x and y
+                npoints = size(markersImAct,1);
             end
             % Prepare output
             readInfo = struct('qrInfo',qrInfo,'tform',im2QRT,'std',err,'npoints',npoints);
         end
-        function [pos,readInfo,ax] = enhancedReader(im,varargin)
-            % Same input as reader
-            % Uses one QR code, and finds all possible neighboring points
-            % Will fire up parallel pool to fit circles.
-            % err is the average error of the control points position
-            % npoints is the number of control points
-            % When applying tform, remember it is necessary to add a 1 at
-            %    the end of the vector (for the constant term)
-            [~,readInfo,ax] = Base.QR.reader(im,varargin{:});
-            qrInfo = readInfo.qrInfo;
-            i = 1;  % Denote which QR code to use
-            [lab,sample] = Base.QR.hone(im,qrInfo(i),ax);
-            % Switch world view from ROI to full sample
-            s = Base.QR.spacing_between;
-            sample(:,1) = sample(:,1) + qrInfo(i).col*s;
-            sample(:,2) = sample(:,2) + qrInfo(i).row*s;
-            npoints = size(lab,1);
-            % Get rotatioin/scaling/translation transformation
-            tform = fitgeotrans(lab,sample,'nonreflectivesimilarity');
-            approxSample = transformPointsForward(tform,lab);
-            err = abs(approxSample(:,1:2)-sample);
-            err = mean(sqrt(err(:,1).^2+err(:,2).^2));
-            pos = transformPointsForward(tform,[0 0]);   % Get sample frame coordinate at center of lab frame, (0,0)
-            readInfo = struct('qrInfo',qrInfo,'tform',tform.invert(),'err',err,'npoints',npoints);
-        end
     end
     %% Graphics tools
     methods(Static)
-        function [c,r] = BasicBlock(qrInfo)
+        function [c,r] = BasicBlock()
             % Builds position markers for qr sample at 0,0
             % Construct sample frame coordinates for all nearest neighbors
+            % Easily plot with: >> viscircles(c,r);
             c = [0,0; Base.QR.spacing,0; 0,Base.QR.spacing];
-            r = [1 1 1]*max(Base.QR.r,Base.QR.diffraction_limit);
+            r = [0 0 0] + Base.QR.r;
             if Base.QR.NSecondary > 0
-                % Sorry for poor naming. This is spacing between a single QR's corners
+                % This is spacing between a single QR's main markers
                 dist = Base.QR.spacing/(Base.QR.NSecondary+1);
-                for ax=1:2
-                    p = [0,0];
-                    for i = 1:Base.QR.NSecondary
-                        p(ax) = i*dist;
-                        c(end+1,:) = p;
-                        r(end+1) = max(Base.QR.module_size/4,Base.QR.diffraction_limit);
-                    end
-                end
-            end
-            if Base.QR.centralMarks > 0
-                % This spacing refers to distance between QR codes
-                dist = Base.QR.spacing_between/(Base.QR.centralMarks+1);
-                for x = 1:Base.QR.centralMarks
-                    for y = 1:Base.QR.centralMarks
-                        p = [x,y]*dist;
-                        c(end+1,:) = p;
-                        r(end+1) = max(Base.QR.module_size/4,Base.QR.diffraction_limit);
-                    end
-                end
+                p = (1:Base.QR.NSecondary)'.*dist; % generate coords for arb. axis
+                z = zeros(Base.QR.NSecondary,1);
+                c = [c; [z, p]; [p, z]]; % apply to x axis then y axis
+                r = [r, [z; z]' + Base.QR.module_size/4];
             end
         end
         function handles = plotQRinfo(ax,qrInfo,bitSamples)
@@ -337,7 +297,7 @@ classdef QR
         [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
         [row,col,version,legacy_error] = analyze(code)
         
-        [offset,theta,scaling] = hone(im,qrInfo,ax);
+        [readInfo,lab,sample] = hone(im,readInfo)
     end
     
 end
