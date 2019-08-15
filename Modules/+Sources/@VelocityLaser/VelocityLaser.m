@@ -381,6 +381,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
             cal = obj.cal_local;
         end
+        function resetCalibration(obj)
+            obj.cal_local = [];
+        end
         function setMotorFrequency(obj,val)
             %internal method for setting the frequency using the motor;
             %talks to the driver and uses the internal calibration function
