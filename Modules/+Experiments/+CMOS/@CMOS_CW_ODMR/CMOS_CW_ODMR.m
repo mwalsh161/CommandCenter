@@ -22,9 +22,12 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         MW_Power_dBm = -30;
         MW_freq_norm_GHz = 2; % If set to -1, will turn off
 
-        % CMOS control properties
+        % CMOS MW control properties
+        MW_Control_line = 1;               % Pulse Blaster flag bit (indexed from 1)
+        ip = 'No Server';         % ip of host computer (with PB)
+
+        % CMOS bias properties
         PowerSupply = Modules.Source.empty(0,1); % Power supply source object
-        MW_Control_line = '?'; % String pulse blaster line for microwave control
         keep_bias_on = false; % Boolean whether to keep bias on in between experiments
         VDD_VCO = 1; % Number representing VCO voltage (volts)
         VDD_Driver = 1; % Double representing river voltage (volts)
@@ -46,7 +49,9 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         meta = [] % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
     end
-
+    properties(SetAccess=private)
+        PulseBlaster                 % Hardware handle
+    end
     methods(Static)
         % Static instance method is how to call this experiment
         % This is a separate file
@@ -72,6 +77,33 @@ classdef CMOS_CW_ODMR < Modules.Experiment
             % Callback for saving methods
             dat.data = obj.data;
             dat.meta = obj.meta;
+        end
+
+        function set.ip(obj,val) %this loads the pulseblaster driver
+            if strcmp('No Server',val)
+                obj.PulseBlaster = [];
+                delete(obj.listeners)
+                obj.source_on = 0;
+                obj.ip = val;
+                return
+            end
+            err = [];
+            try
+                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
+                obj.source_on = obj.PulseBlaster.lines(obj.PBline);
+                delete(obj.listeners)
+                obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
+                obj.ip = val;
+                obj.isRunning;
+            catch err
+                obj.PulseBlaster = [];
+                delete(obj.listeners)
+                obj.source_on = 0;
+                obj.ip = 'No Server';
+            end
+            if ~isempty(err)
+                rethrow(err)
+            end
         end
 
         % Set methods allow validating property/pref set values

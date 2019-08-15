@@ -29,6 +29,8 @@ function run( obj,status,managers,ax )
     obj.data = NaN(obj.averages,n,2);
 
     % Turn on microwave control line
+    assert(~isempty(obj.PulseBlaster),'No IP set!')
+    obj.PulseBlaster.lines(obj.PBline) = true;
 
     % Setup graphics
     y = NaN(1,n);
@@ -86,6 +88,7 @@ function run( obj,status,managers,ax )
     obj.Laser.off;
 
     % Turn microwave control off
+    obj.PulseBlaster.lines(obj.PBline) = false;
 
     % Turn off biasing
     if ~obj.keep_bias_on
