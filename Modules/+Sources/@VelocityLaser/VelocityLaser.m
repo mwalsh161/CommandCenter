@@ -297,7 +297,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
             try
                 % First set cal_local to x = y 
-                obj.cal_local.THz2nm = cfit(fittype('a*x'),1);
+                obj.cal_local.THz2nm = cfit(fittype('a/x'),obj.c);
                 obj.cal_local.datetime = datetime;
                 % Continue with calibration
                 setpoints = linspace(set_range(1),set_range(end),10); %take 10 points across the range of the laser

@@ -298,7 +298,7 @@ classdef WinSpec < Modules.Driver
             err = [];
             try
                 % First set cal_local to x = y 
-                obj.cal_local.nm2THz = cfit(fittype('a*x'),1);
+                obj.cal_local.nm2THz = cfit(fittype('a/x'),obj.c);
                 obj.cal_local.datetime = datetime;
                 % Continue with calibration
                 oldExposure = obj.exposure;
