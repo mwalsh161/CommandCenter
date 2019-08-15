@@ -77,22 +77,27 @@ classdef PowerSupply_invisible < Modules.Source
         
         function set.Source_Mode(obj,val)
             obj.setSource_Mode(val);
+            obj.Source_Mode = val;
         end
         
         function set.Current(obj,val)
-            obj.setCurrent_Mode(val);
+            obj.setCurrent(val);
+            obj.Current = val;            
         end
         
         function set.Voltage(obj,val)
-            ojb.setVoltage(val);
+            obj.setVoltage(val);
+            obj.Voltage = val;
         end
         
         function set.Current_Limit(obj,val)
             obj.setCurrent_Limit(val);
+            obj.Current_Limit = val;
         end
         
         function set.Voltage_Limit(obj,val)
             obj.setVoltage_Limit(val);
+            obj.Voltage_Limit = val;
         end
 
         %% set (no dot) methods that can be overloaded by subclasses
@@ -100,14 +105,11 @@ classdef PowerSupply_invisible < Modules.Source
         function setSource_Mode(obj,val)
             %debugging happens @ driver level
             obj.queryPowerSupply('setSourceMode',obj.Channel,val); 
-            obj.Source_Mode = val;
         end
         
         function setCurrent(obj,val)
             %debugging happens @ driver level
-            obj.queryPowerSupply('setVoltageLimit',obj.Channel,obj.Voltage_Limit);
             obj.queryPowerSupply('setCurrent',obj.Channel,val);
-            obj.Current = val;
         end
         
         function setVoltage(obj,val)
@@ -115,19 +117,16 @@ classdef PowerSupply_invisible < Modules.Source
             %debugging happens @ driver level
             %obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
             obj.queryPowerSupply('setVoltage',obj.Channel,val);
-            obj.Voltage = val;
         end
         
         function setCurrent_Limit(obj,val)
 
             %debugging happens @ driver level
             obj.queryPowerSupply('setCurrentLimit',obj.Channel,val);
-            obj.Current_Limit = val;
         end
         
         function setVoltage_Limit(obj,val)
             obj.queryPowerSupply('setVoltageLimit',obj.Channel,val);
-            obj.Voltage_Limit = val;
         end
 
         %% get methods because these properties are interdependant.
