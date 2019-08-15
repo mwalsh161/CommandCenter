@@ -72,7 +72,7 @@ classdef PowerSupply_invisible < Modules.Source
             end
         end
 
-        function PowerSupply_invisible()
+        function obj = PowerSupply_invisible()
         end
     end
     
@@ -80,6 +80,8 @@ classdef PowerSupply_invisible < Modules.Source
         function set.Channel_Name(obj,val)
             % Change user-facing ChannelNames, and update Channel dropdown
             obj.ChannelNames{obj.getHWIndex(obj.Channel)} = val;
+            obj.Channel = obj.ChannelNames;
+            notify(obj,'update_settings');
             obj.Channel_Name = val;
         end
 
@@ -104,17 +106,17 @@ classdef PowerSupply_invisible < Modules.Source
                 
         function setSource_Mode(obj,val)
             obj.queryPowerSupply('setSourceMode', obj.getHWChannel(obj.Channel) ,val);
-            obj.SourceModes{getHWIndex(obj.Channel)} = val;
+            obj.SourceModes{obj.getHWIndex(obj.Channel)} = val;
         end
         
         function setCurrent(obj,val)
             obj.queryPowerSupply('setCurrent',obj.getHWChannel(obj.Channel),val);
-            obj.Currents(getHWIndex(obj.Channel)) = val;
+            obj.Currents(obj.getHWIndex(obj.Channel)) = val;
         end
         
         function setVoltage(obj,val)
             obj.queryPowerSupply('setVoltage',obj.getHWChannel(obj.Channel),val);
-            obj.Voltages(getHWIndex(obj.Channel)) = val;
+            obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
         end
 
         %% get methods because these properties are interdependant.
@@ -131,7 +133,7 @@ classdef PowerSupply_invisible < Modules.Source
                 val = obj.queryPowerSupply('measureCurrent',obj.getHWChannel(obj.Channel));
             else
                 val = obj.queryPowerSupply('getCurrent',obj.getHWChannel(obj.Channel));%if the source isn't on return the programmed values
-                obj.Currents(getHWIndex(obj.Channel)) = val;
+                obj.Currents(obj.getHWIndex(obj.Channel)) = val;
             end
         end
         
@@ -144,28 +146,28 @@ classdef PowerSupply_invisible < Modules.Source
                 val = obj.queryPowerSupply('measureVoltage',obj.getHWChannel(obj.Channel));
             else
                 val = obj.queryPowerSupply('getVoltage',obj.getHWChannel(obj.Channel));%if the source isn't on return the programmed values
-                obj.Voltages(getHWIndex(obj.Channel)) = val;
+                obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
             end
         end
 
         function val = getSource_Mode(obj)
            val = obj.queryPowerSupply('getSourceMode',obj.getHWChannel(obj.Channel));
-           obj.SourceModes{getHWIndex(obj.Channel)} = val;
+           obj.SourceModes{obj.getHWIndex(obj.Channel)} = val;
         end
 
         function val = getHWIndex(obj,channel)
             % Given the user facing channel name, get the channel index
             val = contains(obj.ChannelNames,channel);
-            assert(sum(val,'all')~=0,'Channel not found')
-            assert(sum(val,'all')<2,'More than one channel match this name')
+            assert(sum(val)~=0,'Channel not found')
+            assert(sum(val)<2,'More than one channel match this name')
             val = find(val);
         end
         function val = getHWChannel(obj,channel)
             % Given the user facing channel name, get the channel index
             val = contains(obj.ChannelNames,channel);
-            assert(sum(val,'all')~=0,'Channel not found')
-            assert(sum(val,'all')<2,'More than one channel match this name')
-            val = obj.ChannelHWNames{find(val)};
+            assert(sum(val)~=0,'Channel not found')
+            assert(sum(val)<2,'More than one channel match this name')
+            val = obj.ChannelHWNames{val==1};
         end
 
 
@@ -187,8 +189,9 @@ classdef PowerSupply_invisible < Modules.Source
         end
         
         function updateValues(obj,~,~)
-            %% triggers after user switches channel. Properties are linked so
-            %first get them from the driver by calling get methods
+            %Updates voltage, current and source mode that are diplayed by
+            %getting them from the driver by calling get methods (only
+            %updates current channel)
             if obj.power_supply_connected
                 sourceMode = obj.getSource_Mode;
                 Current = obj.getCurrent(false);
@@ -197,6 +200,18 @@ classdef PowerSupply_invisible < Modules.Source
                 obj.Source_Mode = sourceMode;
                 obj.Current = Current;
                 obj.Voltage = Voltage;
+              end
+        end
+        
+        function updatePrefs(obj)
+            %Updates voltage, current and source mode prefs that are
+            %diplayed are saved by using get methods (updates all channels)
+            if obj.power_supply_connected
+                % Go through updating values of each channel
+                for i = numel(obj.ChannelNames):-1:1
+                    obj.Channel = obj.ChannelNames{i};
+                    obj.updateValues;
+                end
             end
         end
         

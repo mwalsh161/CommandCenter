@@ -23,13 +23,9 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
         function obj = HMP4040_Source()
             obj.connectSerial( obj.Com_Address );
             obj.prefs = {obj.prefs{:},'Com_Address'};
-            obj.prefs = {obj.show_prefs{:},'Com_Address'};
+            obj.show_prefs = {obj.show_prefs{:},'Com_Address'};
             obj.loadPrefs;
-            % Go through updating values of 
-            for i = numel(obj.ChannelNames):-1:1
-                obj.Channel = obj.ChannelNames{i}
-                obj.updateValues;
-            end
+            obj.updatePrefs();
         end
         
         function success = connectSerial(obj, Com_Address)
@@ -63,7 +59,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
                 success = false;
             end
             
-            obj.updateValues(); % Update values if connection is successful
+            obj.updatePrefs(); % Update values if connection is successful
         end
     end
     
@@ -86,6 +82,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
             
             if success
                 obj.Com_Address = val;
+                obj.updatePrefs();
             end
         end
         
