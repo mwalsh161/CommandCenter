@@ -297,6 +297,10 @@ classdef WinSpec < Modules.Driver
             end
             err = [];
             try
+                % First set cal_local to x = y 
+                obj.cal_local.nm2THz = cfit(fittype('a*x'),1);
+                obj.cal_local.datetime = datetime;
+                % Continue with calibration
                 oldExposure = obj.exposure;
                 obj.setExposure(exposure); %exposure is in seconds
                 npoints = 5;
@@ -305,6 +309,7 @@ classdef WinSpec < Modules.Driver
                 specloc = NaN(1,length(setpoints));
                 laserloc = NaN(1,length(setpoints));
                 laser.on;
+                cla(ax);
                 hold(ax,'on')
                 for i=1:length(setpoints)
                     laser.TuneCoarse(setpoints(i));
@@ -345,6 +350,7 @@ classdef WinSpec < Modules.Driver
                     error('Failed spectrometer validation')
                 end
             catch err
+                obj.cal_local = [];
             end
             laser.off;
             delete(f);
@@ -379,6 +385,9 @@ classdef WinSpec < Modules.Driver
                 end
             end
             obj.cal_local.expired = false;
+            % Potential flaws in calibration method may leave obj.cal_local.datetime invalid
+            % Use assert to double check this condition to produce a parsable error
+            assert(isdatetime(obj.cal_local.datetime),'cal_local.datetime is not a datetime. Likely error in calibration method.')
             if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout
                 warnstring = sprintf('Calibration not performed since %s. Recommend recalibrating by running WinSpec.calibrate.',datestr(obj.cal_local.datetime));
                 if ~isempty(varargin) %with additional inputs, option to calibrate now

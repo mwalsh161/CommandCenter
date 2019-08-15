@@ -296,6 +296,10 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 ax = axes('parent',f);
             end
             try
+                % First set cal_local to x = y 
+                obj.cal_local.THz2nm = cfit(fittype('a*x'),1);
+                obj.cal_local.datetime = datetime;
+                % Continue with calibration
                 setpoints = linspace(set_range(1),set_range(end),10); %take 10 points across the range of the laser
                 wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
                 obj.wavemeter.setDeviationChannel(false);
@@ -355,6 +359,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                     end
                 end
             end
+            % Potential flaws in calibration method may leave obj.cal_local.datetime invalid
+            % Use assert to double check this condition to produce a parsable error
+            assert(isdatetime(obj.cal_local.datetime),'cal_local.datetime is not a datetime. Likely error in calibration method.')
             if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout % expired
                 obj.cal_local.expired = true;
                 if  ~obj.calibration_timeout_override
