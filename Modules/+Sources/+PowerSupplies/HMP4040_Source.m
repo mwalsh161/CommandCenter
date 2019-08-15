@@ -4,7 +4,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     properties(SetObservable,AbortSet)
         Com_Address = 'NONE'; % COM address for serial connection. Is 'NONE' if no connection is desired.
         Channel = {'1','2','3','4'};
-        ChannelNames = {'1','2','3','4'};
         Currents = [.05, .05, .05, .05]; % Memory of what all the voltages are to be saved in prefs
         Voltages = [1 1 1 1]; % Memory of what all the currents are to be saved in prefs
         SourceModes = {'Voltage','Voltage','Voltage','Voltage'} % Memory of what all the Source_Modes are to be saved in prefs
@@ -16,7 +15,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
     
     properties(Constant)
         Power_Supply_Name='HMP4040';
-        ChannelHWNames = {'1','2','3','4'};
+        ChannelNames = {'1','2','3','4'};
     end
 
     methods(Access=protected)
@@ -25,7 +24,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
             obj.prefs = {obj.prefs{:},'Com_Address'};
             obj.show_prefs = {obj.show_prefs{:},'Com_Address'};
             obj.loadPrefs;
-            obj.updatePrefs();
         end
         
         function success = connectSerial(obj, Com_Address)
@@ -82,7 +80,6 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
             
             if success
                 obj.Com_Address = val;
-                obj.updatePrefs();
             end
         end
         
