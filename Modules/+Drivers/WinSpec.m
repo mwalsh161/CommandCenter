@@ -323,7 +323,9 @@ classdef WinSpec < Modules.Driver
                     specloc(i) = specfit.locations;
                     laserloc(i) = laser.getFrequency;
                     plot(ax,specloc(i)*[1 1],get(ax,'ylim'),'--k');
-                    legend(plt,strsplit(num2str(laserloc(1:i),'%g THz,'),',')); drawnow;
+                    leg = num2str(laserloc(1:i),'%g THz,');
+                    leg(end) = []; % Remove trailing comma
+                    legend(plt,strsplit(leg)); drawnow;
                 end
                 hold(ax,'off')
                 fit_type = fittype('a/(x-b)+c');
