@@ -113,17 +113,6 @@ classdef QR
                 handles(i).bits = scatter(ax,posBits(:,1),posBits(:,2),36,colors);
             end
         end
-        function [pos, err, tform] = estimatePos(readInfos)
-            % ESTIMATEPOS Returns an estimated QR position for the (0,0)
-            % coordinate in the image. It will take as many readInfo
-            % structs as there are QR codes detected.
-     %       pos = [[qrInfo.col]',[qrInfo.row]']*Base.QR.spacing_between; % QR coord
-     %       pos = % pixels?
-     %       pos = % sample coord
-            pos = [NaN,NaN];
-            err = [NaN,NaN];
-            tform = affine2d.empty(0);
-        end
         function [pos,readInfo,f_debug] = reader(im,varargin)
             % READER Returns QR info if the 3 larger markers are found
             %   The image should be corrected for flat illumination already.
@@ -143,8 +132,10 @@ classdef QR
             %       the QR frame. Based on all QRs detected.
             %   readInfo: The details about the result. Fields:
             %       qrInfo*: an array of structs
-            %       tform: the tform that incorporates all QRs found ("average" of qrInfo.QR2imT)
-            %       err: the error as a result of the average in (x,y)
+            %       tform: image coords -> QR coords. This can be thought
+            %           of as the inverted "average" of the qrInfo.QR2imT.
+            %       std: 1x2 double. std in [x,y] resutling from tform. The units are
+            %           in the QR coords. This should be same as image if calibrated well.
             %       npoints: n points used to calculate tform. Always zero
             %           for this function. Reserved for enhancedReader.
             %   f_debug: either empty gobjects or the figure handle if debug is true
@@ -160,10 +151,19 @@ classdef QR
             %       reference for logical 0 bits and 1 bits.
             %       error: An empty MException, or the MException if one
             %           occured during decoding
+            %       legacy_err: If correct interpretation of code required
+            %           assuming the legacy error in the python GDS generator.
             %       QR2imT: Affine transform QR(x,y)[um] -> image(x,y)[um].*
             %       * If error is not empty, these will be from the root
             %       (0,0) QR code instead of the one encoded.
             
+            % There will be 3 coordinate systems used throughout this function:
+            %   Pixel: corresponding to resized image pixel locations
+            %       (resized image is a concept entirely internal to this
+            %       method)
+            %   Image: The "lab" coordinates. Units used in image.ROI.
+            %   QR: The "sample" coordinates. Generated from decoding QR
+            %       code and knowledge of QR positioning.
             assert(size(im.image,3)==1,'Image must be gray scale.')
             x = im.ROI(1,:);
             y = im.ROI(2,:);
@@ -207,20 +207,26 @@ classdef QR
             % Find all relevent QRs
             marker_cands = Base.QR.findMarkers(im,conv,p.sensitivity,ax_debug(3:4)); % Nx2 double
             markersBase = [0,0;Base.QR.spacing,0;0,Base.QR.spacing]; % Markers base location (root QR)
-            [QR2pxT,QRmarker_px] = Base.QR.findQR(marker_cands,conv,markersBase,...
+            [QR2pxT,markersPx_act] = Base.QR.findQR(marker_cands,conv,markersBase,...
                                     p.leg_len_thresh,p.angle_thresh,...
                                     ax_debug(3:4)); % 1xN affine2d, Nx2 px points
             % Note, QR2pxT is not returned because it refers to the resized image (square pixels)
-
+            % markersPx_act are the actual locations from findMarkers
+            % corresponding to the QR codes.
+            markersImAct = (markersPx_act - 1).*conv + [x(1), y(1)]; % Translate to image coords
+            markersQRAct = NaN(size(markersImAct)); % Filled in as analyzed
+            
             % Go through and attempt to decode QR codes
             nQRs = length(QR2pxT);
             qrInfo = struct('row',[],'col',[],'version',[],'code',[],...
-                            'QR2imT',[],'error',cell(1,nQRs));
+                            'QR2imT',[],'legacy_err',[],'error',cell(1,nQRs));
             for i = 1:nQRs
+                % Calculated theoretical marker position
                 markersPx = transformPointsForward(QR2pxT(i), markersBase);
                 markersIm = (markersPx - 1).*conv + [x(1), y(1)];
                 qrInfo(i).code = false(0);
                 qrInfo(i).estimate = false(0);
+                qrInfo(i).legacy_err = false;
                 bitSamples_px = NaN(0,2);
                 try
                     [code,pVal,estimate,bitSamples_px] = Base.QR.digitize(im,QR2pxT(i),p.significance,markersPx);
@@ -228,14 +234,16 @@ classdef QR
                     qrInfo(i).estimate = estimate;
                     qrInfo(i).significance = pVal;
                     
-                    [row,col,ver] = Base.QR.analyze(code);
+                    [row,col,ver,legacy_error] = Base.QR.analyze(code);
                     qrInfo(i).row = row;
                     qrInfo(i).col = col;
                     qrInfo(i).version = ver;
+                    qrInfo(i).legacy_err = legacy_error;
                     qrInfo(i).error = MException.empty();
-                    % Calculate QR2imT both being in real coords (no more pixel references)
-                    markersAct = markersBase + [col, row].*Base.QR.spacing_between;
-                    qrInfo(i).QR2imT = fitgeotrans(markersAct, markersIm,'nonreflectivesimilarity');
+                    % Calculate QR2imT in real coords (no more pixel references)
+                    % NOTE: No need to use markersIm_act since there is no new data; just scaled.
+                    markersQRAct((i-1)*3+1:i*3,:) = markersBase + [col, row].*Base.QR.spacing_between;
+                    qrInfo(i).QR2imT = fitgeotrans(markersQRAct((i-1)*3+1:i*3,:), markersIm,'nonreflectivesimilarity');
                     markers_c = 'g';
                 catch err
                     qrInfo(i).version = NaN;
@@ -251,8 +259,23 @@ classdef QR
                     plot(ax_debug(2),markersPx(:,1),markersPx(:,2),[markers_c 'o'],'LineWidth',2);
                 end
             end
-            [pos, err, tform] = Base.QR.estimatePos(qrInfo);
-            readInfo = struct('qrInfo',qrInfo,'tform',tform,'err',err,'npoints',0);
+            % Get overall image transform
+            mask = ~isnan(markersQRAct);
+            npoints = sum(mask)/2; % divide by 2 because a x,y pair is 1 point
+            im2QRT = affine2d.empty();
+            pos = NaN(1,2);
+            err = NaN(1,2);
+            if any(mask)
+                markersImAct(~mask) = []; % Remvoing instead of keeping retains array shape
+                markersQRAct(~mask) = [];
+                im2QRT = fitgeotrans(markersImAct,markersQRAct,'nonreflectivesimilarity');
+                % Calculate position and error in control points
+                pos = transformPointsForward(im2QRT, [0,0]);
+                markers_theory = transformPointsForward(im2QRT, markersImAct);
+                err = sqrt(mean((markers_theory-markersQRAct).^2)); % std in x and y
+            end
+            % Prepare output
+            readInfo = struct('qrInfo',qrInfo,'tform',im2QRT,'std',err,'npoints',npoints);
         end
         function [pos,readInfo,ax] = enhancedReader(im,varargin)
             % Same input as reader

@@ -36,11 +36,11 @@ while ~isempty(candidate_origins)
                 if (verts(1,1)*verts(2,2)-verts(1,2)*verts(2,1))>0
                     %                             moving      fixed (order matters)
                     unit2pxT(end+1) = fitgeotrans(markersBase,c([i,j,k],:),'nonreflectivesimilarity');
-                    cQR(end+1,:) = c([i,j,k],:);
+                    cQR = [cQR; c([i,j,k],:)];
                 else
                     %                      `      moving      fixed (order matters)
                     unit2pxT(end+1) = fitgeotrans(markersBase,c([i,k,j],:),'nonreflectivesimilarity');
-                    cQR(end+1,:) = c([i,k,j],:);
+                    cQR = [cQR; c([i,k,j],:)];
                 end
                 % If this was a QR code, we want to remove all of these points from candidate_*
                 candidate_verts(candidate_verts==j) = [];
