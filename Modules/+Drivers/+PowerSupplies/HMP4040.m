@@ -60,13 +60,6 @@ classdef HMP4040 < Modules.Driver
                 end
             end
         end
-
-        function check_channel(obj,channel)
-            assert(ischar(channel),'Channel input must be a string!')
-            channels=num2str(1:obj.Number_of_channels);
-            possible_channels=strsplit(channels,' ');
-            assert(~isempty(strmatch(channel,possible_channels)) ,[channel,' is not a supported channel!'])
-        end
         
         function writeOnly(obj,string)
             fprintf(obj.comObject,string);
@@ -75,7 +68,9 @@ classdef HMP4040 < Modules.Driver
         function [output] = writeRead(obj,string)
             output = query(obj.comObject,string);
         end
-        
+    end
+    
+    methods
         function testLimit(obj,sourceMode,channel)
             %Determines if the given channel is railing against its limit (which will be the current if in voltage mode, or the voltage if in current mode)
             pause(0.1);
@@ -120,10 +115,14 @@ classdef HMP4040 < Modules.Driver
             obj.writeOnly(string);
             obj.testLimit(obj.getSourceMode(channel),channel)
         end
-    end
-    
-    methods
-        
+
+        function check_channel(obj,channel)
+            assert(ischar(channel),'Channel input must be a string!')
+            channels=num2str(1:obj.Number_of_channels);
+            possible_channels=strsplit(channels,' ');
+            assert(~isempty(strmatch(channel,possible_channels)) ,[channel,' is not a supported channel!'])
+        end
+
         function  setCurrent(obj,channel,current)
             obj.setChannel(channel)
             assert(isnumeric(current),'current must be data type numeric')

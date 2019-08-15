@@ -160,7 +160,10 @@ classdef PowerSupply_invisible < Modules.Source
         end
 
         %% generic control functions
-        
+        function checkChannel(obj, channel)
+            obj.queryPowerSupply('check_channel', channel)
+        end
+
         function delete(obj)
             delete(obj.power_supply);
             obj.power_supply_connected=false;
