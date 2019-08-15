@@ -1,11 +1,19 @@
 classdef QR
     % QR Detect and read "QR" codes
     % Two main methods: READER and ENHANCEDREADER. reader does not use the
-    % extra alignment markers and does not fit the main markers precicely.
-    % enhancedReader does all of that (takes much longer).  See method
+    % extra alignment markers and does not fit the markers as precicely.
+    % enhancedReader does all of that (takes longer).  See method
     % definition for more details.
     %   [pos,qrInfo] = reader(im,varargin)
     %   [pos,tform,err,npoints,qrInfo] = enhancedReader([SAME AS READER])
+    %
+    % NOTE: All transformations performed here are nonreflective similar:
+    %       rotation, translation and scale only.
+    %   While most of the time an inverted QR code won't decode properly,
+    %   there are cases where they will! The obvious example is one with
+    %   transpose symetry. There are other possible ones that don't have
+    %   symmetry but will pass the checksum correctly and yield an
+    %   incorrect result. The user must take care in these situations.
     
     properties(Constant)
         % Bit definitions
