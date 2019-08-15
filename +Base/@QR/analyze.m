@@ -1,4 +1,15 @@
 function [row,col,version,legacy_error] = analyze(code)
+% ANALYZE takes in a code/bit sequence to decode it into its components.
+%   INPUT:
+%       code: vector of length Base.QR.length, of anything that can convert
+%           to a char array (double, logical, char, etc.).
+%   OUTPUT (contents of the decoded code):
+%       row: scalar integer
+%       col: scalar integer
+%       version: scalar integer
+%       legacy_error: scalar logical. This refers to an error in some older
+%           python code that generated the GDS files.
+
 if ~ischar(code)
     try
         code = num2str(code,'%i');

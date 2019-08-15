@@ -6,6 +6,8 @@ classdef QR
     % definition for more details.
     %   [pos,qrInfo] = reader(im,varargin)
     %   [pos,tform,err,npoints,qrInfo] = enhancedReader([SAME AS READER])
+    %   [row,col,version,legacy_error] = analyze(code); code can be
+    %       anything that can convert to char vector. Must be 1xBase.QR.length.
     %
     % NOTE: All transformations performed here are nonreflective similar:
     %       rotation, translation and scale only.
@@ -38,89 +40,8 @@ classdef QR
         diffraction_limit = 0.1; % um (used when fitting in enhancedReader)
     end
 
+    %% Main methods
     methods(Static)
-        function [c,r] = BasicBlock(qrInfo)
-            % Builds position markers for qr sample at 0,0
-            % Construct sample frame coordinates for all nearest neighbors
-            c = [0,0; Base.QR.spacing,0; 0,Base.QR.spacing];
-            r = [1 1 1]*max(Base.QR.r,Base.QR.diffraction_limit);
-            if Base.QR.NSecondary > 0
-                % Sorry for poor naming. This is spacing between a single QR's corners
-                dist = Base.QR.spacing/(Base.QR.NSecondary+1);
-                for ax=1:2
-                    p = [0,0];
-                    for i = 1:Base.QR.NSecondary
-                        p(ax) = i*dist;
-                        c(end+1,:) = p;
-                        r(end+1) = max(Base.QR.module_size/4,Base.QR.diffraction_limit);
-                    end
-                end
-            end
-            if Base.QR.centralMarks > 0
-                % This spacing refers to distance between QR codes
-                dist = Base.QR.spacing_between/(Base.QR.centralMarks+1);
-                for x = 1:Base.QR.centralMarks
-                    for y = 1:Base.QR.centralMarks
-                        p = [x,y]*dist;
-                        c(end+1,:) = p;
-                        r(end+1) = max(Base.QR.module_size/4,Base.QR.diffraction_limit);
-                    end
-                end
-            end
-        end
-        function handles = plotQRinfo(ax,qrInfo,bitSamples)
-            % Plot the QR code based on the qrInfo. The value of the
-            % bits scatter points correspond to the estimate of the bit
-            % value. If no code is supplied, this scatter plot will be
-            % omitted. If estimate is NaN, the scatter plot will be
-            % binary instead of "gray scale". Red markers indicate an error
-            % occured, green indicate success. The blue marker indicates
-            % the top left of the code.
-            % bitSamples is mainly for internal use. It is the module (bit) postiions
-            % sampled to decide logical bit value
-            assert(isvalidax(ax),'Axes must be valid.')
-            if nargin < 3
-                bitSamples = NaN(0,2);
-            end
-            n = length(qrInfo);
-            handles = struct('markers',[],'bitSamples',[],'bits',cell(1,n));
-            % Construct base QR and bits
-            modSize = Base.QR.module_size;  % um
-            numMods = sqrt(Base.QR.length);
-            [Y,X] = meshgrid(linspace(modSize*numMods,modSize,numMods),...
-                linspace(modSize,modSize*numMods,numMods)); % Starts from top left and rasters down
-            bitsBase = [X(:), Y(:)]+Base.QR.d-modSize/2;
-            markersBase = [0,0;Base.QR.spacing,0;0,Base.QR.spacing];
-            for i = 1:n
-                posBits = bitsBase;
-                posMarkers = markersBase;
-                if isempty(qrInfo(i).error) % Use correct QR
-                    posBits = posBits + [qrInfo(i).col, qrInfo(i).row].*Base.QR.spacing_between;
-                    posMarkers = posMarkers + [qrInfo(i).col, qrInfo(i).row].*Base.QR.spacing_between;
-                end
-                posBits = transformPointsForward(qrInfo(i).QR2imT,posBits);
-                posMarkers = transformPointsForward(qrInfo(i).QR2imT,posMarkers);
-                % Draw markers
-                if isempty(qrInfo(i).error)
-                    colors = zeros(3,3) + [0 1 0]; % green
-                else
-                    colors = zeros(3,3) + [1 0 0]; % red
-                end
-                colors(3,:) = [0 0 1]; % blue upper left (last point in list)
-                handles(i).markers = scatter(ax,posMarkers(:,1),posMarkers(:,2),...
-                    36,colors,'linewidth',2);
-                % Draw bit sample positions
-                handles(i).bitSamples = scatter(ax,...
-                    posBits(1,1)+bitSamples(:,1),posBits(1,2)+bitSamples(:,2),10,[0,0,1]); % blue
-                % Draw bits based on their estimate
-                code = qrInfo(i).estimate;
-                if isempty(code)
-                    code = false(Base.QR.length,1);
-                end
-                colors = zeros(Base.QR.length,3) + code;
-                handles(i).bits = scatter(ax,posBits(:,1),posBits(:,2),36,colors);
-            end
-        end
         function [pos,readInfo,f_debug] = reader(im,varargin)
             % READER Returns QR info if the 3 larger markers are found
             %   The image should be corrected for flat illumination already.
@@ -310,6 +231,91 @@ classdef QR
             pos = transformPointsForward(tform,[0 0]);   % Get sample frame coordinate at center of lab frame, (0,0)
             readInfo = struct('qrInfo',qrInfo,'tform',tform.invert(),'err',err,'npoints',npoints);
         end
+    end
+    %% Graphics tools
+    methods(Static)
+        function [c,r] = BasicBlock(qrInfo)
+            % Builds position markers for qr sample at 0,0
+            % Construct sample frame coordinates for all nearest neighbors
+            c = [0,0; Base.QR.spacing,0; 0,Base.QR.spacing];
+            r = [1 1 1]*max(Base.QR.r,Base.QR.diffraction_limit);
+            if Base.QR.NSecondary > 0
+                % Sorry for poor naming. This is spacing between a single QR's corners
+                dist = Base.QR.spacing/(Base.QR.NSecondary+1);
+                for ax=1:2
+                    p = [0,0];
+                    for i = 1:Base.QR.NSecondary
+                        p(ax) = i*dist;
+                        c(end+1,:) = p;
+                        r(end+1) = max(Base.QR.module_size/4,Base.QR.diffraction_limit);
+                    end
+                end
+            end
+            if Base.QR.centralMarks > 0
+                % This spacing refers to distance between QR codes
+                dist = Base.QR.spacing_between/(Base.QR.centralMarks+1);
+                for x = 1:Base.QR.centralMarks
+                    for y = 1:Base.QR.centralMarks
+                        p = [x,y]*dist;
+                        c(end+1,:) = p;
+                        r(end+1) = max(Base.QR.module_size/4,Base.QR.diffraction_limit);
+                    end
+                end
+            end
+        end
+        function handles = plotQRinfo(ax,qrInfo,bitSamples)
+            % Plot the QR code based on the qrInfo. The value of the
+            % bits scatter points correspond to the estimate of the bit
+            % value. If no code is supplied, this scatter plot will be
+            % omitted. If estimate is NaN, the scatter plot will be
+            % binary instead of "gray scale". Red markers indicate an error
+            % occured, green indicate success. The blue marker indicates
+            % the top left of the code.
+            % bitSamples is mainly for internal use. It is the module (bit) postiions
+            % sampled to decide logical bit value
+            assert(isvalidax(ax),'Axes must be valid.')
+            if nargin < 3
+                bitSamples = NaN(0,2);
+            end
+            n = length(qrInfo);
+            handles = struct('markers',[],'bitSamples',[],'bits',cell(1,n));
+            % Construct base QR and bits
+            modSize = Base.QR.module_size;  % um
+            numMods = sqrt(Base.QR.length);
+            [Y,X] = meshgrid(linspace(modSize*numMods,modSize,numMods),...
+                linspace(modSize,modSize*numMods,numMods)); % Starts from top left and rasters down
+            bitsBase = [X(:), Y(:)]+Base.QR.d-modSize/2;
+            markersBase = [0,0;Base.QR.spacing,0;0,Base.QR.spacing];
+            for i = 1:n
+                posBits = bitsBase;
+                posMarkers = markersBase;
+                if isempty(qrInfo(i).error) % Use correct QR
+                    posBits = posBits + [qrInfo(i).col, qrInfo(i).row].*Base.QR.spacing_between;
+                    posMarkers = posMarkers + [qrInfo(i).col, qrInfo(i).row].*Base.QR.spacing_between;
+                end
+                posBits = transformPointsForward(qrInfo(i).QR2imT,posBits);
+                posMarkers = transformPointsForward(qrInfo(i).QR2imT,posMarkers);
+                % Draw markers
+                if isempty(qrInfo(i).error)
+                    colors = zeros(3,3) + [0 1 0]; % green
+                else
+                    colors = zeros(3,3) + [1 0 0]; % red
+                end
+                colors(3,:) = [0 0 1]; % blue upper left (last point in list)
+                handles(i).markers = scatter(ax,posMarkers(:,1),posMarkers(:,2),...
+                    36,colors,'linewidth',2);
+                % Draw bit sample positions
+                handles(i).bitSamples = scatter(ax,...
+                    posBits(1,1)+bitSamples(:,1),posBits(1,2)+bitSamples(:,2),10,[0,0,1]); % blue
+                % Draw bits based on their estimate
+                code = qrInfo(i).estimate;
+                if isempty(code)
+                    code = false(Base.QR.length,1);
+                end
+                colors = zeros(Base.QR.length,3) + code;
+                handles(i).bits = scatter(ax,posBits(:,1),posBits(:,2),36,colors);
+            end
+        end
         
         function txt = tooltip_fn(~,event_obj)
             pos = get(event_obj,'Position');
@@ -321,7 +327,9 @@ classdef QR
                 txt{end+1} = ['Bit Estimate: ',num2str(estimate,'%0.4f')];
             end
         end
-        
+    end
+    %% External methods
+    methods(Static)
         c = findMarkers(im,conv,sensitivity,ax_debug); % Nx2 double
         [QR2pxT,cQR] = findQR(c,conv,markersBase,leg_thresh,angle_thresh,debug_ax) % 1xN affine2d
         [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
