@@ -275,11 +275,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
         end
-        function RangeCheck(obj,val)
-            %checks if frequency is in tunable range of laser
-            assert(val >= min(obj.range) && val <= max(obj.range),...
-                sprintf('Laser frequency must be in range [%g,%g] THz',obj.range(1),obj.range(2)))
-        end
         function calibrate(obj,ax) 
             %calibrates the frequency as read by the wavemeter to the 
             %wavelength as set by the diode motor

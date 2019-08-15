@@ -6,9 +6,6 @@ function TuneCoarse(obj,target)
 
 %   target = frequency in THz
 
-%check if in range
-obj.RangeCheck(target);
-
 err = [];
 obj.locked = false; %whether errored or not, should no longer be locked
 obj.tuning = true;
