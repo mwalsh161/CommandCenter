@@ -75,7 +75,11 @@ classdef PowerSupply_invisible < Modules.Source
         end
     end
     
-    methods
+    methods     
+        function set.Channel(obj,val)
+            obj.Channel = val;
+            obj.updateValues();
+        end
         %% set methods are wrappers for set (no dot) methods
         
         function set.Source_Mode(obj,val)
