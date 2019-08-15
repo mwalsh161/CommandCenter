@@ -4,10 +4,12 @@ classdef QR
     % extra alignment markers and does not fit the markers as precicely.
     % enhancedReader does all of that (takes longer).  See method
     % definition for more details.
+    % Common methods:
     %   [pos,qrInfo] = reader(im,varargin)
     %   [pos,tform,err,npoints,qrInfo] = enhancedReader([SAME AS READER])
     %   [row,col,version,legacy_error] = analyze(code); code can be
     %       anything that can convert to char vector. Must be 1xBase.QR.length.
+    %   handles = plotQRinfo(ax,qrInfo);
     %
     % NOTE: All transformations performed here are nonreflective similar:
     %       rotation, translation and scale only.
