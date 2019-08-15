@@ -10,7 +10,7 @@ classdef PowerSupply_invisible < Modules.Source
     % subclass.
     
     properties(SetObservable,AbortSet)
-        prefs = {'Channel','Source_Mode','Voltage''Current'};
+        prefs = {'Channel','Source_Mode','Voltage','Current'};
         Source_Mode = {'Voltage','Current'}
         Current = 0.05; % Set current for current mode (amps).
         Voltage = 0.1;  % Set voltage for voltage mode (volts).

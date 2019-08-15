@@ -78,7 +78,7 @@ classdef HMP4040 < Modules.Driver
         
         function testLimit(obj,sourceMode,channel)
             %Determines if the given channel is railing against its limit (which will be the current if in voltage mode, or the voltage if in current mode)
-            pause(1);
+            pause(0.1);
             obj.setChannel(channel)
             status = obj.writeRead('STAT:QUES:INST:ISUM1:COND?'); % Query channel status
             if strcmp(status(1),'0')
@@ -87,13 +87,13 @@ classdef HMP4040 < Modules.Driver
             railing = false;
 
             % Determine if railing best on whether current/voltage mode set
-            switch obj.getSourceMode(channel)
-                case {'current'}
+            switch sourceMode
+                case 'Current'
                     limType = 'voltage';
                     if strcmp(status(1),'2')
                         railing = true;
                     end
-                case {'voltage'}
+                case 'Voltage'
                     limType = 'current';
                     if strcmp(status(1),'1')
                         railing = true;
@@ -101,7 +101,9 @@ classdef HMP4040 < Modules.Driver
                 otherwise
                     error('not supported sourceMode. Supported mode: voltage and current.')
             end
-            warndlg([obj.dev_id,'''s channel ',channel,' is railing against its ',limType,' limit'],['Limit Hit ',channel],'modal')
+            if railing
+                warndlg([obj.dev_id,'''s channel ',channel,' is railing against its ',limType,' limit'],['Limit Hit ',channel],'modal')
+            end
         end
         
         function setChannel(obj,channel)
@@ -146,7 +148,7 @@ classdef HMP4040 < Modules.Driver
             obj.check_channel(channel)
             assert(strcmp(mode,'Current') || strcmp(mode,'Voltage'),'Mode must be either Current or Voltage')
             obj.sourceMode{str2num(channel)} = mode;
-            obj.testLimit((obj.getSourceMode(channel),channel);
+            obj.testLimit(obj.getSourceMode(channel),channel);
         end
         
         %%
@@ -164,18 +166,18 @@ classdef HMP4040 < Modules.Driver
         %%
         
         function sourceMode = getSourceMode(obj,channel)
-            obj.setchannel(channel)
+            obj.setChannel(channel)
             sourceMode = obj.sourceMode{str2num(channel)};
          end
         
         function current = getCurrent(obj,channel)
-            obj.setschannel(channel)
-            current = obj.writeRead('CURRENT?');
+            obj.setChannel(channel)
+            current = str2num(obj.writeRead('CURRENT?'));
         end
         
         function voltage = getVoltage(obj,channel)
-            obj.setchannel(channel)
-            voltage = obj.writeRead('VOLT?');
+            obj.setChannel(channel)
+            voltage = str2num(obj.writeRead('VOLT?'));
         end
         
         function  [Power_supply_state] = getState(obj,channel)
