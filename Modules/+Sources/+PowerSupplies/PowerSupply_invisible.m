@@ -10,10 +10,8 @@ classdef PowerSupply_invisible < Modules.Source
     % subclass.
     
     properties(SetObservable,AbortSet)
-        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
+        prefs = {'Channel','Source_Mode','Voltage''Current'};
         Source_Mode = {'Voltage','Current'}
-        Current_Limit = 0.1; % Current limit for voltage mode (amps).
-        Voltage_Limit = 1;   % Voltage limit for current mode (volts).
         Current = 0.05; % Set current for current mode (amps).
         Voltage = 0.1;  % Set voltage for voltage mode (volts).
     end
@@ -60,7 +58,7 @@ classdef PowerSupply_invisible < Modules.Source
             if obj.power_supply_connected
                 % Perform command specified by command (string), with varargin as arguments, return output if requested
                 if nargout > 0
-                    varargout{1} = obj.power_supply.(command)(varargin{:});
+                    varargout{:} = obj.power_supply.(command)(varargin{:});
                 else
                     obj.power_supply.(command)(varargin{:});
                 end
@@ -89,44 +87,19 @@ classdef PowerSupply_invisible < Modules.Source
             obj.setVoltage(val);
             obj.Voltage = val;
         end
-        
-        function set.Current_Limit(obj,val)
-            obj.setCurrent_Limit(val);
-            obj.Current_Limit = val;
-        end
-        
-        function set.Voltage_Limit(obj,val)
-            obj.setVoltage_Limit(val);
-            obj.Voltage_Limit = val;
-        end
 
         %% set (no dot) methods that can be overloaded by subclasses
                 
         function setSource_Mode(obj,val)
-            %debugging happens @ driver level
             obj.queryPowerSupply('setSourceMode',obj.Channel,val); 
         end
         
         function setCurrent(obj,val)
-            %debugging happens @ driver level
             obj.queryPowerSupply('setCurrent',obj.Channel,val);
         end
         
         function setVoltage(obj,val)
-
-            %debugging happens @ driver level
-            %obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
             obj.queryPowerSupply('setVoltage',obj.Channel,val);
-        end
-        
-        function setCurrent_Limit(obj,val)
-
-            %debugging happens @ driver level
-            obj.queryPowerSupply('setCurrentLimit',obj.Channel,val);
-        end
-        
-        function setVoltage_Limit(obj,val)
-            obj.queryPowerSupply('setVoltageLimit',obj.Channel,val);
         end
 
         %% get methods because these properties are interdependant.
@@ -161,15 +134,6 @@ classdef PowerSupply_invisible < Modules.Source
         function val = getSource_Mode(obj)
            val = obj.queryPowerSupply('getSourceMode',obj.Channel); 
         end
-        
-        function val = getCurrent_Limit(obj)
-            val = obj.queryPowerSupply('getCurrentLimit',obj.Channel);
-        end
-        
-        function val = getVoltage_Limit(obj)
-           val = obj.queryPowerSupply('getVoltageLimit',obj.Channel);
-        end
-
 
         %% generic control functions
 
@@ -187,24 +151,16 @@ classdef PowerSupply_invisible < Modules.Source
             obj.queryPowerSupply('off');
             obj.source_on=0;
         end
-
-        function checkChannel(obj,val)
-            obj.queryPowerSupply('check_channel',val);
-        end
         
         function updateValues(obj,~,~)
             %% triggers after user switches channel. Properties are linked so
             %first get them from the driver by calling get methods
             if obj.power_supply_connected
                 sourceMode = obj.getSource_Mode;
-                Current_Limit = obj.getCurrent_Limit;
-                Voltage_Limit = obj.getVoltage_Limit;
                 Current = obj.getCurrent(false);
                 Voltage = obj.getVoltage(false);
                 %% reassign their values
                 obj.Source_Mode = sourceMode;
-                obj.Current_Limit = Current_Limit;
-                obj.Voltage_Limit = Voltage_Limit;
                 obj.Current = Current;
                 obj.Voltage = Voltage;
             end
