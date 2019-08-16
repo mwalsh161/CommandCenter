@@ -1,4 +1,4 @@
-function [ center,width,gof ] = GaussFit2D( im, sigma )
+function [ center,width,gof,output ] = GaussFit2D( im, sigma )
 %GAUSSFIT Fit symmetric, centered 2D Gaussian to image with width sigma.
 %   Free params: b1,b2,c (x,y,sigma)
 
@@ -15,7 +15,7 @@ opt.Lower = [1 1 0];
 opt.Upper = [size(im,2) size(im,1) max(size(im))];
 
 im = reshape(im,[],1);
-[f, gof]=fit([reshape(x,[],1),reshape(y,[],1)],im,g,opt);
+[f, gof, output]=fit([reshape(x,[],1),reshape(y,[],1)],im,g,opt);
 center = [f.b1,f.b2];
 width = f.c;
 end
