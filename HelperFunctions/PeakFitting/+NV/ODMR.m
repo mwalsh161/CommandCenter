@@ -55,7 +55,8 @@ function outstruct = ODMR(x,y,varargin)
 %       C13: One of the characters from the input options
 %       iso: One of the character arrays from the input options
 %       fit: The fit object associated with the model
-%       gof: The goodness of fit returned by the fit function
+%       gof components: The goodness of fit components returned by the fit function's gof
+%       output: The output struct returned by fit
 %   Refs:
 %   C13: https://iopscience.iop.org/article/10.1088/1367-2630/13/2/025021 (Table 1, A_{hfs} < 50 G)
 %   N isotope: https://journals.aps.org/prb/abstract/10.1103/PhysRevB.99.161203
@@ -169,10 +170,11 @@ for isoIND = 1:length(isotopes)
         end
         
         % Fit
-        [f,gof] = fit(x, y, eq, opts);
+        [f,gof,output] = fit(x, y, eq, opts);
         partial_out(CsplitIND).C13 = [C13_sites{Csplits}];
         partial_out(CsplitIND).iso = iso_name;
         partial_out(CsplitIND).fit = f;
+        partial_out(CsplitIND).output = output;
         % Add gof to root level struct
         f = fieldnames(gof);
         for i = 1:length(f)
