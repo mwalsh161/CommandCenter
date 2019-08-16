@@ -108,7 +108,7 @@ end
 
 % Constants
 C13 = [130, 13.723, 12.781, -8.923, -6.524, 4.21, 2.43, 0]; % splittings (MHz)
-N = {[3, 2.2], [2, 3.1/2]};  % {[(3 dips), N14], [(2 dips), N15/2]} splittings (MHz)
+N = {[3, 2.2], [2, 3.1]};  % {[(3 dips), N14], [(2 dips), N15]} splittings (MHz)
 norm = '1';
 if p.fitNormalization
     norm = 'd';
