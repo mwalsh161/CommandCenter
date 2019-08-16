@@ -135,8 +135,7 @@ for isoIND = 1:length(isotopes)
     % partial_out is necessary for MATLAB's simplistic indexing requirement for parfor
     partial_out = struct('C13',[],'iso',[],'fit',[],...
         'sse',[],'rsquare',[],'dfe',[],'adjrsquare',[],'rmse',cell(1,length(C13s)));
-    %parfor (CsplitIND = 1:length(C13s), nworkers)
-    for CsplitIND = 1:length(C13s)
+    parfor (CsplitIND = 1:length(C13s), nworkers)
         Csplits = C13s{CsplitIND};
         % Prepare initial model
         sub_model.eq = {peak.eq};
