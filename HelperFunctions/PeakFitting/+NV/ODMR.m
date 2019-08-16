@@ -122,7 +122,7 @@ else % gauss
 end
 
 outstruct = struct('C13',[],'iso',[],'fit',[],...
-        'sse',[],'rsquare',[],'dfe',[],'adjrsquare',[],'rmse',{});
+        'sse',[],'rsquare',[],'dfe',[],'adjrsquare',[],'rmse',{},'output',[]);
 pp = gcp('nocreate'); % If no pool, do not create new one.
 if isempty(pp)
     nworkers = 0;
