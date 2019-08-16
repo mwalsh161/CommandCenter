@@ -157,6 +157,11 @@ gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
 if usingN
     stop_condition = NaN;
     n = p.n;
+    if n == 0 % No peaks
+        vals = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        confs = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        return
+    end
     [f,new_gof,output] = fit_function(x, y, n, init, limits);
     noise = noise_model(x,y,f(x),p.NoiseModel);
     new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
