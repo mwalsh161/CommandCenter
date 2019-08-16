@@ -1,4 +1,4 @@
-function [code,p,estimate,posPxs] = digitize(im,unit2pxT,significance,posMarkers)
+function [code,p,estimate,debug] = digitize(im,unit2pxT,significance,posMarkers)
 modSize = Base.QR.module_size;  % um
 numMods = sqrt(Base.QR.length)+2; % including border "bits"
 posMarkers = round(posMarkers); % round to px
@@ -58,4 +58,9 @@ code = code';
 code = code(:);
 estimate = estimate';
 estimate = estimate(:);
+
+debug.posPxs = posPxs;
+debug.ref0 = ref0;
+debug.ref1 = ref1;
+debug.pxsVals = pxsVals;
 end

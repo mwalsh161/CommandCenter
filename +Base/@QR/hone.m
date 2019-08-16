@@ -1,4 +1,4 @@
-function [readInfo,meta] = hone(im,readInfo)
+function [readInfo,debug] = hone(im,readInfo)
 %HONE From readInfo from READER make a better estimate of tform
 %   INPUT:
 %     im: a SmartImage info struct (reader uses the "image" and

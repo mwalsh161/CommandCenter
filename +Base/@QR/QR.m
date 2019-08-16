@@ -2,7 +2,7 @@ classdef QR
     % QR Detect and read "QR" codes
     % Common methods:
     %   [pos,readInfo] = reader(im,varargin)
-    %   [readInfo,meta] = hone(im,readInfo);
+    %   [readInfo] = hone(im,readInfo);
     %   [row,col,version,legacy_error] = analyze(code); code can be
     %       anything that can convert to char vector. Must be 1xBase.QR.length.
     %   handles = plotQRinfo(ax,qrInfo);
@@ -149,11 +149,11 @@ classdef QR
                 qrInfo(i).code = false(0);
                 qrInfo(i).estimate = false(0);
                 qrInfo(i).legacy_err = false;
-                bitSamples_px = NaN(0,2);
+                debug = struct('posPxs',NaN(0,2)); % posPxs only so we can add posPxsIms for plotQRinfo
                 try
                     % Calculated theoretical marker position and use for digitization
                     markersPx = transformPointsForward(QR2pxT(i), markersBase);
-                    [code,pVal,estimate,bitSamples_px] = Base.QR.digitize(im,QR2pxT(i),p.significance,markersPx);
+                    [code,pVal,estimate,debug] = Base.QR.digitize(im,QR2pxT(i),p.significance,markersPx);
                     qrInfo(i).code = code;
                     qrInfo(i).estimate = estimate;
                     qrInfo(i).significance = pVal;
@@ -177,8 +177,8 @@ classdef QR
                 end
                 if p.debug
                     scale = sqrt(QR2pxT(i).T(1,1)^2 + QR2pxT(i).T(2,1)^2);
-                    bitSamples_im = bitSamples_px/scale; % relative coords; thus only scale matters
-                    Base.QR.plotQRinfo(ax_debug(1),qrInfo(i),bitSamples_im);
+                    debug.posPxsIm = debug.posPxs/scale; % relative coords; thus only scale matters
+                    Base.QR.plotQRinfo(ax_debug(1),qrInfo(i),debug);
                     plot(ax_debug(2),markersPx(:,1),markersPx(:,2),[markers_c 'o'],'LineWidth',2);
                 end
             end
@@ -225,7 +225,7 @@ classdef QR
                 r = [r, [z; z]' + Base.QR.module_size/4];
             end
         end
-        function handles = plotQRinfo(ax,qrInfo,bitSamples)
+        function handles = plotQRinfo(ax,qrInfo,debug)
             % Plot the QR code based on the qrInfo. The value of the
             % bits scatter points correspond to the estimate of the bit
             % value. If no code is supplied, this scatter plot will be
@@ -233,11 +233,11 @@ classdef QR
             % binary instead of "gray scale". Red markers indicate an error
             % occured, green indicate success. The blue marker indicates
             % the top left of the code.
-            % bitSamples is mainly for internal use. It is the module (bit) postiions
-            % sampled to decide logical bit value
+            % debug is mainly for internal use. It contains the module (bit) postiions
+            % sampled to decide logical bit value as well as various references.
             assert(isvalidax(ax),'Axes must be valid.')
             if nargin < 3
-                bitSamples = NaN(0,2);
+                debug = struct('posPxsIm',NaN(0,2));
             end
             n = length(qrInfo);
             handles = struct('markers',[],'bitSamples',[],'bits',cell(1,n));
@@ -268,7 +268,7 @@ classdef QR
                     36,colors,'linewidth',2);
                 % Draw bit sample positions
                 handles(i).bitSamples = scatter(ax,...
-                    posBits(1,1)+bitSamples(:,1),posBits(1,2)+bitSamples(:,2),10,[0,0,1]); % blue
+                    posBits(1,1)+debug.posPxsIm(:,1),posBits(1,2)+debug.posPxsIm(:,2),10,[0,0,1]); % blue
                 % Draw bits based on their estimate
                 code = qrInfo(i).estimate;
                 if isempty(code)
@@ -276,6 +276,7 @@ classdef QR
                 end
                 colors = zeros(Base.QR.length,3) + code;
                 handles(i).bits = scatter(ax,posBits(:,1),posBits(:,2),36,colors);
+                handles(i).bits.UserData.debug = debug; % Used in tooltip_fn
             end
         end
         
@@ -283,10 +284,28 @@ classdef QR
             pos = get(event_obj,'Position');
             txt = {['X: ',num2str(pos(1))],...
                 ['Y: ',num2str(pos(2))]};
-            if isa(event_obj.Target,'matlab.graphics.chart.primitive.Scatter')
+            obj = event_obj.Target;
+            f = UseFigure(mfilename,'name','QR Pixel Values',true);
+            if isa(obj,'matlab.graphics.chart.primitive.Scatter')
                 I = get(event_obj, 'DataIndex');
-                estimate = event_obj.Target.CData(I);
+                estimate = obj.CData(I);
                 txt{end+1} = ['Bit Estimate: ',num2str(estimate,'%0.4f')];
+                if isfield(obj.UserData,'debug') && isfield(obj.UserData.debug,'pxsVals')
+                    ax = axes('parent',f); hold(ax,'on')
+                    histogram(ax,obj.UserData.debug.ref1,'FaceColor','k','EdgeColor','k');
+                    histogram(ax,obj.UserData.debug.ref0,'FaceColor',[0.7 0.7 0.7],'EdgeColor','k');
+                    sz = size(obj.UserData.debug.pxsVals);
+                    [col,row] = ind2sub(sz(1:2),I); % Take into account transpose
+                    histogram(ax,obj.UserData.debug.pxsVals(row,col,:),...
+                        'FaceColor',[0.8500 0.3250 0.0980],'EdgeColor',[0.8500 0.3250 0.0980]);
+                    xlabel(ax,'Pixel Value');
+                    %legend(ax,{'Ref1','
+                    figure(f);
+                else
+                    delete(f);
+                end
+            else
+                delete(f);
             end
         end
     end
@@ -297,7 +316,7 @@ classdef QR
         [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
         [row,col,version,legacy_error] = analyze(code)
         
-        [readInfo,lab,sample] = hone(im,readInfo)
+        [readInfo,debug] = hone(im,readInfo)
     end
     
 end
