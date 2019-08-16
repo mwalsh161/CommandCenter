@@ -176,8 +176,7 @@ classdef QR
                     markers_c = 'r';
                 end
                 if p.debug
-                    scale = sqrt(QR2pxT(i).T(1,1)^2 + QR2pxT(i).T(2,1)^2);
-                    debug.posPxsIm = debug.posPxs/scale; % relative coords; thus only scale matters
+                    debug.posPxsIm = debug.posPxs*conv; % relative coords; thus only scale matters
                     Base.QR.plotQRinfo(ax_debug(1),qrInfo(i),debug);
                     plot(ax_debug(2),markersPx(:,1),markersPx(:,2),[markers_c 'o'],'LineWidth',2);
                 end

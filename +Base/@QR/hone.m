@@ -8,44 +8,39 @@ function [readInfo,debug] = hone(im,readInfo)
 %     readInfo: see READER help. qrInfo completely ignored.
 %     meta: diagnostic data to visualize what hone did for debugging purposes.
 
+%NOTE: lab refers to image coords and sample refers to QR coords
 x = im.ROI(1,:);
 y = im.ROI(2,:);
 im = im.image;
-qrInfo = readInfo.qrInfo;
+scale = sqrt(readInfo.tform.T(1,1)^2 + readInfo.tform.T(2,1)^2);
 
-% Nearest neighbors
-sample = [];
-rs = [];
-for xx = [0 -1 1]
-    for yy = [0 -1 1]
-        [c,r] = Base.QR.BasicBlock(qrInfo);
-        c(:,1) = c(:,1)+xx*Base.QR.spacing_between;
-        c(:,2) = c(:,2)+yy*Base.QR.spacing_between;
-        sample(end+1:end+size(c,1),:) = c;
-        rs(end+1:end+size(c,1)) = r;
-    end
+% Constuct enough QRs that if any part of them is in the frame, we get it
+bboxIm = [x(1), y(1);x(1), y(2);x(2), y(2);x(2), y(1)]; % frame bounding box
+bboxQR = transformPointsForward(readInfo.tform,bboxIm);
+xlimQRind = [min(bboxQR(:,1)),max(bboxQR(:,1))]/Base.QR.spacing_between;
+ylimQRind = [min(bboxQR(:,2)),max(bboxQR(:,2))]/Base.QR.spacing_between;
+xlimQRind = max(0,round(xlimQRind(1))):round(xlimQRind(2));
+ylimQRind = max(0,round(ylimQRind(1))):round(ylimQRind(2));
+[Xind,Yind] = meshgrid(xlimQRind,ylimQRind);
+sampleQRind = [Xind(:), Yind(:)];
+nQRs = size(sampleQRind,1);
+sampleC = NaN(3+2*Base.QR.NSecondary,2,nQRs);
+sampleR = NaN(3+2*Base.QR.NSecondary,nQRs);
+for i = 1:size(sampleQRind,1)
+    [c,r] = Base.QR.BasicBlock();
+    sampleC(:,:,i) = c + sampleQRind(i,:)*Base.QR.spacing_between;
+    sampleR(:,i) = r;
 end
+sampleC = reshape(shiftdim(sampleC,1),2,[])'; % See logic in Base.QR.reader
+sampleR = reshape(shiftdim(sampleR,1),1,[])';
+in = inpolygon(sampleC(:,1),sampleC(:,2),bboxQR(:,1),bboxQR(:,2));
+sampleC = sampleC(in,:);
+sampleR = sampleR(in);
 
-% Adjust to lab frame and see if they exist, remove if they don't
-lab = sample*R*qrInfo.scaling;
-rs=rs*qrInfo.scaling;
-lab(:,1) = lab(:,1) + qrInfo.offset(1);
-lab(:,2) = lab(:,2) + qrInfo.offset(2);
-toDelete = [];
-for i = 1:size(sample,1)
-    if lab(i,2) > size(im,1) || lab(i,2) < 1 || ... 
-       lab(i,1) > size(im,2) || lab(i,1) < 1
-        toDelete(end+1) = i;
-    end
-end
-lab(toDelete,:) = [];
-sample(toDelete,:) = [];
-rs(toDelete) = [];
-
-% Try to fit remaining circles with high accuracy
-labC = lab(:,1);        % Split apart for parfor loop
-labR = lab(:,2);
-toDelete = false(1,length(labR));
+% Try to fit circles with high accuracy using the tform for an initial guess
+labC = transformPointsInverse(readInfo.tform,sampleC);
+labR = sampleR/scale;
+toDelete = false(1,length(labR)); % If fit doesn't work out
 im = double(imcomplement(im));  % Use this for GaussFit2D (fits positive (bright) things)
 parfor i = 1:size(lab,1)
     row = round(labR(i)+[-1 1]*rs(i)*2); % Give 4r x 4r area around circle estimate
