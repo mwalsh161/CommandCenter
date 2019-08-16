@@ -12,8 +12,8 @@ function outstruct = ODMR(x,y,varargin)
 %   amplitude, b is the location (GHz), and c is the FWHM (MHz).
 %   Each peak in the hyperfine transitions will share a and c. The splittings
 %   are also defined. For a full model, the free parameters are:
-%       NV14: 1 - (peak(a,b-2.2,c) + peak(a,b,c) + peak(a,b+2.2,c)
-%       NV15: 1 - (peak(a,b-3.1/2,c) + peak(a,b+3.1/2,c)
+%       NV14: 1 - (peak(a,b-2.2e-3,c) + peak(a,b,c) + peak(a,b+2.2e-3,c)
+%       NV15: 1 - (peak(a,b-3.1e-3/2,c) + peak(a,b+3.1e-3/2,c)
 %   The user can specify 'fitNormalization' as true to include an
 %   additional free parameter, d, which is the normalization value
 %   (replacing 1 in the above equation).
