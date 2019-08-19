@@ -70,9 +70,9 @@ parfor (i = 1:size(labC,1), nworkers)
                                    im(yIND(1):yIND(2),xIND(1):xIND(2)),labR(i)/2);
 end
 % moved less than object radius (QR coords)
-stayedclose = sqrt((honedC(:,1)-labC(:,1)).^2+(honedC(:,2)-labC(:,2)).^2) < sampleR;
+stayedclose = sqrt(sum((honedC - labC).^2,2)) < sampleR;
 % decent rsquare (*depending on resolution, circles could have flat top*)
-goodfit_thresh = 0.8;
+goodfit_thresh = 0.5;
 rsquare = arrayfun(@(a)a.gof.rsquare,outstruct);
 goodfit = rsquare > goodfit_thresh;
 mask = stayedclose & goodfit;
