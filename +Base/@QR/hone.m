@@ -8,6 +8,9 @@ function [readInfo,debug] = hone(im,readInfo)
 %     readInfo: see READER help. qrInfo not altered.
 %     debug: diagnostic data to visualize what hone did for debugging purposes.
 
+assert(isstruct(readInfo)&&isfield(readInfo,'tform'),...
+    'readInfo must be output struct from Base.QR.reader');
+assert(~isempty(readInfo.tform),'Base.QR.reader did not find a QR (tform is empty).');
 %NOTE: lab refers to image coords and sample refers to QR coords
 xlim = im.ROI(1,:);
 ylim = im.ROI(2,:);
