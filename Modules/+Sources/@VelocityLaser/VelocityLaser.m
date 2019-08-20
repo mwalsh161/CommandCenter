@@ -20,6 +20,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
 
     properties(SetObservable,AbortSet)
         tuning = false;
+        debug = false;
         prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel','cal_local'};
         show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip','velocity_ip','wavemeter_channel','wavemeter_ip'};
         readonly_prefs = {'PB_status','tuning'};
