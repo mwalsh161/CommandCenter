@@ -82,7 +82,10 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
                 obj.Com_Address = val;
             end
         end
-
+        function set.Channel(obj,val)
+            obj.Channel = val;
+            obj.updateValues();
+        end
         function arm(obj)
         end
     end
