@@ -10,12 +10,12 @@ classdef PowerSupply_invisible < Modules.Source
     % subclass.
     
     properties(SetObservable,AbortSet)
-        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
-        Source_Mode = {'Voltage','Current'}
-        Current_Limit = 0.1; % Current limit for voltage mode (amps).
-        Voltage_Limit = 1;   % Voltage limit for current mode (volts).
-        Current = 0.05; % Set current for current mode (amps).
-        Voltage = 0.1;  % Set voltage for voltage mode (volts).
+        prefs = {'Voltages','Currents','SourceModes'};
+        show_prefs = {'Channel','Source_Mode','Voltage','Current'};
+        Source_Mode = {'Voltage','Current'} % Whether current or voltage mode active for selected channel
+        Current = 0.05; % Set current for selected channel (amps).
+        Voltage = 1;  % Set voltage for selected channel (volts).
+        Channel_Name = '1'; % User-defined name for selected channel
     end
     
     properties(SetAccess=private, SetObservable)
@@ -35,11 +35,15 @@ classdef PowerSupply_invisible < Modules.Source
     end
     
     properties(Abstract,SetObservable,AbortSet)
-        Channel % Array denoting possible channels for the power supply
+        Channel % Cell array denoting selected channels for the power supply
+        Currents % Memory of what all the voltages are to be saved in prefs
+        Voltages % Memory of what all the currents are to be saved in prefs
+        SourceModes % Memory of what all the Source_Modes are to be saved in prefs
     end
     
     properties(Abstract,Constant)
         Power_Supply_Name % String containing ame of the power supply
+        ChannelNames % Cell array denoting hardware channel names
     end
     
     methods(Static)
@@ -60,52 +64,54 @@ classdef PowerSupply_invisible < Modules.Source
             if obj.power_supply_connected
                 % Perform command specified by command (string), with varargin as arguments, return output if requested
                 if nargout > 0
-                    varargout{1} = obj.power_supply.(command)(varargin{:});
+                    varargout{:} = obj.power_supply.(command)(varargin{:});
                 else
                     obj.power_supply.(command)(varargin{:});
                 end
             end
         end
+
+        function obj = PowerSupply_invisible()
+        end
     end
     
-    methods
-        function obj = PowerSupply_invisible()
-
+    methods     
+        function set.Channel(obj,val)
+            obj.Channel = val;
+            obj.updateValues();
         end
+        %% set methods are wrappers for set (no dot) methods
         
-        %% set methods
-                
         function set.Source_Mode(obj,val)
-            %debugging happens @ driver level
-            obj.queryPowerSupply('setSourceMode',obj.Channel,val); 
+            obj.setSource_Mode(val);
             obj.Source_Mode = val;
         end
         
         function set.Current(obj,val)
-            %debugging happens @ driver level
-            obj.queryPowerSupply('setVoltageLimit',obj.Channel,obj.Voltage_Limit);
-            obj.queryPowerSupply('setCurrent',obj.Channel,val);
-            obj.Current = val;
+            obj.setCurrent(val);
+            obj.Current = val;            
         end
         
         function set.Voltage(obj,val)
-
-            %debugging happens @ driver level
-            %obj.power_supply.setCurrentLimit(obj.Channel,obj.Current_Limit);
-            obj.queryPowerSupply('setVoltage',obj.Channel,val);
+            obj.setVoltage(val);
             obj.Voltage = val;
         end
-        
-        function set.Current_Limit(obj,val)
 
-            %debugging happens @ driver level
-            obj.queryPowerSupply('setCurrentLimit',obj.Channel,val);
-            obj.Current_Limit = val;
+        %% set (no dot) methods that can be overloaded by subclasses. They set power supply value and populate appropriate array pref with new value.
+                
+        function setSource_Mode(obj,val)
+            obj.queryPowerSupply('setSourceMode', obj.Channel ,val);
+            obj.SourceModes{obj.getHWIndex(obj.Channel)} = val;
         end
         
-        function set.Voltage_Limit(obj,val)
-            obj.queryPowerSupply('setVoltageLimit',obj.Channel,val);
-            obj.Voltage_Limit = val;
+        function setCurrent(obj,val)
+            obj.queryPowerSupply('setCurrent',obj.Channel,val);
+            obj.Currents(obj.getHWIndex(obj.Channel)) = val;
+        end
+        
+        function setVoltage(obj,val)
+            obj.queryPowerSupply('setVoltage',obj.Channel,val);
+            obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
         end
 
         %% get methods because these properties are interdependant.
@@ -122,6 +128,7 @@ classdef PowerSupply_invisible < Modules.Source
                 val = obj.queryPowerSupply('measureCurrent',obj.Channel);
             else
                 val = obj.queryPowerSupply('getCurrent',obj.Channel);%if the source isn't on return the programmed values
+                obj.Currents(obj.getHWIndex(obj.Channel)) = val;
             end
         end
         
@@ -134,23 +141,28 @@ classdef PowerSupply_invisible < Modules.Source
                 val = obj.queryPowerSupply('measureVoltage',obj.Channel);
             else
                 val = obj.queryPowerSupply('getVoltage',obj.Channel);%if the source isn't on return the programmed values
+                obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
             end
         end
 
         function val = getSource_Mode(obj)
-           val = obj.queryPowerSupply('getSourceMode',obj.Channel); 
+           val = obj.queryPowerSupply('getSourceMode',obj.Channel);
+           obj.SourceModes{obj.getHWIndex(obj.Channel)} = val;
         end
         
-        function val = getCurrent_Limit(obj)
-            val = obj.queryPowerSupply('getCurrentLimit',obj.Channel);
+        function val = getHWIndex(obj,channel)
+            % Given the a channel name, get the channel index in
+            % ChannelNames
+            val = contains(obj.ChannelNames,channel);
+            assert(sum(val)~=0,'Channel not found')
+            assert(sum(val)<2,'More than one channel match this name')
+            val = find(val);
         end
-        
-        function val = getVoltage_Limit(obj)
-           val = obj.queryPowerSupply('getVoltageLimit',obj.Channel);
-        end
-
 
         %% generic control functions
+        function checkChannel(obj, channel)
+            obj.queryPowerSupply('check_channel', channel)
+        end
 
         function delete(obj)
             delete(obj.power_supply);
@@ -166,26 +178,31 @@ classdef PowerSupply_invisible < Modules.Source
             obj.queryPowerSupply('off');
             obj.source_on=0;
         end
-
-        function checkChannel(obj,val)
-            obj.queryPowerSupply('check_channel',val);
-        end
         
         function updateValues(obj,~,~)
-            %% triggers after user switches channel. Properties are linked so
-            %first get them from the driver by calling get methods
+            %Updates voltage, current and source mode that are diplayed by
+            %getting them from the driver by calling get methods (only
+            %updates current channel)
             if obj.power_supply_connected
                 sourceMode = obj.getSource_Mode;
-                Current_Limit = obj.getCurrent_Limit;
-                Voltage_Limit = obj.getVoltage_Limit;
                 Current = obj.getCurrent(false);
                 Voltage = obj.getVoltage(false);
                 %% reassign their values
                 obj.Source_Mode = sourceMode;
-                obj.Current_Limit = Current_Limit;
-                obj.Voltage_Limit = Voltage_Limit;
                 obj.Current = Current;
                 obj.Voltage = Voltage;
+              end
+        end
+        
+        function updatePrefs(obj)
+            %Updates voltage, current and source mode prefs that are
+            %diplayed are saved by using get methods (updates all channels)
+            if obj.power_supply_connected
+                % Go through updating values of each channel
+                for i = numel(obj.ChannelNames):-1:1
+                    obj.Channel = obj.ChannelNames{i};
+                    obj.updateValues;
+                end
             end
         end
         

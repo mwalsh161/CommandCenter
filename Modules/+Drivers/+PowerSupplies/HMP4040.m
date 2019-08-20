@@ -1,17 +1,11 @@
-classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
+classdef HMP4040 < Modules.Driver
     
     properties (SetAccess=private)
-        currentLimitEnable = {'Off','Off','Off','Off'};
-        voltageLimitEnable = {'Off','Off','Off','Off'};
-        sourceMode = {'Voltage','Voltage','Voltage','Voltage'};
-        VoltageMem = {5,5,5,5};
-        voltLim = {5,5,5,5};
-        CurrentMem = {0.05,0.05,0.05,0.05};
-        currLim = {0.05,0.05,0.05,0.05};
+        sourceMode = {'Voltage','Voltage','Voltage','Voltage'}; % Source mode (only used to determine whether railing against current or voltage produces warning)
     end
     
     properties
-        deviceID = [];
+        deviceName = [];
         comObject = []; % Should be a serial connector; all methods defined accordingly
     end
     
@@ -36,7 +30,7 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
                 end
             end
             obj = Drivers.PowerSupplies.HMP4040(comObject);
-            obj.deviceID = name;
+            obj.deviceName = name;
             Objects(end+1) = obj;
         end
         
@@ -65,14 +59,6 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
                     rethrow(ME); %rethrow error when trying to open comObject
                 end
             end
-            obj.reset;
-        end
-
-        function check_channel(obj,channel)
-            assert(ischar(channel),'Channel input must be a string!')
-            channels=num2str(1:obj.Number_of_channels);
-            possible_channels=strsplit(channels,' ');
-            assert(~isempty(strmatch(channel,possible_channels)) ,[channel,' is not a supported channel!'])
         end
         
         function writeOnly(obj,string)
@@ -82,36 +68,35 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
         function [output] = writeRead(obj,string)
             output = query(obj.comObject,string);
         end
-        
+    end
+    
+    methods
         function testLimit(obj,sourceMode,channel)
-            %after turning on this method determines if the given channel
-            %is railing against its limit
-            if strcmpi(obj.getState(channel),'off')
-               return
+            %Determines if the given channel is railing against its limit (which will be the current if in voltage mode, or the voltage if in current mode)
+            pause(0.1);
+            obj.setChannel(channel)
+            status = obj.writeRead('STAT:QUES:INST:ISUM1:COND?'); % Query channel status
+            if strcmp(status(1),'0')
+                return % Short circuit if channel off
             end
-            pause(1);
-            switch lower(sourceMode)
-                case {'current'}
+            railing = false;
+
+            % Determine if railing best on whether current/voltage mode set
+            switch sourceMode
+                case 'Current'
                     limType = 'voltage';
-                    [upperLimit,lowerLimit] = obj.getVoltageLimit(channel);
-                    measured_value = obj.measureVoltage(channel);
-                case {'voltage'}
+                    if strcmp(status(1),'2')
+                        railing = true;
+                    end
+                case 'Voltage'
                     limType = 'current';
-                    [upperLimit,lowerLimit] = obj.getCurrentLimit(channel);
-                    measured_value = obj.measureCurrent(channel);
+                    if strcmp(status(1),'1')
+                        railing = true;
+                    end
                 otherwise
                     error('not supported sourceMode. Supported mode: voltage and current.')
             end
-            if measured_value > 0
-                upperRange = upperLimit*(1.1);
-                lowerRange = upperLimit*(0.9);
-            elseif  measured_value == 0
-                return
-            else
-                upperRange = lowerLimit*(0.9);
-                lowerRange = lowerLimit*(1.1);
-            end
-            if (measured_value>=lowerRange && measured_value<=upperRange)
+            if railing
                 warndlg([obj.dev_id,'''s channel ',channel,' is railing against its ',limType,' limit'],['Limit Hit ',channel],'modal')
             end
         end
@@ -119,49 +104,26 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
         function setChannel(obj,channel)
             %this method needs to be called before setting a property
             %lets the supply know which channel you are programming
+            obj.check_channel(channel)
             string = ['INSTRUMENT:SELECT OUT',channel];
             obj.writeOnly(string);
         end
         
         function turnOnChannel(obj,channel)
-            obj.check_channel(channel)
-            if strcmpi(obj.currentLimitEnable{str2num(channel)},'Off') || strcmpi(obj.voltageLimitEnable{str2num(channel)},'Off')
-                error(['you need to have a voltage limit and a current limit set to turn on channel ',channel])
-            end
-            if strcmpi(obj.getSourceMode(channel),'Current')
-                obj.setVoltageLimit(channel,obj.voltLim{str2num(channel)})
-            else
-                obj.setVoltage(channel,obj.VoltageMem{str2num(channel)})
-            end
             obj.setChannel(channel)
-            %before turning on set the right limits. This
-            %is neccessary because this supply does not have indepedant
-            %voltage limits/voltage settings type interactions. So
-            %depending on the desired source mode we loop through and set
-            %the right values
-            switch obj.getSourceMode(channel)
-                %this make sure that for this channel the right
-                %properties are set for the corresponding source mode of
-                %this channel
-                case 'Voltage'
-                    obj.setCurrentLimit(channel,obj.getCurrentLimit(channel));
-                    obj.setVoltage(channel,obj.getVoltage(channel));
-                case 'Current'
-                    obj.setVoltageLimit(channel,obj.getVoltageLimit(channel));
-                    obj.setCurrent(channel,obj.getCurrent(channel));
-                otherwise
-                    error('Supported Modes are Voltage and Current.')
-            end
-            string = sprintf(['OUTPUT:STATE ON ',channel]);
+            string = ['OUTPUT:STATE ON ',channel]   ;
             obj.writeOnly(string);
             obj.testLimit(obj.getSourceMode(channel),channel)
         end
-    end
-    
-    methods
-        
+
+        function check_channel(obj,channel)
+            assert(ischar(channel),'Channel input must be a string!')
+            channels=num2str(1:obj.Number_of_channels);
+            possible_channels=strsplit(channels,' ');
+            assert(~isempty(strmatch(channel,possible_channels)) ,[channel,' is not a supported channel!'])
+        end
+
         function  setCurrent(obj,channel,current)
-            obj.check_channel(channel)
             obj.setChannel(channel)
             assert(isnumeric(current),'current must be data type numeric')
             if current<1e-3
@@ -170,17 +132,14 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             end
             string = ['SOURCE:Current:LEVEL:AMPLITUDE ',num2str(current)];
             obj.writeOnly(string);
-            obj.CurrentMem{str2num(channel)} = current;
             obj.testLimit(obj.getSourceMode(channel),channel)
         end
         
         function  setVoltage(obj,channel,voltage)
-            obj.check_channel(channel)
             obj.setChannel(channel)
             assert(isnumeric(voltage),'voltage must be data type numeric')
             string = ['SOURCE:VOLTAGE:LEVEL:AMPLITUDE ',num2str(voltage)];
             obj.writeOnly(string)
-            obj.VoltageMem{str2num(channel)} = voltage;
             obj.testLimit(obj.getSourceMode(channel),channel)
         end
         
@@ -188,89 +147,39 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             obj.check_channel(channel)
             assert(strcmp(mode,'Current') || strcmp(mode,'Voltage'),'Mode must be either Current or Voltage')
             obj.sourceMode{str2num(channel)} = mode;
-        end
-        
-        function setVoltageLimit(obj,channel,volt_limit)
-            obj.check_channel(channel)
-            obj.setChannel(channel)
-            assert(isnumeric(volt_limit),'voltage limit must be data type numeric')
-            assert(numel(volt_limit)<=2 ,'voltage limit must be a vector of max length 2')
-            if numel(volt_limit) == 2
-                warning([obj.dev_id,' only supports symmetrical voltage limits. Voltage limit'...
-                    ' will be set to + ',num2str(abs(volt_limit(1))),' volts and 0 volts.']);
-            end
-            string = ['SOURCE:VOLTAGE:LEVEL:AMPLITUDE ',num2str(volt_limit)];
-            obj.writeOnly(string);
-            obj.voltLim{str2num(channel)} = volt_limit;
-            obj.voltageLimitEnable{str2num(channel)} = 'On';
-        end
-        
-        function setCurrentLimit(obj,channel,current_limit)
-            obj.check_channel(channel)
-            obj.setChannel(channel)
-            assert(isnumeric(current_limit),'current limit must be data type numeric')
-            assert(numel(current_limit)<=2 ,'current limit must be a vector of max length 2')
-            if numel(current_limit) == 2
-                warning([obj.hmp4040dev_id,' only supports symmetrical current limits. Current limit'...
-                    ' will be set to + ',num2str(abs(current_limit(1))),' amps and 0 amps.']);
-            end
-            if current_limit<1e-3
-                warning('HMP4040 does not support currents less than 5 mA. Changing current limit to 5 mA')
-                current_limit = 5e-3;
-            end
-            string = ['SOURCE:CURRENT:LEVEL:AMPLITUDE ',num2str(current_limit)];
-            obj.writeOnly(string);
-            obj.currLim{str2num(channel)} = current_limit;
-            obj.currentLimitEnable{str2num(channel)} = 'On';
+            obj.testLimit(obj.getSourceMode(channel),channel);
         end
         
         %%
         function  [voltage] = measureVoltage(obj,channel)
-            obj.check_channel(channel)
             obj.setChannel(channel)
-            string = 'MEASURE:VOLTAGE?';
-            s = obj.writeRead(string);
+            s = obj.writeRead('MEASURE:VOLTAGE?');
             voltage = str2num(s(1:end-1));
         end
         
         function  [current] = measureCurrent(obj,channel)
-            obj.check_channel(channel)
             obj.setChannel(channel)
-            string = 'MEASURE:CURRENT?';
-            s = obj.writeRead(string);
+            s = obj.writeRead('MEASURE:CURRENT?');
             current = str2num(s(1:end-1));
         end
         %%
         
         function sourceMode = getSourceMode(obj,channel)
-            obj.check_channel(channel)
+            obj.setChannel(channel)
             sourceMode = obj.sourceMode{str2num(channel)};
          end
         
-         function [upperlim,lowerlim]  = getCurrentLimit(obj,channel)
-             obj.check_channel(channel)
-             upperlim = obj.currLim{str2num(channel)};
-             lowerlim = 0;
-         end
-         
-         function [upperlim,lowerlim] = getVoltageLimit(obj,channel)
-             obj.check_channel(channel)
-             upperlim = obj.voltLim{str2num(channel)};
-             lowerlim = 0;
-         end
-        
         function current = getCurrent(obj,channel)
-            obj.check_channel(channel)
-            current = obj.CurrentMem{str2num(channel)};
+            obj.setChannel(channel)
+            current = str2num(obj.writeRead('CURRENT?'));
         end
         
         function voltage = getVoltage(obj,channel)
-            obj.check_channel(channel)
-            voltage = obj.VoltageMem{str2num(channel)};
+            obj.setChannel(channel)
+            voltage = str2num(obj.writeRead('VOLT?'));
         end
         
         function  [Power_supply_state] = getState(obj,channel)
-            obj.check_channel(channel)
             obj.setChannel(channel)
             string = sprintf('OUTPUT:STATE?');
             reply = obj.writeRead(string);
@@ -289,7 +198,6 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             narginchk(1,2)
             if nargin>1
                channel = varargin{1};
-               obj.check_channel(channel);
                obj.turnOnChannel(channel);
             else
                obj.turnOnChannel('1');
@@ -303,7 +211,6 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
             narginchk(1,2)
             if nargin>1
                 channel = varargin{1};
-                obj.check_channel(channel)
                 obj.setChannel(channel)
                 string = sprintf(['OUTPUT:STATE OFF ',channel]);
                 obj.writeOnly(string);
@@ -324,28 +231,24 @@ classdef HMP4040 < Drivers.PowerSupplies.PowerSupplies
         end
         
         function reset(obj)
+            obj.writeOnly('*RST');
             obj.off;
-            string = sprintf('*RST');
-            obj.writeOnly(string);
-            obj.currentLimitEnable = {'Off','Off','Off','Off'};
-            obj.voltageLimitEnable = {'Off','Off','Off','Off'};
             obj.sourceMode = {'Voltage','Voltage','Voltage','Voltage'};
             
-            obj.setCurrentLimit('1',0.05);
-            obj.setVoltageLimit('1',5);
+            obj.setCurrent('1',0.05);
+            obj.setVoltage('1',5);
             
-            obj.setCurrentLimit('2',0.05);
-            obj.setVoltageLimit('2',5);
+            obj.setCurrent('2',0.05);
+            obj.setVoltage('2',5);
             
-            obj.setCurrentLimit('3',0.05);
-            obj.setVoltageLimit('3',5);
+            obj.setCurrent('3',0.05);
+            obj.setVoltage('3',5);
             
-            obj.setCurrentLimit('4',0.05);
-            obj.setVoltageLimit('4',5);
+            obj.setCurrent('4',0.05);
+            obj.setVoltage('4',5);
         end
         
         function delete(obj)
-            obj.reset;
             string = sprintf('SYSTEM:LOCAL '); %set the supply back to local control
             obj.writeOnly(string);
             if ~isempty(obj.comObject) && isvalid(obj.comObject)
