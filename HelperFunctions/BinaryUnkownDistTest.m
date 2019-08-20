@@ -30,19 +30,29 @@ if ~exist('p0','var')
     p0 = 0.5;
 end
 
-% calculate likelihood ratio
-lambda = likelihood( ref1, sample)/likelihood( ref0, sample);
+% calculate likelihoods
+l0 = likelihood( ref0, sample);
+l1 = likelihood( ref1, sample);
+
+assert( l0~=0 && l1~=0, 'Likelihood of both samples is 0 to machine precision. This might indicate that your sample does not come from either distribution.')
+
+% Calculate likelihood ratio
+if l0==0 % catch case where ref 0 likelihood is 0 and avoid /0 error
+    estimate = 1.;
+    lambda = inf;
+else
+    lambda = l1/l0;
+
+    % calculate confidence metric
+    estimate = lambda/lambda_critical;
+    estimate = estimate/(1+estimate);
+end
 
 % prior odds ratio
 lambda_critical = p0/(1-p0);
 
 % calculate decision
 decision = (lambda > lambda_critical);
-
-% calculate confidence metric
-estimate = lambda/lambda_critical;
-estimate = estimate/(1+estimate);
-
 end
 
 function t = likelihood( sample1, sample2 )
