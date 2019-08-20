@@ -380,10 +380,12 @@ classdef WinSpec < Modules.Driver
                     if strcmp(answer,'Yes')
                         obj.calibrate(varargin{:})
                     else
-                        error('No spectrometer calibration found; calibrate using WinSpec.calibrate(tunable laser handle, exposure time in seconds)');
+                        error(['No spectrometer calibration found; calibrate using' newline,...
+                            'WinSpec.calibrate(tunable laser handle, exposure time in seconds, THz range, [ax])']);
                     end
                 else
-                    error('No spectrometer calibration found; calibrate using WinSpec.calibrate(tunable laser handle, exposure time in seconds)');
+                    error(['No spectrometer calibration found; calibrate using' newline,...
+                            'WinSpec.calibrate(tunable laser handle, exposure time in seconds, THz range, [ax])']);
                 end
             end
             obj.cal_local.expired = false;

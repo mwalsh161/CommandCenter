@@ -4,6 +4,10 @@ function TuneCoarse(obj,target)
 %uses a calibration between the frequency as read by the wavemeter to the
 %wavelength as set by the laser's hardware
 
+% A P-only PID algorithm is used until an out of range error is thrown, at
+% which point the algorithm transitions to a binary search until setpoint
+% achieved or an impossibility is determined.
+
 %   target = frequency in THz
 
 err = [];
@@ -18,22 +22,30 @@ try
     end
     obj.wavemeter.setDeviationChannel(false);
     obj.TunePercent(50);
-    Pgain = 0.9; %gain on P for this P-only PID controller
+    Pgain = 0.5; %gain on P for this P-only PID controller
+    range = [NaN,NaN]; % range for binary search
     obj.setMotorFrequency(target);
     laserloc = obj.getFrequency;
-    LaserFreqSet = laserloc; %first laser setpoint is presumed to be where the laser is measured to be
+    LaserFreqSet = [NaN,obj.getFrequency]; % [current, previous]
     
     t = tic;
-    while abs(laserloc - target) > FineThresh %threshold for catching NV in scan
+    PIDflag = true;
+    while abs(laserloc - target) > FineThresh
         assert(toc(t) < obj.TuningTimeout,'Unable to complete tuning within timeout.');
-        if abs(laserloc - target) > CorThresh %coarse threshold
-            LaserFreqSet = LaserFreqSet-Pgain*(laserloc- target); %take difference, use to set again
-        else %we're close; use small steps
-            LaserFreqSet = LaserFreqSet - FineThresh*sign(laserloc-target)/2; %small 10 GHz step in correct direction
+        LaserFreqSet(1) = LaserFreqSet(1) + Pgain*(target - LaserFreqSet(2)); %take difference, use to set again
+        % set and get laser location again
+        try
+            obj.setMotorFrequency(NextLaserFreqSet(1));
+        catch err
+            if contains(err.message,'Out of Range')
+                LaserFreqSet(1) = mean(LaserFreqSet);
+                obj.setMotorFrequency(NextLaserFreqSet(1));
+            else
+                rethrow(err);
+            end
         end
-        obj.setMotorFrequency(LaserFreqSet); %command to set wavelength needs to be in nm
-        %get laser location again
-        laserloc = obj.getFrequency;
+        LaserFreqSet(1) = LaserFreqSet(2);
+        LaserFreqSet(2) = obj.getFrequency;
     end
     obj.setpoint = target;
     obj.tuning = false;
