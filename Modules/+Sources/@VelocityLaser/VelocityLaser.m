@@ -70,6 +70,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     methods(Access=protected)
         function obj = VelocityLaser()
             obj.loadPrefs;
+            try % Turn off wavemeter if diode isn't on (ignore not connected errors)
+                if ~obj.diode_on
+                    obj.wavemeter_active = false;
+                end
+            end
         end
     end
     methods(Static)
