@@ -111,6 +111,11 @@ classdef CMOS_CW_ODMR < Modules.Experiment
             obj.freq_list = str2num(val)*1e9;
             obj.MW_freqs_GHz = val;
         end
+        
+        function set.PowerSupply(obj,val)
+            val.Channel = val.ChannelNames(1); % Ensure that channel is set
+            obj.PowerSupply = val;
+        end
 
         function set.keep_bias_on(obj,val)
             % Turn on/off power supply on changing keep_bias_on
@@ -123,65 +128,83 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         end
 
         function set.VDD_VCO(obj,val)
-            % Change power supply settings when changing bias voltage
-            obj.PowerSupply.Channel = obj.VDD_VCO_Channel;
-            obj.PowerSupply.Voltage = val;
-            obj.PowerSupply.Source_Mode = 'Voltage';
+            if ~isempty(obj.PowerSupply.Channel) % if channel is set
+                % Change power supply settings when changing bias voltage
+                obj.PowerSupply.Channel = obj.VDD_VCO_Channel;
+                obj.PowerSupply.Voltage = val;
+                obj.PowerSupply.Source_Mode = 'Voltage';
+            end
             obj.VDD_VCO = val;
         end
 
         function set.VDD_Driver(obj,val)
-            obj.PowerSupply.Channel = obj.VDD_Driver_Channel;
-            obj.PowerSupply.Voltage = val;
-            obj.PowerSupply.Source_Mode = 'Voltage';
+            if ~isempty(obj.PowerSupply.Channel)
+                obj.PowerSupply.Channel = obj.VDD_Driver_Channel;
+                obj.PowerSupply.Voltage = val;
+                obj.PowerSupply.Source_Mode = 'Voltage';
+            end
             obj.VDD_Driver = val;
         end
         
         function set.Driver_Bias_1(obj,val)
-            obj.PowerSupply.Channel = obj.Driver_Bias_1_Channel;
-            obj.PowerSupply.Voltage = val;
-            obj.PowerSupply.Source_Mode = 'Voltage';
+            if ~isempty(obj.PowerSupply.Channel)
+                obj.PowerSupply.Channel = obj.Driver_Bias_1_Channel;
+                obj.PowerSupply.Voltage = val;
+                obj.PowerSupply.Source_Mode = 'Voltage';
+            end
             obj.Driver_Bias_1 = val;
         end
 
         function set.Driver_Bias_2 (obj,val)
-            obj.PowerSupply.Channel = obj.Driver_Bias_2_Channel;
-            obj.PowerSupply.Voltage = val;
-            obj.PowerSupply.Source_Mode = 'Voltage';
+            if ~isempty(obj.PowerSupply.Channel)
+                obj.PowerSupply.Channel = obj.Driver_Bias_2_Channel;
+                obj.PowerSupply.Voltage = val;
+                obj.PowerSupply.Source_Mode = 'Voltage';
+            end
             obj.Driver_Bias_2 = val;
         end
 
         function set.VDD_VCO_Channel(obj,val)
             % Check that channel exists and is different from other channels before changing
-            if ~isempty(val) % Just set if channel is empty
+            if ~isempty(val) && ~isempty(obj.PowerSupply) % Just set if channel/PowerSupply is not empty
                 assert(~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
                 obj.PowerSupply.checkChannel(val)
+                % Get power supply voltage
+                voltage = obj.PowerSupply.Voltages( obj.PowerSupply.getHWIndex(val));
+                obj.VDD_VCO = voltage;
             end
             obj.VDD_VCO_Channel = val;
         end
 
         function set.VDD_Driver_Channel(obj,val)
-            if ~isempty(val)
+            if ~isempty(val) && ~isempty(obj.PowerSupply)
                 assert(~strcmp(val,obj.VDD_VCO_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
                 obj.PowerSupply.checkChannel(val)
+                obj.VDD_Driver
+                voltage = obj.PowerSupply.Voltages( obj.PowerSupply.getHWIndex(val));
+                obj.VDD_Driver = voltage;
             end
             obj.VDD_Driver_Channel = val;
         end
 
         function set.Driver_Bias_1_Channel(obj,val)
-            if ~isempty(val)
-                assert(~strcmp(val,obj.Driver_VCO_Channel) && ~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
+            if ~isempty(val) && ~isempty(obj.PowerSupply)
+                assert(~strcmp(val,obj.VDD_VCO_Channel) && ~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_2_Channel), 'Channel already assigned')
                 obj.PowerSupply.checkChannel(val)
+                voltage = obj.PowerSupply.Voltages( obj.PowerSupply.getHWIndex(val));
+                obj.Driver_Bias_1 = voltage;
             end
-            obj.VDD_Bias_1_Channel = val;
+            obj.Driver_Bias_1_Channel = val;
         end
         
         function set.Driver_Bias_2_Channel(obj,val)
-            if ~isempty(val)
-                assert(~strcmp(val,obj.Driver_VCO_Channel) && ~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel), 'Channel already assigned')
+            if ~isempty(val) && ~isempty(obj.PowerSupply)
+                assert(~strcmp(val,obj.VDD_VCO_Channel) && ~strcmp(val,obj.VDD_Driver_Channel) && ~strcmp(val,obj.Driver_Bias_1_Channel), 'Channel already assigned')
                 obj.PowerSupply.checkChannel(val)
+                voltage = obj.PowerSupply.Voltages( obj.PowerSupply.getHWIndex(val));
+                obj.Driver_Bias_2 = voltage;
             end
-            obj.VDD_Bias_2_Channel = val;
+            obj.Driver_Bias_2_Channel = val;
         end
     end
 end
