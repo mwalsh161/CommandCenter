@@ -9,7 +9,7 @@ function TuneCoarse(obj,target)
 Pgain = 0.5; %gain on P for this P-only PID controller
 FineThresh = max(obj.wavemeter.resolution,obj.resolution);
 in_bound_flag = true;
-obj.locked = false; %whether errored or not, should no longer be locked
+obj.locked = false; % Make sure to adjust if necessary before returning
 obj.tuning = true;
 if obj.debug
     f_debug = UseFigure(mfilename('class'),'name','TuneCoarse',true);
@@ -73,12 +73,13 @@ try
         set(p_debug(3),'xdata',x_debug-0.5);
     end
     obj.setpoint = target;
-    obj.tuning = false;
 catch err
     obj.setpoint = NaN;
+    obj.serial.TrackMode = 'off';
     obj.tuning = false;
     rethrow(err)
 end
+obj.serial.TrackMode = 'off';
 obj.tuning = false;
 
 end
