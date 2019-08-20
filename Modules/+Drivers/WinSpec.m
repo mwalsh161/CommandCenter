@@ -325,7 +325,7 @@ classdef WinSpec < Modules.Driver
                     plot(ax,specloc(i)*[1 1],get(ax,'ylim'),'--k');
                     leg = num2str(laserloc(1:i),'%g THz,');
                     leg(end) = []; % Remove trailing comma
-                    legend(plt,strsplit(leg)); drawnow;
+                    legend(plt,strsplit(leg,',')); drawnow;
                 end
                 hold(ax,'off')
                 fit_type = fittype('a/(x-b)+c');

@@ -263,7 +263,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function blackout(obj)
             if obj.diode_on
-                obj.diode_on = false;
+                obj.deactivate;
             end
         end
         function val = getFrequency(obj)
