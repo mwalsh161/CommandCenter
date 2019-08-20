@@ -36,6 +36,9 @@ l1 = likelihood( ref1, sample);
 
 assert( l0~=0 && l1~=0, 'Likelihood of both samples is 0 to machine precision. This might indicate that your sample does not come from either distribution.')
 
+% prior odds ratio
+lambda_critical = p0/(1-p0);
+
 % Calculate likelihood ratio
 if l0==0 % catch case where ref 0 likelihood is 0 and avoid /0 error
     estimate = 1.;
@@ -47,9 +50,6 @@ else
     estimate = lambda/lambda_critical;
     estimate = estimate/(1+estimate);
 end
-
-% prior odds ratio
-lambda_critical = p0/(1-p0);
 
 % calculate decision
 decision = (lambda > lambda_critical);
