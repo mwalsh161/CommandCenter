@@ -119,7 +119,7 @@ if p.debug
             c = 'r';
         end
         h(i) = circle(honedC(i,:),honedR(i),'EdgeColor',c,...
-            'UserData',struct('c',labC(i,:),'r',labR(i),'minRused',used_min_radius(i),'outstruct',outstruct(i)),...
+            'UserData',struct('c',labC(i,:),'r',labR(i),'minRused',used_min_radius(i),'outstruct',outstruct(i),'distMoved',sqrt(sum((honedC(i,:) - labC(i,:)).^2,2))),...
             'ButtonDownFcn',{@more_data,x,y,imcomp,n_radius_crop,p.min_radius});
     end
     % Seemst to be bug where FaceColor needs to be RENDERED then unset
@@ -185,13 +185,14 @@ if newf % Only do once in case user prefers something else
 end
 colormap(f,'gray');
 ax(1) = subplot(1,4,1,'parent',f); hold(ax(1),'on');
-surf(ax(1),xsurf,ysurf,imcrop,'EdgeColor','none','facealpha',0.75);
+surf(ax(1),xsurf,ysurf,imcrop,'EdgeColor','none','facealpha',0.5);
+scatter3(ax(1),xsurf(:),ysurf(:),imcrop(:),'filled');
 surf(ax(1),xsurfDense,ysurfDense,imfit_dense,'FaceColor','r','EdgeColor','none','facealpha',0.25);
 view(ax(1),22.5,45);
 xlabel(ax(1),'x'); ylabel(ax(1),'y');
 axis(ax(1),'square');axis(ax(1),'tight');
 if dat.minRused
-    title(ax(1),sprintf('Inverted Fit (using min radius: %g)',min_radius));
+    title(ax(1),sprintf('Fit on Inverted Image\nMoved %.2f (using min radius: %g)',dat.distMoved,min_radius));
 else
     title(ax(1),'Inverted Fit');
 end
