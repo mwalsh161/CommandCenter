@@ -160,7 +160,7 @@ try
                             [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
                             if ~all(isnan([dx,dy,dz]))
                                 obj.fatal_flag = true;
-                                error('Fatal: Tracker should not have tracked on first track of experiment!');
+                                error('Fatal: Tracker called in non-track mode, but still tracked.');
                             end
                             obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                         end
