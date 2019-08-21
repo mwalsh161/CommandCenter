@@ -61,7 +61,7 @@ classdef QR
             %           in the QR coords. This should be same as image if calibrated well.
             %       npoints: n points used to calculate tform. Always zero
             %           for this function. Reserved for enhancedReader.
-            %   f_debug: either empty gobjects or the figure handle if debug is true
+            %   f_debug: either gobjects(1) or the figure handle if debug is true
             %   *qrInfo includes:
             %       row, col and version: the encoded QR info. If error is
             %           not empty, row and col are empty doubles and
@@ -103,10 +103,11 @@ classdef QR
             ax_debug = gobjects(1,4);
             f_debug = gobjects(1);
             if p.debug
-                f_debug = figure('name','QR.reader','units','normalized',...
-                    'position',[0 0 1 1]);
+                f_debug = UseFigure('QR.reader','name','QR.reader',...
+                    'units','normalized','position',[0 0 1 1],true);
+                figure(f_debug);
                 dcm_obj = datacursormode(f_debug);
-                set(dcm_obj,'UpdateFcn',@Base.QR.tooltip_fn)
+                set(dcm_obj,'UpdateFcn',@Base.QR.tooltip_fn);
                 colormap(f_debug,'gray');
                 for i = 1:length(ax_debug)
                     ax_debug(i) = subplot(2,2,i,'parent',f_debug);
@@ -298,7 +299,7 @@ classdef QR
                     histogram(ax,obj.UserData.debug.pxsVals(row,col,:),...
                         'FaceColor',[0.8500 0.3250 0.0980],'EdgeColor',[0.8500 0.3250 0.0980]);
                     xlabel(ax,'Pixel Value');
-                    %legend(ax,{'Ref1','
+                    legend(ax,{'Ref1','Ref0','Bit'},'Location','northwest');
                     figure(f);
                 else
                     delete(f);
@@ -315,7 +316,7 @@ classdef QR
         [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
         [row,col,version,legacy_error] = analyze(code)
         
-        [readInfo,debug] = hone(im,readInfo)
+        [readInfo,f_debug] = hone(im,readInfo,varargin)
     end
     
 end
