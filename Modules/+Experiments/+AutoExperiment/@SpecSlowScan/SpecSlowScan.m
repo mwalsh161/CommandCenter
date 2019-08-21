@@ -20,8 +20,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.experiments = [Experiments.Spectrum.instance,...
                                 Experiments.SlowScan.Open.instance,...
                                 Experiments.SlowScan.Closed.instance];
-            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak'},obj.prefs];
-            obj.show_prefs = [{'freq_range','SpecCalExposure','SpecPeakThresh','PointsPerPeak','StdsPerPeak'},obj.show_prefs];
+            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
+            obj.show_prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.show_prefs];
             obj.loadPrefs;
         end
     end
