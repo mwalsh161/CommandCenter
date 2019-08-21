@@ -98,8 +98,6 @@ f_debug = gobjects(1);
 if p.debug
     used_min_radius = p.min_radius > sampleR;
     f_debug = UseFigure('QR.hone','name','QR.hone',true); figure(f_debug);
-    dcm_obj = datacursormode(f_debug);
-    set(dcm_obj,'UpdateFcn',@Base.QR.tooltip_fn);
     colormap(f_debug,'gray');
     ax_debug = axes('parent',f_debug);
     imagesc(ax_debug(1),xlim,ylim,im);
