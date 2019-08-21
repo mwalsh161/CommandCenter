@@ -67,6 +67,8 @@ f_debug = gobjects(1);
 if p.debug
     f_debug = UseFigure('QR.reader','name','QR.reader',...
         'units','normalized','position',[0 0 1 1],true);
+    iptPointerManager(f_debug, 'enable');
+    addlistener(f_debug,'ObjectBeingDestroyed',@(~,~)delete(findall(0,'tag','Base.QR.reader_bit')));
     figure(f_debug);
     colormap(f_debug,'gray');
     for i = 1:length(ax_debug)
@@ -138,7 +140,9 @@ for i = 1:nQRs
     end
     if p.debug
         debug.posPxsIm = debug.posPxs*conv; % relative coords; thus only scale matters
-        Base.QR.plotQRinfo(ax_debug(1),qrInfo(i),debug);
+        handles = Base.QR.plotQRinfo(ax_debug(1),qrInfo(i),debug);
+        iptSetPointerBehavior(handles.bits, @(hFigure, ~)set(hFigure, 'Pointer', 'cross'));
+        handles.bits.ButtonDownFcn = @more_data;
         plot(ax_debug(2),markersPx(:,1),markersPx(:,2),[markers_c 'o'],'LineWidth',2);
     end
 end
@@ -169,31 +173,23 @@ readInfo = struct('qrInfo',qrInfo,'tform',im2QRT,'std',err,'npoints',npoints);
 end
 
 
-function txt = tooltip_fn(~,event_obj)
-pos = get(event_obj,'Position');
-txt = {['X: ',num2str(pos(1))],...
-    ['Y: ',num2str(pos(2))]};
-obj = event_obj.Target;
-f = UseFigure(mfilename,'name','QR Pixel Values',true);
-if isa(obj,'matlab.graphics.chart.primitive.Scatter')
-    I = get(event_obj, 'DataIndex');
-    estimate = obj.CData(I);
-    txt{end+1} = ['Bit Estimate: ',num2str(estimate,'%0.4f')];
-    if isfield(obj.UserData,'debug') && isfield(obj.UserData.debug,'pxsVals')
-        ax = axes('parent',f); hold(ax,'on')
-        histogram(ax,obj.UserData.debug.ref1,'FaceColor','k','EdgeColor','k');
-        histogram(ax,obj.UserData.debug.ref0,'FaceColor',[0.7 0.7 0.7],'EdgeColor','k');
-        sz = size(obj.UserData.debug.pxsVals);
-        [col,row] = ind2sub(sz(1:2),I); % Take into account transpose
-        histogram(ax,obj.UserData.debug.pxsVals(row,col,:),...
-            'FaceColor',[0.8500 0.3250 0.0980],'EdgeColor',[0.8500 0.3250 0.0980]);
-        xlabel(ax,'Pixel Value');
-        legend(ax,{'Ref1','Ref0','Bit'},'Location','northwest');
-        figure(f);
-    else
-        delete(f);
-    end
-else
-    delete(f);
+function more_data(obj,eventdata)
+if eventdata.Button == 1
+[~,D] = knnsearch(eventdata.IntersectionPoint(1:2),[obj.XData; obj.YData]','K',1);
+[~,I] = min(D);
+
+f = UseFigure('Base.QR.reader_bit','name','QR Pixel Values',true);
+estimate = obj.CData(I);
+ax = axes('parent',f); hold(ax,'on')
+title(ax,sprintf('Bit Estimate: %g\n|Value - Estimate|: %g',estimate,abs(round(estimate)-estimate)));
+histogram(ax,obj.UserData.debug.ref1,'FaceColor','k','EdgeColor','k');
+histogram(ax,obj.UserData.debug.ref0,'FaceColor',[0.7 0.7 0.7],'EdgeColor','k');
+sz = size(obj.UserData.debug.pxsVals);
+[col,row] = ind2sub(sz(1:2),I); % Take into account transpose
+histogram(ax,obj.UserData.debug.pxsVals(row,col,:),...
+    'FaceColor',[0.8500 0.3250 0.0980],'EdgeColor',[0.8500 0.3250 0.0980]);
+xlabel(ax,'Pixel Value');
+legend(ax,{'Ref1','Ref0','Bit'},'Location','northwest');
+figure(f);
 end
 end

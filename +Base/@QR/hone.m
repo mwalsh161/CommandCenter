@@ -162,7 +162,8 @@ h = rectangle('Position',[px py d d],'Curvature',[1,1],...
     varargin{:});
 end
 
-function more_data(obj,~,x,y,im,n_radius_crop,min_radius)
+function more_data(obj,eventdata,x,y,im,n_radius_crop,min_radius)
+if eventdata.Button == 1
 dat = obj.UserData;
 xIND = NaN(1,2); yIND = NaN(1,2);
 [~,xIND(1)] = min(abs(x-(dat.c(1)-dat.r*n_radius_crop)));
@@ -203,10 +204,11 @@ set(ax,'ydir','normal');
 
 ax = subplot(1,4,[3 4],'parent',f,'visible','off');
 ax.Position(1) = 1/2;
-summary = [strsplit(evalc('disp(dat.outstruct.f)'),newline) {'    '}];
+summary = [strsplit(evalc('disp(dat.outstruct.f)'),newline)];
 summary = [summary strsplit(evalc('disp(dat.outstruct.gof)'),newline)];
 summary = [summary strsplit(evalc('disp(dat.outstruct.output)'),newline)];
 summary = cellfun(@(a)a(4:end),summary,'uniformoutput',false);
 text(ax,0,0.5,strjoin(summary,newline),'fontname','fixedwidth');
 figure(f);
+end
 end
