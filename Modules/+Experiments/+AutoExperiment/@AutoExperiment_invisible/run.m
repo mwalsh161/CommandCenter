@@ -156,6 +156,13 @@ try
                                 error('Fatal: Tracker returned NaN value during tracking routine! A value of 0 should be returned if no update is necessary.');
                             end
                             dP = dP + [dx, dy, dz];
+                        else % Update metric
+                            [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,false);
+                            if ~all(isnan([dx,dy,dz]))
+                                obj.fatal_flag = true;
+                                error('Fatal: Tracker should not have tracked on first track of experiment!');
+                            end
+                            obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                         end
                     catch param_err
                         if obj.fatal_flag
