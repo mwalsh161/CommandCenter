@@ -4,6 +4,7 @@ function varargout = analyze(data,varargin)
 %       data: data produced by GetData method
 %       [Analysis]: An analysis struct produced by this function
 %       [FitType]: "gauss" or "lorentz" (default "gauss")
+%       [inds]: array of indices to mask full dataset (default: all data)
 %       [viewonly]: do not begin uifitpeaks on the axes
 %   Outputs: None (see below)
 %   Interactivity:
@@ -39,12 +40,14 @@ function varargout = analyze(data,varargin)
 p = inputParser();
 addParameter(p,'Analysis',[],@isstruct);
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numeric'},{'vector'}));
 addParameter(p,'viewonly',false,@islogical);
 parse(p,varargin{:});
 
 prefs = data.meta.prefs;
 data = data.data;
 im = data.image.image;
+sites = data.sites(p.Results.inds);
 
 fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
@@ -53,7 +56,7 @@ uimenu(file_menu,'Text','Export Analysis Data','callback',@export_data,'separato
 ax = subplot(1,5,[1 2],'parent',fig,'tag','SpatialImageAx');
 hold(ax,'on');
 imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
-positions = reshape([data.sites.position],3,[]);
+positions = reshape([sites.position],length(data.sites(1).position),[]);
 sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite,'tag','sites');
 sc.UserData.fig = fig;
 pos = scatter(NaN,NaN,'r+');
@@ -70,8 +73,9 @@ fig.UserData.new_data = false;
 fig.UserData.viewonly = p.Results.viewonly;
 fig.UserData.FitType = p.Results.FitType;
 fig.UserData.wavenm_range = 299792./prefs.freq_range; % Used when plotting
+fig.UserData.inds = p.Results.inds;
 fig.UserData.index = 1;
-fig.UserData.sites = data.sites;
+fig.UserData.sites = sites;
 fig.UserData.ax = ax;
 fig.UserData.pos = pos;
 fig.UserData.busy = false;
@@ -79,11 +83,12 @@ if isstruct(p.Results.Analysis)
     fig.UserData.AutoExperiment_analysis = p.Results.Analysis;
 else
     fig.UserData.AutoExperiment_analysis = struct(...
-            'fit',cell(length(data.sites),3),...
+            'fit',cell(length(sites),3),...
             'amplitudes',NaN,...
             'widths',NaN,...
             'locations',NaN,...
-            'background',NaN);
+            'background',NaN,...
+            'index',NaN);
 end
 % Link UI control
 fig.KeyPressFcn = @cycleSite;
@@ -266,12 +271,14 @@ for i = 2:4 % Go through each data axis
         if strcmpi(fig.UserData.FitType,'gauss')
             dat(i-1).widths = dat(i-1).widths*2*sqrt(2*log(2));
         end
+        dat(i-1).index = fig.UserData.inds(fig.UserData.index);
     else
         dat(i-1).fit = [];
         dat(i-1).amplitudes = [];
         dat(i-1).locations = [];
         dat(i-1).widths = [];
         dat(i-1).background = [];
+        dat(i-1).index = [];
     end
 end
 if ~isempty(dat)

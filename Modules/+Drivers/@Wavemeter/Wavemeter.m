@@ -130,6 +130,8 @@ classdef Wavemeter < Modules.Driver
                     msg = 'Low signal';
                 elseif output == -2
                     msg = 'High signal';
+                elseif output == -3
+                    msg = 'Out of Range';
                 else
                     msg = sprintf('Unknown error code: %g',output);
                 end
