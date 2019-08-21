@@ -191,9 +191,9 @@ view(ax(1),22.5,45);
 xlabel(ax(1),'x'); ylabel(ax(1),'y');
 axis(ax(1),'square');axis(ax(1),'tight');
 if dat.minRused
-    title(ax(1),sprintf('Fit on Inverted Image\nMoved %.2f (using min radius: %g)',dat.distMoved,min_radius));
+    title(ax(1),sprintf('Fit to Inverted Image\nMoved %.2f (using min radius: %g)',dat.distMoved,min_radius));
 else
-    title(ax(1),'Inverted Fit');
+    title(ax(1),'Fit to Inverted Image');
 end
 ax(2) = subplot(1,4,2,'parent',f);
 imagesc(ax(2),x(xIND),y(yIND),imcrop-imfit);
