@@ -282,21 +282,19 @@ classdef SmartImage < handle
         end
         % Callbacks
         function popout(obj,varargin)
+            % handle saving (need to get DBManager)
+            [~,fig] = gcbo;
+            managers = fig.UserData;
             % Need to move handles to new object
             newFig = figure('numbertitle','off','HandleVisibility','off');
             set(newFig,'name',sprintf('SmartImage %i',newFig.Number))
             NewAx = axes('parent',newFig);
             colormap(newFig,colormap(obj.ax))
-            im = Base.SmartImage(obj.info,NewAx,obj.stage,obj.imager);
-            % handle saving (need to get DBManager)
-            [~,fig] = gcbo;
-            if strcmp(fig.Name,'CommandCenter')
-                Managers = fig.UserData;  % Legacy :(
-            else
-                Managers = fig.UserData.Managers;
-            end
-            newFig.UserData.Managers = Managers; % For popout in new figure
-            db = Managers.DB;
+            Base.SmartImage(obj.info,NewAx,managers.Stages,...
+                                           managers.Sources,...
+                                           managers.Imaging);
+            newFig.UserData.Managers = managers; % For popout in new figure
+            db = managers.DB;
             delete(findall(newFig,'tag','figMenuFileSaveAs'))
             set(findall(newFig,'tag','figMenuFileSave'),'callback',@(hObj,eventdata)db.imSave(false,hObj,eventdata))
             set(findall(newFig,'tag','Standard.SaveFigure'),'ClickedCallback',@(hObj,eventdata)db.imSave(false,hObj,eventdata))
