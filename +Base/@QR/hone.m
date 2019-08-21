@@ -50,7 +50,7 @@ sampleR = NaN(3+2*Base.QR.NSecondary,nQRs);
 for i = 1:size(sampleQRind,1)
     [c,r] = Base.QR.BasicBlock();
     sampleC(:,:,i) = c + sampleQRind(i,:)*Base.QR.spacing_between;
-    sampleR(:,i) = max(p.min_radius,r);
+    sampleR(:,i) = r;
 end
 sampleC = reshape(shiftdim(sampleC,1),2,[])'; % See logic in Base.QR.reader
 sampleR = reshape(shiftdim(sampleR,1),1,[])';
@@ -60,7 +60,7 @@ sampleR = sampleR(in);
 
 % Try to fit circles with high accuracy using the tform for an initial guess
 labC = transformPointsInverse(readInfo.tform,sampleC);
-labR = sampleR/scale;
+labR = max(p.min_radius,sampleR)/scale;  % Take into account min_radius when going to lab units
 honedC = NaN(size(labC));
 honedR = NaN(size(labR));
 outstruct = struct('f',[],'gof',[],'output',cell(size(labR)));
@@ -88,13 +88,15 @@ parfor (i = 1:size(labC,1), nworkers)
                                    imcomp(yIND(1):yIND(2),xIND(1):xIND(2)),labR(i)/2);
 end
 % moved less than object radius (QR coords)
-stayedclose = sqrt(sum((honedC - labC).^2,2)) < sampleR*p.r_move_thresh;
+labRact = sampleR/scale; % Not including the min_radius
+stayedclose = sqrt(sum((honedC - labC).^2,2)) < labRact*p.r_move_thresh;
 % decent rsquare (*depending on resolution, circles could have flat top*)
 adjrsquared = arrayfun(@(a)a.gof.adjrsquare,outstruct);
 goodfit = adjrsquared > p.goodfit_thresh;
 
 f_debug = gobjects(1);
 if p.debug
+    used_min_radius = p.min_radius > sampleR;
     f_debug = UseFigure('QR.hone','name','QR.hone',true); figure(f_debug);
     dcm_obj = datacursormode(f_debug);
     set(dcm_obj,'UpdateFcn',@Base.QR.tooltip_fn);
@@ -117,7 +119,7 @@ if p.debug
             c = 'r';
         end
         h(i) = circle(honedC(i,:),honedR(i),'EdgeColor',c,...
-            'UserData',struct('c',labC(i,:),'r',labR(i),'outstruct',outstruct(i)),...
+            'UserData',struct('c',labC(i,:),'r',labR(i),'minRused',used_min_radius(i),'outstruct',outstruct(i)),...
             'ButtonDownFcn',{@more_data,x,y,imcomp,n_radius_crop,p.min_radius});
     end
     % Seemst to be bug where FaceColor needs to be RENDERED then unset
@@ -188,7 +190,11 @@ surf(ax(1),xsurfDense,ysurfDense,imfit_dense,'FaceColor','r','EdgeColor','none',
 view(ax(1),22.5,45);
 xlabel(ax(1),'x'); ylabel(ax(1),'y');
 axis(ax(1),'square');axis(ax(1),'tight');
-title(ax(1),sprintf('Inverted Fit (Note: min radius: %g)',min_radius))
+if dat.minRused
+    title(ax(1),sprintf('Inverted Fit (using min radius: %g)',min_radius));
+else
+    title(ax(1),'Inverted Fit');
+end
 ax(2) = subplot(1,4,2,'parent',f);
 imagesc(ax(2),x(xIND),y(yIND),imcrop-imfit);
 colorbar(ax(2));
