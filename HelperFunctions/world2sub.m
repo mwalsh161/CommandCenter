@@ -1,5 +1,5 @@
 function [I,J] = world2sub(im,x,y)
-%WORLD2SUB Convert world coordinate to row and column subscripts
+%WORLD2SUB Convert world coordinates to row and column subscripts
 %   INPUTS:
 %       im: either a smartimage struct or a MATLAB image
 %       x: x world coordinate
@@ -8,7 +8,8 @@ function [I,J] = world2sub(im,x,y)
 %       I: closest row index associated to y world coord
 %       J: closest column index associated to x world coord
 %
-%   Will error if point (x, y) is outside image world coordinates
+%   Will error if point (x, y) is outside image world coordinates and if x
+%   and y aren't the same size.
 %
 %   See also IND2SUB, SUB2IND, SUB2WORLD.
 
@@ -24,12 +25,16 @@ else
     error('First argument must be a MATLAB image or a smartimage struct with ROI and image defined.')
 end
 imsize = size(cdat);
-assert(xlim(1) <= x && xlim(2) >= x, 'World X coordinate must be within image limits.')
-assert(ylim(1) <= y && ylim(2) >= y, 'World Y coordinate must be within image limits.')
+vecsize = size(x);
+assert(isequal(vecsize,size(y)),'x and y vectors must be of the same size.')
+assert(all(xlim(1) <= x) && all(xlim(2) >= x), 'World X coordinate must be within image limits.')
+assert(all(ylim(1) <= y) && all(ylim(2) >= y), 'World Y coordinate must be within image limits.')
 
 x_im = linspace(xlim(1),xlim(2),imsize(2));
 y_im = linspace(ylim(1),ylim(2),imsize(1));
 
-[~,I] = min(abs(y_im - y));
-[~,J] = min(abs(x_im - x));
+[~,I] = min(abs(y_im - y(:)),[],2);
+[~,J] = min(abs(x_im - x(:)),[],2);
+I = reshape(I,vecsize);
+J = reshape(J,vecsize);
 end
