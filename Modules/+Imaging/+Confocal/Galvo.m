@@ -104,7 +104,8 @@ classdef Galvo < Modules.Imaging
             end
         end
         function stopVideo(obj)
-            if strcmp(obj.galvos.taskPulseTrain.status,'Started')
+            if isvalid(obj.galvos.taskPulseTrain) && ...
+                strcmp(obj.galvos.taskPulseTrain.status,'Started')
                 obj.galvos.AbortScan;
             end
             obj.continuous = false;
