@@ -85,14 +85,11 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         % the below pre-run functions will run immediately before the run
         % method of the corresponding experiment each time it is called
         function PreSpec(obj,spec_experiment)
-            % Can't assume these are the same lasers for exp 2 and 3
+            % PreRun assures same resLaser for open/closed
             obj.experiments(2).resLaser.off;
-            obj.experiments(3).resLaser.off;
             obj.experiments(2).repumpLaser.off;
-            obj.experiments(3).repumpLaser.off;
             obj.imaging_source.on;
             obj.experiments(2).resLaser.SpecSafeMode(obj.freq_range);
-            obj.experiments(3).resLaser.SpecSafeMode(obj.freq_range);
         end
         function PreSlow(obj,slow_experiment)
             % turn off spectrometer laser before PLE
@@ -157,15 +154,20 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             sites = Experiments.AutoExperiment.AutoExperiment_invisible.SiteFinder_Confocal(managers,obj.imaging_source,obj.site_selection);
         end
         function PreRun(obj,status,managers,ax)
-            %before running, calibrate spectrometer
+            %before running, calibrate spectrometer and check resLaser
+            status.String = 'Checking spectrometer and resLaser';
             specH = obj.experiments(1).WinSpec;
             laserH = obj.experiments(2).resLaser;
+            assert(~isempty(laserH),'No laser selected for SlowScan experiment(s)!');
+            assert(isequal(laserH,obj.experiments(3).resLaser),...
+                'Currently, SpecSlowScan only supports using the same resLaser for SlowScan.Open and SlowScan.Closed.');
+            laserH.arm; % Go through arming now to make sure things are set at the beginning (e.g. calibration if it exists)
             managers.Path.select_path('spectrometer'); %this may be unnecessary
             calibration = specH.calibration(laserH,obj.freq_range,obj.SpecCalExposure,ax);
             obj.nm2THz = calibration.nm2THz; %grab the calibration function
             obj.meta.nm2THz = obj.nm2THz; % And add to metadata
             
-            %set SlowScan Open to always use Tune Coarse
+            % Set SlowScan.Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;
         end
     end
