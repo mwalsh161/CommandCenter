@@ -5,6 +5,8 @@ classdef DBManager < Base.Manager
     %       data.origin: The module whose data is being saved
     %       data.saved_by: The soon-to-be executing Module.Database instance
     %       data.saved_at: MATLAB datetime object
+    %       [data|image]: data (Modules.Experiment) or image
+    %          (Modules.Imaging) from origin module
     %   It is also worth noting that the notes from CC are passed as an
     %   argument to the Module.Database rather than a data field.
     
