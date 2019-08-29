@@ -249,7 +249,7 @@ classdef AutoSave < Modules.Database
         end
         
         % Settings and Callbacks
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             spacing = 2.25;
             num_lines = 8;
             line = 1;

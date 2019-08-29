@@ -96,7 +96,7 @@ classdef MAX302piezos < Modules.Stage
         end
         
         % Settings and Callback
-        function settings(obj,panel)
+        function settings(obj,panel,~)
         end
     end
     

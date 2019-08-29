@@ -138,7 +138,7 @@ classdef MAX302motors < Modules.Stage
         end
         
         % Settings and Callback
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             settings@Modules.Stage(obj,panelH); % Add in prefs
             % Adjust for pref space usage
             start = 0;

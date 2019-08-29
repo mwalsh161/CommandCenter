@@ -112,7 +112,7 @@ classdef Lithography < Modules.Experiment
         end
         
         % Settings and Callbacks
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             spacing = 2.25;
             num_lines = 1;
             line = 1;

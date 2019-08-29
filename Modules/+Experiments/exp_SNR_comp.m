@@ -82,7 +82,7 @@ classdef exp_SNR_comp < Modules.Experiment
             end
         end
         
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             
         end
     end

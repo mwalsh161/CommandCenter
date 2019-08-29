@@ -185,7 +185,7 @@ classdef CheckHSQ < Modules.Experiment
             end
         end
         
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             spacing = 1.5;
             num_lines = 3;
             line = 1;

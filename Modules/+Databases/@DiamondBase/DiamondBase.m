@@ -215,7 +215,7 @@ classdef DiamondBase < Modules.Database
         end
         
         % Settings and callback methods
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             spacing = 2.25;
             num_lines = 2;
             line = 1;

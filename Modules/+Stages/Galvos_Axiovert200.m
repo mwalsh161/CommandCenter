@@ -61,7 +61,7 @@ classdef Galvos_Axiovert200 < Modules.Stage
             % Action is basically instant!
         end
         
-        function settings(obj,panelH)
+        function settings(obj,panelH,~)
             
         end
     end
