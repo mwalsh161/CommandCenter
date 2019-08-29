@@ -1,6 +1,12 @@
 classdef DBManager < Base.Manager
-    %DBMANAGER Summary of this class goes here
-    %   Detailed explanation goes here
+    %DBMANAGER Responsible for handling save callbacks
+    %   The methods here prepare a data struct with a few default fields
+    %   before passing to a Modules.Database instance:
+    %       data.origin: The module whose data is being saved
+    %       data.saved_by: The soon-to-be executing Module.Database instance
+    %       data.saved_at: MATLAB datetime object
+    %   It is also worth noting that the notes from CC are passed as an
+    %   argument to the Module.Database rather than a data field.
     
     properties
         use_git_info = true;
@@ -56,11 +62,16 @@ classdef DBManager < Base.Manager
                 % If is necessary! Otherwise always inactive when new mod added.
                 obj.disable;
                 notes = strjoin(cellstr(obj.handles.notes.String),newline);
+                saved_datetime = datetime; % So it will be same for all
+                target_module = class(module);
                 for i = 1:numel(obj.modules)
-                    active_module = obj.modules{i};
-                    if auto==active_module.autosave
+                    active_DBmodule = obj.modules{i};
+                    if auto==active_DBmodule.autosave
                         try
-                            class_str = class(active_module);
+                            DBclass_str = class(active_DBmodule);
+                            data.origin = target_module; % The module whose data is being saved
+                            data.saved_by = DBclass_str;   % Module.Database
+                            data.saved_at = saved_datetime;
                             try % If using git, append all the info of this version
                                 gitPath = mfilename('fullpath');
                                 gitPath = fileparts(gitPath); gitPath = fileparts(gitPath); gitPath = fileparts(gitPath);
@@ -78,8 +89,8 @@ classdef DBManager < Base.Manager
                             catch
                                 warning('Computer info inspection failed!')
                             end
-                            obj.sandboxed_function({active_module,type},data,ax,module,notes);
-                            obj.log('%s to <a href="matlab: opentoline(%s,1)">%s</a>',type,which(class_str),class_str)
+                            obj.sandboxed_function({active_DBmodule,type},data,ax,module,notes);
+                            obj.log('%s to <a href="matlab: opentoline(%s,1)">%s</a>',type,which(DBclass_str),DBclass_str)
                         catch err
                             obj.error('Some saves failed. Should never get here!! Seek help at commandcenter-dev.slack.com\n%s',err.message)
                         end
