@@ -62,8 +62,10 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
         function val = clean(obj,val)
         end
-        function ui = get_UI(obj,width_px)
+        function ui = get_UI(obj,parent,width_px)
             % Prepare an appropriate UI container
+            % Only need to worry about width
+            %   height taken care of in Base.Module.settings
         end
     end
 

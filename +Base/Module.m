@@ -261,7 +261,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function settings(obj,panelH,pad)
             % panelH: handle to the MATLAB panel
             % pad: vertical distance in pixels to leave between UI elements
-            
+
             position = getpixelposition(panelH);
             widthPx = position(3);
 
@@ -273,8 +273,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 readonly_settings = obj.readonly_prefs;
             end
 
+            panelH_height = pad;
             setting_names = obj.get_settings();
-            for i = 1:length(settings_names)
+            % Build up, starting from end to beginning
+            for i = length(settings_names):-1:1
                 mp = obj.get_meta_pref(setting_names{i});
                 if isempty(mp.name) % Default to setting (i.e. property) name
                     mp.name = strrep(setting_names{i},'_',' ');
@@ -283,9 +285,9 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
                 % Make UI element and add to panelH
-                ui = mp.get_UI(mp,widthPx);
-                height = ui.Extent(4);
-
+                ui = mp.get_UI(mp,panelH,widthPx);
+                ui.Position(2) = panelH_height;
+                panelH_height = panelH_height + ui.Extent(4) + pad;
             end
         end
     end
