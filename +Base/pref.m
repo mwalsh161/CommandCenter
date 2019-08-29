@@ -1,5 +1,12 @@
-classdef pref % value class
+classdef pref < matlab.mixin.Heterogeneous % value class
     %PREF Superclass for pref properties.
+    %    pref(default,property1,value1,property2,value2,...);
+    %    pref(property1,value1,...,'default',DEFAULT_VALUE,...);
+    %    pref(property1,value1,property2,value2,...); default will then
+    %       be up to the subclass
+    %    NOTE: empty values are ignored unless they are the default value;
+    %       e.g. subclass('prop1',[]) is equivalent to subclass()
+    %
     %   AVAILABLE PROPERTIES TO SET (Defined here):
     %       default (or as first argument)
     %       name - provide more context
@@ -12,14 +19,6 @@ classdef pref % value class
     %       custom_clean*
     %   * These properties' values are function handles, or if you want a class
     %   method bound to your instance, specify the string names of the methods.
-    %
-    % Default call syntax:
-    %    subclass(default,property1,value1,property2,value2,...);
-    %    subclass(property1,value1,...,'default',DEFAULT_VALUE,...);
-    %    subclass(property1,value1,property2,value2,...); default will then
-    %       be up to the subclass
-    %    NOTE: empty values are ignored unless they are the default value;
-    %       e.g. subclass('prop1',[]) is equivalent to subclass()
     %
     % The syntax for the custom methods:
     %   value = set(value)
@@ -63,7 +62,7 @@ classdef pref % value class
         end
         function val = clean(obj,val)
         end
-        function ui = get_UI(obj)
+        function ui = get_UI(obj,width_px)
             % Prepare an appropriate UI container
         end
     end
@@ -72,12 +71,10 @@ classdef pref % value class
         function obj = init(obj,varargin)
             % Process input (subclasses should use set methods to validate)
             p = inputParser;
-            % Go through all public properties
-            mc = metaclass(obj);
-            props = mc.PropertyList;
-            props = props(and(ismember({props.SetAccess},{'immutable','public'}),...
-                              ismember({props.GetAccess},{'immutable','public'})));
-            props = props(~ismember({props.Name},{'value','default'}));
+            % Go through all public properties (removing value and default)
+            props = properties(obj);
+            props = props(~ismember(props,{'value','default'}));
+            nprops = length(props);
             % If user supplied odd number of inputs, then we expect the
             % call syntax to be: subclass(default,property1,value1,...);
             if mod(length(varargin),2)
@@ -88,17 +85,17 @@ classdef pref % value class
                 default_in_parser = true;
                 addParameter(p,'default',obj.default);
             end
-            for i = 1:length(props)
-                addParameter(p,props(i).Name,[]);
+            for i = 1:nprops
+                addParameter(p,props{i},[]);
             end
             parse(p,varargin{:});
             if default_in_parser
                 default = p.Results.default;
             end
             % Assign non-empty props
-            for i = 1:length(props)
-                if ~isempty(p.Results.(props(i).Name))
-                    obj.(props(i).Name) = p.Results.(props(i).Name);
+            for i = 1:nprops
+                if ~isempty(p.Results.(props{i}))
+                    obj.(props{i}) = p.Results.(props{i});
                 end
             end
             % Finally assign default (dont ignore if empty, because

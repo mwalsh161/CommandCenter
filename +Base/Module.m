@@ -238,6 +238,17 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             task = '';
         end
         
+        function settings = get_settings(obj)
+            % Override to change how settings are acquired
+            % Must output cell array of strings
+            % Order matters; first is on top, last is at the bottom.
+            if ismember('show_prefs',props)
+                settings = obj.show_prefs;
+            elseif ismember('prefs',props)
+                settings = obj.prefs;
+            end
+        end
+
         % Adds custom settings to main GUI.
         %   This can be a simple settings button that opens a new GUI!
         %   Callbacks must be taken care of in the module.
@@ -247,28 +258,34 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         %   your settings, if you aren't careful, you will have an
         %   inconsitency and confusion will follow.
         %   See documentation for how the default settings works below
-        function varargout = settings(obj,panelH)
+        function varargout = settings(obj,panelH,pad)
             % varargout is useful if this is called from a subclass
-            %     out = handle to uicontrolgroup
+            varargout{1} = panelH;
+            position = getpixelposition(panelH);
+            widthPx = position(3);
 
-            all_props = properties(obj);
-            for i = 1:length(all_props)
-                mp = obj.get_meta_pref(all_props{i});
-
+            % Establish legacy read_only settings
+            readonly_settings = {};
+            if isproperty(obj,'readonly_prefs')
+                warning(['"readonly_prefs" will override any class-based setting.',...
+                        'Note that it is legacy and should be updated to readonly property in class-based prefs.'])
+                readonly_settings = obj.readonly_prefs;
             end
-            % For backwards compatibility:
-            if ismember('show_prefs',all_props)
-                prop_names = obj.show_prefs;
-            elseif ismember('prefs',all_props)
-                prop_names = obj.prefs;
-            else % Nothing to do here
-                if nargout > 0
-                    varargout{1} = [];
+
+            setting_names = obj.get_settings();
+            for i = 1:length(settings_names)
+                mp = obj.get_meta_pref(setting_names{i});
+                if isempty(mp.name) % Default to setting (i.e. property) name
+                    mp.name = strrep(setting_names{i},'_',' ');
                 end
-                return
-            end
+                if ismember(setting_names{i},readonly_settings)
+                    mp.readonly = true; % Allowing readonly_prefs to override
+                end
+                % Make UI element and add to panelH
+                ui = mp.get_UI(mp,widthPx);
+                height = ui.Extent(4);
 
-            
+            end
         end
     end
 end
