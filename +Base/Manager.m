@@ -20,6 +20,9 @@ classdef Manager < handle
     %   A manager can subclass this as a "simple" manager as well in which
     %   all module related methods will error
     
+    properties
+        settings_vertical_pad_px = 5; % pixels between setting UIs
+    end
     properties(Access=protected)
         no_module_str = 'No Modules Loaded';
     end
@@ -243,7 +246,8 @@ classdef Manager < handle
                 temp = figure('visible','off');
                 settings_panel = uipanel(temp,'BorderType','None',...
                     'units','characters','position',[0 0 width 0]);
-                obj.sandboxed_function({obj.active_module,'settings'},settings_panel);
+                obj.sandboxed_function({obj.active_module,'settings'},...
+                        settings_panel,obj.settings_vertical_pad_px);
                 % Make sure width wasn't changed
                 set(settings_panel,'units','characters')
                 w = get(settings_panel,'position');
