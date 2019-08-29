@@ -258,9 +258,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         %   your settings, if you aren't careful, you will have an
         %   inconsitency and confusion will follow.
         %   See documentation for how the default settings works below
-        function varargout = settings(obj,panelH,pad)
-            % varargout is useful if this is called from a subclass
-            varargout{1} = panelH;
+        function settings(obj,panelH,pad)
+            % panelH: handle to the MATLAB panel
+            % pad: vertical distance in pixels to leave between UI elements
+            
             position = getpixelposition(panelH);
             widthPx = position(3);
 
