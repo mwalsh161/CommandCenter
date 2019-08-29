@@ -1,6 +1,15 @@
 classdef pref_handler < handle
-    %MODULE Summary of this class goes here
-    %   Detailed explanation goes here
+    %PREF_HANDLER A mixin that enables use of class-based prefs
+    %   Intercepts pre/post set/get listeners and implements similar behavior.
+    %   This should be a drop-in replacement for nearly all use cases.
+    %   
+    %   The bulk of this mixin is responsible for maintaining a more complex "meta"
+    %   property that is stored in memory (see +Prefs and Base.pref). When the user 
+    %   attempts to get or set this, the machinery here will make it appear to behave
+    %   as the standard MATLAB type that resides in the meta property (named "value").
+    %
+    %   Any class-based pref cannot define a MATLAB set or get method. Rather, one
+    %   should be supplied to the constructor of the class-based pref (see Base.pref).
         
     properties(Access = private)
         temp_prop = struct();

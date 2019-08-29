@@ -5,6 +5,8 @@ classdef pref % value class
     %       name - provide more context
     %       units - provide units if applicable
     %       help_text - provide longer text to describe what this pref does (think tooltip)
+    %       readonly - boolean specifying if GUI control should be editable (e.g. "enabled")
+    %       display_only - boolean specifying if saved as pref when module unloaded
     %       set*
     %       custom_validate*
     %       custom_clean*
@@ -41,6 +43,8 @@ classdef pref % value class
         name
         units
         help_text
+        readonly = false;       % If true, sets GUI control to not be enabled
+        display_only = false;   % If true, this is only used for display, and not saved as a pref
         auto_generated = false; % Used by Base.pref_handler to handle non class-based prefs
         default = []; % Allows subclass to provide default value when user does not supply it
         % optional functions supplied by user (subclasses should allow
@@ -103,6 +107,7 @@ classdef pref % value class
             obj.value = default;
         end
         function summary = validation_summary(obj,indent)
+            % Used to construct more helpful error messages when validation fails
             mc = metaclass(obj);
             props = mc.PropertyList([mc.PropertyList.DefiningClass]==mc);
             longest_name = max(cellfun(@length,{props.Name}))+indent;

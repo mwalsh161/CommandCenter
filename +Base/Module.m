@@ -250,9 +250,13 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function varargout = settings(obj,panelH)
             % varargout is useful if this is called from a subclass
             %     out = handle to uicontrolgroup
-            
+
             all_props = properties(obj);
-            % First, get all the prefs in order
+            for i = 1:length(all_props)
+                mp = obj.get_meta_pref(all_props{i});
+
+            end
+            % For backwards compatibility:
             if ismember('show_prefs',all_props)
                 prop_names = obj.show_prefs;
             elseif ismember('prefs',all_props)
@@ -263,152 +267,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
                 return
             end
-            % Go through properties and format input for uicontrolgroup.m
-            % Also setup listeners on them
-            props = struct('name',[],'display_name',[],'default',[],'options',[],'enable',{},'readonly',{});
-            logicalException=false;
-            for i = 1:numel(prop_names)
-                prop_md = obj.findprop(prop_names{i}); % property metadata
-                if isempty(prop_md)
-                    warning('MODULE:settings','Ignored "%s"; could not find as a property. Case sensitive.',prop_names{i})
-                    continue
-                elseif prop_md.HasDefault && ~strcmp(class(prop_md.DefaultValue),class(obj.(prop_md.Name)))
-                    % There are some exceptions
-                    handleClassException = ismember('Base.pref',superclasses(prop_md.DefaultValue));
-                    multChoiceException = iscell(prop_md.DefaultValue)||isa(prop_md.DefaultValue,'function_handle');
-                    logicalException = islogical(prop_md.DefaultValue)&&(obj.(prop_md.Name)==0||obj.(prop_md.Name)==1);
-                    moduleException = contains('Base.Module',superclasses(prop_md.DefaultValue));
-                    if ~(handleClassException||multChoiceException||logicalException||moduleException)
-                        warning('MODULE:settings','Ignored "%s"; Current property value does not match default value type.',prop_names{i})
-                        continue
-                    elseif logicalException
-                        obj.(prop_md.Name) = logical(obj.(prop_md.Name));
-                    end
-                end
-                props(end+1).name = prop_md.Name;
-                props(end).display_name = strrep(prop_md.Name,'_',' ');
-                if logicalException  % Default value in GUI (if not multiple choice)
-                    props(end).default = logical(obj.(prop_md.Name));
-                else
-                    props(end).default = obj.(prop_md.Name);
-                end
-                % Multiple choice defined by cell array or fn handle
-                if prop_md.HasDefault && ...
-                        (iscell(prop_md.DefaultValue) || isa(prop_md.DefaultValue,'function_handle'))
-                    % Get options through function or DefaultValue
-                    if isa(prop_md.DefaultValue,'function_handle')
-                        try
-                            options = prop_md.DefaultValue();
-                            assert(iscell(options),'Must return a cell array.') % This will get concatenated with below message
-                        catch err
-                            error('Function to get options for pref "%s" failed:\n%s',prop_md.Name,err.message)
-                        end
-                    else
-                        options = prop_md.DefaultValue;     % Default value defines options
-                    end
-                    assert(~isempty(options),sprintf('There must be atleast one option for pref "%s"',prop_md.Name))
-                    props(end).options = options;
-                    % If hasn't been changed from default value, choose first option arbitrarily
-                    if isequal(obj.(prop_md.Name),prop_md.DefaultValue)
-                        obj.(prop_md.Name) = options{1};
-                    end
-                    try
-                        % Can't use ismember here incase there is a numerical value in options
-                        ind = find(cellfun(@(a)isequal(num2str(a),num2str(obj.(prop_md.Name))),options),1);
-                        props(end).default = ind;
-                    catch err
-                        error('Could not find current value of "%s" in choice set.',prop_md.Name)
-                    end
-                end
-                % See if this prop is in readonly
-                props(end).readonly = false;
-                props(end).enable = 'on';
-                if ismember('readonly_prefs',all_props) && ismember(prop_md.Name,obj.readonly_prefs)
-                    props(end).enable = 'off';
-                    props(end).readonly = true;
-                end
-            end
-            handles = Base.uicontrolgroup(props,@obj.defaultCallback,'parent',panelH);
-            obj.GUI_handle = handles;
-            if nargout > 0
-                varargout{1} = handles;
-            end
-            % Setup listeners based on what actually got made by uicontrolgroup
-            for i = 1:numel(handles.UserData.input_handles)
-                prop_name = handles.UserData.input_handles(i).Tag;
-                lisH = addlistener(obj,prop_name,'PostSet',@obj.GUIupdate);
-                if i == 1
-                    obj.prop_listeners = lisH;
-                else
-                    obj.prop_listeners(end+1) = lisH;
-                end
-            end
-            % Clean up listeners when settings closed
-            addlistener(handles,'ObjectBeingDestroyed',@(~,~)delete(obj.prop_listeners));
-        end
-        
-        % This updates the GUI anytime a pref is changed by anything.
-        % Called by the prop_listeners
-        function GUIupdate(obj,hProp,~)
-            val = obj.(hProp.Name);
-            obj.GUI_handle.UserData.setValue(obj.GUI_handle,hProp.Name,val);
-        end
-        
-        % This method is called when a pref is changed in the GUI from the
-        % uicontrolgroup.  It does nothing more than set the property.
-        % GUIupdate should be called from the PostSet triggered by this
-        % method.
-        function defaultCallback(obj,hObj,~)
-            % hObj.UserData has two important fields:
-            %   setValue(hPanel,name,val) which will be used after PostSet
-            %   getValue(hObj) which is used here so we don't worry what
-            %       type of uicontrol was used
-            prop_name = hObj.Tag; % Convention in uicontrolgroup
-            mp = findprop(obj,prop_name);
-            try
-                [new_val,abort,reset] = hObj.UserData.getValue(hObj,obj.(prop_name));
-                if abort
-                    return
-                end
-                if reset
-                    if mp.HasDefault % Querying DefaultValue will error if HasDefault is false
-                        if ismember('Base.pref',superclasses(mp.DefaultValue)) % patch for class-based prefs
-                            obj.(prop_name) = mp.DefaultValue.default;
-                        else
-                            obj.(prop_name) = mp.DefaultValue;
-                        end
-                    else
-                        obj.(prop_name) = []; % Matlab assigns [] to properties without explicit default
-                    end
-                    return
-                end
-                if contains('Base.Module',superclasses(new_val))
-                    for i = 1:length(new_val)
-                        assert(obj~=new_val(i),'Cannot set pref to self!')
-                    end
-                    % Length assertion
-                    if mp.HasDefault
-                        N = max(size(mp.DefaultValue));
-                        if N && length(new_val) > N % N=0 don't check (e.g. Inf)
-                            error('Prop "%s" defines a max length of %i; remove existing module before trying to add another',prop_name,N);
-                            % NOTE: module created in getValue function. this does not delete the created module
-                        end
-                    end
-                end
-                obj.(prop_name) = new_val;
-            catch err % Reset value in GUI
-                % obj.(prop_name) = new_val could result in a module set
-                % method to update_settings. If that happens, THEN that set
-                % method subsequently errors, we end up here with a deleted
-                % hObj. The update_settings should have taken care of
-                % updating CC, so we can just ignore this and continue to
-                % rethrow the err
-                if isvalid(hObj)
-                    hObj.UserData.setValue(obj.GUI_handle,prop_name,obj.(prop_name))
-                end
-                rethrow(err)
-            end
-            % the GUI will be udpated on the PostSet callback
+
+            
         end
     end
 end
