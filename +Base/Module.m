@@ -242,9 +242,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % Override to change how settings are acquired
             % Must output cell array of strings
             % Order matters; first is on top, last is at the bottom.
-            if isproperty(obj,'show_prefs')
+            props = properties(obj);
+            if ismember('show_prefs',props)
                 settings = obj.show_prefs;
-            elseif isproperty(obj,'prefs')
+            elseif ismember('prefs',props)
                 settings = obj.prefs;
             end
             % Append any additional class-based prefs (no order)
@@ -264,7 +265,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % panelH: handle to the MATLAB panel
             % pad: vertical distance in pixels to leave between UI elements
             
-            panelH.Units = 'px';
+            panelH.Units = 'pixels';
             try % Make backwards compatible (around 2017a I think)
                 widthPx = panelH.('InnerPosition')(3);
             catch err
@@ -278,21 +279,27 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
 
             % Establish legacy read_only settings
             readonly_settings = {};
-            if isproperty(obj,'readonly_prefs')
+            props = properties(obj);
+            if ismember('readonly_prefs',props)
                 warning('CC:legacy',['"readonly_prefs" will override any class-based setting.',...
                         'Note that it is legacy and should be updated to readonly property in class-based prefs.'])
                 readonly_settings = obj.readonly_prefs;
             end
 
             setting_names = obj.get_settings();
-            nsettings = length(settings_names);
+            nsettings = length(setting_names);
 
             panelH_loc = pad;
             UIs = cell(nsettings,2); % col 1: meta pref, col 2: ui object(s)
-            label_size = zeros(1,nsettings);
+            label_size = NaN(1,nsettings);
             % Build up, starting from end to beginning
             for i = nsettings:-1:1
-                mp = obj.get_meta_pref(setting_names{i});
+                try
+                    mp = obj.get_meta_pref(setting_names{i});
+                catch err
+                    warning(err.identifier,'Skipped pref "%s":\n%s',setting_names{i},err.message)
+                    continue
+                end
                 if isempty(mp.name) % Default to setting (i.e. property) name
                     mp.name = strrep(setting_names{i},'_',' ');
                 end
@@ -301,14 +308,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
                 UIs{i,1} = mp;
-                [UIs{i,2},height_px,label_size(i)] = mp.make_UI(mp,panelH,panelH_loc,widthPx);
+                [UIs{i,2},height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx);
                 panelH_loc = panelH_loc + height_px + pad;
             end
-            % Adjust labels
             suggested_label_width = max(label_size); % px
-            for i = 1:nsettings
-                %     mp.adjust_UI(mp, ui  ,suggested_label_width)
-                UIs{i,1}.adjust_UI(UIs{i,:},suggested_label_width);
+            if ~isnan(suggested_label_width) % All must have been NaN for this to be false
+                for i = 1:nsettings
+                    if ~isnan(label_size(i)) % no error in fetching mp
+                        UIs{i,1}.adjust_UI(UIs{i,2},suggested_label_width);
+                    end
+                end
             end
         end
     end

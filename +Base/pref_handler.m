@@ -105,7 +105,7 @@ classdef pref_handler < handle
             % old style prefs: auto generate default type here
             val = obj.(name);
             prop = findprop(obj,name);
-            if isnumeric(val) % There are many numeric classes
+            if isnumeric(val) && numel(val)==1 % There are many numeric classes
                 val = Prefs.Double(val);
             elseif prop.HasDefault && ...
                 (iscell(prop.DefaultValue) || isa(prop.DefaultValue,'function_handle'))
@@ -122,7 +122,8 @@ classdef pref_handler < handle
                     case {'logical'}
                         val = Prefs.Boolean(val);
                     otherwise
-                        error('Not implemented for %s',class(val))
+                        sz = num2str(size(val),'%ix'); sz(end) = []; % remove last "x"
+                        error('PREF:notimplemented','Class-based pref not implemented for %s %s',sz,class(val))
                 end
             end
             val.auto_generated = true;

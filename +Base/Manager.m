@@ -258,15 +258,16 @@ classdef Manager < handle
                 else
                     % Adjust length of panel to fit contents.
                     contents = allchild(settings_panel);
+                    ncontents = numel(contents);
                     set(contents,'units','characters')
-                    lengths = 0;
-                    for i = 1:numel(contents)
+                    positions = NaN(1,ncontents); % bottom1, top1, bottom2, top2, ...
+                    for i = 1:ncontents
                         contents_pos = get(contents(i),'position');
-                        lengths(end+1) = contents_pos(2);
-                        lengths(end+1) = lengths(end) + contents_pos(4);
+                        positions(2*i-1) = contents_pos(2);
+                        positions(2*i) = positions(2*i-1) + contents_pos(4);
                     end
-                    bottom = min(lengths);
-                    top = max(lengths);
+                    bottom = min(positions);
+                    top = max(positions);
                     if bottom < 0
                         obj.warning('MANAGER:settings','Detected some panels with negative positions, this may cause display errors.')
                     end
