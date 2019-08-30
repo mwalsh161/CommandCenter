@@ -112,7 +112,7 @@ classdef Manager < handle
     end
     methods(Access=protected)
         function savePrefs(obj)
-            if isprop(obj,'prefs')
+            if isprop(obj,'prefs') % opt-in for subclasses
                 for i = 1:numel(obj.prefs)
                     try
                         eval(sprintf('setpref(obj.namespace,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));

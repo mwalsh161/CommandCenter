@@ -85,6 +85,12 @@ classdef pref_handler < handle
             end
         end
 
+        function prefs = get_class_based_prefs(obj)
+            % Get string name of all prefs (MATLAB properties) that were defined as a class-based pref
+            % Note: necessary to use this method to keep obj.ls private
+            prefs = fields(obj.ls);
+        end
+
         function val = get_meta_pref(obj,name)
             % Return the "meta pref" which contains the pref class
             % NOTE: this is a value class, so changing anything in the

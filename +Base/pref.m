@@ -54,7 +54,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         get
     end
     
-    methods % To be overloaded by subclass pref
+    methods % To be overloaded by subclass pref (note this is a value class; need to explicitly pass obj)
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
         function validate(obj,val)
@@ -62,10 +62,20 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
         function val = clean(obj,val)
         end
-        function ui = get_UI(obj,parent,width_px)
-            % Prepare an appropriate UI container
-            % Only need to worry about width
-            %   height taken care of in Base.Module.settings
+        % These methods are responsible for building the settings UI
+        function [ui,height_px,label_width_px] = make_UI(obj,parent,yloc_px,width_px)
+            % Prepare an appropriate UI container in parent no lower than yloc_px
+            %   and no wider than width_px (parent width) and return:
+            %   ui: matlab type containing UI data (passed to obj.adjust_UI)
+            %   height_px: extent of UI constructed (not including any padding)
+            %   label_width_px: the width of an optional label component. Used
+            %       to justify all labels in adjust_UI. Return 0 if not needed.
+            
+        end
+        function adjust_UI(obj,ui,suggested_label_width_px)
+            % Once Module.settings calls all get_UI methods, it will go back
+            % and call this method using a suggested label_width_px giving this
+            % pref the opportunity to readjust positions if desired
         end
     end
 

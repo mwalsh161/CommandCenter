@@ -242,11 +242,13 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % Override to change how settings are acquired
             % Must output cell array of strings
             % Order matters; first is on top, last is at the bottom.
-            if ismember('show_prefs',props)
+            if isproperty(obj,'show_prefs')
                 settings = obj.show_prefs;
-            elseif ismember('prefs',props)
+            elseif isproperty(obj,'prefs')
                 settings = obj.prefs;
             end
+            % Append any additional class-based prefs (no order)
+            settings = [settings, obj.get_class_based_prefs()];
         end
 
         % Adds custom settings to main GUI.
@@ -261,22 +263,35 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function settings(obj,panelH,pad)
             % panelH: handle to the MATLAB panel
             % pad: vertical distance in pixels to leave between UI elements
-
-            position = getpixelposition(panelH);
-            widthPx = position(3);
+            
+            panelH.Units = 'px';
+            try % Make backwards compatible (around 2017a I think)
+                widthPx = panelH.('InnerPosition')(3);
+            catch err
+                if ~strcmp(err.identifier,'MATLAB:noSuchMethodOrField')
+                    rethrow(err)
+                end
+                widthPx = panelH.('Position')(3);
+                warning('CC:legacy',['Using a version of MATLAB that does not use "InnerPosition" for uipanel.',...
+                                    'Consider upgrading if you notice display issues.'])
+            end
 
             % Establish legacy read_only settings
             readonly_settings = {};
             if isproperty(obj,'readonly_prefs')
-                warning(['"readonly_prefs" will override any class-based setting.',...
+                warning('CC:legacy',['"readonly_prefs" will override any class-based setting.',...
                         'Note that it is legacy and should be updated to readonly property in class-based prefs.'])
                 readonly_settings = obj.readonly_prefs;
             end
 
-            panelH_height = pad;
             setting_names = obj.get_settings();
+            nsettings = length(settings_names);
+
+            panelH_loc = pad;
+            UIs = cell(nsettings,2); % col 1: meta pref, col 2: ui object(s)
+            label_size = zeros(1,nsettings);
             % Build up, starting from end to beginning
-            for i = length(settings_names):-1:1
+            for i = nsettings:-1:1
                 mp = obj.get_meta_pref(setting_names{i});
                 if isempty(mp.name) % Default to setting (i.e. property) name
                     mp.name = strrep(setting_names{i},'_',' ');
@@ -284,10 +299,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 if ismember(setting_names{i},readonly_settings)
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
-                % Make UI element and add to panelH
-                ui = mp.get_UI(mp,panelH,widthPx);
-                ui.Position(2) = panelH_height;
-                panelH_height = panelH_height + ui.Extent(4) + pad;
+                % Make UI element and add to panelH (note mp is not a handle class)
+                UIs{i,1} = mp;
+                [UIs{i,2},height_px,label_size(i)] = mp.make_UI(mp,panelH,panelH_loc,widthPx);
+                panelH_loc = panelH_loc + height_px + pad;
+            end
+            % Adjust labels
+            suggested_label_width = max(label_size); % px
+            for i = 1:nsettings
+                %     mp.adjust_UI(mp, ui  ,suggested_label_width)
+                UIs{i,1}.adjust_UI(UIs{i,:},suggested_label_width);
             end
         end
     end
