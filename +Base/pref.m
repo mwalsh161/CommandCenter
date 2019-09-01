@@ -62,8 +62,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
         function val = clean(obj,val)
         end
-        % These methods are responsible for building the settings UI
-        function [ui,height_px,label_width_px] = make_UI(obj,parent,yloc_px,width_px)
+        % These methods are responsible for building the settings UI and setting/getting values from it
+        function [ui,height_px,label_width_px] = make_UI(obj,parent,callback,yloc_px,width_px)
             % Prepare an appropriate UI container in parent no lower than yloc_px
             %   and no wider than width_px (parent width) and return:
             %   ui: matlab type containing UI data (passed to obj.adjust_UI)
@@ -89,7 +89,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                         'horizontalalignment','left',...
                         'units', 'pixels',...
                         'tag', tag,...
-                        'enable', enabled);
+                        'enable', enabled,...
+                        'callback', callback);
             ui(2).Position(2) = yloc_px;
 
             if ~isempty(obj.units)
@@ -120,6 +121,19 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             end
             ui(2).Position(3) = ui(1).Parent.Position(3) - ...
                                 (suggested_label_width_px + units_space + 2*pad);
+        end
+        % These functions provide uniform ability to interact with UI. They are 
+        % NOT intended for validation or anything! The validity of ui contents is not
+        % (cannot) be checked since the structure is arbitrary.
+        function set_UI(obj,ui,val)
+            if all(isvalid(ui))
+                ui(2).String = val;
+            end
+        end
+        function val = get_UI(obj,ui)
+            if all(isvalid(ui))
+                val = ui(2).String;
+            end
         end
     end
 

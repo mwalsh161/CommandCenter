@@ -3,8 +3,9 @@ classdef debug < Modules.Imaging
     
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'new_style','resolution','continuous'};
-     %   show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
+        prefs = {'maxROI','resolution','continuous'};
+        show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
+        readonly_prefs = {''}
     end
     properties(GetObservable,SetObservable)
         new_style = Prefs.Integer('min',0);

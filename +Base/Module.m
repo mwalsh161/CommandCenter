@@ -308,7 +308,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
                 UIs{i,1} = mp;
-                [UIs{i,2},height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx);
+                [UIs{i,2},height_px,label_size(i)] = mp.make_UI(panelH,...
+                            {@updateprop,setting_names{i}},panelH_loc,widthPx);
                 panelH_loc = panelH_loc + height_px + pad;
             end
             suggested_label_width = max(label_size); % px
