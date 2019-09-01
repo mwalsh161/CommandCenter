@@ -290,7 +290,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             nsettings = length(setting_names);
 
             panelH_loc = pad;
-            UIs = cell(nsettings,2); % col 1: meta pref, col 2: ui object(s)
+            UIs = cell(1,nsettings); % col 1: meta pref, col 2: ui object(s)
             label_size = NaN(1,nsettings);
             % Build up, starting from end to beginning
             for i = nsettings:-1:1
@@ -307,16 +307,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
-                UIs{i,1} = mp;
-                [UIs{i,2},height_px,label_size(i)] = mp.make_UI(panelH,...
+                [mp.ui,height_px,label_size(i)] = mp.ui.make_UI(mp,panelH,...
                             {@updateprop,setting_names{i}},panelH_loc,widthPx);
                 panelH_loc = panelH_loc + height_px + pad;
+                UIs{i} = mp;
             end
             suggested_label_width = max(label_size); % px
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
-                        UIs{i,1}.adjust_UI(UIs{i,2},suggested_label_width);
+                        UIs{i}.ui.adjust_UI(suggested_label_width);
                     end
                 end
             end

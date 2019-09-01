@@ -52,6 +52,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         custom_clean      % Called directly after built-in clean
         set               % First thing called before any validation
         get
+        ui = Prefs.Inputs.CharField; % The class governing the UI. Can be overridden if careful
     end
     
     methods % To be overloaded by subclass pref
@@ -61,79 +62,6 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % May throw an error if not valid
         end
         function val = clean(obj,val)
-        end
-        % These methods are responsible for building the settings UI and setting/getting values from it
-        function [ui,height_px,label_width_px] = make_UI(obj,parent,callback,yloc_px,width_px)
-            % Prepare an appropriate UI container in parent no lower than yloc_px
-            %   and no wider than width_px (parent width) and return:
-            %   ui: matlab type containing UI data (passed to obj.adjust_UI)
-            %   height_px: extent of UI constructed (not including any padding)
-            %   label_width_px: the width of an optional label component. Used
-            %       to justify all labels in adjust_UI. Return 0 if not needed.
-            %
-            % Here, widths will all be taken care of in adjust_UI
-            tag = strrep(obj.name,' ','_');
-            enabled = 'on';
-            if obj.readonly
-                enabled = 'off';
-            end
-            ui(1) = uicontrol(parent, 'style', 'text',...
-                        'string', [obj.name ': '],...
-                        'horizontalalignment', 'right',...
-                        'units', 'pixels',...
-                        'tag', [tag '_label']);
-            ui(1).Position(2) = yloc_px;
-            label_width_px = ui(1).Extent(3);
-
-            ui(2) = uicontrol(parent, 'style', 'edit',...
-                        'horizontalalignment','left',...
-                        'units', 'pixels',...
-                        'tag', tag,...
-                        'enable', enabled,...
-                        'callback', callback);
-            ui(2).Position(2) = yloc_px;
-
-            if ~isempty(obj.units)
-                ui(3) = uicontrol(parent, 'style', 'text',...
-                            'string', [' (' obj.units ')'],...
-                            'units', 'pixels',...
-                            'tag', [tag '_unit']);
-                ui(3).Position(2) = yloc_px;
-                ui(3).Position(3) = ui(2).Extent(3);
-            end
-            if ~isempty(obj.help_text)
-                set(ui, 'ToolTip', obj.help_text);
-            end
-            height_px = max(arrayfun(@(a)a.Extent(4), ui));
-        end
-        function adjust_UI(obj,ui,suggested_label_width_px)
-            % Once Module.settings calls all get_UI methods, it will go back
-            % and call this method using a suggested label_width_px giving this
-            % pref the opportunity to readjust positions if desired
-            % Note: Position = [x, y, width, height]
-            pad = ui(1).Position(1); % Use pad from left for the right as well
-            ui(1).Position(3) = suggested_label_width_px;
-            ui(2).Position(1) = suggested_label_width_px + pad;
-            units_space = 0;
-            if length(ui) == 3 % units exist
-                units_space = ui(3).Position(3);
-                ui(3).Position(1) = ui.Parent.Position(3) - (units_space + pad);
-            end
-            ui(2).Position(3) = ui(1).Parent.Position(3) - ...
-                                (suggested_label_width_px + units_space + 2*pad);
-        end
-        % These functions provide uniform ability to interact with UI. They are 
-        % NOT intended for validation or anything! The validity of ui contents is not
-        % (cannot) be checked since the structure is arbitrary.
-        function set_UI(obj,ui,val)
-            if all(isvalid(ui))
-                ui(2).String = val;
-            end
-        end
-        function val = get_UI(obj,ui)
-            if all(isvalid(ui))
-                val = ui(2).String;
-            end
         end
     end
 
