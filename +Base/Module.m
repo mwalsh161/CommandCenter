@@ -308,9 +308,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
                 [mp.ui,height_px,label_size(i)] = mp.ui.make_UI(mp,panelH,...
-                            {@updateprop,setting_names{i}},panelH_loc,widthPx);
+                            panelH_loc,widthPx);
+                mp.ui.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
                 panelH_loc = panelH_loc + height_px + pad;
                 UIs{i} = mp;
+                try
+                    mp.set_ui_value(mp.value); % Update to current value
+                catch err
+                    warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
+                        setting_names{i},class(mp.value),err.message)
+                end
             end
             suggested_label_width = max(label_size); % px
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
@@ -320,6 +327,9 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     end
                 end
             end
+        end
+        function settings_callback(obj,mp,setting_name)
+            obj.(setting_name) = mp.get_ui_value();
         end
     end
 end

@@ -12,6 +12,17 @@ classdef Integer < Base.pref
             obj.default = 0;
             obj = obj.init(varargin{:});
         end
+        function val = get_ui_value(obj)
+            valstr = obj.ui.get_value();
+            if strcmpi(valstr,'nan')
+                val = NaN;
+                return
+            end
+            val = str2double(valstr);
+            if isnan(val)
+                error('SETTINGS:bad_ui_val','Cannot convert "%s" to numeric value.',valstr)
+            end
+        end
         function validate(obj,val)
             validateattributes(val,{'numeric'},{'integer','scalar'})
             if ~obj.allow_nan

@@ -17,6 +17,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       set*
     %       custom_validate*
     %       custom_clean*
+    %       ui - class specifying UI type (value class)
     %   * These properties' values are function handles, or if you want a class
     %   method bound to your instance, specify the string names of the methods.
     %
@@ -63,9 +64,21 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
         function val = clean(obj,val)
         end
+        % These methods are used to get/set the value and cast it to the
+        % correct type before returning. This does not need to validate or
+        % clean further!
+        % If this cannot be performed, throw an error with error ID set to
+        % 'SETTINGS:bad_ui_val'
+        function val = get_ui_value(obj)
+            val = obj.ui.get_value();
+        end
+        function set_ui_value(obj,val)
+            % Note: not required that val == obj.value
+            obj.ui.set_value(val);
+        end
     end
 
-    methods
+    methods(Sealed)
         function obj = init(obj,varargin)
             % Process input (subclasses should use set methods to validate)
             p = inputParser;
@@ -116,7 +129,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             end
             summary = strjoin(summary,newline);
         end
-
+    end
+    methods
         function obj = set.custom_validate(obj,val)
             assert(isa(val,'function_handle')||ischar(val),...
                 'Custom validate function must be function_handles or strings');
