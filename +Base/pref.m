@@ -52,7 +52,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         custom_clean      % Called directly after built-in clean
         set               % First thing called before any validation
         get
-        ui = Prefs.Inputs.CharField; % The class governing the UI. Can be overridden if careful
+        ui = Prefs.Inputs.CharField; % The class governing the UI
     end
     
     methods % To be overloaded by subclass pref

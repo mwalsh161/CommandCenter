@@ -10,10 +10,15 @@ classdef input
         %   label_width_px: the width of an optional label component. Used
         %       to justify all labels in adjust_UI. Return 0 if not needed.
         [obj,height_px,label_width_px] = make_UI(obj,pref,parent,callback,yloc_px,width_px)
+
         % Once Module.settings calls all get_UI methods, it will go back
         % and call this method using a suggested label_width_px giving this
         % pref the opportunity to readjust positions if desired
         adjust_UI(obj,suggested_label_width_px)
+        
+        % To check if the UI is enabled, this function will be called prior to
+        % setting/getting values
+        tf = enabled(obj)
 
         % Given a value, update the UI objects
         set_value(obj,val)

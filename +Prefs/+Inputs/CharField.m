@@ -7,6 +7,9 @@ classdef CharField < Base.input
     end
 
     methods % Satisfy all abstract methods
+        function tf = enabled(obj)
+            tf = isgraphics(obj.ui) && isvalid(obj.ui);
+        end
         % These methods are responsible for building the settings UI and setting/getting values from it
         function [obj,height_px,label_width_px] = make_UI(obj,pref,parent,callback,yloc_px,width_px)
             % Here, widths will all be taken care of in adjust_UI
@@ -56,15 +59,11 @@ classdef CharField < Base.input
             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
                                 (suggested_label_width_px + units_space + 2*pad);
         end
-        function set_UI(obj,ui,val)
-            if all(isvalid(ui))
-                obj.ui.String = val;
-            end
+        function set_value(obj,ui,val)
+            obj.ui.String = val;
         end
-        function val = get_UI(obj,ui)
-            if all(isvalid(ui))
-                val = obj.ui.String;
-            end
+        function val = get_value(obj,ui)
+            val = obj.ui.String;
         end
     end
 
