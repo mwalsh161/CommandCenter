@@ -161,7 +161,7 @@ classdef pref_handler < handle
                     catch err
                         warning('MATLAB:callback:PropertyEventError',...
                             'Error occurred while executing the listener callback for the %s class %s property %s event:\n%s',...
-                            class(obj),prop.Name,event.EventName,getReport(err.message));
+                            class(obj),prop.Name,event.EventName,getReport(err));
                     end
                     obj.external_ls.(prop.Name).(event.EventName)(i).executing = false;
                 end

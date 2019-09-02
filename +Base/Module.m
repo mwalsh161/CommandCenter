@@ -312,6 +312,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 mp.ui.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
                 panelH_loc = panelH_loc + height_px + pad;
                 UIs{i} = mp;
+                %obj.set_meta_pref(setting_names{i},mp);
                 try
                     mp.set_ui_value(mp.value); % Update to current value
                 catch err
@@ -324,12 +325,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
                         UIs{i}.ui.adjust_UI(suggested_label_width);
+                        lsh = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,UIs{i}));
                     end
                 end
             end
         end
         function settings_callback(obj,mp,setting_name)
             obj.(setting_name) = mp.get_ui_value();
+        end
+        function settings_listener(obj,el,mp)
+            mp.set_ui_value(obj.(el.Name));
         end
     end
 end
