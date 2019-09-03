@@ -142,7 +142,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             mc = metaclass(obj);
             ignore_classes = superclasses('Base.pref');
             ignore_classes = [ignore_classes ,{'Base.pref'}];
-            mask = ~arrayfun(@(a)ismember(a.DefiningClass.Name,ignore_classes),mc.PropertyList);
+            mask = ~arrayfun(@(a)ismember(a.DefiningClass.Name,ignore_classes), mc.PropertyList) &...
+                   ~arrayfun(@(a)a.Hidden, mc.PropertyList);
             props = mc.PropertyList(mask);
             props(strcmp({props.Name},'ui')) = []; % Remove UI
             if isempty(props)
