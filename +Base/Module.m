@@ -332,11 +332,14 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             end
         end
         function settings_callback(obj,mp,setting_name)
-            obj.pref_set_try = true;  % try
-            obj.(setting_name) = mp.get_ui_value();
-            obj.pref_set_try = false;
-            err = obj.last_pref_set_err;
-            if ~isempty(err) % catch: Reset to old value and present errordlg
+            obj.pref_set_try = true;  % try block for validation
+            try % try block for retrieving UI value
+                obj.(setting_name) = mp.get_ui_value();
+                err = obj.last_pref_set_err; % Either [] or MException
+            catch err % MException if we get here
+            end
+            obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
+            if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
                 mp.set_ui_value(obj.(setting_name));
                 try
                     val_help = mp.validation_summary(obj.pref_handler_indentation);
