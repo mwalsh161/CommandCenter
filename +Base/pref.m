@@ -78,6 +78,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                 text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
                                  obj.validation_summary(2));
             end
+            if obj.auto_generated
+                text = [text '<br/><font color="red">This pref was auto generated and deprecated. Consider replacing with class-based pref.</font>'];
+            end
             text = strip(strrep(text, newline, '<br/>'));
         end
         % These methods are used to get/set the value and cast it to the

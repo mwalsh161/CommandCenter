@@ -332,7 +332,27 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             end
         end
         function settings_callback(obj,mp,setting_name)
+            obj.pref_set_try = true;  % try
             obj.(setting_name) = mp.get_ui_value();
+            obj.pref_set_try = false;
+            err = obj.last_pref_set_err;
+            if ~isempty(err) % catch: Reset to old value and present errordlg
+                mp.set_ui_value(obj.(setting_name));
+                try
+                    val_help = mp.validation_summary(obj.pref_handler_indentation);
+                catch val_help_err
+                    val_help = sprintf('Failed to generate validation help:\n%s',...
+                        getReport(val_help_err,'basic','hyperlinks','off'));
+                end
+                % Escape tex modifiers
+                val_help = strrep(val_help,'\','\\');
+                val_help = strrep(val_help,'_','\_');
+                val_help = strrep(val_help,'^','\^');
+                opts.WindowStyle = 'non-modal';
+                opts.Interpreter = 'tex';
+                errordlg(sprintf('%s\n\\fontname{Courier}%s',err.message,val_help),...
+                    sprintf('%s Error',class(mp)),opts);
+            end
         end
         function settings_listener(obj,el,mp)
             mp.set_ui_value(obj.(el.Name));

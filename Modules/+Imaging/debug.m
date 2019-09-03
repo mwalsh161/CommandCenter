@@ -3,7 +3,7 @@ classdef debug < Modules.Imaging
     
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'fyi','my_integer','my_double'}; % my_string should be added at end
+        prefs = {'fyi','my_integer','my_double','old_style'}; % my_string should be added at end
        % show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
        % readonly_prefs = {''}
     end
@@ -14,6 +14,7 @@ classdef debug < Modules.Imaging
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
         my_double = Prefs.Double('units','um','min',-50,'max',50);
         my_string = Prefs.String('Enter value here','allow_empty',false);
+        old_style = 5;
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
  %       database = Modules.Database.empty(0); % Should never do this

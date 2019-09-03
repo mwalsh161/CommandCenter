@@ -16,6 +16,15 @@ classdef pref_handler < handle
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
     end
+    properties(SetAccess = private)
+        last_pref_set_err = [];
+    end
+    properties(SetAccess=protected)
+        % If true, when setting, post listener will not throw the error.
+        % It will still populate last_pref_set_err. Think of this as a way
+        % to implement a try/catch block
+        pref_set_try = false;
+    end
     properties
         pref_handler_indentation = 2;
     end
@@ -193,30 +202,25 @@ classdef pref_handler < handle
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
             try
                 new_val.value = obj.(prop.Name); % validation occurs here
-            catch err % Revert to old value (exclusively for external listeners)
-                obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
-                % Grab all properties defined in the subclass to help with
-                % error message
-                try
-                    val_help = new_val.validation_summary(obj.pref_handler_indentation);
-                catch val_help_err
-                    val_help = sprintf('Failed to generate validation help:\n%s',getReport(val_help_err,'basic','hyperlinks','off'));
-                end
-                % Escape tex modifiers
-                val_help = strrep(val_help,'\','\\');
-                val_help = strrep(val_help,'_','\_');
-                val_help = strrep(val_help,'^','\^');
-                opts.WindowStyle = 'non-modal';
-                opts.Interpreter = 'tex';
-                errordlg(sprintf('%s:\n\\fontname{Courier}%s',err.message,val_help),...
-                    sprintf('%s Error',class(obj.temp_prop.(prop.Name))),opts);
+                obj.execute_external_ls(prop,event); % Execute any external listeners
+            catch err
             end
-            % Execute any external listeners
-            obj.execute_external_ls(prop,event);
             % Update the class-pref and re-engage listeners
             % Note if the above try block failed; this is still the old value
             obj.(prop.Name) = new_val;
             obj.prop_listener_ctrl(prop.Name,true);
+            if exist('err','var')
+                % This will be thrown as warning in console because it is
+                % from a listener, so we will use a flag for detection with
+                % a readable property
+                obj.last_pref_set_err = err;
+                if obj.pref_set_try
+                    return
+                else
+                    rethrow(err);
+                end
+            end
+            obj.last_pref_set_err = [];
         end
     end
     
