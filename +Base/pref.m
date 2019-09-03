@@ -75,6 +75,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             if isempty(summary_text)
                 summary_text = '  None'; % indent 2
             end
+            summary_text = strrep(summary_text,'>','&gt;');
+            summary_text = strrep(summary_text,'<','&lt;');
             if ~isempty(help_text_prop)
                 text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
                                  help_text_prop, summary_text);

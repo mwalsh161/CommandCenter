@@ -16,6 +16,8 @@ classdef debug < Modules.Imaging
         my_double = Prefs.Double('units','um','min',-50,'max',50);
         my_string = Prefs.String('Enter value here','allow_empty',false);
         my_logical = Prefs.Boolean();
+        options_1 = Prefs.MultipleChoice('help_text','sooo many options!','choices',{'foo',41,'bar'})
+        options_2 = Prefs.MultipleChoice(42,'allow_empty',false,'choices',{'foo',42,'bar'})
         old_style = 5;
         % These are not implemented yet
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs

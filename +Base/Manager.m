@@ -260,7 +260,7 @@ classdef Manager < handle
                     contents = allchild(settings_panel);
                     ncontents = numel(contents);
                     set(contents,'units','characters')
-                    positions = NaN(1,ncontents); % bottom1, top1, bottom2, top2, ...
+                    positions = [0, NaN(1,ncontents)]; % 0, bottom1, top1, bottom2, top2, ...
                     for i = 1:ncontents
                         contents_pos = get(contents(i),'position');
                         positions(2*i-1) = contents_pos(2);

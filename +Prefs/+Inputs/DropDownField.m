@@ -31,7 +31,7 @@ classdef DropDownField < Base.input
             label_width_px = obj.label.Extent(3);
 
             obj.ui = uicontrol(parent, 'style', 'popupmenu',...
-                        'String',obj.choices_strings,...
+                        'String',pref.choices_strings,...
                         'horizontalalignment','left',...
                         'units', 'pixels',...
                         'tag', tag,...
@@ -53,8 +53,11 @@ classdef DropDownField < Base.input
             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
                                 (suggested_label_width_px + 2*pad);
         end
-        function set_value(obj,val,I)
-            if nargin < 3
+        function set_value(obj,val)
+            % val can either be the STRING/CHAR value or the index into
+            % obj.ui.String
+            I = val;
+            if ~isnumeric(val)
                 mask = strcmp(obj.ui.String,val);
                 assert(any(mask),...
                     sprintf('Unable to find "%s" in available options (%s)',...
@@ -65,6 +68,7 @@ classdef DropDownField < Base.input
         end
         function [val,I] = get_value(obj)
             val = obj.ui.String{obj.ui.Value};
+            I = obj.ui.Value;
         end
     end
 

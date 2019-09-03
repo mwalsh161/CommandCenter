@@ -249,7 +249,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 settings = obj.prefs;
             end
             % Append any additional class-based prefs (no order)
-            class_based = obj.get_class_based_prefs();
+            class_based = obj.get_class_based_prefs()';
             settings = [settings, class_based(~ismember(class_based,settings))];
         end
 
@@ -286,8 +286,12 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         'Note that it is legacy and should be updated to readonly property in class-based prefs.'])
                 readonly_settings = obj.readonly_prefs;
             end
-
-            setting_names = obj.get_settings();
+            
+            try
+                setting_names = obj.get_settings();
+            catch err
+                error('Error fetching settings names:\n%s',getReport(err,'basic','hyperlinks','off'));
+            end
             nsettings = length(setting_names);
 
             panelH_loc = pad;
