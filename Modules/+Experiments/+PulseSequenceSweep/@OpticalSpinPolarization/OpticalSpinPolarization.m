@@ -39,8 +39,8 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
             colors = lines(2);
             %plot data bin 1
             plotH{1} = errorfill(([1:obj.nCounterBins]-1)*(obj.counterDuration+obj.counterSpacing),...
-                              obj.data.sumCounts(:,1,1),...
-                              obj.data.stdCounts(:,1,1),...
+                              squeeze(obj.data.sumCounts(1,1,:))',...
+                              squeeze(obj.data.stdCounts(1,1,:))',...
                               'parent',ax,'color',colors(1,:));
             ylabel(ax,'Intensity (a.u.)');
             xlabel(ax,'Delay time (\mus)');
@@ -52,8 +52,8 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
         end
         function UpdateRun(obj,~,~,ax,~,~)
             if obj.averages > 1
-                averagedData = squeeze(nanmean(obj.data.sumCounts,3));
-                meanError = squeeze(nanmean(obj.data.stdCounts,3));
+                averagedData = squeeze(nanmean(obj.data.sumCounts,1))';
+                meanError = squeeze(nanmean(obj.data.stdCounts,1))'*sqrt(obj.samples);
             else
                 averagedData = obj.data.sumCounts;
                 meanError = obj.data.stdCounts;
