@@ -14,7 +14,7 @@ classdef String < Base.pref
         function validate(obj,val)
             validateattributes(val,{'char','string'},{'scalartext'})
             if ~obj.allow_empty
-                assert(~isempty(val),'Attempted to set empty string. allow_empty is set to false.')
+                assert(~isempty(val),'Cannot set an empty string.')
             end
         end
     end

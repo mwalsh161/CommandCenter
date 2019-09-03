@@ -12,7 +12,6 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     properties(Access=private)
         namespace                   % Namespace for saving prefs
         prop_listeners              % Keep track of preferences in the GUI to keep updated
-        GUI_handle                  % Handle to uicontrolgroup panel
     end
     properties
         logger                      % Handle to log object
@@ -351,13 +350,14 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     val_help = sprintf('Failed to generate validation help:\n%s',...
                         getReport(val_help_err,'basic','hyperlinks','off'));
                 end
+                errmsg = err.message;
                 % Escape tex modifiers
-                val_help = strrep(val_help,'\','\\');
-                val_help = strrep(val_help,'_','\_');
-                val_help = strrep(val_help,'^','\^');
+                val_help = strrep(val_help,'\','\\'); errmsg = strrep(errmsg,'\','\\');
+                val_help = strrep(val_help,'_','\_'); errmsg = strrep(errmsg,'_','\_');
+                val_help = strrep(val_help,'^','\^'); errmsg = strrep(errmsg,'^','\^');
                 opts.WindowStyle = 'non-modal';
                 opts.Interpreter = 'tex';
-                errordlg(sprintf('%s\n\\fontname{Courier}%s',err.message,val_help),...
+                errordlg(sprintf('%s\n\\fontname{Courier}%s',errmsg,val_help),...
                     sprintf('%s Error',class(mp)),opts);
             end
         end

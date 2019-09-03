@@ -4,7 +4,7 @@ classdef debug < Modules.Imaging
     properties
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
-        prefs = {'fyi','my_integer','my_double','old_style','my_logical'};
+        prefs = {'fyi','my_integer','my_double','old_style','my_logical','fn_based','cell_based'};
        % show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
@@ -19,6 +19,8 @@ classdef debug < Modules.Imaging
         options_1 = Prefs.MultipleChoice('help_text','sooo many options!','choices',{'foo',41,'bar'})
         options_2 = Prefs.MultipleChoice(42,'allow_empty',false,'choices',{'foo',42,'bar'})
         old_style = 5;
+        fn_based = @Imaging.debug.get_options;
+        cell_based = {'options1','option2',6};
         % These are not implemented yet
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
@@ -36,6 +38,9 @@ classdef debug < Modules.Imaging
         end
     end
     methods(Static)
+        function options = get_options()
+            options = {'opt1','opt2'};
+        end
         function obj = instance()
             mlock;
             persistent Object

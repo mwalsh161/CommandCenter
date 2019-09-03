@@ -114,16 +114,21 @@ classdef pref_handler < handle
             % old style prefs: auto generate default type here
             val = obj.(name);
             prop = findprop(obj,name);
-            if isnumeric(val) && numel(val)==1 % There are many numeric classes
-                val = Prefs.Double(val);
-            elseif prop.HasDefault && ...
+            if prop.HasDefault && ...
                 (iscell(prop.DefaultValue) || isa(prop.DefaultValue,'function_handle'))
                 if iscell(prop.DefaultValue)
                     choices = prop.DefaultValue;
                 else % function handle
                     choices = prop.DefaultValue();
                 end
+                if iscell(val) || isa(val,'function_handle')
+                    warning('Default choice not specified for %s; using empty option',prop.Name);
+                    val = '';
+                    obj.(name) = '';
+                end
                 val = Prefs.MultipleChoice(val,'choices',choices);
+            elseif isnumeric(val) && numel(val)==1 % There are many numeric classes
+                val = Prefs.Double(val);
             else
                 switch class(val)
                     case {'char'}
