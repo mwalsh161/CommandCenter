@@ -257,6 +257,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
         function arm(obj)
+            % Make sure calibration is available
+            cal = obj.calibration;
             if ~obj.diode_on
                 obj.activate;
             end
