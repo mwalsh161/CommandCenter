@@ -197,7 +197,11 @@ classdef pref_handler < handle
                 obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
                 % Grab all properties defined in the subclass to help with
                 % error message
-                val_help = new_val.validation_summary(obj.pref_handler_indentation);
+                try
+                    val_help = new_val.validation_summary(obj.pref_handler_indentation);
+                catch val_help_err
+                    val_help = sprintf('Failed to generate validation help:\n%s',getReport(val_help_err,'basic','hyperlinks','off'));
+                end
                 % Escape tex modifiers
                 val_help = strrep(val_help,'\','\\');
                 val_help = strrep(val_help,'_','\_');

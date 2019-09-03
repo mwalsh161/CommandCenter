@@ -249,7 +249,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 settings = obj.prefs;
             end
             % Append any additional class-based prefs (no order)
-            settings = [settings, obj.get_class_based_prefs()];
+            class_based = obj.get_class_based_prefs();
+            settings = [settings, class_based(~ismember(class_based,settings))];
         end
 
         % Adds custom settings to main GUI.

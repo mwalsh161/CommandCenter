@@ -120,6 +120,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % Used to construct more helpful error messages when validation fails
             mc = metaclass(obj);
             props = mc.PropertyList([mc.PropertyList.DefiningClass]==mc);
+            props(strcmp({props.Name},'ui')) = []; % Remove UI
             longest_name = max(cellfun(@length,{props.Name}))+indent;
             summary = pad({props.Name},longest_name,'left');
             for i  =1:length(summary) % integers of floats
