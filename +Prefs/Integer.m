@@ -2,6 +2,7 @@ classdef Integer < Base.pref
     %INTEGER Allows any integer within max and min limits
     
     properties
+        ui = Prefs.Inputs.CharField;
         allow_nan = true;
         max = Inf;
         min = -Inf;

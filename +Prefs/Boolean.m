@@ -1,6 +1,10 @@
 classdef Boolean < Base.pref
     %BOOLEAN True/False data
     
+    properties
+        ui = Prefs.Inputs.BooleanField;
+    end
+    
     methods
         function obj = Boolean(varargin)
             obj.default = false;

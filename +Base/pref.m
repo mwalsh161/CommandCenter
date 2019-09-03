@@ -39,6 +39,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     properties(AbortSet) % Avoids calling custom_* methods when "getting" unless altered by a get listener
         value
     end
+    properties(Abstract)
+        ui; % The class governing the UI
+    end
     properties
         name
         units
@@ -53,7 +56,6 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         custom_clean      % Called directly after built-in clean
         set               % First thing called before any validation
         get
-        ui = Prefs.Inputs.CharField; % The class governing the UI
     end
     
     methods % To be overloaded by subclass pref

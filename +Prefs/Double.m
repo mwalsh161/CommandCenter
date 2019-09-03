@@ -2,6 +2,7 @@ classdef Double < Base.pref
     %DOUBLE Any numeric value
     
     properties
+        ui = Prefs.Inputs.CharField;
         allow_nan = true;
         max = Inf;
         min = -Inf;
@@ -11,6 +12,17 @@ classdef Double < Base.pref
         function obj = Double(varargin)
             obj.default = 0;
             obj = obj.init(varargin{:});
+        end
+        function val = get_ui_value(obj)
+            valstr = obj.ui.get_value();
+            if strcmpi(valstr,'nan')
+                val = NaN;
+                return
+            end
+            val = str2double(valstr);
+            if isnan(val)
+                error('SETTINGS:bad_ui_val','Cannot convert "%s" to numeric value.',valstr)
+            end
         end
         function validate(obj,val)
             validateattributes(val,{'numeric'},{'scalar'})

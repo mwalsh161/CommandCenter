@@ -2,6 +2,7 @@ classdef String < Base.pref
     %STRING Allows any character array
     
     properties
+        ui = Prefs.Inputs.CharField;
         allow_empty = true; % Note, this will error immediately unless default value given when true
     end
     
