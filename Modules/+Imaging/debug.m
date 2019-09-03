@@ -3,12 +3,17 @@ classdef debug < Modules.Imaging
     
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'new_style','continuous'};
+        prefs = {'fyi','my_integer','my_double'}; % my_string should be added at end
        % show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
        % readonly_prefs = {''}
     end
     properties(GetObservable,SetObservable)
-        new_style = Prefs.Integer('min',0);
+        fyi = Prefs.String('This is for your info',...
+                           'help_text','This is a readonly string.',...
+                           'readonly',true);
+        my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
+        my_double = Prefs.Double('units','um','min',-50,'max',50);
+        my_string = Prefs.String('Enter value here','allow_empty',false);
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
  %       database = Modules.Database.empty(0); % Should never do this

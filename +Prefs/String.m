@@ -3,7 +3,7 @@ classdef String < Base.pref
     
     properties
         ui = Prefs.Inputs.CharField;
-        allow_empty = true; % Note, this will error immediately unless default value given when true
+        allow_empty = true; % Note, this will error immediately unless default value supplied
     end
     
     methods
@@ -12,7 +12,7 @@ classdef String < Base.pref
             obj = obj.init(varargin{:});
         end
         function validate(obj,val)
-            validateattributes(val,{'numeric','logical'},{'scalartext'})
+            validateattributes(val,{'char','string'},{'scalartext'})
             if ~obj.allow_empty
                 assert(~isempty(val),'Attempted to set empty string. allow_empty is set to false.')
             end

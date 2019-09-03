@@ -58,13 +58,27 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         get
     end
     
-    methods % To be overloaded by subclass pref
+    methods % May be overloaded by subclass pref
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
         function validate(obj,val)
             % May throw an error if not valid
         end
         function val = clean(obj,val)
+        end
+        % This provides on opportunity to format or add to help_text
+        % property upon creation. It is called via get.help_text, meaning
+        % it will not be bypassed when retrieving obj.help_text.
+        % NOTE: https://undocumentedmatlab.com/blog/multi-line-tooltips
+        function text = get_help_text(obj,help_text_prop)
+            if ~isempty(help_text_prop)
+                text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
+                                 help_text_prop, obj.validation_summary(2));
+            else
+                text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
+                                 obj.validation_summary(2));
+            end
+            text = strip(strrep(text, newline, '<br/>'));
         end
         % These methods are used to get/set the value and cast it to the
         % correct type before returning. This does not need to validate or
@@ -163,6 +177,20 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                 val = obj.custom_clean(val);
             end
             obj.value = val;
+        end
+        function val = get.help_text(obj)
+            try
+                val = obj.get_help_text(obj.help_text);
+            catch err
+                if isempty(obj.help_text)
+                    val = sprintf('<html><font color="red">%s</font>',...
+                        getReport(err, 'basic'));
+                else
+                    val = sprintf('<html>%s\n<font color="red">%s</font>',...
+                        obj.help_text, getReport(err, 'basic'));
+                end
+                val = strrep(val, newline, '<br/>');
+            end
         end
     end
     
