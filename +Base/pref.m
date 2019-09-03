@@ -119,7 +119,10 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         function summary = validation_summary(obj,indent)
             % Used to construct more helpful error messages when validation fails
             mc = metaclass(obj);
-            props = mc.PropertyList([mc.PropertyList.DefiningClass]==mc);
+            ignore_classes = superclasses('Base.pref');
+            ignore_classes = [ignore_classes ,{'Base.pref'}];
+            mask = ~arrayfun(@(a)ismember(a.DefiningClass.Name,ignore_classes),mc.PropertyList);
+            props = mc.PropertyList(mask);
             props(strcmp({props.Name},'ui')) = []; % Remove UI
             longest_name = max(cellfun(@length,{props.Name}))+indent;
             summary = pad({props.Name},longest_name,'left');
