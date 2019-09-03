@@ -70,6 +70,7 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
         function set.resTime_us(obj,val)
             %Note that order matters here; setting tauTimes first is
             %important in case of error
+            obj.resTime_us = val;
             obj.counterDuration = obj.resTime_us / obj.nCounterBins - obj.counterSpacing;
             obj.tauTimes = linspace(0,obj.resTime_us-obj.counterDuration-obj.counterSpacing,obj.nCounterBins);
         end
