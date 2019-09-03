@@ -6,12 +6,17 @@ classdef Double < Base.pref
         allow_nan = true;
         max = Inf;
         min = -Inf;
+        display_precision = 10; % Digits of precision in UI (truncated if zeros)
+        truncate = false; % Truncate actual value to display_precision
     end
     
     methods
         function obj = Double(varargin)
             obj.default = 0;
             obj = obj.init(varargin{:});
+        end
+        function set_ui_value(obj,val)
+            obj.ui.set_value(num2str(val,obj.display_precision));
         end
         function val = get_ui_value(obj)
             valstr = obj.ui.get_value();
@@ -22,6 +27,11 @@ classdef Double < Base.pref
             val = str2double(valstr);
             if isnan(val)
                 error('SETTINGS:bad_ui_val','Cannot convert "%s" to numeric value.',valstr)
+            end
+        end
+        function val = clean(obj,val)
+            if obj.truncate
+                val = str2double(num2str(val,obj.display_precision));
             end
         end
         function validate(obj,val)
