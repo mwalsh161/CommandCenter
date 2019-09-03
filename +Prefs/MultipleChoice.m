@@ -1,7 +1,10 @@
 classdef MultipleChoice < Base.pref
     %MULTIPLECHOICE Select among a set of options
-    %   The default value is empty_val, which if allow_empty is true is
-    %   automatically prepended to choices.
+    %   The default value is '', which corresponds to the display name
+    %   empty_val, which, if allow_empty is true, is automatically prepended
+    %   to choices.
+    %   Similar to Prefs.String, if no default value is supplied and
+    %   allow_empty is false, it will error upon instantiation.
     
     properties
         choices = {};
@@ -12,38 +15,59 @@ classdef MultipleChoice < Base.pref
     properties(SetAccess=private,Hidden) % Hidden hides from validation_summary
         choices_strings = {}; % Used in Prefs.Inputs.DropDownField
     end
+    properties(Access=private)
+        dont_validate = true; % Used to bypass validation in constructor
+    end
     
     methods
         function obj = MultipleChoice(varargin)
-            obj.default = obj.none_val;
             obj = obj.init(varargin{:});
-%             if ~obj.allow_empty
-%                 obj.choices(1) = [];
-%                 obj.validate(obj.value); % Re-validate
-%             end
+            if obj.allow_empty
+                obj.choices = [{obj.empty_val} obj.choices];
+            end
             obj.choices_strings = obj.arb2string(obj.choices);
+            obj.dont_validate = false;
+            obj.validate(obj.value); % validate
         end
         function validate(obj,val)
+            if obj.dont_validate
+                return
+            end
+            if obj.allow_empty && isempty(val)
+                return
+            end
             for i = 1:length(obj.choices)
-                if isequal(val,obj.choices{i})
-                    return
-                end
+                if isequal(val,obj.choices{i}); return; end
             end
             error('MULTIPLECHOICE:unrecognizedChoice',...
                 ['Expected input to match one of these values:',...
-                '\n\n%s\n\nThe input, ''%s'', did not match any of the valid values.'],...
+                '\n\n%s\n\nThe input, %s, did not match any of the valid values.'],...
                 obj.arb2string_join(obj.choices,', '), obj.arb2string_join({val},', '))
         end
         function val = get_ui_value(obj)
-            valstr = obj.ui.get_value();
-            if strcmpi(valstr,'nan')
-                val = NaN;
-                return
+            [~,I] = obj.ui.get_value();
+            val = obj.choices{I};
+            if isequal(val,obj.empty_val)
+                val = '';
             end
-            val = str2double(valstr);
-            if isnan(val)
-                error('SETTINGS:bad_ui_val','Cannot convert "%s" to numeric value.',valstr)
+        end
+        function set_ui_value(obj,val)
+            if obj.allow_empty && isempty(val)
+                val = obj.empty_val;
             end
+            obj.validate(val); % Guarantees we will find it
+            I = 0;
+            for i = 1:length(obj.choices)
+                I = I + 1;
+                if isequal(val,obj.choices{i}); break; end
+            end
+            obj.ui.set_value(I);
+        end
+        function summary = validation_summary(obj,indent)
+            temp = obj.choices;
+            obj.choices = obj.arb2string_join(temp, ', ');
+            summary = validation_summary@Base.pref(obj,indent);
+            obj.choices = temp;
         end
     end
     methods(Static)

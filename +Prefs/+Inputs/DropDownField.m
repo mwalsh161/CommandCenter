@@ -53,14 +53,17 @@ classdef DropDownField < Base.input
             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
                                 (suggested_label_width_px + 2*pad);
         end
-        function set_value(obj,val)
-            mask = strcmp(obj.ui.String,val);
-            assert(any(mask),...
-                sprintf('Unable to find "%s" in available options (%s)',...
-                val, strjoin(obj.ui.String,', ') ))
-            obj.ui.Value = obj.ui.String(mask);
+        function set_value(obj,val,I)
+            if nargin < 3
+                mask = strcmp(obj.ui.String,val);
+                assert(any(mask),...
+                    sprintf('Unable to find "%s" in available options (%s)',...
+                    val, strjoin(obj.ui.String,', ') ))
+                I = find(mask);
+            end
+            obj.ui.Value = I;
         end
-        function val = get_value(obj)
+        function [val,I] = get_value(obj)
             val = obj.ui.String{obj.ui.Value};
         end
     end

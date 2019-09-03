@@ -137,13 +137,19 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % case we should error
             obj.value = default;
         end
+    end
+    methods
         function summary = validation_summary(obj,indent)
             % Used to construct more helpful error messages when validation fails
+            % Displays all properties that aren't hidden or defined in
+            % Base.pref or a superclass thereof. It will also ignore the
+            % "ui" abstract property.
             mc = metaclass(obj);
             ignore_classes = superclasses('Base.pref');
             ignore_classes = [ignore_classes ,{'Base.pref'}];
+            public_props = properties(obj);
             mask = ~arrayfun(@(a)ismember(a.DefiningClass.Name,ignore_classes), mc.PropertyList) &...
-                   ~arrayfun(@(a)a.Hidden, mc.PropertyList);
+                    ismember({mc.PropertyList.Name},public_props)';
             props = mc.PropertyList(mask);
             props(strcmp({props.Name},'ui')) = []; % Remove UI
             if isempty(props)
@@ -161,8 +167,6 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             end
             summary = strjoin(summary,newline);
         end
-    end
-    methods
         function obj = set.custom_validate(obj,val)
             assert(isa(val,'function_handle')||ischar(val),...
                 'Custom validate function must be function_handles or strings');
