@@ -16,7 +16,7 @@ classdef BooleanField < Base.input
             if ~isempty(pref.units)
                 nameFormatted = sprintf('%s (%s): ',pref.name,pref.units);
             else
-                nameFormatted = sprintf('%s: ',pref.name,pref.units);
+                nameFormatted = sprintf('%s: ',pref.name);
             end
             enabled = 'on';
             if pref.readonly

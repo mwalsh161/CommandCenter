@@ -71,12 +71,16 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         % it will not be bypassed when retrieving obj.help_text.
         % NOTE: https://undocumentedmatlab.com/blog/multi-line-tooltips
         function text = get_help_text(obj,help_text_prop)
+            summary_text = obj.validation_summary(2);
+            if isempty(summary_text)
+                summary_text = '  None'; % indent 2
+            end
             if ~isempty(help_text_prop)
                 text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
-                                 help_text_prop, obj.validation_summary(2));
+                                 help_text_prop, summary_text);
             else
                 text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
-                                 obj.validation_summary(2));
+                                 summary_text);
             end
             if obj.auto_generated
                 text = [text '<br/><font color="red">This pref was auto generated and deprecated. Consider replacing with class-based pref.</font>'];
@@ -141,6 +145,10 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             mask = ~arrayfun(@(a)ismember(a.DefiningClass.Name,ignore_classes),mc.PropertyList);
             props = mc.PropertyList(mask);
             props(strcmp({props.Name},'ui')) = []; % Remove UI
+            if isempty(props)
+                summary = '';
+                return
+            end
             longest_name = max(cellfun(@length,{props.Name}))+indent;
             summary = pad({props.Name},longest_name,'left');
             for i  =1:length(summary) % integers of floats

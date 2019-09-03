@@ -3,9 +3,10 @@ classdef debug < Modules.Imaging
     
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'fyi','my_integer','my_double','old_style'}; % my_string should be added at end
-       % show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
-       % readonly_prefs = {''}
+        % NOTE: my_string should be added at end as setting, but not saved like pref
+        prefs = {'fyi','my_integer','my_double','old_style','my_logical'};
+       % show_prefs = {'fyi','my_integer','my_double'};
+       % readonly_prefs = {''} % Should result in deprecation warning if used
     end
     properties(GetObservable,SetObservable)
         fyi = Prefs.String('This is for your info',...
@@ -14,7 +15,9 @@ classdef debug < Modules.Imaging
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
         my_double = Prefs.Double('units','um','min',-50,'max',50);
         my_string = Prefs.String('Enter value here','allow_empty',false);
+        my_logical = Prefs.Boolean();
         old_style = 5;
+        % These are not implemented yet
  %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
  %       database = Modules.Database.empty(0); % Should never do this
