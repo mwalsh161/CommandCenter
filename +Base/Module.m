@@ -325,14 +325,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
             end
             suggested_label_width = max(label_size); % px
+            lsh = Base.preflistener.empty;
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
                         UIs{i}.ui.adjust_UI(suggested_label_width);
-                        lsh = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,UIs{i}));
+                        lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,UIs{i}));
                     end
                 end
             end
+            addlistener(panelH,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Clean up listeners
         end
         function settings_callback(obj,mp,setting_name)
             obj.pref_set_try = true;  % try block for validation
