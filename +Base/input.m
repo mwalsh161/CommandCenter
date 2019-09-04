@@ -21,9 +21,8 @@ classdef input
         % pref the opportunity to readjust positions if desired
         adjust_UI(obj,suggested_label_width_px)
         
-        % To check if the UI is enabled, this function will be called prior to
-        % setting/getting values
-        tf = enabled(obj)
+        % To check if the UI is valid
+        tf = isvalid(obj)
 
         % Given a value, update the UI objects
         set_value(obj,val)
