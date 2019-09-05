@@ -22,6 +22,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     properties(Abstract,Constant,Hidden)
         modules_package;
     end
+
     events
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
@@ -261,9 +262,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         %   your settings, if you aren't careful, you will have an
         %   inconsitency and confusion will follow.
         %   See documentation for how the default settings works below
-        function settings(obj,panelH,pad)
+        function settings(obj,panelH,pad,margin)
             % panelH: handle to the MATLAB panel
-            % pad: vertical distance in pixels to leave between UI elements
+            % pad: double; vertical distance in pixels to leave between UI elements
+            % margin: 1x2 double; additional space in pixels to leave on [left, right]
             
             panelH.Units = 'pixels';
             try % Make backwards compatible (around 2017a I think)
@@ -294,7 +296,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             nsettings = length(setting_names);
 
             panelH_loc = pad;
-            UIs = cell(1,nsettings); % col 1: meta pref, col 2: ui object(s)
+            mps = cell(1,nsettings); % meta pref
             label_size = NaN(1,nsettings);
             % Build up, starting from end to beginning
             for i = nsettings:-1:1
@@ -311,11 +313,11 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
-                [mp.ui,height_px,label_size(i)] = mp.ui.make_UI(mp,panelH,...
+                [mp,height_px,label_size(i)] = mp.make_UI(mp,panelH,...
                             panelH_loc,widthPx);
-                mp.ui.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
+                mp.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
                 panelH_loc = panelH_loc + height_px + pad;
-                UIs{i} = mp;
+                mps{i} = mp;
                 %obj.set_meta_pref(setting_names{i},mp);
                 try
                     mp.set_ui_value(mp.value); % Update to current value
@@ -329,8 +331,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
-                        UIs{i}.ui.adjust_UI(suggested_label_width);
-                        lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,UIs{i}));
+                        mps{i}.adjust_UI(margin, suggested_label_width);
+                        lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
                 end
             end

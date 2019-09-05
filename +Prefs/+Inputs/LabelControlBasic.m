@@ -56,12 +56,12 @@ classdef LabelControlBasic < Base.input
         function link_callback(obj,callback)
             obj.ui.Callback = callback;
         end
-        function adjust_UI(obj,suggested_label_width_px)
-            pad = obj.label.Position(1); % Use pad from left for the right as well
+        function adjust_UI(obj,suggested_label_width_px,margin_px)
+            obj.label.Position(1) = margin_px(1);
             obj.label.Position(3) = suggested_label_width_px;
-            obj.ui.Position(1) = suggested_label_width_px + pad;
+            obj.ui.Position(1) = suggested_label_width_px + margin_px(1);
             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
-                                (suggested_label_width_px + 2*pad);
+                                (suggested_label_width_px + sum(margin_px));
         end
         function set_value(obj,val)
             obj.ui.String = val;

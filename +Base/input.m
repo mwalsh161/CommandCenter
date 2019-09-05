@@ -18,8 +18,9 @@ classdef input
         
         % Once Module.settings calls all get_UI methods, it will go back
         % and call this method using a suggested label_width_px giving this
-        % pref the opportunity to readjust positions if desired
-        adjust_UI(obj,suggested_label_width_px)
+        % pref the opportunity to readjust positions if desired. Likewise,
+        % margin specifies [left, right] margins in pixels requested by CC.
+        adjust_UI(obj, suggested_label_width_px, margin)
         
         % To check if the UI is valid
         tf = isvalid(obj)

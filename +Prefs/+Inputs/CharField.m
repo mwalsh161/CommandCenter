@@ -25,17 +25,17 @@ classdef CharField < Prefs.Inputs.LabelControlBasic
                 obj.units.Position(3) = obj.units.Extent(3);
             end
         end
-        function adjust_UI(obj,suggested_label_width_px)
-            pad = obj.label.Position(1); % Use pad from left for the right as well
+        function adjust_UI(obj,suggested_label_width_px,margin_px)
+            obj.label.Position(1) = margin_px(1);
             obj.label.Position(3) = suggested_label_width_px;
             obj.ui.Position(1) = suggested_label_width_px + pad;
             units_space = 0;
             if isgraphics(obj.units) % units exist
                 units_space = obj.units.Position(3);
-                obj.units.Position(1) = obj.units.Parent.Position(3) - (units_space + pad);
+                obj.units.Position(1) = obj.units.Parent.Position(3) - (units_space + margin_px(2));
             end
             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
-                                (suggested_label_width_px + units_space + 2*pad);
+                                (suggested_label_width_px + units_space + sum(margin_px));
         end
     end
 

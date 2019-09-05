@@ -22,6 +22,7 @@ classdef Manager < handle
     
     properties
         settings_vertical_pad_px = 5; % pixels between setting UIs
+        settings_horizontal_margin_px = [20, 20] % Additional pixels on [left, right]
     end
     properties(Access=protected)
         no_module_str = 'No Modules Loaded';
@@ -247,7 +248,7 @@ classdef Manager < handle
                 settings_panel = uipanel(temp,'BorderType','None',...
                     'units','characters','position',[0 0 width 0]);
                 obj.sandboxed_function({obj.active_module,'settings'},...
-                        settings_panel,obj.settings_vertical_pad_px);
+                        settings_panel,obj.settings_vertical_pad_px,obj.settings_horizontal_margin_px);
                 % Make sure width wasn't changed
                 set(settings_panel,'units','characters')
                 w = get(settings_panel,'position');

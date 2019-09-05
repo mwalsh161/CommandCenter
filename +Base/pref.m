@@ -31,6 +31,15 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %   NOTE: if specified as a string, thus binding them to an instance,
     %   the first argument will be the module's object (as usual)
     %
+    % When building/interacting with UI, it is recommended to use the wrapping methods
+    %   defined here (some may take care of adding additional input):
+    %       val = obj.get_ui_value()
+    %       obj.set_ui_value(val)
+    %       [obj,height_px,label_width_px] = obj.make_UI(parent, yloc_px, width_px)
+    %       obj.link_callback(callback)
+    %       obj.adjust_UI(margin, suggested_label_width_px)
+
+    %
     % Because MATLAB generates default properties only once, this must be a
     %   value class instead of a handle class to avoid persistent memory between
     %   instantiations, but not between sessions (e.g. we can't replace current pref
@@ -107,6 +116,18 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         function set_ui_value(obj,val)
             % Note: not required that val == obj.value
             obj.ui.set_value(val);
+        end
+        function varargout = make_UI(obj,varargin)
+            % This wraps ui.make_UI; careful overloading
+            [varargout{:}] = obj.ui.make_UI(obj,varargin{:});
+        end
+        function link_callback(obj,varargin)
+            % This wraps ui.link_callback; careful overloading
+            obj.ui.link_callback(varargin{:});
+        end
+        function adjust_UI(obj,varargin)
+            % This wraps ui.adjust_UI; careful overloading
+            obj.ui.adjust_UI(varargin{:});
         end
     end
 
