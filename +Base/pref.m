@@ -42,20 +42,27 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     properties(Abstract)
         ui; % The class governing the UI
     end
-    properties
-        name
-        units
-        help_text
-        readonly = false;       % If true, sets GUI control to not be enabled
-        display_only = false;   % If true, this is only used for display, and not saved as a pref
-        auto_generated = false; % Used by Base.pref_handler to handle non class-based prefs
-        default = []; % Allows subclass to provide default value when user does not supply it
+    properties % {default, validation function}
+        name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+        units = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+        help_text = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+        % If true, sets GUI control to not be enabled
+        readonly = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
+        % If true, this is only used for display, and not saved as a pref   
+        display_only = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
+        % Used by Base.pref_handler to handle non class-based prefs
+        auto_generated = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
+        % Allows subclass to provide default value when user does not supply it
+        default =  {[], @(a)true};
         % optional functions supplied by user (subclasses should allow
         % setting in constructor)
-        custom_validate   % Called directly after built-in validation
-        custom_clean      % Called directly after built-in clean
-        set               % First thing called before any validation
-        get
+        %   Called directly after built-in validation
+        custom_validate = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
+        %   Called directly after built-in clean
+        custom_clean = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
+        % First things called before any validation
+        set = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
+        get = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
     end
     
     methods % May be overloaded by subclass pref
