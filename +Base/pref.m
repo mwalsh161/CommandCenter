@@ -28,7 +28,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %   value = custom_clean(value);
     %       send val to a device, and grab the device's actual val or escaping
     %       characters to avoid sql injection
-    %   NOTE: if specified as a string, thust binding them to an instance,
+    %   NOTE: if specified as a string, thus binding them to an instance,
     %   the first argument will be the module's object (as usual)
     %
     % Because MATLAB generates default properties only once, this must be a
@@ -39,8 +39,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     properties(AbortSet) % Avoids calling custom_* methods when "getting" unless altered by a get listener
         value
     end
-    properties(Abstract)
+    properties(Abstract,Hidden)
         ui; % The class governing the UI
+        default; % NOTE: goes through class validation function, so not treated
     end
     properties % {default, validation function}
         name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
@@ -52,20 +53,19 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         display_only = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % Used by Base.pref_handler to handle non class-based prefs
         auto_generated = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
-        % Allows subclass to provide default value when user does not supply it
-        default =  {[], @(a)true};
-        % optional functions supplied by user (subclasses should allow
-        % setting in constructor)
+        % optional functions supplied by user (function or char vector; validated in set methods)
         %   Called directly after built-in validation
-        custom_validate = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
+        custom_validate = {[], @(a)true};
         %   Called directly after built-in clean
-        custom_clean = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
+        custom_clean = {[], @(a)true};
         % First things called before any validation
-        set = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
-        get = {[], @(a)validateattributes(a,{'function_handle'},{'scalar'})};
+        set = {[], @(a)true};
     end
     
     methods % May be overloaded by subclass pref
+        function obj = pref(varargin)
+            obj = obj.init(varargin{:});
+        end
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
         function validate(obj,val)
@@ -112,11 +112,12 @@ classdef pref < matlab.mixin.Heterogeneous % value class
 
     methods(Sealed)
         function obj = init(obj,varargin)
+            try % Try is to throw all errors as caller
             % Process input (subclasses should use set methods to validate)
             p = inputParser;
-            % Go through all public properties (removing value and default)
+            % Go through all public properties (removing value and Abstract ones)
             props = properties(obj);
-            props = props(~ismember(props,{'value','default'}));
+            props = props(~ismember(props,{'value','default','ui'}));
             nprops = length(props);
             % If user supplied odd number of inputs, then we expect the
             % call syntax to be: subclass(default,property1,value1,...);
@@ -126,25 +127,33 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                 varargin(1) = [];
             else % subclass(property1,value1,...); (where default could be a property)
                 default_in_parser = true;
+                % Default gets set to value at end of function, so will go through 
+                % the validate method; no validation necessary here
                 addParameter(p,'default',obj.default);
             end
-            for i = 1:nprops
-                addParameter(p,props{i},[]);
+            mc = metaclass(obj);
+            mps = mc.PropertyList;
+            for i = 1:nprops % Need to bypass get methods using the metaprop
+                mp = mps(strcmp(props{i},{mps.Name}));
+                assert(mp.HasDefault && iscell(mp.DefaultValue) && length(mp.DefaultValue)==2,...
+                    'Default value of "%s" should be cell array: {default, validation_function}',props{i});
+                addParameter(p,props{i},mp.DefaultValue{1},mp.DefaultValue{2});
             end
             parse(p,varargin{:});
             if default_in_parser
                 default = p.Results.default;
             end
-            % Assign non-empty props
+            % Assign props
             for i = 1:nprops
-                if ~isempty(p.Results.(props{i}))
-                    obj.(props{i}) = p.Results.(props{i});
-                end
+            	obj.(props{i}) = p.Results.(props{i});
             end
             % Finally assign default (dont ignore if empty, because
             % subclass might have validation preventing empty, in which
             % case we should error
             obj.value = default;
+            catch err
+                throwAsCaller(err);
+            end
         end
     end
     methods
@@ -177,14 +186,25 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             summary = strjoin(summary,newline);
         end
         function obj = set.custom_validate(obj,val)
-            assert(isa(val,'function_handle')||ischar(val),...
-                'Custom validate function must be function_handles or strings');
+            if ~isempty(val)
+                assert(isa(val,'function_handle')||ischar(val),...
+                    'Custom validate function must be function_handle or char vector');
+            end
             obj.custom_validate = val;
         end
         function obj = set.custom_clean(obj,val)
-            assert(isa(val,'function_handle')||ischar(val),...
-                'Custom clean function must be a function_handles or strings');
+            if ~isempty(val)
+                assert(isa(val,'function_handle')||ischar(val),...
+                    'Custom clean function must be a function_handle or char vector');
+            end
             obj.custom_clean = val;
+        end
+        function obj = set.set(obj,val)
+            if ~isempty(val)
+                assert(isa(val,'function_handle')||ischar(val),...
+                    'Custom set function must be a function_handle or char vector');
+            end
+            obj.set = val;
         end
         function obj = set.value(obj,val)
             if ~isempty(obj.set) &&...

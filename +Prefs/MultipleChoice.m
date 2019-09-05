@@ -6,11 +6,16 @@ classdef MultipleChoice < Base.pref
     %   Similar to Prefs.String, if no default value is supplied and
     %   allow_empty is false, it will error upon instantiation.
     
-    properties
-        choices = {};
-        allow_empty = true; % Note, this will error immediately unless default value supplied
-        empty_val = '<None>'; % Value displayed for empty option
+    properties(Hidden)
+        default = [];
         ui = Prefs.Inputs.DropDownField;
+    end
+    properties
+        choices = {{}, @iscell};
+        % Note, this will error immediately unless default value supplied
+        allow_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
+        % Value displayed for empty option
+        empty_val = {'<None>', @(a)validateattributes(a,{'char'},{'vector'})};
     end
     properties(SetAccess=private,Hidden) % Hidden hides from validation_summary
         choices_strings = {}; % Used in Prefs.Inputs.DropDownField
@@ -21,7 +26,7 @@ classdef MultipleChoice < Base.pref
     
     methods
         function obj = MultipleChoice(varargin)
-            obj = obj.init(varargin{:});
+            obj = obj@Base.pref(varargin{:});
             if obj.allow_empty
                 obj.choices = [{obj.empty_val} obj.choices];
             end

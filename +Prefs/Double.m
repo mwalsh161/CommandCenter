@@ -1,20 +1,21 @@
 classdef Double < Base.pref
     %DOUBLE Any numeric value
     
-    properties
+    properties(Hidden)
+        default = 0;
         ui = Prefs.Inputs.CharField;
-        allow_nan = true;
-        max = Inf;
-        min = -Inf;
-        display_precision = 10; % Digits of precision in UI (truncated if zeros)
-        truncate = false; % Truncate actual value to display_precision
+    end
+    properties
+        allow_nan = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
+        max = {Inf, @(a)validateattributes(a,{'numeric'},{'scalar'})};
+        min = {-Inf, @(a)validateattributes(a,{'numeric'},{'scalar'})};
+        % Digits of precision in UI (truncated if zeros)
+        display_precision = {10, @(a)validateattributes(a,{'numeric'},{'integer','positive','scalar'})};
+        % Truncate actual value to display_precision
+        truncate = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
     end
     
     methods
-        function obj = Double(varargin)
-            obj.default = 0;
-            obj = obj.init(varargin{:});
-        end
         function set_ui_value(obj,val)
             obj.ui.set_value(num2str(val,obj.display_precision));
         end

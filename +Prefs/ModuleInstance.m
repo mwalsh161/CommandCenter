@@ -1,18 +1,22 @@
 classdef ModuleInstance < Base.pref
     %MODULE Allow particular types of module arrays
     
-    properties
+    properties(Hidden) % Satisfy abstract
+        default = Base.Module.empty(0);
         ui = Prefs.Inputs.ModuleSelectionField;
-        inherits = {}; % Superclasses required for these modules as cell array of chars
-        n = 1;         % Number of allowed instances simultaneously (n > 0)
-        remove_on_delete = false; % Remove instances that get deleted. NOTE: this will reshape arrays to be vectors
+    end
+    properties % Settings
+        % Superclasses required for these modules as cell array of char vectors
+        inherits = {{}, @(a)true};
+        % Number of allowed instances simultaneously (n > 0)
+        n = {1, @(a)validateattributes(a,{'numeric'},{'scalar','positive'})};
+        % Remove instances that get deleted. NOTE: this will reshape arrays to be vectors
+        remove_on_delete = {false, @(a)validateattributes(a,{'logical'},{'scalar'})}; 
     end
     
     methods
         function obj = ModuleInstance(varargin)
-            obj.default = Base.Module.empty(0);
             obj = obj.init(varargin{:});
-            assert(obj.n > 0, 'Parameter "n" must be greater than 0.')
         end
         function set_ui_value(obj,val)
             obj.ui.set_value(val);
@@ -23,7 +27,7 @@ classdef ModuleInstance < Base.pref
         function val = clean(obj,val)
             % Setup listener for deletion
             if obj.remove_on_delete
-                if ~isvector(val)
+                if ~isvector(val) && ~isempty(val) % [] is not a vector
                     sz = num2str(size(val),'%ix'); sz(end) = []; % Remove trailing x
                     warning('MODULEINSTANCE:notvector',...
                         'Reshaping %s array to %ix1 vector since remove on delete is true.',sz,numel(val));
