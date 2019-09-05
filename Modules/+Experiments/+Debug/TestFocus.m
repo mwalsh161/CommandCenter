@@ -61,7 +61,7 @@ classdef TestFocus < Modules.Experiment
             data = obj.data;
         end
         
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
             
         end
     end

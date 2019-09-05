@@ -80,7 +80,7 @@ classdef Galvos < Modules.Stage
             % Action is basically instant!
         end
         
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
             spacing = 1.5;
             num_lines = 4;
             line = 1;

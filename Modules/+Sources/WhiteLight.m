@@ -78,7 +78,7 @@ classdef WhiteLight < Modules.Source
         end
         
         % Settings and Callbacks
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
             spacing = 1.5;
             num_lines = 2;
             line = 1;

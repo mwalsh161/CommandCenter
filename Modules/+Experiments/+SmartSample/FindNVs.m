@@ -81,7 +81,7 @@ classdef FindNVs < Experiments.SmartSample.super_invisible & Modules.Experiment
             data.depth = obj.depth;
         end
         
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
             settings@Experiments.SmartSample.super_invisible(obj,panelH)
             controls = allchild(panelH);
             positions = reshape([controls.Position],4,[]);

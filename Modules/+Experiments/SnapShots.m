@@ -84,7 +84,7 @@ classdef SnapShots < Modules.Experiment
             end
         end
         
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
             
         end
     end

@@ -187,7 +187,7 @@ classdef interferometer_visibility < Modules.Experiment
         function resetPlots(obj,~,~)
             obj.reset = true;
         end
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
             spacing = 1.75;
             num_lines = 3;
             line = 1;

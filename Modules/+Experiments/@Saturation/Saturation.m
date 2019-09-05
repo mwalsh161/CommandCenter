@@ -58,7 +58,7 @@ classdef Saturation < Modules.Experiment
             dat.nsamples = obj.nsamples;
         end
 
-        function settings(obj,panelH,~)
+        function  settings(obj,panelH,~,~)
         % Creates a button for the user to stop acquiring data once it has started and a place for user to set the
         % measurement wavelength of the PM
             spacing = 2.25;
