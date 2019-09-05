@@ -7,7 +7,6 @@ classdef DBManager < Base.Manager
     end
     properties(SetAccess=private,Hidden)
         last_save_success = false; % Only true if they all succeed
-        prefs = {'use_git_info'}
     end
 
     methods
@@ -18,6 +17,7 @@ classdef DBManager < Base.Manager
         end
         function obj = DBManager(handles)
             obj = obj@Base.Manager(Modules.Database.modules_package,handles,handles.panelSave,handles.saving_select);
+            obj.prefs = [obj.prefs, {'use_git_info'}];
             obj.loadPrefs;
             obj.blockOnLoad = handles.menu_saving;
             set(handles.image_save,'ClickedCallback',@(hObj,eventdata)obj.imSave(false,hObj,eventdata))

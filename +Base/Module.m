@@ -313,8 +313,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
-                [mp,height_px,label_size(i)] = mp.make_UI(mp,panelH,...
-                            panelH_loc,widthPx);
+                [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx);
                 mp.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
@@ -331,7 +330,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
-                        mps{i}.adjust_UI(margin, suggested_label_width);
+                        mps{i}.adjust_UI(suggested_label_width, margin);
                         lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
                 end

@@ -28,7 +28,7 @@ classdef CharField < Prefs.Inputs.LabelControlBasic
         function adjust_UI(obj,suggested_label_width_px,margin_px)
             obj.label.Position(1) = margin_px(1);
             obj.label.Position(3) = suggested_label_width_px;
-            obj.ui.Position(1) = suggested_label_width_px + pad;
+            obj.ui.Position(1) = suggested_label_width_px + margin_px(1);
             units_space = 0;
             if isgraphics(obj.units) % units exist
                 units_space = obj.units.Position(3);

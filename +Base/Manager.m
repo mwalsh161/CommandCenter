@@ -20,9 +20,13 @@ classdef Manager < handle
     %   A manager can subclass this as a "simple" manager as well in which
     %   all module related methods will error
     
+    properties(Hidden)
+        prefs = {'settings_vertical_pad_px','settings_horizontal_margin_px'};
+    end
     properties
         settings_vertical_pad_px = 5; % pixels between setting UIs
-        settings_horizontal_margin_px = [20, 20] % Additional pixels on [left, right]
+        settings_horizontal_margin_px = 20 % Additional pixels on left & right margins*
+        % * NOTE: this can be easily extended to 1x2 if Base.propedit gains support for that
     end
     properties(Access=protected)
         no_module_str = 'No Modules Loaded';
@@ -113,27 +117,23 @@ classdef Manager < handle
     end
     methods(Access=protected)
         function savePrefs(obj)
-            if isprop(obj,'prefs') % opt-in for subclasses
-                for i = 1:numel(obj.prefs)
-                    try
-                        eval(sprintf('setpref(obj.namespace,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));
-                    catch err
-                        warning('MANAGER:save_prefs','%s',err.message)
-                    end
+            for i = 1:numel(obj.prefs)
+                try
+                    eval(sprintf('setpref(obj.namespace,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));
+                catch err
+                    warning('MANAGER:save_prefs','%s',err.message)
                 end
             end
         end
         function loadPrefs(obj)
             % Load prefs
-            if isprop(obj,'prefs')
-                for i = 1:numel(obj.prefs)
-                    if ispref(obj.namespace,obj.prefs{i})
-                        pref = getpref(obj.namespace,obj.prefs{i});
-                        try
-                            obj.(obj.prefs{i}) = pref;
-                        catch err
-                            warning('MANAGER:load_prefs','Error on loadPrefs (%s): %s',obj.prefs{i},err.message)
-                        end
+            for i = 1:numel(obj.prefs)
+                if ispref(obj.namespace,obj.prefs{i})
+                    pref = getpref(obj.namespace,obj.prefs{i});
+                    try
+                        obj.(obj.prefs{i}) = pref;
+                    catch err
+                        warning('MANAGER:load_prefs','Error on loadPrefs (%s): %s',obj.prefs{i},err.message)
                     end
                 end
             end
@@ -248,7 +248,7 @@ classdef Manager < handle
                 settings_panel = uipanel(temp,'BorderType','None',...
                     'units','characters','position',[0 0 width 0]);
                 obj.sandboxed_function({obj.active_module,'settings'},...
-                        settings_panel,obj.settings_vertical_pad_px,obj.settings_horizontal_margin_px);
+                        settings_panel,obj.settings_vertical_pad_px,[0 0] + obj.settings_horizontal_margin_px);
                 % Make sure width wasn't changed
                 set(settings_panel,'units','characters')
                 w = get(settings_panel,'position');

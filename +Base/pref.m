@@ -37,7 +37,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       obj.set_ui_value(val)
     %       [obj,height_px,label_width_px] = obj.make_UI(parent, yloc_px, width_px)
     %       obj.link_callback(callback)
-    %       obj.adjust_UI(margin, suggested_label_width_px)
+    %       obj.adjust_UI(suggested_label_width_px, margin)
 
     %
     % Because MATLAB generates default properties only once, this must be a
@@ -117,9 +117,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % Note: not required that val == obj.value
             obj.ui.set_value(val);
         end
-        function varargout = make_UI(obj,varargin)
+        function [obj,height_px,label_width_px] = make_UI(obj,varargin)
             % This wraps ui.make_UI; careful overloading
-            [varargout{:}] = obj.ui.make_UI(obj,varargin{:});
+            [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
         end
         function link_callback(obj,varargin)
             % This wraps ui.link_callback; careful overloading

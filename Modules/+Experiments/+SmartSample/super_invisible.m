@@ -412,7 +412,7 @@ classdef super_invisible < handle
             [gridX,gridY] = meshgrid(cols,rows);
             grid = ([gridX(:) gridY(:)]+0.5);
             delete(findall(0,'name','testGridWalk'));
-            f = figure('name','testGridWalk','units','normalized','position',[0 0 1 1]);
+            f = figure('name','testGridWalk','units','normalized','WindowState','fullscreen');
             ax = axes('parent',f); hold(ax,'on'); axis(ax,'image');
             Experiments.InitialCharacterization.drawMap(map,grid,ax,[]);
             i = 0;
