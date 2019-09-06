@@ -1,4 +1,5 @@
 classdef CharField < Prefs.Inputs.LabelControlBasic
+    %CHARFIELD provides UI for text input
 
     properties % Add units in
         units = gobjects(1)

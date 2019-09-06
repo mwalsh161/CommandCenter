@@ -13,11 +13,17 @@ classdef LabelControlBasic < Base.input
         uistyle;   % uicontrol style argument
     end
 
-    methods(Abstract)
+    methods % Overload by subclass
         % Provide function to get the label (without the ": " part)
         % Important to do it this way to allow MATLAB to make the proper extent
         %   when generating the label uicontrol for "label_width_px"
-        labeltext = get_label(obj,pref);
+        function labeltext = get_label(~,pref)
+            if ~isempty(pref.units)
+                labeltext = sprintf('%s (%s)',pref.name,pref.units);
+            else
+                labeltext = pref.name;
+            end
+        end
     end
 
     methods % Satisfy all abstract methods

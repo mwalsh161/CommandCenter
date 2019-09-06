@@ -77,13 +77,22 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             mods{end+1} = obj;
             setappdata(hObject,'ALLmodules',mods)
             obj.logger.log(['Initializing ' class(obj)])
+            % ******************************************************************
+            % *************************[NOW LEGACY]*****************************
+            % **********should be handled in class-based prefs******************
+            % ******************************************************************
             % Garbage collect for Base.Modules properties
             mc = metaclass(obj);
             mp = mc.PropertyList;
+            legacy_warning = false;
             for i = 1:length(mp)
                 if mp(i).HasDefault && contains('Base.Module',superclasses(mp(i).DefaultValue))
+                    legacy_warning = true;
                     addlistener(obj,mp(i).Name,'PostSet',@obj.module_garbage_collect);
                 end
+            end
+            if legacy_warning
+                warning('CC:legacy','Deleted module garbage collection is legacy. Updated to class-based pref!')
             end
             % Go through and re-construct deleted modules (note they can't
             % be private or protected) This is necessary because MATLAB
@@ -113,6 +122,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     end
                 end
             end
+            % ******************************************************************
+            % *********************(includes callbacks)*************************
+            % *************************[END LEGACY]*****************************
+            % ******************************************************************
         end
         function module_clean(obj,hObj,prop)
             to_remove = false(size(obj.(prop)));

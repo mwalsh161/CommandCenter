@@ -12,6 +12,8 @@ classdef ModuleInstance < Base.pref
         n = {1, @(a)validateattributes(a,{'numeric'},{'scalar','positive'})};
         % Remove instances that get deleted. NOTE: this will reshape arrays to be vectors
         remove_on_delete = {false, @(a)validateattributes(a,{'logical'},{'scalar'})}; 
+        % Value displayed for empty option
+        empty_val = {'<None>', @(a)validateattributes(a,{'char'},{'vector'})};
     end
     
     methods

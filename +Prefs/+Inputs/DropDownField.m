@@ -1,17 +1,11 @@
 classdef DropDownField < Prefs.Inputs.LabelControlBasic
+    %DROPDOWNFIELD provides UI to choose between basic MATLAB values
 
     properties(Hidden)
         uistyle = 'popupmenu';
     end
 
     methods
-        function labeltext = get_label(~,pref)
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)',pref.name,pref.units);
-            else
-                labeltext = pref.name;
-            end
-        end
         function [obj,height_px,label_width_px] = make_UI(obj,pref,parent,yloc_px,width_px)
             [obj,height_px,label_width_px] = make_UI@Prefs.Inputs.LabelControlBasic(obj,pref,parent,yloc_px,width_px);
             obj.ui.String = pref.choices_strings;

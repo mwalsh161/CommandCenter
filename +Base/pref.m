@@ -197,9 +197,11 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             end
             longest_name = max(cellfun(@length,{props.Name}))+indent;
             summary = pad({props.Name},longest_name,'left');
-            for i  =1:length(summary) % integers of floats
+            for i = 1:length(summary)
                 if isnumeric(obj.(props(i).Name)) || islogical(obj.(props(i).Name))
                     summary{i} = sprintf('%s: %g',summary{i},obj.(props(i).Name));
+                elseif iscell(obj.(props(i).Name))
+                    summary{i} = sprintf('%s: %s',summary{i},strjoin(obj.(props(i).Name),'|'));
                 else % characters/strings
                     summary{i} = sprintf('%s: %s',summary{i},obj.(props(i).Name));
                 end
