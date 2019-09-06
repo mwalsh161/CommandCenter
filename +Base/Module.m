@@ -92,7 +92,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
             end
             if legacy_warning
-                warning('CC:legacy','Deleted module garbage collection is legacy. Updated to class-based pref!')
+                warning('CC:legacy','Deleted module garbage collection is legacy. Update to class-based pref!')
             end
             % Go through and re-construct deleted modules (note they can't
             % be private or protected) This is necessary because MATLAB

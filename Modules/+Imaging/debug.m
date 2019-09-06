@@ -4,7 +4,7 @@ classdef debug < Modules.Imaging
     properties
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
-        prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based'};
+        prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
        % show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
@@ -22,12 +22,8 @@ classdef debug < Modules.Imaging
         old_style = 5;
         fn_based = @Imaging.debug.get_options;
         cell_based = {'options1','option2',6};
-        % These are not implemented yet
- %       driver = Modules.Driver.empty(5,0); % Will only work without inputs
- %       source = Modules.Source.empty(1,0);
- %       database = Modules.Database.empty(0); % Should never do this
- %       imager = Modules.Imaging.empty;
- %       stage = Modules.Stage.empty;
+        source = Modules.Source.empty(1,0);
+        imager = Modules.Imaging.empty;
         resolution = [120 120];                 % Pixels
         ROI = [-1 1;-1 1];
         continuous = false;

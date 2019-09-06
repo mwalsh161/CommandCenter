@@ -129,6 +129,17 @@ classdef pref_handler < handle
                 val = Prefs.MultipleChoice(val,'choices',choices);
             elseif isnumeric(val) && numel(val)==1 % There are many numeric classes
                 val = Prefs.Double(val);
+            elseif ismember('Base.Module',superclasses(val))
+                n = Inf;
+                inherits = {};
+                if prop.HasDefault
+                    n = max(size(prop.DefaultValue));
+                    if n == 0; n = Inf; end
+                    if isempty(prop.DefaultValue) % if it isn't empty, it must be an actual module defined, not a category
+                        inherits = {class(prop.DefaultValue)};
+                    end
+                end
+                val = Prefs.ModuleInstance(val,'n',n,'inherits',inherits);
             else
                 switch class(val)
                     case {'char'}
