@@ -54,6 +54,9 @@ classdef errorfill < handle
             end
             obj.group = hggroup(ax,'Tag',mfilename,'UserData',obj);
             
+            held = ishold(ax);
+            hold(ax,'on');
+            f = fill(obj.group,NaN,NaN,'k'); % This is much faster than having to call uistack
             p = plot(obj.group,NaN,NaN);
             validplotprops = ismember(lower(props),lower(fieldnames(p.set())));
             propcell = [props(validplotprops);vals(validplotprops)];
@@ -61,16 +64,13 @@ classdef errorfill < handle
                 [~] = set(p,propcell{:});
             end
             
-            held = ishold(ax);
-            hold(ax,'on');
-            f = fill(obj.group,NaN,NaN,p.Color);
+            f.FaceColor = p.Color;
             validfillprops = ismember(lower(props),lower(fieldnames(f.set())));
             propcell = [props(validfillprops);vals(validfillprops)];
             [~] = set(f,propcell{:}); %there will always be at least FaceAlpha already
             if ~held
                 hold(ax,'off');
             end
-            uistack(p); %bring plot line ahead of fill
             obj.line = p;
             obj.fill = f;
             obj.XData = x;

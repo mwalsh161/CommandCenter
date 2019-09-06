@@ -1,4 +1,4 @@
-import os, sys, socket, logging, traceback, urllib, json
+import os, sys, socket, logging, traceback, urllib, json, fnmatch
 from subprocess import check_output
 from subprocess import CalledProcessError
 import win32serviceutil, win32event, win32service, servicemanager
@@ -26,11 +26,18 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(rot_handler)
 
+def find_files(directory, pattern):
+    # Recursively go through directory to find pattern
+    for root, dirs, files in os.walk(directory):
+        for basename in files:
+            if fnmatch.fnmatch(basename, pattern):
+                filename = os.path.join(root, basename)
+                yield filename
 
 DEFAULT_IP = '0.0.0.0'
 DEFAULT_PORT = 36576
 TEMP_FILE = os.path.join(PATH,'temp.pb')
-COMMAND = 'C:\\SpinCore\\SpinAPI\\interpreter\\spbicl.exe'
+COMMAND = [fname for fname in find_files(os.path.join('C:',os.sep,'SpinCore'),'spbicl.exe')][0]
 CONNECTED_CLIENT = None # Allow one user at a time
 CONNECTED_CLIENT_TEMP_FILE = os.path.join(PATH,'client.txt')
 

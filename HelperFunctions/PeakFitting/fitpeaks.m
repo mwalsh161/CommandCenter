@@ -1,5 +1,6 @@
 function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,varargin)
-%FITPEAKS Takes in x, y pair and fits peaks optimizing r^2_adj and \chi^2_red
+%FITPEAKS Takes in x, y pair and fits n peaks or optimizes some metric.
+% The metrics can be r^2_adj, \chi^2_red or a simple prominence threshold
 % r^2_adj == adjrsquared == r == adjusted R squared
 % \chi^2_red == redchisquared == chi == reduced Chi squared
 % Inputs; brackets indicate name,value optional pair:
@@ -11,13 +12,20 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
+%   [Locations]: Location limits in x to impose on the fitted peak properties.
+%       Default: [min(x) max(x)]
 %   [ConfLevel]: confidence interval level (default 0.95)
+%   [n]: fit exactly n peaks (n > 0). Not compatible with AmplitudeSensitivity or StopMetric.
+%   [AmplitudeSensitivity]: Number of standard deviations above median prominence.
+%       Specifying a prominence threshold will fit the number of peaks > than
+%       the calculated threshold. Not compatible with n or StopMetric.
 %   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
 %       r: only use rsquared (this means there can't be a test for no peaks
 %       chi: only use chisquared (assuming poisson noise)
 %       rANDchi (default): use both rsquared or chisquared at every step
 %       FirstChi: use chisquared to check the first peak against no peaks,
 %          then rsquared for the rest
+%       Not compatible with AmplitudeSensitivity or n.
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
@@ -31,7 +39,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %   gofs: (M+1x1) array of gofs for each fit_results (with added chisquared
 %      assuming shot noise)
 %   init: the raw output of findpeaks used to prime the fit
-%   stop_condition: 0 if chisquared, 1 if rsquared
+%   stop_condition: 0 if chisquared, 1 if rsquared, NaN if "n" specified
 %
 % Steps:
 %   1) Use findpeaks on smoothed y and extract prominences
@@ -71,10 +79,23 @@ addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})))
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'Width',[2*dx, (max(x)-min(x))],validLimit);
 addParameter(p,'Amplitude',[0 Inf],validLimit);
+addParameter(p,'Location',[min(x) max(x)],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
+addParameter(p,'n',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
+addParameter(p,'AmplitudeSensitivity',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
 addParameter(p,'NoiseModel','empirical');
 parse(p,x,y,varargin{:});
+% Validate compatibility
+not_compatible = {'n','StopMetric','AmplitudeSensitivity'};
+pSpecified = setdiff(p.Parameters,p.UsingDefaults); % Get parameters specified
+mask = ismember(not_compatible, pSpecified);
+if sum(mask) > 1
+    not_compatible = not_compatible(mask);
+    fmted = cellfun(@(a)sprintf('''%s''',a),not_compatible,'uniformoutput',false);
+    error('Cannot specify %s and %s together.',strjoin(fmted(1:end-1),', '),fmted{end});
+end
+
 p = p.Results;
 % Further validation
 assert(length(x)==length(y),'x and y must be same length');
@@ -84,6 +105,8 @@ p.FitType = lower(p.FitType);
 % Setup limits struct
 limits.amplitudes = p.Amplitude;
 limits.widths = p.Width;
+limits.locations = p.Location;
+limits.background = [0 max(y)];
 % Setup noise model if string specified
 if ~isa(p.NoiseModel,'function_handle')
     switch lower(p.NoiseModel)
@@ -93,14 +116,35 @@ if ~isa(p.NoiseModel,'function_handle')
             p.NoiseModel = @empirical_noise;
     end
 end
+switch lower(p.FitType)
+    case 'gauss'
+        fit_function = @gaussfit;
+    case 'lorentz'
+        fit_function = @lorentzfit;
+end
 
 yp = smooth(yp,p.Span);
 xp = [x(1)-dx; xp; x(end)+dx];
 yp = [min(yp); yp; min(yp)];
-[~, init.locs, init.wids, init.proms] = findpeaks(yp,xp);
-[init.proms,I] = sort(init.proms,'descend');
-init.locs = init.locs(I);
-init.wids = init.wids(I);
+[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp,xp);
+[init.amplitudes,I] = sort(init.amplitudes,'descend');
+init.locations = init.locations(I);
+init.widths = init.widths(I);
+init.background = median(y);
+
+usingN = ismember('n',pSpecified);
+if ismember('AmplitudeSensitivity',pSpecified)
+    usingN = true;
+    % Calculate n
+    [~, ~, ~, proms] = findpeaks(y,x); %get list of prominences
+    [f,xi] = ksdensity(proms);
+    [~, prom_locs, prom_wids, prom_proms] = findpeaks(f,xi); %find most prominent prominences
+    [~,I] = sort(prom_proms,'descend');
+    sortwids = prom_wids(I);
+    sortlocs = prom_locs(I);
+    thresh = sortlocs(1)+p.AmplitudeSensitivity *sortwids(1); %assume most prominent prominence corresponds to noise
+    p.n = sum(init.amplitudes >= thresh);
+end
 
 fit_results = {[]};
 % Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
@@ -110,38 +154,48 @@ dfe = length(y) - 1; % degrees of freedom
 noise = noise_model(x,y,f,p.NoiseModel);
 gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
               'rmse',sqrt(mean(se)),'rsquare',NaN,'adjrsquare',NaN); % can't calculate rsquared for flat line
-stop_condition = NaN;
-for n = 1:length(init.proms)
-    if strcmp(p.FitType,'gauss')
-        [f,new_gof,output] = gaussfit(x, y, n, init, limits);
-    else % p.FitType assert requires this else to be lorentz
-        [f,new_gof,output] = lorentzfit(x, y, n, init, limits);
+if usingN
+    stop_condition = NaN;
+    n = p.n;
+    if n == 0 % No peaks
+        vals = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        confs = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        return
     end
+    [f,new_gof,output] = fit_function(x, y, n, init, limits);
     noise = noise_model(x,y,f(x),p.NoiseModel);
     new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
-    if (strcmp(p.StopMetric,'chi') || strcmp(p.StopMetric,'randchi') || (strcmp(p.StopMetric,'firstchi')&&n>1)) &&...
-            abs(1-gofs(end).redchisquare) < abs(1-new_gof.redchisquare) % further from 1 than last
-        stop_condition = 0;
-        break
+    fit_results{end+1} = f;
+    gofs(end+1) = new_gof;
+else
+    stop_condition = NaN;
+    for n = 1:length(init.amplitudes)
+        [f,new_gof,output] = fit_function(x, y, n, init, limits);
+        noise = noise_model(x,y,f(x),p.NoiseModel);
+        new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
+        if (strcmp(p.StopMetric,'chi') || strcmp(p.StopMetric,'randchi') || (strcmp(p.StopMetric,'firstchi')&&n>1)) &&...
+                abs(1-gofs(end).redchisquare) < abs(1-new_gof.redchisquare) % further from 1 than last
+            stop_condition = 0;
+            break
+        end
+        if (strcmp(p.StopMetric,'r') || strcmp(p.StopMetric,'randchi') || strcmp(p.StopMetric,'firstchi')) &&...
+                gofs(end).adjrsquare > new_gof.adjrsquare                    % lower than last
+            stop_condition = 1;
+            break
+        end
+        % Otherwise, repeat and update our current best fit
+        fit_results{end+1} = f; %#ok<AGROW> (relatively small arrays and unknown number of peaks)
+        gofs(end+1) = new_gof; %#ok<AGROW> (relatively small arrays and unknown number of peaks)
     end
-    if (strcmp(p.StopMetric,'r') || strcmp(p.StopMetric,'randchi') || strcmp(p.StopMetric,'firstchi')) &&...
-            gofs(end).adjrsquare > new_gof.adjrsquare                    % lower than last
-        stop_condition = 1;
-        break
+    assert(~isnan(stop_condition),'Good fit not found') % Condition promised never satisfied
+    if length(fit_results)==1 % No peaks
+        vals = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        confs = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        return
     end
-    % Otherwise, repeat and update our current best fit
-    fit_results{end+1} = f; %#ok<AGROW> (relatively small arrays and unknown number of peaks)
-    gofs(end+1) = new_gof; %#ok<AGROW> (relatively small arrays and unknown number of peaks)
+    n = n - 1; % Last fit was the failed one
 end
-assert(~isnan(stop_condition),'Good fit not found') % Condition promised never satisfied
-if length(fit_results)==1 % No peaks
-    vals = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
-    confs = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
-    return
-end
-n = n - 1; % Last fit was the failed one
 fit_result = fit_results{end};
-
 % get noise from residuals to calculate SNR
 noise = std(fit_result(x)-y);
 
@@ -158,55 +212,10 @@ confs.widths = fitconfs(2*n+1:3*n);
 confs.SNRs = confs.amplitudes./noise;
 end
 
-function [f,gof,output] = gaussfit(x, y, n, init, limits)
-    FWHM_factor = 2*sqrt(2*log(2));
-    fit_type = gaussN(n);
-    options = fitoptions(fit_type);
-
-    upper_amps = limits.amplitudes(2).*ones(n,1);
-    lower_amps = limits.amplitudes(1).*ones(n,1);
-    start_amps = init.proms(1:n);
-    
-    upper_pos = max(x).*ones(n,1);
-    lower_pos = min(x).*ones(n,1);
-    start_pos = init.locs(1:n);
-    
-    upper_width = limits.widths(2).*ones(n,1)./FWHM_factor;
-    lower_width = limits.widths(1).*ones(n,1)./FWHM_factor;
-    start_width = init.wids(1:n)./FWHM_factor;
-    
-    options.Upper = [upper_amps; upper_pos; upper_width; max(y)];
-    options.Lower = [lower_amps; lower_pos; lower_width; 0     ];
-    options.Start = [start_amps; start_pos; start_width; median(y)];
-    [f,gof,output] = fit(x,y,fit_type,options);
-end
-
-function [f,gof,output] = lorentzfit(x, y, n, init, limits)
-    fit_type = lorentzN(n);
-    options = fitoptions(fit_type);
-
-    upper_amps = limits.amplitudes(2).*ones(n,1);
-    lower_amps = limits.amplitudes(1).*ones(n,1);
-    start_amps = init.proms(1:n);
-    
-    upper_pos = max(x).*ones(n,1);
-    lower_pos = min(x).*ones(n,1);
-    start_pos = init.locs(1:n);
-    
-    upper_width = limits.widths(2).*ones(n,1);
-    lower_width = limits.widths(1).*ones(n,1);
-    start_width = init.wids(1:n);
-    
-    options.Upper = [upper_amps; upper_pos; upper_width; max(y)];
-    options.Lower = [lower_amps; lower_pos; lower_width; 0     ];
-    options.Start = [start_amps; start_pos; start_width; median(y)];
-    [f,gof,output] = fit(x,y,fit_type,options);
-end
-
 function noise = noise_model(x,y,modeled_y,fn)
 % Just to validate the function
 noise = fn(x,y,modeled_y);
-assert(isequal(size(noise),size(y)),'Noise model function returned a matrix of size: ');
+assert(isequal(size(noise),size(y)),sprintf('Noise model function returned a matrix of size: %i,%i',size(noise,1),size(noise,2)));
 end
 function noise = empirical_noise(~,observed_y,modeled_y)
     residuals = observed_y - modeled_y;

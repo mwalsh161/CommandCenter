@@ -130,6 +130,8 @@ classdef Wavemeter < Modules.Driver
                     msg = 'Low signal';
                 elseif output == -2
                     msg = 'High signal';
+                elseif output == -3
+                    msg = 'Out of Range';
                 else
                     msg = sprintf('Unknown error code: %g',output);
                 end
@@ -253,7 +255,7 @@ classdef Wavemeter < Modules.Driver
                         '(note this might impact other users)'],...
                         mfilename,'Yes','No','No');
                     if strcmp(answer,'Yes')
-                        obj.com('SetDeviationMode','1'); % Manually to avoid additional queries in setPIDstatus
+                        obj.com('SetDeviationMode',1); % Manually to avoid additional queries in setPIDstatus
                     else
                         warning('Note, PID regulation is off. Call setPIDstatus(true) to enable.')
                     end
