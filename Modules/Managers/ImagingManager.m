@@ -287,6 +287,9 @@ classdef ImagingManager < Base.Manager
                 high = str2double(get(obj.handles.clim_high,'string'));
                 set(obj.handles.axImage,'clim',[low high])
             end
+            if ~isempty(obj.active_module.path) %if path defined, select path
+                obj.handles.Managers.Path.select_path(obj.active_module.path);
+            end
             obj.log('%s starting video.',class(obj.active_module))
             obj.sandboxed_function({obj.active_module,'startVideo'},hImage);
             axis(obj.handles.axImage,'image')
