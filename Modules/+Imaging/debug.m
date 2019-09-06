@@ -4,7 +4,7 @@ classdef debug < Modules.Imaging
     properties
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
-        prefs = {'fyi','my_integer','my_double','old_style','my_logical','fn_based','cell_based'};
+        prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based'};
        % show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
@@ -18,6 +18,7 @@ classdef debug < Modules.Imaging
         my_logical = Prefs.Boolean();
         options_1 = Prefs.MultipleChoice('help_text','sooo many options!','choices',{'foo',41,'bar'})
         options_2 = Prefs.MultipleChoice(42,'allow_empty',false,'choices',{'foo',42,'bar'})
+        my_module = Prefs.ModuleInstance();
         old_style = 5;
         fn_based = @Imaging.debug.get_options;
         cell_based = {'options1','option2',6};
