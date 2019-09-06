@@ -60,7 +60,7 @@ classdef ModuleSelectionField < Base.input
                         'horizontalalignment','left',...
                         'units', 'pixels',...
                         'tag', tag,...
-                        'UserData', struct('empty',true, 'objects',[])));
+                        'UserData', struct('objects',[]));
             obj.selection.Position(2) = yloc_px + height_px;
             height_px = height_px + obj.selection.Extent(4) + pad;
             % Line 1
@@ -104,15 +104,20 @@ classdef ModuleSelectionField < Base.input
         end
     end
 
-    methods % Callbacks
+    methods(Hidden) % Callbacks
         function add_module(obj,hObj,eventdata)
             fprintf('Added!\n')
         end
         function rm_module(obj,hObj,eventdata)
+            if isempty(obj.selection.UserData.objects)
+                error('No module selected.')
+            end
+            ind = obj.selection.Value;
+            
             fprintf('Removed!\n')
         end
         function module_settings(obj,hObj,eventdata)
-            if obj.selection.UserData.empty
+            if isempty(obj.selection.UserData.objects)
                 error('No module selected.')
             end
             % Grab instance and call settings
