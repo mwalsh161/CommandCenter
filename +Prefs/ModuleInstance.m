@@ -1,5 +1,8 @@
 classdef ModuleInstance < Base.pref
     %MODULE Allow particular types of module arrays
+    %   NOTE: The UI will interpret whatever array size as an Nx1 when displaying
+    %   If remove_on_delete is set to true, then the actual data value will 
+    %   get reshaped so single entries can be removed.
     
     properties(Hidden) % Satisfy abstract
         default = Base.Module.empty(0);
@@ -10,10 +13,12 @@ classdef ModuleInstance < Base.pref
         inherits = {{}, @(a)true};
         % Number of allowed instances simultaneously (n > 0)
         n = {1, @(a)validateattributes(a,{'numeric'},{'scalar','positive'})};
-        % Remove instances that get deleted. NOTE: this will reshape arrays to be vectors
-        remove_on_delete = {false, @(a)validateattributes(a,{'logical'},{'scalar'})}; 
         % Value displayed for empty option
         empty_val = {'<None>', @(a)validateattributes(a,{'char'},{'vector'})};
+        
+        % Future updates
+        % Remove instances that get deleted. NOTE: this will reshape arrays to be vectors
+    %    remove_on_delete = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};  (requires handle class since we can't reassign property to module)
     end
     
     methods
@@ -29,16 +34,19 @@ classdef ModuleInstance < Base.pref
             val = obj.ui.get_value();
         end
         function val = clean(obj,val)
+            % Future updates
             % Setup listener for deletion
-            if obj.remove_on_delete
-                if ~isvector(val) && ~isempty(val) % [] is not a vector
-                    sz = num2str(size(val),'%ix'); sz(end) = []; % Remove trailing x
-                    warning('MODULEINSTANCE:notvector',...
-                        'Reshaping %s array to %ix1 vector since remove on delete is true.',sz,numel(val));
-                    val = val(:);
-                end
-                error(' ************************ADD LISTENERS FOR ObjectBeingDestroyed************************')
-            end
+            % if obj.remove_on_delete
+            %     if ~isvector(val) && ~isempty(val) % [] is not a vector
+            %         sz = num2str(size(val),'%ix'); sz(end) = []; % Remove trailing x
+            %         warning('MODULEINSTANCE:notvector',...
+            %             'Reshaping %s array to %ix1 vector since remove on delete is true.',sz,numel(val));
+            %         val = val(:);
+            %     end
+            %     for i = 1:length(val)
+            %         addlistener(val(i),'ObjectBeingDestroyed',@(~,~)obj.cleanup(val(i)));
+            %     end
+            % end
         end
         function validate(obj,val)
             if numel(val) > obj.n
