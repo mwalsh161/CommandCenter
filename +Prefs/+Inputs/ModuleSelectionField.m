@@ -137,7 +137,7 @@ classdef ModuleSelectionField < Base.input
                 sprintf('%s only supports function handle callbacks (received %s).',...
                 mfilename,class(callback)));
             obj.selection.UserData.callback = callback;
-            obj.selection.Callback = @obj.update_settings_button;
+            obj.selection.Callback = @obj.update_buttons;
             obj.buttons(1).Callback = @obj.add_module;
             obj.buttons(2).Callback = @obj.rm_module;
             obj.buttons(3).Callback = @obj.module_settings;
@@ -175,6 +175,7 @@ classdef ModuleSelectionField < Base.input
                     addlistener(val(i),'ObjectBeingDestroyed',@obj.module_deleted);
                 end
             end
+            obj.update_buttons;
         end
         function val = get_value(obj)
             val = obj.selection.UserData.objects;
@@ -182,14 +183,17 @@ classdef ModuleSelectionField < Base.input
     end
 
     methods(Hidden) % Callbacks
-        function update_settings_button(obj,hObj,eventdata) % obj.selection callback
+        function update_buttons(obj,varargin) % obj.selection callback (and direct call)
             if isempty(obj.selection.UserData.objects)
+                obj.buttons(2).Enable = 'off';
                 obj.buttons(3).Enable = 'off';
             else
                 ind = obj.selection.Value;
                 if isvalid(obj.selection.UserData.objects(ind))
+                    obj.buttons(2).Enable = 'on';
                     obj.buttons(3).Enable = 'on';
                 else
+                    obj.buttons(2).Enable = 'on'; % You can remove it still
                     obj.buttons(3).Enable = 'off';
                 end
             end
@@ -203,9 +207,7 @@ classdef ModuleSelectionField < Base.input
                 obj.selection.String{i} = sprintf('<HTML><FONT COLOR="red">%s</HTML>',...
                     obj.selection.String{i});
             end
-            if ismember(obj.selection.Value,inds)
-                obj.buttons(3).Enable = 'off'; % Deactivate settings
-            end
+            obj.update_buttons;
         end
         function add_module(obj,hObj,eventdata) % obj.button(1) callback
             f = figure('name','Select Module','IntegerHandle','off','menu','none','HitTest','off',...
@@ -237,8 +239,7 @@ classdef ModuleSelectionField < Base.input
             obj.selection.UserData.objects(ind) = module;
             obj.selection.String{ind} = obj.get_module_string(module);
             obj.selection.Value = ind;
-            obj.buttons(2).Enable = 'on'; % Make sure remove button enabled
-            obj.buttons(3).Enable = 'on'; % Make sure settings button enabled
+            obj.update_buttons;
             obj.user_callback('add',module,ind);
         end
         function selected(~,hObj,~) % Callback from obj.add_module upon choosing
@@ -259,10 +260,7 @@ classdef ModuleSelectionField < Base.input
             if ind > nval
                 obj.selection.Value = max(1,nval);
             end
-            if nval < 1
-                obj.buttons(2).Enable = 'off'; % Make sure remove button disabled
-                obj.buttons(3).Enable = 'off'; % Make sure settings button disabled
-            end
+            obj.update_buttons;
             obj.user_callback('rm',module,ind);
         end
         function module_settings(obj,hObj,eventdata) % obj.button(3) callback

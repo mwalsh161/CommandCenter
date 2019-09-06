@@ -208,7 +208,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         pref = getpref(obj.namespace,obj.prefs{i});
                         try
                             mp = findprop(obj,obj.prefs{i});
-                            if mp.HasDefault && contains('Base.Module',superclasses(mp.DefaultValue))
+                            if mp.HasDefault && any(ismember([{class(mp.DefaultValue)}; superclasses(mp.DefaultValue)],...
+                                            {'Base.Module','Prefs.ModuleInstance'}))
                                 if isempty(pref)% Means it is the default value, and not set
                                     continue
                                 end
