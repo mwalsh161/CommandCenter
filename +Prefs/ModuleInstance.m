@@ -19,6 +19,8 @@ classdef ModuleInstance < Base.pref
     methods
         function obj = ModuleInstance(varargin)
             obj = obj.init(varargin{:});
+            % Saving prefs don't support reloading with input params, so leave out drivers
+            obj.ui.module_types = {'Experiment','Stage','Imaging','Source','Database'};
         end
         function set_ui_value(obj,val)
             obj.ui.set_value(val);

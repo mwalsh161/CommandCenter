@@ -1,22 +1,78 @@
 classdef ModuleSelectionField < Base.input
     %MODULESELECTIONFIELD provides UI to choose modules and access their settings
+    %   If a module gets deleted, it will turn red in the dropdown but will not
+    %   be removed.
+    %   When removing a module, that module is returned in the eventdata of the
+    %   callback, but is not deleted.
+    %   When adding a module, if it seems (from the metaclass) that input is
+    %   necessary, the user will be prompted to help in the construction.
 
     properties
         label = gobjects(1);
         selection = gobjects(1);
         buttons = gobjects(1,3);
         empty_val = '<None>';
+        % Specify which set of Modules to use (must match file in Modules package (e.g. +Modules/))
+        module_types = {'Experiment','Stage','Imaging','Source','Database','Driver'};
     end
 
     methods % Helpers
         function strings = get_module_strings(obj, modules)
-            strings = arrayfun(@(a)class(a), modules,'uniformoutput',false);
+            strings = arrayfun(@obj.get_module_string, modules,'uniformoutput',false);
             if isempty(strings)
                 strings = {obj.empty_val};
             end
         end
+        function string = get_module_string(~,module)
+            string = class(module);
+        end
+        function module = build_module(~,module_name)
+            mc = meta.class.fromName(module_name);
+            assert(length(mc) == 1,...
+                sprintf('Could not find single "%s" on path (found %i)',module_name,length(mc)));
+            shortname = strsplit(module_name,'.'); shortname = shortname{end};
+            mconstructor = mc.MethodList(strcmp({mc.MethodList.Name},shortname));
+            minstance = mc.MethodList(strcmp({mc.MethodList.Name},'instance'));
+            assert(length(mconstructor) == 1,...
+                sprintf('Could not find constructor "%s" (found %i)',shortname,length(mconstructor)));
+            assert(length(minstance) == 1,...
+                sprintf('Could not "%s.instance" (found %i)',shortname,length(minstance)));
+            if isempty(minstance.InputNames)
+                module = eval(sprintf('%s.instance',module_name));
+            else
+                help_text = ['InputArguments seem to be required:' newline ...
+                             '  ' module_name '.instance( ' strjoin(minstance.InputNames, ', ')  ' )' newline ...
+                             '  ' module_name '.' shortname '( ' strjoin(mconstructor.InputNames, ', ')  ' )' newline];
+                inputs = inputdlg([help_text newline,...
+                    'Type a valid MATLAB expression (will be evaluated in base workspace) for part between arg parethesis:'],...
+                    ['Building ' module_name]);
+                assert(~isempty(inputs),'User cancelled input entry.');
+                module = evalin('base',sprintf('%s.instance(%s)',module_name,inputs{1}));
+            end
+        end
+        function user_callback(obj,action,module,ind)
+            % We will use the selection UI as the "caller" and an eventdata
+            % struct with fields:
+            %   action: "add" or "rm"
+            %   ind: index of affected module in obj.selection.objects
+            %   module: the module that was add or removed
+            obj.selection.UserData.callback(obj.selection,...
+                struct('action',action,'module',module,'ind',ind));
+        end
     end
     methods
+        function obj = set.module_types(obj,val)
+            assert(iscell(val) & all(cellfun(@(a)ischar(a)&isvector(a),val)),...
+                '"module_typess" must be a cell array of char vectors.')
+            for i = 1:length(val)
+                try
+                    Modules.(val{i}).modules_package;
+                catch err
+                    error('Could not load "%s" with a constant property "modules_package"',val{i})
+                end
+            end
+            obj.module_types = val;
+        end
         function tf = isvalid(obj)
             tf = isgraphics(obj.label) && isvalid(obj.label);
         end
@@ -38,15 +94,15 @@ classdef ModuleSelectionField < Base.input
             if ~pref.readonly
                 obj.buttons(1) = uicontrol(parent, 'style', 'pushbutton',...
                                 'string', 'Add', 'units', 'pixels',...
-                                'tag', [tag '_add'], 'Callback', @obj.add_module);
+                                'tag', [tag '_add']);
                 obj.buttons(2) = uicontrol(parent, 'style', 'pushbutton',...
                                 'string', 'Remove', 'units', 'pixels',...
-                                'tag', [tag '_remove'], 'Callback', @obj.rm_module,...
+                                'tag', [tag '_remove'],...
                                 'tooltip','Selected module (above)',...
                                 'enable','off');
                 obj.buttons(3) = uicontrol(parent, 'style', 'pushbutton',...
                                 'string', 'Settings', 'units', 'pixels',...
-                                'tag', [tag '_settings'], 'Callback', @obj.module_settings,...
+                                'tag', [tag '_settings'],...
                                 'tooltip','For selected module (above)',...
                                 'enable','off');
                 obj.buttons(1).Position(2) = yloc_px;
@@ -60,7 +116,7 @@ classdef ModuleSelectionField < Base.input
                         'horizontalalignment','left',...
                         'units', 'pixels',...
                         'tag', tag,...
-                        'UserData', struct('objects',[]));
+                        'UserData', struct('objects',Base.Module.empty(0),'callback',[]));
             obj.selection.Position(2) = yloc_px + height_px;
             height_px = height_px + obj.selection.Extent(4) + pad;
             % Line 1
@@ -77,9 +133,16 @@ classdef ModuleSelectionField < Base.input
             end
         end
         function link_callback(obj,callback)
-            obj.selection.Callback = callback;
+            assert(isa(callback,'function_handle'),...
+                sprintf('%s only supports function handle callbacks (received %s).',...
+                mfilename,class(callback)));
+            obj.selection.UserData.callback = callback;
+            obj.selection.Callback = @obj.update_settings_button;
+            obj.buttons(1).Callback = @obj.add_module;
+            obj.buttons(2).Callback = @obj.rm_module;
+            obj.buttons(3).Callback = @obj.module_settings;
         end
-        function adjust_UI(obj, suggested_label_width , margin)
+        function adjust_UI(obj, suggested_label_width, margin)
             % Position UI elements on separate lines from bottom up
             total_width = obj.label.Parent.Position(3);
             indent = 2*margin(1);
@@ -97,52 +160,149 @@ classdef ModuleSelectionField < Base.input
             obj.selection.Position(3) = total_width - indent - margin(2);
         end
         function set_value(obj,val)
-            
+            if isempty(val)
+                obj.selection.Value = 1;
+                obj.selection.String = {obj.empty_val};
+            else
+                obj.selection.String = get_module_strings(obj, val(:));
+                obj.selection.UserData.objects = val(:);
+                nval = numel(val);
+                if obj.selection.Value > nval
+                    obj.selection.Value = nval;
+                end
+                % Add deleted listeners
+                for i = 1:nval
+                    addlistener(val(i),'ObjectBeingDestroyed',@obj.module_deleted);
+                end
+            end
         end
         function val = get_value(obj)
-            
+            val = obj.selection.UserData.objects;
         end
     end
 
     methods(Hidden) % Callbacks
-        function add_module(obj,hObj,eventdata)
-            fprintf('Added!\n')
+        function update_settings_button(obj,hObj,eventdata) % obj.selection callback
+            if isempty(obj.selection.UserData.objects)
+                obj.buttons(3).Enable = 'off';
+            else
+                ind = obj.selection.Value;
+                if isvalid(obj.selection.UserData.objects(ind))
+                    obj.buttons(3).Enable = 'on';
+                else
+                    obj.buttons(3).Enable = 'off';
+                end
+            end
         end
-        function rm_module(obj,hObj,eventdata)
+        function module_deleted(obj,hObj,eventdata) % listener callback
+            % Turn that text red
+            objects = obj.selection.UserData.objects;
+            inds = find(~arrayfun(@isvalid,objects));
+            for i = inds
+                % Listener deleted with module means can only get called once per module
+                obj.selection.String{i} = sprintf('<HTML><FONT COLOR="red">%s</HTML>',...
+                    obj.selection.String{i});
+            end
+            if ismember(obj.selection.Value,inds)
+                obj.buttons(3).Enable = 'off'; % Deactivate settings
+            end
+        end
+        function add_module(obj,hObj,eventdata) % obj.button(1) callback
+            f = figure('name','Select Module','IntegerHandle','off','menu','none','HitTest','off',...
+                'toolbar','none','visible','off','units','characters','resize','off');
+            % Determine length needed
+            nmenus = length(obj.module_types);
+            lenmenu = 0;
+            for i = 1:nmenus
+                temp = uicontrol(f,'units','characters','style','text','string',obj.module_types{i});
+                lenmenu = lenmenu + temp.Extent(3); 
+                delete(temp);
+            end
+            f.Position(3:4) = [lenmenu*1.5 ,0];
+            for i = 1:nmenus
+                parent_menu = uimenu(f,'Text', obj.module_types{i});
+                package = ['+' Modules.(obj.module_types{i}).modules_package];
+                Base.Manager.getAvailModules(package,parent_menu,@obj.selected,@(~)false);
+            end
+            f.Visible = 'on';
+            uiwait(f); % Let user select
+            if ~isvalid(f) % User aborted/closed
+                return
+            end
+            module_name = f.UserData;
+            delete(f);
+            module = obj.build_module(module_name);
+            % Update UI when/if module successfully built
+            ind = length(obj.selection.UserData.objects) + 1;
+            obj.selection.UserData.objects(ind) = module;
+            obj.selection.String{ind} = obj.get_module_string(module);
+            obj.selection.Value = ind;
+            obj.buttons(2).Enable = 'on'; % Make sure remove button enabled
+            obj.buttons(3).Enable = 'on'; % Make sure settings button enabled
+            obj.user_callback('add',module,ind);
+        end
+        function selected(~,hObj,~) % Callback from obj.add_module upon choosing
+            [~,fig] = gcbo;
+            fig.UserData = hObj.UserData;
+            uiresume(fig);
+        end
+        function rm_module(obj,hObj,eventdata) % obj.button(2) callback
             if isempty(obj.selection.UserData.objects)
                 error('No module selected.')
             end
             ind = obj.selection.Value;
-            
-            fprintf('Removed!\n')
+            module = obj.selection.UserData.objects(ind);
+            obj.selection.UserData.objects(ind) = [];
+            % Regenerate to cover edge cases of removing all
+            obj.selection.String = obj.get_module_strings(obj.selection.UserData.objects);
+            nval = length(obj.selection.UserData.objects);
+            if ind > nval
+                obj.selection.Value = max(1,nval);
+            end
+            if nval < 1
+                obj.buttons(2).Enable = 'off'; % Make sure remove button disabled
+                obj.buttons(3).Enable = 'off'; % Make sure settings button disabled
+            end
+            obj.user_callback('rm',module,ind);
         end
-        function module_settings(obj,hObj,eventdata)
+        function module_settings(obj,hObj,eventdata) % obj.button(3) callback
             if isempty(obj.selection.UserData.objects)
                 error('No module selected.')
             end
             % Grab instance and call settings
             ind = obj.selection.Value;
-            objString = hObj.UserData.String{ind};
-            assert(~isempty(objString),'Cannot have empty module string')
-            assert(objString(1)~='_','Cannot get settings for Add/Remove buttons');
-            if length(strsplit(objString,' ')) == 1 % Means, "Empty: " is not there
-                obj = eval(sprintf('%s.instance',objString));
-                f = figure('name',sprintf('%s Settings (close when done)',objString),'IntegerHandle','off','menu','none',...
-                    'toolbar','none','visible','off','units','characters','resize','off','windowstyle','modal','HitTest','off');
-                f.Position(3) = 100;
-                panel = uipanel(f);
-                obj.settings(panel);
-                child = allchild(panel);
-                h = 0; % Get height
-                for i = 1:length(child)
-                    new_h = sum(child(i).Position([2,4]));
-                    if new_h > h
-                        h = new_h;
-                    end
-                end
-                f.Position(4) = h;
-                f.Visible = 'on';
+            module = obj.selection.UserData.objects(ind);
+            module_str = obj.get_module_string(module);
+            f = figure('name',sprintf('%s Settings (close when done)',module_str),'IntegerHandle','off','menu','none',...
+                'toolbar','none','visible','off','units','pixels','resize','off','HitTest','off');
+            f.Position(3) = 500;
+            panel = uipanel(f);
+            try
+                module.settings(panel,5,[20, 20]);
+            catch err
+                delete(f)
+                errordlg(sprintf('Failed to get settings for "%s":\n%s',module_str,getReport(err,'basic','hyperlinks','off')),...
+                    sprintf('%s Settings',module_str));
+                return
             end
+            child = allchild(panel);
+            if isempty(child)
+                child = uicontrol(panel,'style','text','String','No settings implemented!');
+                child.Position(3) = child.Extent(3);
+            end
+            nchild = length(child);
+            set(child,'units','pixels');
+            positions = [0, NaN(1,nchild)]; % 0, bottom1, top1, bottom2, top2, ...
+            for i = 1:nchild
+                contents_pos = get(child(i),'position');
+                positions(2*i-1) = contents_pos(2);
+                positions(2*i) = positions(2*i-1) + contents_pos(4);
+            end
+            bottom = min(positions);
+            top = max(positions);
+            
+            f.Position(4) = top;
+            f.Visible = 'on';
         end
     end
 

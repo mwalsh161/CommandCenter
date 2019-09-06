@@ -256,6 +256,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % Must output cell array of strings
             % Order matters; first is on top, last is at the bottom.
             props = properties(obj);
+            settings = {};
             if ismember('show_prefs',props)
                 settings = obj.show_prefs;
             elseif ismember('prefs',props)

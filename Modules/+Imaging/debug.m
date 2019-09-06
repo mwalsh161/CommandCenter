@@ -23,7 +23,7 @@ classdef debug < Modules.Imaging
         fn_based = @Imaging.debug.get_options;
         cell_based = {'options1','option2',6};
         % These are not implemented yet
- %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
+ %       driver = Modules.Driver.empty(5,0); % Will only work without inputs
  %       source = Modules.Source.empty(1,0);
  %       database = Modules.Database.empty(0); % Should never do this
  %       imager = Modules.Imaging.empty;
