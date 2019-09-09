@@ -92,7 +92,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
             end
             if legacy_warning
-                warning('CC:legacy','Deleted module garbage collection is legacy. Update to class-based pref!')
+                warning('CC:legacy','Deleted-module garbage collection is legacy. Update to class-based pref!')
             end
             % Go through and re-construct deleted modules (note they can't
             % be private or protected) This is necessary because MATLAB
@@ -328,7 +328,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
-                [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx);
+                [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx, margin);
                 mp.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;

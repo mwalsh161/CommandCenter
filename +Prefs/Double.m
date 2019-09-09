@@ -26,8 +26,8 @@ classdef Double < Base.pref
                 return
             end
             val = str2double(valstr);
-            if isnan(val)
-                error('SETTINGS:bad_ui_val','Cannot convert "%s" to numeric value.',valstr)
+            if isnan(val) % Let validation throw the error
+                val = valstr;
             end
         end
         function val = clean(obj,val)
