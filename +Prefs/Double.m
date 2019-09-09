@@ -21,12 +21,8 @@ classdef Double < Base.pref
         end
         function val = get_ui_value(obj)
             valstr = obj.ui.get_value();
-            if strcmpi(valstr,'nan')
-                val = NaN;
-                return
-            end
-            val = str2double(valstr);
-            if isnan(val) % Let validation throw the error
+            val = str2num(valstr); %#ok<ST2NM> % str2num will evaluate expressions 
+            if isempty(val) % Let validation throw the error
                 val = valstr;
             end
         end

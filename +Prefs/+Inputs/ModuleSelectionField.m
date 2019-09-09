@@ -132,7 +132,7 @@ classdef ModuleSelectionField < Base.input
                 set([obj.label, obj.selection], 'ToolTip', pref.help_text);
             end
         end
-        function link_callback(obj,callback)
+        function obj = link_callback(obj,callback)
             assert(isa(callback,'function_handle'),...
                 sprintf('%s only supports function handle callbacks (received %s).',...
                 mfilename,class(callback)));
@@ -142,7 +142,7 @@ classdef ModuleSelectionField < Base.input
             obj.buttons(2).Callback = @obj.rm_module;
             obj.buttons(3).Callback = @obj.module_settings;
         end
-        function adjust_UI(obj, suggested_label_width, margin)
+        function obj = adjust_UI(obj, suggested_label_width, margin)
             % Position UI elements on separate lines from bottom up
             total_width = obj.label.Parent.Position(3);
             indent = 2*margin(1);

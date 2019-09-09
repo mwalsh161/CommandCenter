@@ -329,12 +329,12 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
                 [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx, margin);
-                mp.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
+                mp = mp.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
                 %obj.set_meta_pref(setting_names{i},mp);
                 try
-                    mp.set_ui_value(mp.value); % Update to current value
+                    mp = mp.set_ui_value(mp.value); % Update to current value
                 catch err
                     warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
                         setting_names{i},class(mp.value),err.message)

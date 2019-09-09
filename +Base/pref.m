@@ -121,11 +121,11 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % This wraps ui.make_UI; careful overloading
             [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
         end
-        function link_callback(obj,varargin)
+        function obj = link_callback(obj,varargin)
             % This wraps ui.link_callback; careful overloading
             obj.ui.link_callback(varargin{:});
         end
-        function adjust_UI(obj,varargin)
+        function obj = adjust_UI(obj,varargin)
             % This wraps ui.adjust_UI; careful overloading
             obj.ui.adjust_UI(varargin{:});
         end
