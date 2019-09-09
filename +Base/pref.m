@@ -132,6 +132,13 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     end
 
     methods(Sealed)
+        function val = get_validated_ui_value(obj)
+            % Note this is an extra layer primarily for backwards compatibility
+            % such that non class-based prefs will still call validation methods
+            % when they are used from the UI.
+            val = obj.get_ui_value;
+            obj.validate(val);
+        end
         function obj = init(obj,varargin)
             try % Try is to throw all errors as caller
             % Process input (subclasses should use set methods to validate)

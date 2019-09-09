@@ -130,9 +130,10 @@ classdef pref_handler < handle
             elseif isnumeric(val) && numel(val)==1 % There are many numeric classes
                 val = Prefs.Double(val);
             elseif ismember('Base.Module',superclasses(val))
-                warningtext = [prop.Name ': While this will protect from bad values set in the UI, it wont extent to console or elsewhere. Update to class-based pref!'];
-                warning('PREF:oldstyle_pref',warningtext);
-                warndlg(warningtext,'Update to class-based pref!'); % Deserves an extra annoying warning that cant be turned off
+                warningtext = 'Update to class-based pref! While Prefs.ModuleInstance will protect from bad values set in the UI, it wont extent to console or elsewhere.';
+                warning('PREF:oldstyle_pref',[prop.Name ': ' warningtext]);
+                % Deserves an extra annoying warning that cant be turned off
+                warndlg([warningtext newline newline 'See console warnings for offending prefs.'],'Update to class-based pref!','modal');
                 n = Inf;
                 inherits = {};
                 if prop.HasDefault

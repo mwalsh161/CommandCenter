@@ -355,7 +355,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function settings_callback(obj,mp,setting_name)
             obj.pref_set_try = true;  % try block for validation
             try % try block for retrieving UI value
-                obj.(setting_name) = mp.get_ui_value();
+                obj.(setting_name) = mp.get_validated_ui_value();
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end

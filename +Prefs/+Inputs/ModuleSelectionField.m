@@ -163,6 +163,7 @@ classdef ModuleSelectionField < Base.input
             if isempty(val)
                 obj.selection.Value = 1;
                 obj.selection.String = {obj.empty_val};
+                obj.selection.UserData.objects = Base.Module.empty(0);
             else
                 obj.selection.String = get_module_strings(obj, val(:));
                 obj.selection.UserData.objects = val(:);
