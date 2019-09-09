@@ -172,9 +172,11 @@ classdef ModuleSelectionField < Base.input
                     obj.selection.Value = nval;
                 end
                 % Add deleted listeners
+                lsh = Base.preflistener.empty;
                 for i = 1:nval
-                    addlistener(val(i),'ObjectBeingDestroyed',@obj.module_deleted);
+                    lsh(end+1) = addlistener(val(i),'ObjectBeingDestroyed',@obj.module_deleted);
                 end
+                addlistener(obj.selection,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Clean up listeners
             end
             obj.update_buttons;
         end
