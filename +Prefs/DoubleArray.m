@@ -1,30 +1,32 @@
-classdef DoubleArray < Prefs.Double
-    %ARRAY Maintain an array of double values
-    %   Limitations: display_precision is not implemented in UI
+classdef DoubleArray < Base.pref
+    %ARRAY Maintain an array of double values. 
     
     properties(Hidden)
-        default = false;
+        default = 0;
         ui = Prefs.Inputs.TableField;
     end
     properties
+        allow_nan = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
+        max = {Inf, @(a)validateattributes(a,{'numeric'},{'scalar'})};
+        min = {-Inf, @(a)validateattributes(a,{'numeric'},{'scalar'})};
         props = {{}, @iscell};
         hide_label = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
     end
     
     methods
         function obj = DoubleArray(varargin)
-            obj = obj@Prefs.Double(varargin{:});
+            obj = obj@Base.pref(varargin{:});
             obj.ui.ColumnFormat = {'numeric'};
             obj.ui.hide_label = obj.hide_label;
         end
-        function val = clean(obj,val)
-            if obj.truncate
-                val = arrayfun(@(a)str2double(num2str(a,obj.display_precision)),val);
-            end
-        end
         function validate(obj,val)
-            % Call parent validator on all elements
-            arrayfun(@(a)validate@Prefs.Double(obj,a),val)
+            validateattributes(val,{'numeric'},{})
+            if ~obj.allow_nan
+                assert(all(~isnan(val)),'Attempted to set NaN. allow_nan is set to false.')
+            end
+            mask = ~isnan(val);
+            assert(all(val(mask) <= obj.max), 'Cannot set value greater than max.')
+            assert(all(val(mask) >= obj.min), 'Cannot set value less than min.')
         end
     end
     methods

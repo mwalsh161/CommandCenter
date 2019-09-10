@@ -6,7 +6,7 @@ classdef DropDownField < Prefs.Inputs.LabelControlBasic
     end
 
     methods
-        function [obj,height_px,label_width_px] = make_UI(obj,pref,parent,yloc_px,width_px)
+        function [obj,height_px,label_width_px] = make_UI(obj,pref,parent,yloc_px,width_px,margin)
             [obj,height_px,label_width_px] = make_UI@Prefs.Inputs.LabelControlBasic(obj,pref,parent,yloc_px,width_px);
             obj.ui.String = pref.choices_strings;
         end

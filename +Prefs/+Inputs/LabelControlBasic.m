@@ -31,7 +31,7 @@ classdef LabelControlBasic < Base.input
             tf = isgraphics(obj.ui) && isvalid(obj.ui);
         end
         % These methods are responsible for building the settings UI and setting/getting values from it
-        function [obj,height_px,label_width_px] = make_UI(obj,pref,parent,yloc_px,width_px)
+        function [obj,height_px,label_width_px] = make_UI(obj,pref,parent,yloc_px,width_px,margin)
             % Here, widths will all be taken care of in adjust_UI
             tag = strrep(pref.name,' ','_');
             labeltext = obj.get_label(pref);

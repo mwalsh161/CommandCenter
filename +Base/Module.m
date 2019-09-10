@@ -334,7 +334,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 mps{i} = mp;
                 %obj.set_meta_pref(setting_names{i},mp);
                 try
-                    mp = mp.set_ui_value(mp.value); % Update to current value
+                    mp.set_ui_value(mp.value); % Update to current value
                 catch err
                     warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
                         setting_names{i},class(mp.value),err.message)
@@ -345,7 +345,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
-                        mps{i}.adjust_UI(suggested_label_width, margin);
+                        mps{i} = mps{i}.adjust_UI(suggested_label_width, margin);
                         lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
                 end

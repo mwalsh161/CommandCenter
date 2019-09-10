@@ -4,7 +4,8 @@ classdef debug < Modules.Imaging
     properties
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
-        prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
+        %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
+        prefs = {'fyi','my_array','my_module','my_integer','my_double','my_logical'};
        % show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
@@ -12,6 +13,7 @@ classdef debug < Modules.Imaging
         fyi = Prefs.String('This is for your info',...
                            'help_text','This is a readonly string.',...
                            'readonly',true);
+        my_array = Prefs.DoubleArray([1,2;3,4]);
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
         my_double = Prefs.Double('units','um','min',-50,'max',50);
         my_string = Prefs.String('Enter value here','allow_empty',false);
