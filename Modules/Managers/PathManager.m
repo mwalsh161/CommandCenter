@@ -134,10 +134,13 @@ classdef PathManager < Base.Manager
                 update_active = false;
             end
             % Check to see if exists
+            if isempty(obj.paths)
+                obj.error(sprintf('Attempted to select "%s", but there are currently no paths defined.',name),true);
+            end
             map = ismember({obj.paths.name},name);
             if ~any(map)
                 if prompt
-                    answer = questdlg('Attempted to select a path that does not exist. If it exists under a different name, you can make an alias for it.',...
+                    answer = questdlg(sprintf('Attempted to select "%s" which does not exist. If it exists under a different name, you can make an alias for it.',name),...
                                         mfilename,'Make Alias','Cancel','Make Alias');
                     if strcmp(answer,'Make Alias')
                         obj.new_alias_GUI(name)
@@ -145,8 +148,7 @@ classdef PathManager < Base.Manager
                         return
                     end
                 end % If no prompt is desired, error
-                err = MException('MANAGER:no_path','');
-                obj.error(sprintf('No path found by name "%s"',name),err)
+                obj.error(sprintf('No path found by name "%s"',name),true);
             end
             
             path = obj.paths(map);
