@@ -47,6 +47,7 @@ classdef pref_handler < handle
             for i = 1:length(props)
                 prop = props(i);
                 if contains('Base.pref',superclasses(prop.DefaultValue))
+                    obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
                     % Add listeners to get and set so we can swap the value
                     % in/out behind the scenes. All listeners relate to
                     % this object, so no need to clean them up.
@@ -144,6 +145,8 @@ classdef pref_handler < handle
                     end
                 end
                 val = Prefs.ModuleInstance(val,'n',n,'inherits',inherits);
+            elseif isnumeric(val)
+                val = Prefs.DoubleArray(val);
             else
                 switch class(val)
                     case {'char'}

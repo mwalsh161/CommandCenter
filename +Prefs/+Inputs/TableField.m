@@ -19,6 +19,7 @@ classdef TableField < Base.input
         hide_label = false; % uitables can have column names, so allow hiding label
         ColumnFormat = {};
         props = {};
+        ForceFit = false; % Forces all columns to fit in width
     end
 
     methods
@@ -70,7 +71,7 @@ classdef TableField < Base.input
             end
 
             if ~isempty(pref.help_text)
-                set([obj.label, obj.ui], 'ToolTip', pref.help_text);
+                set([obj.label, obj.ui], 'Tooltip', pref.help_text);
             end
         end
         function obj = link_callback(obj,callback)
@@ -85,6 +86,11 @@ classdef TableField < Base.input
             if ~isempty(obj.label)
                 obj.label.Position(1) = margin(1);
                 obj.label.Position(3) = suggested_label_width;
+                if any(obj.label.Extent(3:4) > obj.label.Position(3:4))
+                    help_text = get(obj.label, 'Tooltip');
+                    set([obj.label, obj.ui], 'Tooltip',...
+                        ['<html>' obj.label.String(1:end-2) '<br/>' help_text(7:end)]);
+                end
             end
         end
         function set_value(obj,val)
@@ -95,6 +101,9 @@ classdef TableField < Base.input
         end
     end
     methods
+        function obj = set.ForceFit(obj,val)
+            error('Not implemented yet')
+        end
         function obj = set.props(obj,val)
             avoid = {'ColumnFormat','UserData','Parent','CellEditCallback','Units','Tag','Enable','ColumnEditable'};
             assert(iscell(val),'Property, value pairs for uitable must all be in a cell array')
@@ -113,7 +122,9 @@ classdef TableField < Base.input
             if ~isempty(eventdata.Error)
                 error(eventdata.Error);
             end
-            UI.UserData.callback(UI,eventdata);
+            if ~isempty(UI.UserData.callback)
+                UI.UserData.callback(UI,eventdata);
+            end
         end
     end
 

@@ -38,7 +38,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       [obj,height_px,label_width_px] = obj.make_UI(parent, yloc_px, width_px)
     %       obj.link_callback(callback)
     %       obj.adjust_UI(suggested_label_width_px, margin)
-
+    %
+    %   When linking the callback, this wrapper will inject itself as the last
+    %       argument: {callback, obj}
     %
     % Because MATLAB generates default properties only once, this must be a
     %   value class instead of a handle class to avoid persistent memory between
@@ -51,6 +53,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     properties(Abstract,Hidden)
         ui; % The class governing the UI
         default; % NOTE: goes through class validation function, so not treated
+    end
+    properties % Set by pref_handler constructor
+        property_name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
     properties % {default, validation function}
         name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
@@ -121,9 +126,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % This wraps ui.make_UI; careful overloading
             [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
         end
-        function obj = link_callback(obj,varargin)
+        function obj = link_callback(obj,callback)
             % This wraps ui.link_callback; careful overloading
-            obj.ui.link_callback(varargin{:});
+            obj.ui.link_callback({callback,obj});
         end
         function obj = adjust_UI(obj,varargin)
             % This wraps ui.adjust_UI; careful overloading

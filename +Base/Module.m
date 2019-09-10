@@ -12,6 +12,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     properties(Access=private)
         namespace                   % Namespace for saving prefs
         prop_listeners              % Keep track of preferences in the GUI to keep updated
+        StructOnObject_state % To restore after deleting
     end
     properties
         logger                      % Handle to log object
@@ -64,6 +65,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     end
     methods
         function obj = Module
+            warnStruct = warning('off','MATLAB:structOnObject');
+            obj.StructOnObject_state = warnStruct.state;
             % First get namespace
             obj.namespace = strrep(class(obj),'.','_');
             % Second, add to global appdata if app is available
@@ -227,6 +230,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             end
         end
         function delete(obj)
+            warning(obj.StructOnObject_state,'MATLAB:structOnObject')
             obj.savePrefs;
             delete(obj.prop_listeners);
             delete(obj.module_delete_listener);
@@ -329,7 +333,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 end
                 % Make UI element and add to panelH (note mp is not a handle class)
                 [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx, margin);
-                mp = mp.link_callback(@(~,~)obj.settings_callback(mp,setting_names{i}));
+                mp = mp.link_callback(@obj.settings_callback);
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
                 %obj.set_meta_pref(setting_names{i},mp);
@@ -340,7 +344,11 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         setting_names{i},class(mp.value),err.message)
                 end
             end
-            suggested_label_width = max(label_size); % px
+            max_label_width = widthPx/2;
+            suggested_label_width = max(label_size(label_size < max_label_width)); % px
+            if isempty(suggested_label_width)
+                suggested_label_width = max_label_width;
+            end
             lsh = Base.preflistener.empty;
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
@@ -352,16 +360,16 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             end
             addlistener(panelH,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Clean up listeners
         end
-        function settings_callback(obj,mp,setting_name)
+        function settings_callback(obj,~,~,mp)
             obj.pref_set_try = true;  % try block for validation
             try % try block for retrieving UI value
-                obj.(setting_name) = mp.get_validated_ui_value();
+                obj.(mp.property_name) = mp.get_validated_ui_value();
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
-                mp.set_ui_value(obj.(setting_name));
+                mp.set_ui_value(obj.(mp.property_name));
                 try
                     val_help = mp.validation_summary(obj.pref_handler_indentation);
                 catch val_help_err

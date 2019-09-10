@@ -37,6 +37,11 @@ classdef CharField < Prefs.Inputs.LabelControlBasic
             end
             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
                                 (suggested_label_width_px + units_space + sum(margin_px));
+            if any(obj.label.Extent(3:4) > obj.label.Position(3:4))
+                help_text = get(obj.label, 'Tooltip');
+                set([obj.label, obj.ui], 'Tooltip',...
+                    ['<html>' obj.label.String(1:end-2) '<br/>' help_text(7:end)]);
+            end
         end
     end
 
