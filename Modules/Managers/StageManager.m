@@ -289,6 +289,8 @@ classdef StageManager < Base.Manager
         end
         function obj = StageManager(handles)
             obj = obj@Base.Manager(Modules.Stage.modules_package,handles,handles.panelStage,handles.stage_select);
+            obj.prefs = [obj.prefs {'update_gui','line_colors','face_colors','thickness','line_transparency'...
+                 'face_transparency','timeout','hideStageTimeoutError','update_period'}];
             obj.loadPrefs;
             obj.blockOnLoad = handles.menu_stage;
             % Visualize

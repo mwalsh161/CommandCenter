@@ -14,7 +14,7 @@ classdef hwserver < handle
     methods
         function obj = hwserver(ip,~)
             if nargin > 1
-                warning('Port (second input) is legacy. Consider updating your code.')
+                warning('CC:legacy','Port (second input) is legacy. Consider updating your code.')
             end
             obj.connection = tcpip(ip,36577);
             obj.connection.Timeout = 2;
