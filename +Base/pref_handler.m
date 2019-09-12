@@ -10,6 +10,11 @@ classdef pref_handler < handle
     %
     %   Any class-based pref cannot define a MATLAB set or get method. Rather, one
     %   should be supplied to the constructor of the class-based pref (see Base.pref).
+    %
+    %   NOTE: This constructor MUST be called before anything modifies a
+    %   property that uses a class-based pref!! In the case of multiple
+    %   inheritance, one should explicity call the class hierarchy that
+    %   uses this prior to any others.
         
     properties(Access = private)
         temp_prop = struct();
@@ -39,6 +44,7 @@ classdef pref_handler < handle
         function obj = pref_handler()
             mc = metaclass(obj);
             props = mc.PropertyList;
+            methods = mc.MethodList;
             props = props([props.HasDefault]);
             external_ls_struct.PreSet = Base.preflistener.empty(1,0);
             external_ls_struct.PostSet = Base.preflistener.empty(1,0);
@@ -56,18 +62,31 @@ classdef pref_handler < handle
                          'Instead use the callback methods available in the class-based pref.']);
                     assert(prop.GetObservable&&prop.SetObservable,...
                         sprintf('Class-based pref ''%s'' must be defined to be GetObservable and SetObservable.',prop.Name));
-                    % Bind callback methods to this object if specified as strings
-                    if ~isempty(obj.(prop.Name).set) && ischar(obj.(prop.Name).set)
-                        fn = str2func(obj.(prop.Name).set);
-                        obj.(prop.Name).set = @(val)fn(obj,val);
-                    end
-                    if ~isempty(obj.(prop.Name).custom_validate) && ischar(obj.(prop.Name).custom_validate)
-                        fn = str2func(obj.(prop.Name).custom_validate);
-                        obj.(prop.Name).custom_validate = @(val)fn(obj,val);
-                    end
-                    if ~isempty(obj.(prop.Name).custom_clean) && ischar(obj.(prop.Name).custom_clean)
-                        fn = str2func(obj.(prop.Name).custom_clean);
-                        obj.(prop.Name).custom_clean = @(val)fn(obj,val);
+                    % Check output and bind callback methods to this object if specified as strings
+                    avail_methods = {'set','custom_validate','custom_clean'};
+                    argouts = [1,0,1];
+                    for j = 1:length(avail_methods)
+                        if ~isempty(obj.(prop.Name).(avail_methods{j}))
+                            if ischar(obj.(prop.Name).(avail_methods{j}))
+                                fnstring = obj.(prop.Name).(avail_methods{j});
+                                fn = str2func(fnstring);
+                                obj.(prop.Name).(avail_methods{j}) = @(val)fn(obj,val);
+                                nout = methods(strcmp(fnstring,{methods.Name}));
+                                assert(~isempty(nout),sprintf('Could not find "%s" in "%s"',...
+                                    fnstring, class(obj)));
+                                nout = nout.OutputNames;
+                                if ismember('varargout',nout)
+                                    nout = -1;
+                                else
+                                    nout = length(nout);
+                                end
+                            else
+                                nout = nargout(obj.(prop.Name).(avail_methods{j}));
+                            end
+                            assert(nout==argouts(j),sprintf(...
+                                'prefs require %s methods to output the set value\n\n  "%s.%s" has %i outputs',...
+                                (avail_methods{j}), class(obj),fnstring,nout))
+                        end
                     end
                     obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
                     obj.ls.(prop.Name)(2) = addlistener(obj, prop.Name, 'PostSet', @obj.post);

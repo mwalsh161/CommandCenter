@@ -185,7 +185,7 @@ classdef Manager < handle
             end
             if ~isempty(errors)
                 errors = strjoin(errors,'\n\n');
-                obj.error(errors)
+                obj.error(errors)  % TODO: somehow keep track of traceback for these errors
             end
             set(obj.blockOnLoad,'enable','on')
         end
