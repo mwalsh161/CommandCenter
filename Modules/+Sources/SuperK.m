@@ -123,6 +123,10 @@ classdef SuperK < Modules.Source
                 rethrow(err)
             end
         end
+
+        function arm(obj)
+            % nothing needs to be done since SuperK just needs on/off methods
+        end
         
     end
 end
