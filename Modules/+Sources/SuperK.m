@@ -9,7 +9,7 @@ classdef SuperK < Modules.Source
     %   - obj.serial.on()/off() - however, time consuming calls!
     
     properties
-        ip = 'Deprecated Use';         % IP of computer with and server
+        ip = 'No Server';         % IP of computer with and server
         prefs = {'ip'};
     end
     properties(SetObservable,SetAccess=private)
@@ -17,7 +17,6 @@ classdef SuperK < Modules.Source
         running                      % Boolean specifying if StaticLines program running
     end
     properties(SetAccess=private,Hidden)
-        listeners
         status                       % Text object reflecting running
         path_button
         serial
@@ -25,7 +24,6 @@ classdef SuperK < Modules.Source
     methods(Access=protected)
         function obj = SuperK()
             obj.loadPrefs;
-            obj.serial = Drivers.SuperK.instance(obj.ip);
         end
     end
     methods(Static)
@@ -40,17 +38,19 @@ classdef SuperK < Modules.Source
     end
     methods
         function delete(obj)
-            delete(obj.listeners)
             delete(obj.serial)
         end
         function set.ip(obj,val)
             err = [];
+            if strcmp(obj.ip,'No Server')
+                obj.ip = val;
+                return
+            end
             try
                 delete(obj.serial)
                 obj.serial = Drivers.SuperK.instance(val);
                 obj.ip = val;   
             catch err
-                delete(obj.listeners)
                 obj.ip = 'No Server';
             end
             if ~isempty(err)
