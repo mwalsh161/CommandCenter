@@ -1,4 +1,4 @@
-classdef Camera < Modules.Imaging & Sources.umanager.umanager_invisible
+classdef Camera < Imaging.umanager.umanager_invisible
     %CAMERA Provide the simplest of interfaces where the user specifies the
     %   config file and dev as a setting
     
@@ -17,9 +17,10 @@ classdef Camera < Modules.Imaging & Sources.umanager.umanager_invisible
         end
     end
     methods
-        function reload_toggle(obj,~)
+        function val = reload_toggle(obj,~)
+            % TODO: replace with a Prefs.Button
             % Pretends to be a button from a boolean pref
-            obj.reload = false;
+            val = false; % Swap back to false
             obj.init;
         end
     end
@@ -28,7 +29,7 @@ classdef Camera < Modules.Imaging & Sources.umanager.umanager_invisible
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Imaging.umanager.Demo();
+                Object = Imaging.umanager.Camera();
             end
             obj = Object;
         end

@@ -178,9 +178,21 @@ classdef ImagingManager < Base.Manager
             end
             end
         end
-        
+        function success = validate_frame(obj)
+            success = true;
+            try
+                assert(~isempty(obj.active_module),'No module loaded.')
+                validateattributes(obj.active_module.resolution,{'numeric'},{'integer','size',[1,2]},'snap','module resolution')
+                validateattributes(obj.ROI,{'numeric'},{'nonnan','size',[2,2]},'snap','module ROI')
+            catch err
+                obj.error(err.message);
+                success = false;
+            end
+        end
         function info = snap(obj,quietly)
-            assert(~isempty(obj.active_module),'No module loaded.')
+            if ~obj.validate_frame()
+                return
+            end
             % quietly will silence the notification (preventing DBManager)
             if nargin < 2
                 quietly = false;
@@ -254,7 +266,9 @@ classdef ImagingManager < Base.Manager
             obj.snap;
         end
         function startVideo(obj,varargin)
-            assert(~isempty(obj.active_module),'No module loaded.')
+            if ~obj.validate_frame()
+                return
+            end
             % This counts as activitiy (override sandboxed_function)
             timerH = obj.handles.inactivity_timer;
             managers = timerH.UserData;

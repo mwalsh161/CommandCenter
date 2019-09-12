@@ -1,4 +1,4 @@
-classdef umanager_invisible < handle
+classdef umanager_invisible < Modules.Imaging
     %UMANAGER_INVISIBLE Provides interface to micromanager with basic
     %camera control.
     %
@@ -12,14 +12,16 @@ classdef umanager_invisible < handle
     %   varargout = obj.mmc(function_name, arg1, arg2, ...)
     %   NOTE: varargout is based on how many outputs the caller requested, not the
     %         number returned by obj.core.(function_name)
+    %
+    % TODO: Dynamically fetch devices capable settings
     
     properties(Abstract) % Used in init
         dev           % Device label for camera (from the cfg file)
         config_file   % Config file full path or relative to classdef
     end
     properties(SetObservable,GetObservable)
-        exposure = Prefs.Double('name','Exposure','min',0,'units','ms','set','set_exposure');
-        binning = Prefs.Integer('name','Exposure','min',1,'units','ms','set','set_binning',...
+        exposure = Prefs.Double('min',0,'units','ms','set','set_exposure');
+        binning = Prefs.Integer(1,'min',1,'units','ms','set','set_binning',...
             'help_text','Not all integers will be available for your camera.');
     end
     
@@ -48,7 +50,7 @@ classdef umanager_invisible < handle
     methods(Sealed,Access=protected)
         function varargout = mmc(obj,function_name,varargin)
             % Provide access to obj.core (micromanager core interface)
-            assert(obj.initialized,'UMANAGER:not_initialized','"%s" has not initialized the core yet.')
+            assert(obj.initialized,'UMANAGER:not_initialized','"%s" has not initialized the core yet.',class(obj))
             if nargout
                 varargout = cell(1,nargout);
                 [varargout{:}] = obj.core.(function_name)(varargin{:});
@@ -98,12 +100,13 @@ classdef umanager_invisible < handle
     end
     methods
         function delete(obj)
-            if obj.core.isSequenceRunning()
-                obj.stopVideo;
+            if obj.initialized
+                if obj.core.isSequenceRunning()
+                    obj.stopVideo;
+                end
+                obj.core.reset()  % Unloads all devices, and clears config data
+                delete(obj.core)
             end
-            obj.core.reset()  % Unloads all devices, and clears config data
-            delete(obj.core)
-            delete(obj.listeners)
         end
         
         function metric = focus(obj,ax,Managers)
@@ -206,9 +209,8 @@ classdef umanager_invisible < handle
         end
  
         % Set methods for prefs
-        function set_exposure(obj,val)
+        function val = set_exposure(obj,val)
             if val == obj.mmc('getExposure')
-                obj.exposure = val;
                 return
             end
             wasRunning = false;
@@ -220,18 +222,13 @@ classdef umanager_invisible < handle
             end
             obj.mmc('setExposure',val)
             % Incase an invalid exposure was set, grab what core set it to
-            obj.exposure = obj.mmc('getExposure');
-            if ~isempty(obj.setExposure)
-                set(obj.setExposure,'string',num2str(obj.exposure))
-            end
+            val = obj.mmc('getExposure');
             if wasRunning
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end
         end
-        function set_binning(obj,val)
+        function val = set_binning(obj,val)
             if val==str2double(obj.mmc('getProperty',obj.dev,'Binning'))
-                % Case of no change
-                obj.binning = val;
                 return
             end
             wasRunning = false;
@@ -243,15 +240,12 @@ classdef umanager_invisible < handle
             end
             oldBin = obj.binning;
             obj.mmc('setProperty',obj.dev,'Binning',val)
-            obj.binning = str2double(obj.mmc('getProperty',obj.dev,'Binning'));
+            val = str2double(obj.mmc('getProperty',obj.dev,'Binning'));
             res(1) = obj.mmc('getImageWidth');
             res(2) = obj.mmc('getImageHeight');
             obj.resolution = res;
-            if ~isempty(obj.setBinning)
-                set(obj.setBinning,'string',num2str(obj.binning))
-            end
             % Update exposure to match
-            obj.exposure = obj.exposure*(oldBin/obj.binning)^2; %#ok<*MCSUP>
+            obj.exposure = obj.exposure*(oldBin/val)^2; %#ok<*MCSUP>
             if wasRunning
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end
@@ -276,6 +270,10 @@ classdef umanager_invisible < handle
             obj.mmc('setROI',xstart,ystart,width,height);
         end
         function val = get.ROI(obj)
+            if ~obj.initialized
+                val = NaN(2);
+                return
+            end
             val = obj.mmc('getROI');
             val = [val.x val.x+val.width; val.y val.y+val.height];
             val(1,:) = val(1,:) - obj.resolution(1)/2;
