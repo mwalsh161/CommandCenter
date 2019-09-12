@@ -21,6 +21,7 @@ classdef hwserver < handle
             obj.connection.Terminator = 'LF';
             obj.connection.OutputBufferSize = 4096;
             obj.connection.InputBufferSize = 4096;
+            obj.ping;
         end
         function delete(obj)
             if strcmp(obj.connection.status,'open')
