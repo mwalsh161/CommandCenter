@@ -12,7 +12,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     properties(Access=private)
         namespace                   % Namespace for saving prefs
         prop_listeners              % Keep track of preferences in the GUI to keep updated
-        StructOnObject_state % To restore after deleting
+        StructOnObject_state = 'on';% To restore after deleting
     end
     properties
         logger                      % Handle to log object
@@ -246,8 +246,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     pos = i;
                 end
             end
-            mods(pos) = [];
-            setappdata(hObject,'ALLmodules',mods)
+            if pos > 0
+                mods(pos) = [];
+                setappdata(hObject,'ALLmodules',mods)
+            end
             obj.logger.log(['Destroyed ' class(obj)])
         end
         
@@ -368,8 +370,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             catch err % MException if we get here
             end
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
+            mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
-                mp.set_ui_value(obj.(mp.property_name));
                 try
                     val_help = mp.validation_summary(obj.pref_handler_indentation);
                 catch val_help_err
