@@ -1,6 +1,7 @@
 classdef Camera < Imaging.umanager.umanager_invisible
     %CAMERA Provide the simplest of interfaces where the user specifies the
-    %   config file and dev as a setting
+    %   config file and dev as a setting. loadPrefs is called in the init
+    %   method.
     
     properties(SetObservable,GetObservable)
         dev = Prefs.String('help_text',...
@@ -13,7 +14,6 @@ classdef Camera < Imaging.umanager.umanager_invisible
     methods(Access=private)
         function obj = Camera()
             obj.prefs = [obj.prefs, {'dev','config_file','reload'}];
-            obj.loadPrefs;
         end
     end
     methods

@@ -33,6 +33,8 @@ classdef umanager_invisible < Modules.Imaging
     end
     properties(SetAccess = private)
         pixelType = 'uint8'; % Set in constructor after loading config
+        initialized = false;
+        initializing = false; % Used to flag when init is being called
     end
     properties(SetObservable)
         resolution = [NaN NaN]; % Set in constructor and set.binning
@@ -44,7 +46,6 @@ classdef umanager_invisible < Modules.Imaging
     end
     properties(Access=private)
         core            % The Micro-Manager core utility (java); Access through mmc method
-        initialized = false;
         videoTimer       % Handle to video timer object for capturing frames
     end
     methods(Sealed,Access=protected)
@@ -60,6 +61,7 @@ classdef umanager_invisible < Modules.Imaging
         end
         function init(obj)
             % Initialize Java Core
+            obj.initializing = true;
             import mmcorej.*;
             obj.core = CMMCore;
             config_file_full = obj.config_file;
@@ -79,23 +81,28 @@ classdef umanager_invisible < Modules.Imaging
                     obj.pixelType = 'uint8';
                 case 2
                     obj.pixelType = 'uint16';
-                case 3
-                    obj.pixelType = 'uint32';
                 case 4
+                    obj.pixelType = 'uint32';
+                case 8
                     obj.pixelType = 'uint64';
                 otherwise
                     error('Unsupported pixel data type: %i bytes/pixel',nbytes)
             end
             single_image = obj.core.getImageBufferSize/1024^2; % MB
             obj.core.setCircularBufferMemoryFootprint(single_image*obj.buffer_images);
+            obj.initialized = true;
+            
             obj.exposure = obj.core.getExposure();
             obj.binning = str2double(obj.core.getProperty(obj.dev,'Binning'));
+            obj.loadPrefs;
             res(1) = obj.core.getImageWidth();
             res(2) = obj.core.getImageHeight();
             obj.resolution = res;
-            obj.maxROI = [-obj.resolution(1)/2 obj.resolution(1)/2;...
+            new_ROI = [-obj.resolution(1)/2 obj.resolution(1)/2;...
                 -obj.resolution(2)/2 obj.resolution(2)/2]*obj.binning;
-            obj.initialized = true;
+            obj.maxROI = new_ROI;
+            obj.ROI = new_ROI;
+            obj.initializing = false;
         end
     end
     methods
@@ -162,7 +169,6 @@ classdef umanager_invisible < Modules.Imaging
             set(hImage,'cdata',im)
         end
         function startVideo(obj,hImage)
-            % Adjusts to binning of 3. Can modify after video begins.
             obj.continuous = true;
             if obj.mmc('isSequenceRunning')
                 warndlg('Video already started.')
@@ -183,9 +189,9 @@ classdef umanager_invisible < Modules.Imaging
                     dat = obj.mmc('popNextImage');
                     width = obj.mmc('getImageWidth');
                     height = obj.mmc('getImageHeight');
-                    dat = typecast(dat, 'uint16');
+                    dat = typecast(dat, obj.pixelType);
                     dat = reshape(dat, [width, height]);
-                    dat = flipud(dat');  % Fix Y inversion
+                    dat = transpose(dat);  % make column-major order for MATLAB
                     set(hImage,'cdata',dat);
                 end
                 drawnow limitrate nocallbacks;
@@ -255,6 +261,12 @@ classdef umanager_invisible < Modules.Imaging
             % Because this has a draggable rectangle in CommandCenter, it
             % is best to not stop and start acquisition like we do with
             % exposure and binning
+            if obj.initializing
+                % If we are initializing, this isn't a user setting ROI, it
+                % is grabbed by the core directly
+                obj.ROI = val;
+                return
+            end
             assert(~obj.mmc('isSequenceRunning'),'Cannot set while video running.')
             val = val/obj.binning;
             val(1,:) = val(1,:) + obj.resolution(1)/2;
