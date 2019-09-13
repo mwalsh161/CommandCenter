@@ -47,12 +47,15 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current pref
     %   architecture with this)
     
-    properties(AbortSet) % Avoids calling custom_* methods when "getting" unless altered by a get listener
+    properties % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
         value
     end
     properties(Abstract,Hidden)
         ui; % The class governing the UI
         default; % NOTE: goes through class validation function, so not treated
+    end
+    properties(Hidden)
+    	getEvent = false;   % This is reserved for pref_handler.post to avoid calling set methods on a get event
     end
     properties % Set by pref_handler constructor
         property_name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
@@ -242,19 +245,21 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             obj.set = val;
         end
         function obj = set.value(obj,val)
-            if ~isempty(obj.set) &&...
-                    isa(obj.set,'function_handle') %#ok<*MCSUP>
-                val = obj.set(val);
-            end
-            obj.validate(val);
-            if ~isempty(obj.custom_validate) &&...
-                    isa(obj.custom_validate,'function_handle')
-                obj.custom_validate(val);
-            end
-            val = obj.clean(val);
-            if ~isempty(obj.custom_clean) &&...
-                    isa(obj.custom_clean,'function_handle')
-                val = obj.custom_clean(val);
+            if ~obj.getEvent
+                if ~isempty(obj.set) &&...
+                        isa(obj.set,'function_handle') %#ok<*MCSUP>
+                    val = obj.set(val);
+                end
+                obj.validate(val);
+                if ~isempty(obj.custom_validate) &&...
+                        isa(obj.custom_validate,'function_handle')
+                    obj.custom_validate(val);
+                end
+                val = obj.clean(val);
+                if ~isempty(obj.custom_clean) &&...
+                        isa(obj.custom_clean,'function_handle')
+                    val = obj.custom_clean(val);
+                end
             end
             obj.value = val;
         end
