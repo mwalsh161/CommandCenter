@@ -256,8 +256,7 @@ classdef StageManager < Base.Manager
         function set.position(obj,val)
             % AbortSet doesn't treat NaN specially
             cur_pos = obj.position;
-            mask = ~isnan(cur_pos);
-            if ~isequal(mask,~isnan(val)) || ~isequal(obj.position(mask),val(mask))
+            if ~nanisequal(cur_pos,val)
                 obj.position = val;
                 notify(obj,'newPosition');
             end
