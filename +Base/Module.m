@@ -48,12 +48,18 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     end
                     try
                         val = obj.(obj.prefs{i});
-                        if contains('Base.Module',superclasses(val))
+                        if ismember('Base.Module',superclasses(val))
                             temp = {};
                             for j = 1:length(val)
                                 temp{end+1} = class(val(j));
                             end
                             val = temp;
+                        end
+                        if ismember('Base.pref',superclasses(val))
+                            % THIS SHOULD NOT HAPPEN, bug haven't figured
+                            % out why it does sometimes yet
+                            val = val.value;
+                            warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
                         end
                         setpref(obj.namespace,obj.prefs{i},val);
                     catch err
