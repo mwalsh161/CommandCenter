@@ -94,7 +94,6 @@ classdef umanager_invisible < Modules.Imaging
             
             obj.exposure = obj.core.getExposure();
             obj.binning = str2double(obj.core.getProperty(obj.dev,'Binning'));
-            obj.loadPrefs;
             res(1) = obj.core.getImageWidth();
             res(2) = obj.core.getImageHeight();
             obj.resolution = res;

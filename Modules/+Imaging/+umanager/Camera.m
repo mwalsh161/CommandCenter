@@ -14,6 +14,15 @@ classdef Camera < Imaging.umanager.umanager_invisible
     methods(Access=private)
         function obj = Camera()
             obj.prefs = [obj.prefs, {'dev','config_file','reload'}];
+            obj.loadPrefs('config_file','dev');
+            if ~isempty(obj.config_file) && ~isempty(obj.dev)
+                try
+                    obj.init;
+                    errs = obj.loadPrefs('-config_file','-dev');
+                catch err
+                    error('Failed to initialize - check config file and device, then try again.');
+                end
+            end
         end
     end
     methods
@@ -22,6 +31,7 @@ classdef Camera < Imaging.umanager.umanager_invisible
             % Pretends to be a button from a boolean pref
             val = false; % Swap back to false
             obj.init;
+            obj.loadPrefs('-config_file','-dev');
         end
     end
     methods(Static)
