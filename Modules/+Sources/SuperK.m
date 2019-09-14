@@ -65,67 +65,9 @@ classdef SuperK < Modules.Source
             obj.serial.off();
             obj.source_on = false;
         end
-        
-        % Settings and Callbacks
-        function settings(obj,panelH)
-            spacing = 1.5;
-            num_lines = 6;
-            line = 1;
-            uicontrol(panelH,'style','text','string','Power (%):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*(num_lines-line) 18 1.25]);
-            uicontrol(panelH,'style','edit','string',num2str(obj.serial.getPower),'tag','setPower',...
-                'units','characters','callback',@obj.setNum,...
-                'horizontalalignment','left','position',[19 spacing*(num_lines-line) 10 1.5]);
-            line = 2;
-            uicontrol(panelH,'style','text','string','Pulse Picker (int):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*(num_lines-line) 18 1.25]);
-            uicontrol(panelH,'style','edit','string',num2str(obj.serial.getPulsePicker),'tag','setPulsePicker',...
-                'units','characters','callback',@obj.setNum,...
-                'horizontalalignment','left','position',[19 spacing*(num_lines-line) 10 1.5]);
-            line = 3;
-            uicontrol(panelH,'style','text','string',strcat('Rep Rate (MHz): ',num2str(obj.serial.getRepRate())),'horizontalalignment','right',...
-                'units','characters','position',[0,spacing*(num_lines-line) 25 1.25]);
-            line = 4;
-            uicontrol(panelH,'style','text','string','Center Wavelength (nm):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*(num_lines-line) 18 1.25]);
-            uicontrol(panelH,'style','edit','string',num2str(obj.serial.getWavelength()),'tag','setWavelength',...
-                'units','characters','callback',@obj.setNum,...
-                'horizontalalignment','left','position',[19 spacing*(num_lines-line) 10 1.5]);
-            line = 5;
-            uicontrol(panelH,'style','text','string','Bandwidth (nm):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*(num_lines-line) 18 1.25]);
-            uicontrol(panelH,'style','edit','string',num2str(obj.serial.getBandwidth()),'tag','setBandwidth',...
-                'units','characters','callback',@obj.setNum,...
-                'horizontalalignment','left','position',[19 spacing*(num_lines-line) 10 1.5]);
-            line = 6;
-            uicontrol(panelH,'style','text','string','Attenuation (%)):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*(num_lines-line) 18 1.25]);
-            uicontrol(panelH,'style','edit','string',num2str(obj.serial.getND()),'tag','setND',...
-                'units','characters','callback',@obj.setNum,...
-                'horizontalalignment','left','position',[19 spacing*(num_lines-line) 10 1.5]);
-        end
-        
-        function setNum(obj,hObj,~)
-            temp = get(hObj,'string');
-            temp = str2double(temp);
-            assert(~isnan(temp),'Must be a number!');
-            obj.serial.(get(hObj,'tag'))(temp);
-        end
-        
-        function ipCallback(obj,src,varargin)
-            err = [];
-            try
-                obj.ip = get(src,'string');
-            catch err
-            end
-            set(src,'string',obj.ip)
-            if ~isempty(err)
-                rethrow(err)
-            end
-        end
 
         function arm(obj)
-            % nothing needs to be done since SuperK just needs on/off methods
+            % nothing needs to be done since SuperK just needs on/off methods=
         end
         
     end
