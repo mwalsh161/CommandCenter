@@ -114,6 +114,26 @@ classdef umanager_invisible < Modules.Imaging
                 delete(obj.core)
             end
         end
+        function [values,options] = get_all_properties(obj)
+            % Useful method to get all available properties and their options
+            % TODO: use this to dynamically build settings panel
+            props = obj.mmc('getDevicePropertyNames',obj.dev);
+            options = struct();
+            values = struct();
+            for i = 1:props.size
+                prop = char(props.get(i-1));
+                vals = obj.mmc('getAllowedPropertyValues',obj.dev,prop);
+                nvals = vals.size();
+                if nvals
+                    vals_cell = cell(1,nvals);
+                    for j = 1:nvals
+                        vals_cell{j} = char(vals.get(j-1));
+                    end
+                    values.(prop) = char(obj.mmc('getProperty',obj.dev,prop));
+                    options.(prop) = vals_cell;
+                end
+            end
+        end
         
         function metric = focus(obj,ax,Managers)
             stageManager = Managers.Stages;
