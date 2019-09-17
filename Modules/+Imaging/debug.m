@@ -3,16 +3,31 @@ classdef debug < Modules.Imaging
     
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'new_style','resolution','continuous'};
-     %   show_prefs = {'resolution','continuous','driver','source','database','imager','stage'};
+        % NOTE: my_string should be added at end as setting, but not saved like pref
+        %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
+        prefs = {'fyi','my_old_array','my_array','my_array2','my_module','my_integer','my_double','my_logical'};
+       % show_prefs = {'fyi','my_integer','my_double'};
+       % readonly_prefs = {''} % Should result in deprecation warning if used
     end
     properties(GetObservable,SetObservable)
-        new_style = Prefs.Integer('min',0);
- %       driver = Modules.Driver.empty(1,0); % Will only work without inputs
- %       source = Modules.Source.empty(1,0);
- %       database = Modules.Database.empty(0); % Should never do this
- %       imager = Modules.Imaging.empty;
- %       stage = Modules.Stage.empty;
+        fyi = Prefs.String('This is for your info',...
+                           'help_text','This is a readonly string.',...
+                           'readonly',true);
+        my_old_array = [1,2,3];
+        my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0);
+        my_array2 = Prefs.DoubleArray([1,2;3,4],'hide_label',true,'props',{'RowName',{'this','that'},'ColumnName',{'foo','bar'}});
+        my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
+        my_double = Prefs.Double('name','This double has a super long name!','units','um','min',-50,'max',50);
+        my_string = Prefs.String('Enter value here','allow_empty',false);
+        my_logical = Prefs.Boolean();
+        options_1 = Prefs.MultipleChoice('help_text','sooo many options!','choices',{'foo',41,'bar'})
+        options_2 = Prefs.MultipleChoice(42,'allow_empty',false,'choices',{'foo',42,'bar'})
+        my_module = Prefs.ModuleInstance();
+        old_style = 5;
+        fn_based = @Imaging.debug.get_options;
+        cell_based = {'options1','option2',6};
+        source = Modules.Source.empty(1,0);
+        imager = Modules.Imaging.empty;
         resolution = [120 120];                 % Pixels
         ROI = [-1 1;-1 1];
         continuous = false;
@@ -24,6 +39,9 @@ classdef debug < Modules.Imaging
         end
     end
     methods(Static)
+        function options = get_options()
+            options = {'opt1','opt2'};
+        end
         function obj = instance()
             mlock;
             persistent Object

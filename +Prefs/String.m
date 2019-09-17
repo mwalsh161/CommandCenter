@@ -1,19 +1,20 @@
 classdef String < Base.pref
     %STRING Allows any character array
     
+    properties(Hidden)
+        default = '';
+        ui = Prefs.Inputs.CharField;
+    end
     properties
-        allow_empty = true; % Note, this will error immediately unless default value given when true
+        % Note, this will error immediately unless default value supplied
+        allow_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
     end
     
     methods
-        function obj = String(varargin)
-            obj.default = '';
-            obj = obj.init(varargin{:});
-        end
         function validate(obj,val)
-            validateattributes(val,{'numeric','logical'},{'scalartext'})
+            validateattributes(val,{'char','string'},{'scalartext'})
             if ~obj.allow_empty
-                assert(~isempty(val),'Attempted to set empty string. allow_empty is set to false.')
+                assert(~isempty(val),'Cannot set an empty string.')
             end
         end
     end

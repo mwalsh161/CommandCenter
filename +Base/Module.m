@@ -12,7 +12,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     properties(Access=private)
         namespace                   % Namespace for saving prefs
         prop_listeners              % Keep track of preferences in the GUI to keep updated
-        GUI_handle                  % Handle to uicontrolgroup panel
+        StructOnObject_state = 'on';% To restore after deleting
     end
     properties
         logger                      % Handle to log object
@@ -23,6 +23,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     properties(Abstract,Constant,Hidden)
         modules_package;
     end
+
     events
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
@@ -47,12 +48,18 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     end
                     try
                         val = obj.(obj.prefs{i});
-                        if contains('Base.Module',superclasses(val))
+                        if ismember('Base.Module',superclasses(val))
                             temp = {};
                             for j = 1:length(val)
                                 temp{end+1} = class(val(j));
                             end
                             val = temp;
+                        end
+                        if ismember('Base.pref',superclasses(val))
+                            % THIS SHOULD NOT HAPPEN, bug haven't figured
+                            % out why it does sometimes yet
+                            val = val.value;
+                            warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
                         end
                         setpref(obj.namespace,obj.prefs{i},val);
                     catch err
@@ -64,6 +71,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     end
     methods
         function obj = Module
+            warnStruct = warning('off','MATLAB:structOnObject');
+            obj.StructOnObject_state = warnStruct.state;
             % First get namespace
             obj.namespace = strrep(class(obj),'.','_');
             % Second, add to global appdata if app is available
@@ -77,13 +86,22 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             mods{end+1} = obj;
             setappdata(hObject,'ALLmodules',mods)
             obj.logger.log(['Initializing ' class(obj)])
+            % ******************************************************************
+            % *************************[NOW LEGACY]*****************************
+            % **********should be handled in class-based prefs******************
+            % ******************************************************************
             % Garbage collect for Base.Modules properties
             mc = metaclass(obj);
             mp = mc.PropertyList;
+            legacy_warning = false;
             for i = 1:length(mp)
                 if mp(i).HasDefault && contains('Base.Module',superclasses(mp(i).DefaultValue))
+                    legacy_warning = true;
                     addlistener(obj,mp(i).Name,'PostSet',@obj.module_garbage_collect);
                 end
+            end
+            if legacy_warning
+                warning('CC:legacy','Deleted-module garbage collection is legacy. Update to class-based pref!')
             end
             % Go through and re-construct deleted modules (note they can't
             % be private or protected) This is necessary because MATLAB
@@ -113,6 +131,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     end
                 end
             end
+            % ******************************************************************
+            % *********************(includes callbacks)*************************
+            % *************************[END LEGACY]*****************************
+            % ******************************************************************
         end
         function module_clean(obj,hObj,prop)
             to_remove = false(size(obj.(prop)));
@@ -195,7 +217,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         pref = getpref(obj.namespace,obj.prefs{i});
                         try
                             mp = findprop(obj,obj.prefs{i});
-                            if mp.HasDefault && contains('Base.Module',superclasses(mp.DefaultValue))
+                            if mp.HasDefault && any(ismember([{class(mp.DefaultValue)}; superclasses(mp.DefaultValue)],...
+                                            {'Base.Module','Prefs.ModuleInstance'}))
                                 if isempty(pref)% Means it is the default value, and not set
                                     continue
                                 end
@@ -213,6 +236,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             end
         end
         function delete(obj)
+            warning(obj.StructOnObject_state,'MATLAB:structOnObject')
             obj.savePrefs;
             delete(obj.prop_listeners);
             delete(obj.module_delete_listener);
@@ -228,8 +252,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     pos = i;
                 end
             end
-            mods(pos) = [];
-            setappdata(hObject,'ALLmodules',mods)
+            if pos > 0
+                mods(pos) = [];
+                setappdata(hObject,'ALLmodules',mods)
+            end
             obj.logger.log(['Destroyed ' class(obj)])
         end
         
@@ -238,6 +264,22 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             task = '';
         end
         
+        function settings = get_settings(obj)
+            % Override to change how settings are acquired
+            % Must output cell array of strings
+            % Order matters; first is on top, last is at the bottom.
+            props = properties(obj);
+            settings = {};
+            if ismember('show_prefs',props)
+                settings = obj.show_prefs;
+            elseif ismember('prefs',props)
+                settings = obj.prefs;
+            end
+            % Append any additional class-based prefs (no order)
+            class_based = obj.get_class_based_prefs()';
+            settings = [settings, class_based(~ismember(class_based,settings))];
+        end
+
         % Adds custom settings to main GUI.
         %   This can be a simple settings button that opens a new GUI!
         %   Callbacks must be taken care of in the module.
@@ -247,168 +289,114 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         %   your settings, if you aren't careful, you will have an
         %   inconsitency and confusion will follow.
         %   See documentation for how the default settings works below
-        function varargout = settings(obj,panelH)
-            % varargout is useful if this is called from a subclass
-            %     out = handle to uicontrolgroup
+        function settings(obj,panelH,pad,margin)
+            % panelH: handle to the MATLAB panel
+            % pad: double; vertical distance in pixels to leave between UI elements
+            % margin: 1x2 double; additional space in pixels to leave on [left, right]
             
-            all_props = properties(obj);
-            % First, get all the prefs in order
-            if ismember('show_prefs',all_props)
-                prop_names = obj.show_prefs;
-            elseif ismember('prefs',all_props)
-                prop_names = obj.prefs;
-            else % Nothing to do here
-                if nargout > 0
-                    varargout{1} = [];
+            panelH.Units = 'pixels';
+            try % Make backwards compatible (around 2017a I think)
+                widthPx = panelH.('InnerPosition')(3);
+            catch err
+                if ~strcmp(err.identifier,'MATLAB:noSuchMethodOrField')
+                    rethrow(err)
                 end
-                return
+                widthPx = panelH.('Position')(3);
+                warning('CC:legacy',['Using a version of MATLAB that does not use "InnerPosition" for uipanel.',...
+                                    'Consider upgrading if you notice display issues.'])
             end
-            % Go through properties and format input for uicontrolgroup.m
-            % Also setup listeners on them
-            props = struct('name',[],'display_name',[],'default',[],'options',[],'enable',{},'readonly',{});
-            logicalException=false;
-            for i = 1:numel(prop_names)
-                prop_md = obj.findprop(prop_names{i}); % property metadata
-                if isempty(prop_md)
-                    warning('MODULE:settings','Ignored "%s"; could not find as a property. Case sensitive.',prop_names{i})
-                    continue
-                elseif prop_md.HasDefault && ~strcmp(class(prop_md.DefaultValue),class(obj.(prop_md.Name)))
-                    % There are some exceptions
-                    handleClassException = ismember('Base.pref',superclasses(prop_md.DefaultValue));
-                    multChoiceException = iscell(prop_md.DefaultValue)||isa(prop_md.DefaultValue,'function_handle');
-                    logicalException = islogical(prop_md.DefaultValue)&&(obj.(prop_md.Name)==0||obj.(prop_md.Name)==1);
-                    moduleException = contains('Base.Module',superclasses(prop_md.DefaultValue));
-                    if ~(handleClassException||multChoiceException||logicalException||moduleException)
-                        warning('MODULE:settings','Ignored "%s"; Current property value does not match default value type.',prop_names{i})
-                        continue
-                    elseif logicalException
-                        obj.(prop_md.Name) = logical(obj.(prop_md.Name));
-                    end
-                end
-                props(end+1).name = prop_md.Name;
-                props(end).display_name = strrep(prop_md.Name,'_',' ');
-                if logicalException  % Default value in GUI (if not multiple choice)
-                    props(end).default = logical(obj.(prop_md.Name));
-                else
-                    props(end).default = obj.(prop_md.Name);
-                end
-                % Multiple choice defined by cell array or fn handle
-                if prop_md.HasDefault && ...
-                        (iscell(prop_md.DefaultValue) || isa(prop_md.DefaultValue,'function_handle'))
-                    % Get options through function or DefaultValue
-                    if isa(prop_md.DefaultValue,'function_handle')
-                        try
-                            options = prop_md.DefaultValue();
-                            assert(iscell(options),'Must return a cell array.') % This will get concatenated with below message
-                        catch err
-                            error('Function to get options for pref "%s" failed:\n%s',prop_md.Name,err.message)
-                        end
-                    else
-                        options = prop_md.DefaultValue;     % Default value defines options
-                    end
-                    assert(~isempty(options),sprintf('There must be atleast one option for pref "%s"',prop_md.Name))
-                    props(end).options = options;
-                    % If hasn't been changed from default value, choose first option arbitrarily
-                    if isequal(obj.(prop_md.Name),prop_md.DefaultValue)
-                        obj.(prop_md.Name) = options{1};
-                    end
-                    try
-                        % Can't use ismember here incase there is a numerical value in options
-                        ind = find(cellfun(@(a)isequal(num2str(a),num2str(obj.(prop_md.Name))),options),1);
-                        props(end).default = ind;
-                    catch err
-                        error('Could not find current value of "%s" in choice set.',prop_md.Name)
-                    end
-                end
-                % See if this prop is in readonly
-                props(end).readonly = false;
-                props(end).enable = 'on';
-                if ismember('readonly_prefs',all_props) && ismember(prop_md.Name,obj.readonly_prefs)
-                    props(end).enable = 'off';
-                    props(end).readonly = true;
-                end
+
+            % Establish legacy read_only settings
+            readonly_settings = {};
+            props = properties(obj);
+            if ismember('readonly_prefs',props)
+                warning('CC:legacy',['"readonly_prefs" will override any class-based setting.',...
+                        'Note that it is legacy and should be updated to readonly property in class-based prefs.'])
+                readonly_settings = obj.readonly_prefs;
             end
-            handles = Base.uicontrolgroup(props,@obj.defaultCallback,'parent',panelH);
-            obj.GUI_handle = handles;
-            if nargout > 0
-                varargout{1} = handles;
-            end
-            % Setup listeners based on what actually got made by uicontrolgroup
-            for i = 1:numel(handles.UserData.input_handles)
-                prop_name = handles.UserData.input_handles(i).Tag;
-                lisH = addlistener(obj,prop_name,'PostSet',@obj.GUIupdate);
-                if i == 1
-                    obj.prop_listeners = lisH;
-                else
-                    obj.prop_listeners(end+1) = lisH;
-                end
-            end
-            % Clean up listeners when settings closed
-            addlistener(handles,'ObjectBeingDestroyed',@(~,~)delete(obj.prop_listeners));
-        end
-        
-        % This updates the GUI anytime a pref is changed by anything.
-        % Called by the prop_listeners
-        function GUIupdate(obj,hProp,~)
-            val = obj.(hProp.Name);
-            obj.GUI_handle.UserData.setValue(obj.GUI_handle,hProp.Name,val);
-        end
-        
-        % This method is called when a pref is changed in the GUI from the
-        % uicontrolgroup.  It does nothing more than set the property.
-        % GUIupdate should be called from the PostSet triggered by this
-        % method.
-        function defaultCallback(obj,hObj,~)
-            % hObj.UserData has two important fields:
-            %   setValue(hPanel,name,val) which will be used after PostSet
-            %   getValue(hObj) which is used here so we don't worry what
-            %       type of uicontrol was used
-            prop_name = hObj.Tag; % Convention in uicontrolgroup
-            mp = findprop(obj,prop_name);
+            
             try
-                [new_val,abort,reset] = hObj.UserData.getValue(hObj,obj.(prop_name));
-                if abort
-                    return
-                end
-                if reset
-                    if mp.HasDefault % Querying DefaultValue will error if HasDefault is false
-                        if ismember('Base.pref',superclasses(mp.DefaultValue)) % patch for class-based prefs
-                            obj.(prop_name) = mp.DefaultValue.default;
-                        else
-                            obj.(prop_name) = mp.DefaultValue;
-                        end
-                    else
-                        obj.(prop_name) = []; % Matlab assigns [] to properties without explicit default
-                    end
-                    return
-                end
-                if contains('Base.Module',superclasses(new_val))
-                    for i = 1:length(new_val)
-                        assert(obj~=new_val(i),'Cannot set pref to self!')
-                    end
-                    % Length assertion
-                    if mp.HasDefault
-                        N = max(size(mp.DefaultValue));
-                        if N && length(new_val) > N % N=0 don't check (e.g. Inf)
-                            error('Prop "%s" defines a max length of %i; remove existing module before trying to add another',prop_name,N);
-                            % NOTE: module created in getValue function. this does not delete the created module
-                        end
-                    end
-                end
-                obj.(prop_name) = new_val;
-            catch err % Reset value in GUI
-                % obj.(prop_name) = new_val could result in a module set
-                % method to update_settings. If that happens, THEN that set
-                % method subsequently errors, we end up here with a deleted
-                % hObj. The update_settings should have taken care of
-                % updating CC, so we can just ignore this and continue to
-                % rethrow the err
-                if isvalid(hObj)
-                    hObj.UserData.setValue(obj.GUI_handle,prop_name,obj.(prop_name))
-                end
-                rethrow(err)
+                setting_names = obj.get_settings();
+            catch err
+                error('Error fetching settings names:\n%s',getReport(err,'basic','hyperlinks','off'));
             end
-            % the GUI will be udpated on the PostSet callback
+            nsettings = length(setting_names);
+
+            panelH_loc = pad;
+            mps = cell(1,nsettings); % meta pref
+            label_size = NaN(1,nsettings);
+            % Build up, starting from end to beginning
+            for i = nsettings:-1:1
+                try
+                    mp = obj.get_meta_pref(setting_names{i});
+                catch err
+                    warning(err.identifier,'Skipped pref "%s":\n%s',setting_names{i},err.message)
+                    continue
+                end
+                if isempty(mp.name) % Default to setting (i.e. property) name
+                    mp.name = strrep(setting_names{i},'_',' ');
+                end
+                if ismember(setting_names{i},readonly_settings)
+                    mp.readonly = true; % Allowing readonly_prefs to override
+                end
+                % Make UI element and add to panelH (note mp is not a handle class)
+                [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx, margin);
+                mp = mp.link_callback(@obj.settings_callback);
+                panelH_loc = panelH_loc + height_px + pad;
+                mps{i} = mp;
+                %obj.set_meta_pref(setting_names{i},mp);
+                try
+                    mp.set_ui_value(mp.value); % Update to current value
+                catch err
+                    warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
+                        setting_names{i},class(mp.value),err.message)
+                end
+            end
+            max_label_width = widthPx/2;
+            suggested_label_width = max(label_size(label_size < max_label_width)); % px
+            if isempty(suggested_label_width)
+                suggested_label_width = max_label_width;
+            end
+            lsh = Base.preflistener.empty;
+            if ~isnan(suggested_label_width) % All must have been NaN for this to be false
+                for i = 1:nsettings
+                    if ~isnan(label_size(i)) % no error in fetching mp
+                        mps{i} = mps{i}.adjust_UI(suggested_label_width, margin);
+                        lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
+                    end
+                end
+            end
+            addlistener(panelH,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Clean up listeners
+        end
+        function settings_callback(obj,~,~,mp)
+            obj.pref_set_try = true;  % try block for validation
+            try % try block for retrieving UI value
+                obj.(mp.property_name) = mp.get_validated_ui_value();
+                err = obj.last_pref_set_err; % Either [] or MException
+            catch err % MException if we get here
+            end
+            obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
+            mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+            if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
+                try
+                    val_help = mp.validation_summary(obj.pref_handler_indentation);
+                catch val_help_err
+                    val_help = sprintf('Failed to generate validation help:\n%s',...
+                        getReport(val_help_err,'basic','hyperlinks','off'));
+                end
+                errmsg = err.message;
+                % Escape tex modifiers
+                val_help = strrep(val_help,'\','\\'); errmsg = strrep(errmsg,'\','\\');
+                val_help = strrep(val_help,'_','\_'); errmsg = strrep(errmsg,'_','\_');
+                val_help = strrep(val_help,'^','\^'); errmsg = strrep(errmsg,'^','\^');
+                opts.WindowStyle = 'non-modal';
+                opts.Interpreter = 'tex';
+                errordlg(sprintf('%s\n\\fontname{Courier}%s',errmsg,val_help),...
+                    sprintf('%s Error',class(mp)),opts);
+            end
+        end
+        function settings_listener(obj,el,mp)
+            mp.set_ui_value(obj.(el.Name));
         end
     end
 end
