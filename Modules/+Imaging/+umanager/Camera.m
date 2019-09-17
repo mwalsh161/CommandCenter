@@ -18,9 +18,11 @@ classdef Camera < Imaging.umanager.umanager_invisible
             if ~isempty(obj.config_file) && ~isempty(obj.dev)
                 try
                     obj.init;
+                    % Ignore errors here by returning them explicitly even though we dont need them
                     errs = obj.loadPrefs('-config_file','-dev');
                 catch err
-                    error('Failed to initialize - check config file and device, then try again.');
+                    warndlg(sprintf('Failed to initialize - check config file and device, then try again:\n\n%s',...
+                        err.message),class(obj));
                 end
             end
         end
