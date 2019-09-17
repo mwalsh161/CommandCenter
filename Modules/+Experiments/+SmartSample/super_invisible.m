@@ -34,7 +34,7 @@ classdef super_invisible < handle
     %               The run method will 
     %
     %   Custom Settings (note this is not protected from abuse):
-    %       function settings(obj,panelH)
+    %       function  settings(obj,panelH,~,~)
     %           settings@Experiments.SmartExperiment_invisible(obj,panelH)
     %           controls = allchild(panelH);
     %           positions = reshape([controls.Position],4,[]);
@@ -279,7 +279,7 @@ classdef super_invisible < handle
             obj.abort_request = true;
         end
 
-        function settings(obj,panelH)
+        function  settings(obj,panelH,~,~)
             spacing = 1.5;
             line = 1;
             % Builds bottom up
@@ -412,7 +412,7 @@ classdef super_invisible < handle
             [gridX,gridY] = meshgrid(cols,rows);
             grid = ([gridX(:) gridY(:)]+0.5);
             delete(findall(0,'name','testGridWalk'));
-            f = figure('name','testGridWalk','units','normalized','position',[0 0 1 1]);
+            f = figure('name','testGridWalk','units','normalized','WindowState','fullscreen');
             ax = axes('parent',f); hold(ax,'on'); axis(ax,'image');
             Experiments.InitialCharacterization.drawMap(map,grid,ax,[]);
             i = 0;

@@ -50,7 +50,6 @@ classdef PathManager < Base.Manager
     end
     properties
         module_types = {};
-        prefs = {'paths'};
     end
     
     methods(Static)
@@ -91,6 +90,7 @@ classdef PathManager < Base.Manager
     methods
         function obj = PathManager(handles)
             obj = obj@Base.Manager('Paths',handles); % "Simple" manager
+            obj.prefs = [obj.prefs {'paths'}];
             % Grab all classes in Modules package
             [~,obj.module_types,~] = Base.GetClasses('+Modules');
             % Add menu to CommandCenter and tie in some callbacks

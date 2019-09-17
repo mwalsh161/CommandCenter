@@ -50,7 +50,7 @@ classdef FocusLaser < Modules.Source
         end
         
         % Settings and Callbacks
-        function settings(obj,panelH)
+        function  settings(obj,panelH,~,~)
             
         end
         function update(obj,varargin)
