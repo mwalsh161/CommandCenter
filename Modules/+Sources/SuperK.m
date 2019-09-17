@@ -42,8 +42,14 @@ classdef SuperK < Modules.Source
         end
         function set.ip(obj,val)
             err = [];
-            if strcmp(obj.ip,'No Server')
-                obj.ip = val;
+            if strcmp(val,'No Server')
+                error('Intentional error out');
+                obj.ip = 'No Server';
+                return
+            end
+            if isempty(val)
+                error('No IP address inputed');
+                obj.ip = 'No Server';
                 return
             end
             try
