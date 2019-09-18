@@ -374,11 +374,11 @@ classdef StageManager < Base.Manager
                     end
                     if min(TEMPstages{i}.yRange*cal2(2))<min(TEMPstages{i-1}.yRange*cal1(2))...
                             || max(TEMPstages{i}.yRange*cal2(2))>max(TEMPstages{i-1}.yRange*cal1(2))
-                        wrongRanges{2} = 'Y'; wrongRangesI(1) = true;
+                        wrongRanges{2} = 'Y'; wrongRangesI(2) = true;
                     end
                     if min(TEMPstages{i}.zRange*cal2(3))<min(TEMPstages{i-1}.zRange*cal1(3))...
                             || max(TEMPstages{i}.zRange*cal2(3))>max(TEMPstages{i-1}.zRange*cal1(3))
-                        wrongRanges{3} = 'Z'; wrongRangesI(1) = true;
+                        wrongRanges{3} = 'Z'; wrongRangesI(3) = true;
                     end
                     wrongRanges = wrongRanges(wrongRangesI);
                     if ~isempty(wrongRanges)
