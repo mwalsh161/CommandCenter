@@ -1,7 +1,7 @@
 function run(obj,statusH,managers,ax)
     
     obj.abort_request = false;
-    status.String = 'Experiment started';
+    statusH.String = 'Experiment started';
     drawnow;
 
     if obj.useROI
