@@ -37,7 +37,6 @@ classdef SuperResScanCW < Modules.Experiment
             obj.loadPrefs;
             obj.galvos = Drivers.NIDAQ.stage.instance('X','Y','Z','APD1','GalvoScanSync');
             obj.nidaq = Drivers.NIDAQ.dev.instance('Dev1');
-            %obj.pb = Drivers.PulseBlaster.Remote.instance(obj.ip);
         end
     end
     
@@ -65,13 +64,11 @@ classdef SuperResScanCW < Modules.Experiment
         end
         
         function set.wavelengths_set(obj,val)
-            tempvals = eval(val);
-            obj.wavelengths = tempvals;
+            obj.wavelengths = eval(val);
             obj.wavelengths_set = val;
         end
         function set.resonator_percents(obj,val)
-            tempvals = eval(val);
-            obj.percents = tempvals;
+            obj.percents = eval(val);
             obj.resonator_percents = val;
         end
         function set.xmin(obj,val)
