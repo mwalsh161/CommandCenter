@@ -39,7 +39,7 @@ function run(obj,statusH,managers,ax)
             end
 
             obj.data.scans(i).image = managers.Imaging.current_image.info;
-            obj.data.scans(i).Setpoint = values(i);
+            obj.data.scans(i).setpoint = values(i);
             obj.data.scans(i).resLaser = resLaserWL;
             obj.resLaser.off;
             
