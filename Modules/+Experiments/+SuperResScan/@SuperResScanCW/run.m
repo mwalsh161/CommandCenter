@@ -26,12 +26,7 @@ function run(obj,statusH,managers,ax)
         for i=1:length(values)
             obj.resLaser.off;
             if strcmp(obj.scan_type,'Wavelength')
-                try
-                    obj.resLaser.TuneSetpoint(obj.c/values(i));
-                catch
-                    pause(60); % in case Msquared is doing the pump beam alignment
-                    obj.resLaser.TuneSetpoint(obj.c/values(i));
-                end
+                obj.resLaser.TuneSetpoint(obj.c/values(i));
             else
                 obj.resLaser.TunePercent(values(i));
             end
