@@ -2,16 +2,16 @@ classdef SuperResScanCW < Modules.Experiment
     
     properties
         abort_request = false;
-        prefs = {'resLaser','repumpLaser','scan_type','wavelengths_set','resonator_percents','useROI','xmin','xmax','xpoints','ymin','ymax','ypoints'};
-        show_prefs = {'resLaser','repumpLaser','scan_type','wavelengths_set','resonator_percents','useROI','xmin','xmax','xpoints','ymin','ymax','ypoints'};
+        prefs = {'resLaser','repumpLaser','scan_type','wavelengths_values','resonator_percents','useROI','xmin','xmax','xpoints','ymin','ymax','ypoints'};
+        show_prefs = {'resLaser','repumpLaser','scan_type','wavelengths_values','resonator_percents','useROI','xmin','xmax','xpoints','ymin','ymax','ypoints'};
         wavelengths = linspace(0,100,101);
         percents = linspace(0,100,101);
     end
     properties(SetObservable)
         resLaser = Modules.Source.empty;
         repumpLaser = Modules.Source.empty;
-        scan_type = {'Wavelength','Resonator'};
-        wavelengths_set = 'linspace(615,625,101)';
+        scan_type = {'Wavelength values','Resonator percents'};
+        wavelengths_values = 'linspace(615,625,101)';
         resonator_percents = 'linspace(0,100,101)';
         useROI = true;
         xmin = -1;
@@ -63,9 +63,9 @@ classdef SuperResScanCW < Modules.Experiment
             dat.meta = obj.meta;
         end
         
-        function set.wavelengths_set(obj,val)
+        function set.wavelengths_values(obj,val)
             obj.wavelengths = eval(val);
-            obj.wavelengths_set = val;
+            obj.wavelengths_values = val;
         end
         function set.resonator_percents(obj,val)
             obj.percents = eval(val);

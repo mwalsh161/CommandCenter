@@ -16,7 +16,7 @@ function run(obj,statusH,managers,ax)
         managers.Imaging.active_module.resolution = [obj.xpoints obj.ypoints];
     end
 
-    if strcmp(obj.scan_type,'Wavelength')
+    if strcmp(obj.scan_type,'Wavelengths values')
         values = obj.wavelengths;
     else
         values = obj.percents;
@@ -25,7 +25,7 @@ function run(obj,statusH,managers,ax)
     try
         for i=1:length(values)
             obj.resLaser.off;
-            if strcmp(obj.scan_type,'Wavelength')
+            if strcmp(obj.scan_type,'Wavelengths values')
                 obj.resLaser.TuneSetpoint(obj.c/values(i));
             else
                 obj.resLaser.TunePercent(values(i));
