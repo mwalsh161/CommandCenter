@@ -118,6 +118,7 @@ handles.last_WindowButtonMotionFcn = fig.WindowButtonMotionFcn;
 handles.last_WindowButtonUpFcn = fig.WindowButtonUpFcn;
 handles.last_ButtonDownFcn = target.ButtonDownFcn;
 target.UserData.mouseTrack = handles;
+handles.structOnObject_state = 'on'; % Should get overwritten in startTrack
 % Set callback that starts everything
 target.ButtonDownFcn = @startTrack;
 if ~isempty(p.Results.stop_fcn) && nargout(p.Results.stop_fcn) > 0
@@ -132,7 +133,7 @@ end
 function clean_up(target)
 if isstruct(target.UserData) && isfield(target.UserData,'mouseTrack')
     handles = target.UserData.mouseTrack;
-    warning('off','MATLAB:structOnObject')
+    warning(handles.structOnObject_state,'MATLAB:structOnObject')
     uiresume(handles.fig); % harmless to call if not waiting
     handles.fig.WindowButtonMotionFcn = handles.last_WindowButtonMotionFcn;
     handles.fig.WindowButtonUpFcn = handles.last_WindowButtonUpFcn;
@@ -145,7 +146,8 @@ handles = target.UserData.mouseTrack;
 % Link button up first in case start_fcn errors
 handles.fig.WindowButtonUpFcn = {@stopTrack,target};
 handles.Button = eventdata.Button;
-warning('off','MATLAB:structOnObject')
+warnStruct = warning('off','MATLAB:structOnObject');
+handles.structOnObject_state = warnStruct.state;
 handles.Positions(end+1,:) = get(handles.fig,'CurrentPoint');
 if ~isempty(handles.ax)
     cpt = get(handles.ax,'CurrentPoint');

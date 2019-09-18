@@ -43,7 +43,7 @@ function metric = ContrastFocus(obj,Managers )
         zpos = zpos + direction*stepSize;
         assert(zpos>min(limits) && zpos<max(limits),'Failed to find peak in search range.')
         stageHandle.move(startPos(1),startPos(2),zpos);
-        stageManager.waitUntilStopped(0.1);
+        stageManager.waitUntilStopped;
         frame = obj.snapImage(obj.binning); % Specify binning to be 3
         d = contrast_detection(frame,dx,dy,xrange,yrange);
         pos_track(end+1) = zpos;
@@ -70,7 +70,7 @@ function metric = ContrastFocus(obj,Managers )
     
     [metric,index] = max(data);
     stageHandle.move(startPos(1),startPos(2),pos_track(index))
-    stageManager.waitUntilStopped(0.1);
+    stageManager.waitUntilStopped;
     close(f)
 
 end

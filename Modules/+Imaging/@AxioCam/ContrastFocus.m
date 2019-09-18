@@ -38,7 +38,7 @@ if isempty(obj.focusPeaks)
     pos_track = [];
     for zpos = startPos(3) + (-7:stepSize:7)
         stageHandle.move(startPos(1),startPos(2),zpos);
-        stageManager.waitUntilStopped(0.05);
+        stageManager.waitUntilStopped;
         frame = obj.snapImage(3); % Specify binning to be 3
         d = contrast_detection(frame,dx,dy,xrange,yrange);
         pos_track(end+1) = zpos;
@@ -73,7 +73,7 @@ while true
     zpos = zpos + direction*stepSize;
     assert(zpos>min(limits) && zpos<max(limits),'Failed to find peak in search range.')
     stageHandle.move(startPos(1),startPos(2),zpos);
-    stageManager.waitUntilStopped(0.05);
+    stageManager.waitUntilStopped;
     frame = obj.snapImage(obj.binning); % Specify binning to be 3
     d = contrast_detection(frame,dx,dy,xrange,yrange);
     pos_track(end+1) = zpos;
@@ -103,7 +103,7 @@ if metric < obj.focusThresh && obj.focusThresh ~= 0
     % Now, we do a more robust search +/- 5 um
     for zpos = pos_track(index) + (-25:stepSize:25)
         stageHandle.move(startPos(1),startPos(2),zpos);
-        stageManager.waitUntilStopped(0.05);
+        stageManager.waitUntilStopped;
         frame = obj.snapImage(3); % Specify binning to be 3
         d = contrast_detection(frame,dx,dy,xrange,yrange);
         pos_track(end+1) = zpos;
@@ -125,7 +125,7 @@ if ~isempty(obj.focusPeaks) && sum(obj.focusPeaks) % Make sure exists and not 0
     for i = [-1 1]
         zpos = min(obj.focusPeaks)*i + pos_track(end);
         stageHandle.move(startPos(1),startPos(2),zpos);
-        stageManager.waitUntilStopped(0.05);
+        stageManager.waitUntilStopped;
         frame = obj.snapImage(3); % Specify binning to be 3
         d = contrast_detection(frame,dx,dy,xrange,yrange);
         if d > metric
@@ -144,7 +144,7 @@ end
 if DEBUG
     f.Visible = 'off';
 end
-stageManager.waitUntilStopped(0.05);
+stageManager.waitUntilStopped;
 end
 
 function data = contrast_detection(frame,dx,dy,xrange,yrange)

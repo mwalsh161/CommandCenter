@@ -1,11 +1,34 @@
 classdef pref_handler < handle
-    %MODULE Summary of this class goes here
-    %   Detailed explanation goes here
+    %PREF_HANDLER A mixin that enables use of class-based prefs
+    %   Intercepts pre/post set/get listeners and implements similar behavior.
+    %   This should be a drop-in replacement for nearly all use cases.
+    %   
+    %   The bulk of this mixin is responsible for maintaining a more complex "meta"
+    %   property that is stored in memory (see +Prefs and Base.pref). When the user 
+    %   attempts to get or set this, the machinery here will make it appear to behave
+    %   as the standard MATLAB type that resides in the meta property (named "value").
+    %
+    %   Any class-based pref cannot define a MATLAB set or get method. Rather, one
+    %   should be supplied to the constructor of the class-based pref (see Base.pref).
+    %
+    %   NOTE: This constructor MUST be called before anything modifies a
+    %   property that uses a class-based pref!! In the case of multiple
+    %   inheritance, one should explicity call the class hierarchy that
+    %   uses this prior to any others.
         
     properties(Access = private)
         temp_prop = struct();
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
+    end
+    properties(SetAccess = private)
+        last_pref_set_err = [];
+    end
+    properties(SetAccess=protected)
+        % If true, when setting, post listener will not throw the error.
+        % It will still populate last_pref_set_err. Think of this as a way
+        % to implement a try/catch block
+        pref_set_try = false;
     end
     properties
         pref_handler_indentation = 2;
@@ -21,6 +44,7 @@ classdef pref_handler < handle
         function obj = pref_handler()
             mc = metaclass(obj);
             props = mc.PropertyList;
+            methods = mc.MethodList;
             props = props([props.HasDefault]);
             external_ls_struct.PreSet = Base.preflistener.empty(1,0);
             external_ls_struct.PostSet = Base.preflistener.empty(1,0);
@@ -29,6 +53,7 @@ classdef pref_handler < handle
             for i = 1:length(props)
                 prop = props(i);
                 if contains('Base.pref',superclasses(prop.DefaultValue))
+                    obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
                     % Add listeners to get and set so we can swap the value
                     % in/out behind the scenes. All listeners relate to
                     % this object, so no need to clean them up.
@@ -37,18 +62,31 @@ classdef pref_handler < handle
                          'Instead use the callback methods available in the class-based pref.']);
                     assert(prop.GetObservable&&prop.SetObservable,...
                         sprintf('Class-based pref ''%s'' must be defined to be GetObservable and SetObservable.',prop.Name));
-                    % Bind callback methods to this object if specified as strings
-                    if ~isempty(obj.(prop.Name).set) && ischar(obj.(prop.Name).set)
-                        fn = str2func(obj.(prop.Name).set);
-                        obj.(prop.Name).set = @(val)fn(obj,val);
-                    end
-                    if ~isempty(obj.(prop.Name).custom_validate) && ischar(obj.(prop.Name).custom_validate)
-                        fn = str2func(obj.(prop.Name).custom_validate);
-                        obj.(prop.Name).custom_validate = @(val)fn(obj,val);
-                    end
-                    if ~isempty(obj.(prop.Name).custom_clean) && ischar(obj.(prop.Name).custom_clean)
-                        fn = str2func(obj.(prop.Name).custom_clean);
-                        obj.(prop.Name).custom_clean = @(val)fn(obj,val);
+                    % Check output and bind callback methods to this object if specified as strings
+                    avail_methods = {'set','custom_validate','custom_clean'};
+                    argouts = [1,0,1];
+                    for j = 1:length(avail_methods)
+                        if ~isempty(obj.(prop.Name).(avail_methods{j}))
+                            if ischar(obj.(prop.Name).(avail_methods{j}))
+                                fnstring = obj.(prop.Name).(avail_methods{j});
+                                fn = str2func(fnstring);
+                                obj.(prop.Name).(avail_methods{j}) = @(val)fn(obj,val);
+                                nout = methods(strcmp(fnstring,{methods.Name}));
+                                assert(~isempty(nout),sprintf('Could not find "%s" in "%s"',...
+                                    fnstring, class(obj)));
+                                nout = nout.OutputNames;
+                                if ismember('varargout',nout)
+                                    nout = -1;
+                                else
+                                    nout = length(nout);
+                                end
+                            else
+                                nout = nargout(obj.(prop.Name).(avail_methods{j}));
+                            end
+                            assert(nout==argouts(j),sprintf(...
+                                'prefs require %s methods to output the set value\n\n  "%s.%s" has %i outputs',...
+                                (avail_methods{j}), class(obj),fnstring,nout))
+                        end
                     end
                     obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
                     obj.ls.(prop.Name)(2) = addlistener(obj, prop.Name, 'PostSet', @obj.post);
@@ -76,6 +114,12 @@ classdef pref_handler < handle
             end
         end
 
+        function prefs = get_class_based_prefs(obj)
+            % Get string name of all prefs (MATLAB properties) that were defined as a class-based pref
+            % Note: necessary to use this method to keep obj.ls private
+            prefs = fields(obj.ls);
+        end
+
         function val = get_meta_pref(obj,name)
             % Return the "meta pref" which contains the pref class
             % NOTE: this is a value class, so changing anything in the
@@ -90,16 +134,38 @@ classdef pref_handler < handle
             % old style prefs: auto generate default type here
             val = obj.(name);
             prop = findprop(obj,name);
-            if isnumeric(val) % There are many numeric classes
-                val = Prefs.Double(val);
-            elseif prop.HasDefault && ...
+            if prop.HasDefault && ...
                 (iscell(prop.DefaultValue) || isa(prop.DefaultValue,'function_handle'))
                 if iscell(prop.DefaultValue)
                     choices = prop.DefaultValue;
                 else % function handle
                     choices = prop.DefaultValue();
                 end
+                if iscell(val) || isa(val,'function_handle')
+                    warning('PREF:oldstyle_pref','Default choice not specified for %s; using empty option',prop.Name);
+                    val = '';
+                    obj.(name) = '';
+                end
                 val = Prefs.MultipleChoice(val,'choices',choices);
+            elseif isnumeric(val) && numel(val)==1 % There are many numeric classes
+                val = Prefs.Double(val);
+            elseif ismember('Base.Module',superclasses(val))
+                warningtext = 'Update to class-based pref! While Prefs.ModuleInstance will protect from bad values set in the UI, it wont extent to console or elsewhere.';
+                warning('PREF:oldstyle_pref',[prop.Name ': ' warningtext]);
+                % Deserves an extra annoying warning that cant be turned off
+                warndlg([warningtext newline newline 'See console warnings for offending prefs.'],'Update to class-based pref!','modal');
+                n = Inf;
+                inherits = {};
+                if prop.HasDefault
+                    n = max(size(prop.DefaultValue));
+                    if n == 0; n = Inf; end
+                    if isempty(prop.DefaultValue) % if it isn't empty, it must be an actual module defined, not a category
+                        inherits = {class(prop.DefaultValue)};
+                    end
+                end
+                val = Prefs.ModuleInstance(val,'n',n,'inherits',inherits);
+            elseif isnumeric(val)
+                val = Prefs.DoubleArray(val);
             else
                 switch class(val)
                     case {'char'}
@@ -107,7 +173,8 @@ classdef pref_handler < handle
                     case {'logical'}
                         val = Prefs.Boolean(val);
                     otherwise
-                        error('Not implemented for %s',class(val))
+                        sz = num2str(size(val),'%ix'); sz(end) = []; % remove last "x"
+                        error('PREF:notimplemented','Class-based pref not implemented for %s %s',sz,class(val))
                 end
             end
             val.auto_generated = true;
@@ -116,12 +183,14 @@ classdef pref_handler < handle
     end
     methods(Access = private)
         function preflistener_deleted(obj,el,~)
-            % Clean-up method for preflisteners
-            obj.external_ls.(el.PropertyName) ...
-                .(el.EventName)(...
-                obj.external_ls.(el.PropertyName)...
-                .(el.EventName)==el...
-                ) = [];
+            % Clean-up method for preflisteners (unless obj already deleted)
+            if isvalid(obj)
+                obj.external_ls.(el.PropertyName) ...
+                    .(el.EventName)(...
+                    obj.external_ls.(el.PropertyName)...
+                    .(el.EventName)==el...
+                    ) = [];
+            end
         end
         function prop_listener_ctrl(obj,name,enabled)
             % name: string name of property
@@ -145,7 +214,7 @@ classdef pref_handler < handle
                     catch err
                         warning('MATLAB:callback:PropertyEventError',...
                             'Error occurred while executing the listener callback for the %s class %s property %s event:\n%s',...
-                            class(obj),prop.Name,event.EventName,getReport(err.message));
+                            class(obj),prop.Name,event.EventName,getReport(err));
                     end
                     obj.external_ls.(prop.Name).(event.EventName)(i).executing = false;
                 end
@@ -175,26 +244,25 @@ classdef pref_handler < handle
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
             try
                 new_val.value = obj.(prop.Name); % validation occurs here
-            catch err % Revert to old value (exclusively for external listeners)
-                obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
-                % Grab all properties defined in the subclass to help with
-                % error message
-                val_help = new_val.validation_summary(obj.pref_handler_indentation);
-                % Escape tex modifiers
-                val_help = strrep(val_help,'\','\\');
-                val_help = strrep(val_help,'_','\_');
-                val_help = strrep(val_help,'^','\^');
-                opts.WindowStyle = 'non-modal';
-                opts.Interpreter = 'tex';
-                errordlg(sprintf('%s:\n\\fontname{Courier}%s',err.message,val_help),...
-                    sprintf('%s Error',class(obj.temp_prop.(prop.Name))),opts);
+                obj.execute_external_ls(prop,event); % Execute any external listeners
+            catch err
             end
-            % Execute any external listeners
-            obj.execute_external_ls(prop,event);
             % Update the class-pref and re-engage listeners
             % Note if the above try block failed; this is still the old value
             obj.(prop.Name) = new_val;
             obj.prop_listener_ctrl(prop.Name,true);
+            if exist('err','var')
+                % This will be thrown as warning in console because it is
+                % from a listener, so we will use a flag for detection with
+                % a readable property
+                obj.last_pref_set_err = err;
+                if obj.pref_set_try
+                    return
+                else
+                    rethrow(err);
+                end
+            end
+            obj.last_pref_set_err = [];
         end
     end
     

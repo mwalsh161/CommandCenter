@@ -180,7 +180,7 @@ classdef SGTest < Modules.Experiment
             obj.abort_request = true;
         end
         
-        function settings(obj,panelH)
+        function  settings(obj,panelH,~,~)
         end
         
         function data = GetData(obj,~,~)

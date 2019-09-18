@@ -157,7 +157,7 @@ classdef SmartImage < handle
             
             % Add listeners
             obj.listeners(2) = addlistener(imager,'ROI','PostSet',@obj.updateROI);
-            obj.listeners(3) = addlistener(stage,'position','PostSet',@obj.updatePos);
+            obj.listeners(3) = addlistener(stage,'newPosition',@obj.updatePos);
             % Set up remaining contextmenus (note obj.contextmenu = axes, parent = imrect stuff)
             obj.ROIMenu = uimenu(obj.contextmenu,'Label','ROI Visible','Callback',@obj.visCallback,'checked','on','UserData','ROI','tag','smartimage');
             obj.crosshairMenu = uimenu(obj.contextmenu,'Label','CrossHair Visible','Callback',@obj.visCallback,'checked','on','UserData','crosshair','tag','smartimage');

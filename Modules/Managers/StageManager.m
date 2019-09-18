@@ -23,13 +23,14 @@ classdef StageManager < Base.Manager
         hideStageTimeoutError=false;      % Simply do not throw the error
         update_period = 0.2;     % The rate at which the Visualizer updates when moving (seconds)
     end
-    properties(SetAccess=private,SetObservable,AbortSet)
+    properties(SetAccess=private) % AbortSet doesn't work well with NaN values
+        % Use the newPosition event to know when to query this passively.
+        % Otherwise, calls querying it will attempt to get position from
+        % instruments
         position;      % Position that is updated on a timer (update_period) when stage.Moving
-        moving = false;
     end
-    properties(SetAccess=private)
-        prefs = {'update_gui','line_colors','face_colors','thickness','line_transparency'...
-                 'face_transparency','timeout','hideStageTimeoutError','update_period'};
+    properties(SetAccess=private,SetObservable,AbortSet)
+        moving = false;
     end
     
     % Figure properties
@@ -42,6 +43,10 @@ classdef StageManager < Base.Manager
         stage_lims      % Handle to stage lines that create the limit (list for all stages)
         stage_planes    % Handle to patch for stage plane
         currentPos      % Handle to scatter point
+    end
+    
+    events
+        newPosition % Alternative to SetObservable
     end
     
     methods(Access=private)
@@ -111,7 +116,7 @@ classdef StageManager < Base.Manager
             timerH = timer('Executionmode','fixedSpacing','Period',obj.update_period,...
                 'TimerFcn',@obj.updatePosCallback,'StopFcn',@obj.deleteTimer,...
                 'TasksToExecute',obj.timeout/obj.update_period,...
-                'name',stage_str,'tag',mfilename,'busymode','queue');
+                'name',stage_str,'tag',mfilename,'busymode','drop');
             start(timerH);
         end
         function deleteTimer(obj,timerH,varargin)
@@ -133,14 +138,10 @@ classdef StageManager < Base.Manager
             end
             obj.updatePos
         end
-        function varargout = updatePos(obj,varargin)
-            if isempty(obj.modules)
+        function updatePos(obj,varargin)
+            if isempty(obj.modules) % Short circuit
                 pos = NaN(1,3);
-                if nargout > 0
-                    varargout{1} = pos;
-                else
-                    obj.position = pos;
-                end
+                obj.position = pos;
                 return
             end
             pos = [0 0 0];
@@ -156,16 +157,11 @@ classdef StageManager < Base.Manager
                 end
                 pos = pos + rel_pos;
             end
-            if nargout > 0
-                varargout{1} = pos;
-            else
-                obj.position = pos;
-            end
+            obj.position = pos;
             if ~isempty(obj.ax)&&isobject(obj.ax)&&isvalid(obj.ax)
                 set(obj.currentPos,'xdata',pos(1),'ydata',pos(2),'zdata',pos(3));
                 set(obj.ax,'CameraTarget',pos)
             end
-            
         end
         
         function initAx(obj)
@@ -249,16 +245,30 @@ classdef StageManager < Base.Manager
             end
         end
         function pos = get.position(obj)
-            % Force position update
-            pos = obj.updatePos;
-            obj.position = pos;
+            d = dbstack(1);
+            if ~ismember('StageManager.get.position', {d.name})
+                % Force position update when not called recursively
+                % NOTE: returning position and setting *in* the get method would also work
+                %     but this keeps it more consistent
+                obj.updatePos;
+            end
+            pos = obj.position;
+        end
+        function set.position(obj,val)
+            % AbortSet doesn't treat NaN specially
+            cur_pos = obj.position;
+            mask = ~isnan(cur_pos);
+            if ~isequal(mask,~isnan(val)) || ~isequal(obj.position(mask),val(mask))
+                obj.position = val;
+                notify(obj,'newPosition');
+            end
         end
         function set.update_gui(obj,val)
             handles = obj.handles;
             if strcmpi(val,'on')
                 if isempty(obj.pos_listener)||~isvalid(obj.pos_listener) %#ok<*MCSUP>
                     obj.update_GUI_pos
-                    obj.pos_listener = addlistener(obj,'position','PostSet',@obj.update_GUI_pos);
+                    obj.pos_listener = addlistener(obj,'newPosition',@obj.update_GUI_pos);
                 end
             else
                 delete(obj.pos_listener)
@@ -276,6 +286,8 @@ classdef StageManager < Base.Manager
         end
         function obj = StageManager(handles)
             obj = obj@Base.Manager(Modules.Stage.modules_package,handles,handles.panelStage,handles.stage_select);
+            obj.prefs = [obj.prefs {'update_gui','line_colors','face_colors','thickness','line_transparency'...
+                 'face_transparency','timeout','hideStageTimeoutError','update_period'}];
             obj.loadPrefs;
             obj.blockOnLoad = handles.menu_stage;
             % Visualize
@@ -296,8 +308,7 @@ classdef StageManager < Base.Manager
             set(handles.stage_negY,'callback',@(~,~)obj.single_jog(-1,2))
             set(handles.stage_posZ,'callback',@(~,~)obj.single_jog(1,3))
             set(handles.stage_negZ,'callback',@(~,~)obj.single_jog(-1,3))
-            obj.pos_listener=addlistener(obj,'position','PostSet',@obj.update_GUI_pos);
-            obj.update_GUI_pos;
+            obj.update_gui = 'on'; % set.update_gui will create listener
         end
         function delete(obj)
             % Clean up timers if necessary (not this shouldn't be necessary, but makes for debugging issues easier!)
@@ -355,21 +366,23 @@ classdef StageManager < Base.Manager
                 for i = 2:numel(TEMPstages)
                     err = {sprintf('Stange ranges for the following axes are not decreasing:\n'),...
                         sprintf('\nYou may have to go in and edit the order or fix your code.\nThis stage and those that follow will not be added.')};
-                    wrongRanges = {};
+                    wrongRanges = cell(1,3);
+                    wrongRangesI = false(1,3);
                     cal1 = obj.get_cal(TEMPstages{i-1});
                     cal2 = obj.get_cal(TEMPstages{i});
                     if min(TEMPstages{i}.xRange*cal2(1))<min(TEMPstages{i-1}.xRange*cal1(1))...
                             || max(TEMPstages{i}.xRange*cal2(1))>max(TEMPstages{i-1}.xRange*cal1(1))
-                        wrongRanges{end+1} = 'X';
+                        wrongRanges{1} = 'X'; wrongRangesI(1) = true;
                     end
                     if min(TEMPstages{i}.yRange*cal2(2))<min(TEMPstages{i-1}.yRange*cal1(2))...
                             || max(TEMPstages{i}.yRange*cal2(2))>max(TEMPstages{i-1}.yRange*cal1(2))
-                        wrongRanges{end+1} = 'Y';
+                        wrongRanges{2} = 'Y'; wrongRangesI(2) = true;
                     end
                     if min(TEMPstages{i}.zRange*cal2(3))<min(TEMPstages{i-1}.zRange*cal1(3))...
                             || max(TEMPstages{i}.zRange*cal2(3))>max(TEMPstages{i-1}.zRange*cal1(3))
-                        wrongRanges{end+1} = 'Z';
+                        wrongRanges{3} = 'Z'; wrongRangesI(3) = true;
                     end
+                    wrongRanges = wrongRanges(wrongRangesI);
                     if ~isempty(wrongRanges)
                         wrongRanges = strjoin(wrongRanges',', ');
                         err = strjoin(err,wrongRanges);
@@ -383,9 +396,8 @@ classdef StageManager < Base.Manager
                 obj.modules = TEMPstages;
             end
         end
-        function waitUntilStopped(obj,~)
+        function waitUntilStopped(obj)
             % Wait until the stage(s) has stopped moving
-            % Input (legacy): Delta is the pause time in the idle loop (default=10ms)
             while obj.moving
                 drawnow;
             end
@@ -462,13 +474,13 @@ classdef StageManager < Base.Manager
         end
         function stage_rel(obj,hObject,varargin)
             handles = obj.handles;
-            moving = [handles.stage_posX handles.stage_negX...
+            movingCTL = [handles.stage_posX handles.stage_negX...
                 handles.stage_posY handles.stage_negY...
                 handles.stage_posZ handles.stage_negZ];
             if get(hObject,'Value')
-                set(moving,'enable','on');
+                set(movingCTL,'enable','on');
             else
-                set(moving,'enable','off');
+                set(movingCTL,'enable','off');
             end
         end
         function moveCallback(obj,varargin)
