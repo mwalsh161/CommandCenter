@@ -16,6 +16,9 @@ classdef Double < Base.pref
     end
     
     methods
+        function obj = Double(varargin)
+            obj = obj@Base.pref(varargin{:});
+        end
         function set_ui_value(obj,val)
             obj.ui.set_value(num2str(val,obj.display_precision));
         end
