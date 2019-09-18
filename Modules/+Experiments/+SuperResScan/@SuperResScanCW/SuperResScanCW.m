@@ -71,29 +71,5 @@ classdef SuperResScanCW < Modules.Experiment
             obj.percents = eval(val);
             obj.resonator_percents = val;
         end
-        function set.xmin(obj,val)
-            assert(isnumeric(val),'Value must be a number');
-            obj.xmin = val;
-        end
-        function set.xmax(obj,val)
-            assert(isnumeric(val),'Value must be a number');
-            obj.xmax = val;
-        end
-        function set.xpoints(obj,val)
-            assert(isnumeric(val),'Value must be a number');
-            obj.xpoints = val;
-        end
-        function set.ymin(obj,val)
-            assert(isnumeric(val),'Value must be a number');
-            obj.ymin = val;
-        end
-        function set.ymax(obj,val)
-            assert(isnumeric(val),'Value must be a number');
-            obj.ymax = val;
-        end
-        function set.ypoints(obj,val)
-            assert(isnumeric(val),'Value must be a number');
-            obj.ypoints = val;
-        end
     end
 end
