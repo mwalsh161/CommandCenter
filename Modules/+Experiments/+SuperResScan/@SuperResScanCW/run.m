@@ -18,8 +18,10 @@ function run(obj,statusH,managers,ax)
 
     if strcmp(obj.scan_type,'Wavelengths values')
         values = obj.wavelengths;
-    else
+    elseif strcmp(obj.scan_type,'Resonator percents')
         values = obj.percents;
+    else
+        error('Invalid scan type');
     end
     
     try
