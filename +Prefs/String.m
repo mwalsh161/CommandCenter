@@ -11,6 +11,9 @@ classdef String < Base.pref
     end
     
     methods
+        function obj = String(varargin)
+            obj = obj@Base.pref(varargin{:});
+        end
         function validate(obj,val)
             validateattributes(val,{'char','string'},{'scalartext'})
             if ~obj.allow_empty

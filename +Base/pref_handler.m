@@ -178,6 +178,7 @@ classdef pref_handler < handle
                 end
             end
             val.auto_generated = true;
+            val.property_name = name;
         end
         
     end
