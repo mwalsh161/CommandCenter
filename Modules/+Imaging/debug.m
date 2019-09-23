@@ -14,7 +14,7 @@ classdef debug < Modules.Imaging
                            'help_text','This is a readonly string.',...
                            'readonly',true);
         my_old_array = [1,2,3];
-        my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0);
+        my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0,'set','testSet');
         my_array2 = Prefs.DoubleArray([1,2;3,4],'hide_label',true,'props',{'RowName',{'this','that'},'ColumnName',{'foo','bar'}});
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
         my_double = Prefs.Double('name','This double has a super long name!','units','um','min',-50,'max',50);
@@ -52,6 +52,9 @@ classdef debug < Modules.Imaging
         end
     end
     methods
+        function val = testSet(obj,val,pref)
+            fprintf('Here!\n')
+        end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>

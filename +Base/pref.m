@@ -14,9 +14,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       help_text - provide longer text to describe what this pref does (think tooltip)
     %       readonly - boolean specifying if GUI control should be editable (e.g. "enabled")
     %       display_only - boolean specifying if saved as pref when module unloaded
-    %       set*
-    %       custom_validate*
-    %       custom_clean*
+    %       set* - syntax: val = set(val, pref)
+    %       custom_validate* - syntax: custom_validate(val, pref)
+    %       custom_clean* - syntax: val = custom_clean(val, pref)
     %       ui - class specifying UI type (value class)
     %   * These properties' values are function handles, or if you want a class
     %   method bound to your instance, specify the string names of the methods.
@@ -244,17 +244,17 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         function obj = set.value(obj,val)
             if ~isempty(obj.set) &&...
                     isa(obj.set,'function_handle') %#ok<*MCSUP>
-                val = obj.set(val);
+                val = obj.set(val,obj);
             end
             obj.validate(val);
             if ~isempty(obj.custom_validate) &&...
                     isa(obj.custom_validate,'function_handle')
-                obj.custom_validate(val);
+                obj.custom_validate(val,obj);
             end
             val = obj.clean(val);
             if ~isempty(obj.custom_clean) &&...
                     isa(obj.custom_clean,'function_handle')
-                val = obj.custom_clean(val);
+                val = obj.custom_clean(val,obj);
             end
             obj.value = val;
         end

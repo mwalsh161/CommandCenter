@@ -70,22 +70,34 @@ classdef pref_handler < handle
                             if ischar(obj.(prop.Name).(avail_methods{j}))
                                 fnstring = obj.(prop.Name).(avail_methods{j});
                                 fn = str2func(fnstring);
-                                obj.(prop.Name).(avail_methods{j}) = @(val)fn(obj,val);
-                                nout = methods(strcmp(fnstring,{methods.Name}));
-                                assert(~isempty(nout),sprintf('Could not find "%s" in "%s"',...
+                                obj.(prop.Name).(avail_methods{j}) = @(val,pref)fn(obj,val,pref);
+                                mmethod = methods(strcmp(fnstring,{methods.Name}));
+                                assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
                                     fnstring, class(obj)));
-                                nout = nout.OutputNames;
+                                nout = mmethod.OutputNames;
                                 if ismember('varargout',nout)
                                     nout = -1;
                                 else
                                     nout = length(nout);
                                 end
+                                nin = mmethod.InputNames;
+                                if ~ismember('varargin',nin)
+                                    nin = 2; % Doesn't matter, so make pass assertion below
+                                else
+                                    nin = length(nin) - 1; % Exclude obj
+                                end
+                                fnstring = sprintf('%s.%s',class(obj),fnstring);
                             else
                                 nout = nargout(obj.(prop.Name).(avail_methods{j}));
+                                nin = nargin(obj.(prop.Name).(avail_methods{j}));
+                                fnstring = func2str(obj.(prop.Name).(avail_methods{j}));
                             end
                             assert(nout==argouts(j),sprintf(...
-                                'prefs require %s methods to output the set value\n\n  "%s.%s" has %i outputs',...
-                                (avail_methods{j}), class(obj),fnstring,nout))
+                                'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
+                                (avail_methods{j}),fnstring,nout))
+                            assert(nin==2,sprintf(...
+                                'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
+                                (avail_methods{j}),fnstring,nin))
                         end
                     end
                     obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
