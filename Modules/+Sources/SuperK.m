@@ -1,16 +1,13 @@
 classdef SuperK < Modules.Source
-    %superK used to control all aspects of the superK laser.
+    %   SuperK used to control all aspects of the superK laser.
     %
-    %   The on/off state of laser is controlled by the PulseBlaster (loaded
-    %   in set.ip).  Note this state can switch to unknown if another
-    %   module takes over the PulseBlaster program.
-    %
-    %   Power to the laser can be controlled through the serial object
-    %   - obj.serial.on()/off() - however, time consuming calls!
+    %   The emission state of the laser is controlled by serial connection
+    %   
+
     
     properties
-        ip = 'No Server';         % IP of computer with and server
-        prefs = {'ip'};
+        host = 'No Server';         % host of computer with and server
+        prefs = {'host'};
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
@@ -19,7 +16,7 @@ classdef SuperK < Modules.Source
     properties(SetAccess=private,Hidden)
         status                       % Text object reflecting running
         path_button
-        serial
+        comm = hwserver.empty
     end
     methods(Access=protected)
         function obj = SuperK()
@@ -38,38 +35,53 @@ classdef SuperK < Modules.Source
     end
     methods
         function delete(obj)
-            delete(obj.serial)
+            if obj.comm_isvalid
+                delete(obj.comm);
+            end
         end
-        function set.ip(obj,val)
+        function set.host(obj,val)
             err = [];
+            if obj.comm_isvalid
+                delete(obj.comm);
+            end
             if isempty(val) || strcmp(val,'No Server')
-                delete(obj.serial)
-                obj.ip = 'No Server';
+                obj.comm = hwserver.empty;
+                obj.host = 'No Server';
                 return
             end
             try
-                delete(obj.serial)
-                obj.serial = Drivers.SuperK.instance(val);
-                obj.ip = val;   
+                obj.comm = Drivers.SuperK.instance(val);
+                obj.host = val;   
             catch err
-                obj.ip = 'No Server';
+                obj.host = 'No Server';
             end
             if ~isempty(err)
                 rethrow(err)
             end
         end
         function on(obj)
-            obj.serial.on();
+            obj.comm.on();
             obj.source_on = true;
         end
         function off(obj)
-            obj.serial.off();
+            obj.comm.off();
             obj.source_on = false;
         end
 
         function arm(obj)
-            % nothing needs to be done since SuperK just needs on/off methods=
+            % nothing needs to be done since SuperK just needs on/off methods
         end
         
+        function val = get.comm(obj)
+            d = dbstack(1);
+            if ~strcmp(d(1).name,'SuperK.comm_isvalid') % avoid recursive call
+                assert(obj.comm_isvalid,'Not connected (set.host)');
+            end
+            val = obj.comm;
+        end
+        
+        function val = comm_isvalid(obj) % get method allows direct access to comm
+            val = any(isvalid(obj.comm));
+        end
     end
 end
