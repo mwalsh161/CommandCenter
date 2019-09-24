@@ -515,45 +515,48 @@ classdef sequence < handle
             % Create instructions
             [~,loops] = obj.getSequenceLoops;
             
-            instructionSet = cell(length(instInfo),1);
+            instructionSet = struct('name',obj.name,...
+                                    'units','ns',...
+                                    'forever', obj.repeat == Inf,...
+                                    'channels', cellfun(@num2str,num2cell(23:-1:0),'uniformoutput',false),... {'23','22',...'0'}
+                                    'sequence', struct('flags',zeros(1,24),...
+                                                       'duration',0,...
+                                                       'instruction','',...
+                                                       'notes','',...
+                                                       'data', cell(length(instInfo),1)));
             % Take care of first instruction depending on repeat
-            append = '';
-            indent = 'Start: ';
-            if obj.repeat > 1 && obj.repeat < Inf && ~strcmp(instInfo(1).msn.type,'start')
-                % If the first instruction is a loop as well, we will have
-                % to add the main loop at the very end by prepending
-                append = sprintf(', LOOP, %i // main loop',obj.repeat);
-            end
+%             append = '';
+%             indent = 'Start: ';
+%             if obj.repeat > 1 && obj.repeat < Inf && ~strcmp(instInfo(1).msn.type,'start')
+%                 If the first instruction is a loop as well, we will have
+%                 to add the main loop at the very end by prepending
+%                 append = sprintf(', LOOP, %i // main loop',obj.repeat);
+%             end
             % Take care of middle instructions
             for i = 1:length(instInfo)-1
-                notes = {};
+                instructionSet.sequence(i).flags = instInfo(i).flag;
+                instructionSet.sequence(i).duration = instInfo(i).dt;
                 switch instInfo(i).msn.type
                     case 'transition'
-                        if i > 1  % First instruction append is set above
-                            append = '';
-                        end
+                        instructionSet.sequence(i).instruction = 'CONTINUE';
+                        notes = '';
                     case 'start'
                         row = find(instInfo(i).msn==loops(:,1));
                         nloops = loops(row,2).data;
-                        append = sprintf(', LOOP, %i',nloops);
-                        notes{end+1} = sprintf('loop name: %s',instInfo(i).msn.data);
+                        instructionSet.sequence(i).instruction = 'LOOP';
+                        instructionSet.sequence(i).data = nloops;
+                        notes = sprintf('loop name: %s',instInfo(i).msn.data);
                     case 'end'
+                        instructionSet.sequence(i).instruction = 'END_LOOP';
                         row = find(instInfo(i).msn==loops(:,2));
                         loopName = loops(row,1).data;
-                        append = ', END_LOOP';
-                        notes{end+1} = sprintf('loop name: %s',loopName);
+                        instructionSet.sequence(i).data = row;
+                        notes = sprintf('loop name: %s',loopName);
                 end
                 if ~isempty(instInfo(i).notes)
-                    notes{end+1} = instInfo(i).notes;
+                    notes = [notes '; ' instInfo(i).notes]; %#ok<AGROW>
                 end
-                % Format notes
-                if isempty(notes)
-                    notes = '';
-                else
-                    notes = sprintf('// %s',strjoin(notes,','));
-                end
-                instructionSet{i} = sprintf('%s0b %s, %0.2f ns%s%s',indent,num2str(instInfo(i).flag,'%i'),instInfo(i).dt,append,notes);
-                indent = '       ';  % Just to align nicely with the Start
+                instructionSet.sequence(i).notes = notes;
             end
             % Take care of last instruction depending on repeat
             if obj.repeat == Inf
@@ -563,8 +566,8 @@ classdef sequence < handle
             else
                 append = '';
             end
-            assert(length(instructionSet)>1,'Somehow ended up with only one instruction! Does not make sense.');
-            if length(instructionSet)==2
+            assert(length(instructionSet.sequence)>1,'Somehow ended up with only one instruction! Does not make sense.');
+            if length(instructionSet.sequence)==2
                 i = 1; % Because for loop above would have set this to []
             end
             instructionSet{i+1} = sprintf('%s0b %s, %0.2f ns%s',indent,num2str(instInfo(i+1).flag,'%i'),instInfo(i+1).dt,append);
