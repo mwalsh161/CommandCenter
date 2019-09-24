@@ -14,6 +14,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       help_text - provide longer text to describe what this pref does (think tooltip)
     %       readonly - boolean specifying if GUI control should be editable (e.g. "enabled")
     %       display_only - boolean specifying if saved as pref when module unloaded
+    %       tag - any data type available for user to choose (similar to gobject UserData)
     %       set*
     %       custom_validate*
     %       custom_clean*
@@ -74,6 +75,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         custom_clean = {[], @(a)true};
         % First things called before any validation
         set = {[], @(a)true};
+        % Tag available to the user
+        tag = {[], @(a)true};
     end
     
     methods % May be overloaded by subclass pref

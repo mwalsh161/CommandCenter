@@ -6,7 +6,21 @@ classdef SuperK < Modules.Source
 
     
     properties
-        host = 'No Server';         % host of computer with and server
+        host = 'No Server'; % host of computer with and server
+        show_prefs = {'Power','Pulse_Picker','Rep_Rate','Center_Wavelength',...
+            'Bandwidth','Attenuation','host'};
+        Power = Prefs.Double('max',100,'min',0,'units','%','allow_nan',false,...
+            'set','setPower','tag','setPower');
+        Pulse_Picker = Prefs.Integer('max',40,'min',1,'help_text','Divider of max rep rate',...
+            'set','getPulsePicker','tag','getPulsePicker');
+        Rep_Rate = Prefs.Double('units','MHz','readonly',true,...
+            'set','getRepRate','tag','getRepRate');
+        Center_Wavelength = Prefs.Double('min',0,'units','nm',...
+            'set','getWavelength','tag','getWavelength');
+        Bandwidth = Prefs.Double('min',0,'units','nm',...
+            'set','getBandwidth','tag','getBandwidth');
+        Attenuation = Prefs.Double('max',100,'min',0,'units','%',...
+            'set','getND','tag','getND');
         prefs = {'host'};
     end
     properties(SetObservable,SetAccess=private)
@@ -38,6 +52,10 @@ classdef SuperK < Modules.Source
             if obj.comm_isvalid
                 delete(obj.comm);
             end
+        end
+        function setNum(obj,val,pref)
+            obj.serial.(pref.tag.set)(val);
+
         end
         function set.host(obj,val)
             err = [];
