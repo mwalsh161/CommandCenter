@@ -14,6 +14,7 @@ classdef ModuleSelectionField < Base.input
         empty_val = '<None>';
         % Specify which set of Modules to use (must match file in Modules package (e.g. +Modules/))
         module_types = {'Experiment','Stage','Imaging','Source','Database','Driver'};
+        readonly = false;  % Modified in make_UI
     end
 
     methods % Helpers
@@ -90,35 +91,39 @@ classdef ModuleSelectionField < Base.input
             % Line 2: popupmenu
             % Line 3: add/remove/settings buttons
             % Prepare/format values
+            obj.readonly = pref.readonly;
             obj.empty_val = pref.empty_val;
             label_width_px = 0;
             pad = 5; % px between lines
             tag = strrep(pref.name,' ','_');
             labeltext = pref.name;
+            enabled = 'on';
+            if obj.readonly
+                enabled = 'off';
+            end
             if ~isempty(pref.units)
                 labeltext = sprintf('%s (%s)',pref.name,pref.units);
             end
             % Line 3
             height_px = 0;
-            if ~pref.readonly
-                obj.buttons(1) = uicontrol(parent, 'style', 'pushbutton',...
-                                'string', 'Add', 'units', 'pixels',...
-                                'tag', [tag '_add']);
-                obj.buttons(2) = uicontrol(parent, 'style', 'pushbutton',...
-                                'string', 'Remove', 'units', 'pixels',...
-                                'tag', [tag '_remove'],...
-                                'Tooltip','Selected module (above)',...
-                                'enable','off');
-                obj.buttons(3) = uicontrol(parent, 'style', 'pushbutton',...
-                                'string', 'Settings', 'units', 'pixels',...
-                                'tag', [tag '_settings'],...
-                                'Tooltip','For selected module (above)',...
-                                'enable','off');
-                obj.buttons(1).Position(2) = yloc_px;
-                obj.buttons(2).Position(2) = yloc_px;
-                obj.buttons(3).Position(2) = yloc_px;
-                height_px = obj.buttons(1).Extent(4) + pad;
-            end
+            obj.buttons(1) = uicontrol(parent, 'style', 'pushbutton',...
+                            'string', 'Add', 'units', 'pixels',...
+                            'tag', [tag '_add'],...
+                            'enable', enabled); % Only controlled here
+            obj.buttons(2) = uicontrol(parent, 'style', 'pushbutton',...
+                            'string', 'Remove', 'units', 'pixels',...
+                            'tag', [tag '_remove'],...
+                            'Tooltip','Selected module (above)',...
+                            'enable','off');
+            obj.buttons(3) = uicontrol(parent, 'style', 'pushbutton',...
+                            'string', 'Settings', 'units', 'pixels',...
+                            'tag', [tag '_settings'],...
+                            'Tooltip','For selected module (above)',...
+                            'enable','off');
+            obj.buttons(1).Position(2) = yloc_px;
+            obj.buttons(2).Position(2) = yloc_px;
+            obj.buttons(3).Position(2) = yloc_px;
+            height_px = obj.buttons(1).Extent(4) + pad;
             % Line 2
             obj.selection = uicontrol(parent, 'style', 'popupmenu',...
                         'String', {obj.empty_val},...
@@ -201,16 +206,22 @@ classdef ModuleSelectionField < Base.input
 
     methods(Hidden) % Callbacks
         function update_buttons(obj,varargin) % obj.selection callback (and direct call)
+            % Extra check for readonly for buttons 1 and 2. Settings (3) is
+            % always ok to change even if readonly
             if isempty(obj.selection.UserData.objects)
                 obj.buttons(2).Enable = 'off';
                 obj.buttons(3).Enable = 'off';
             else
                 ind = obj.selection.Value;
                 if isvalid(obj.selection.UserData.objects(ind))
-                    obj.buttons(2).Enable = 'on';
+                    if ~obj.readonly
+                        obj.buttons(2).Enable = 'on';
+                    end
                     obj.buttons(3).Enable = 'on';
                 else
-                    obj.buttons(2).Enable = 'on'; % You can remove it still
+                    if ~obj.readonly
+                        obj.buttons(2).Enable = 'on'; % You can remove it still
+                    end
                     obj.buttons(3).Enable = 'off';
                 end
             end
