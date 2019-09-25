@@ -27,6 +27,11 @@ classdef MultipleChoice < Base.pref
     methods
         function obj = MultipleChoice(varargin)
             obj = obj@Base.pref(varargin{:});
+            % Ensure obj.choices is of the expected shape
+            choiceSize = size(obj.choices);
+            if choiceSize(1) ~= 1
+                obj.choices = obj.choices';
+            end
             if obj.allow_empty
                 obj.choices = [{obj.empty_val} obj.choices];
             end
