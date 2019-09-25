@@ -11,7 +11,7 @@ classdef MultipleChoice < Base.pref
         ui = Prefs.Inputs.DropDownField;
     end
     properties
-        choices = {{}, @iscell};
+        choices = {{}, @(a)validateattributes(a,{'cell'},{'vector'})};
         % Note, this will error immediately unless default value supplied
         allow_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % Value displayed for empty option
@@ -28,8 +28,7 @@ classdef MultipleChoice < Base.pref
         function obj = MultipleChoice(varargin)
             obj = obj@Base.pref(varargin{:});
             % Ensure obj.choices is of the expected shape
-            choiceSize = size(obj.choices);
-            if choiceSize(1) ~= 1
+            if size(obj.choices,1) ~= 1
                 obj.choices = obj.choices';
             end
             if obj.allow_empty
