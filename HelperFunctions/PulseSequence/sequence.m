@@ -394,21 +394,32 @@ classdef sequence < handle
         end
         function [instructionSet,seqOut,instInfo] = compile(obj,minDuration,resolution)
             % COMPILE will take the sequence tree, flatten it and apply
-            % minDuration as well as resolution rules before compiling it
-            % into a struct that is converted to a JSON string
+            % minDuration (ns) as well as resolution (ns) rules before compiling it
+            % into a struct that is converted to a struct
             chans = obj.getSequenceChannels;
-            % Make sure any repeated hardware lines have the same delay
+            % Make sure any repeated hardware lines have the same offset (should be enforced via channel objects)
             hardware_lines = [chans.hardware];
-            delays = reshape([chans.offset],2,[]);
-            % As long as hardware and delay match should be good to go
-            [~,uniqueCombo] = unique([hardware_lines' delays'],'rows');
+            offsets = reshape([chans.offset],2,[]);
+            % As long as hardware and offset match should be good to go
+            [~,uniqueCombo] = unique([hardware_lines' offsets'],'rows');
             [~,uniqueLines] = unique(hardware_lines);
             offending = setdiff(uniqueCombo,uniqueLines);
-            if ~isempty(offending)
-                offendingLines = join({chans(offending).label},', ');
-                error('The following lines have the same hardware line and different delays:\n\n%s',...
-                    offendingLines);
+            if ~isempty(offending) % Prepare error message
+                noffending = length(offending);
+                msg = cell(1,noffending);
+                for i = 1:noffending
+                    line = hardware_lines(offending(i));
+                    names = strjoin({chans(hardware_lines == line).label},', ');
+                    msg{i} = sprintf('  Hardare %i: %s',line, names);
+                end
+                msg = strjoin(msg,newline);
+                error('The following lines have the same hardware line but different offsets:\n%s',msg);
             end
+            % Prepare channel maps and flag
+            hardware_lines = unique(hardware_lines);
+            nlines = length(hardware_lines);
+            hwlines_map = containers.Map(hardware_lines,1:nlines);
+            zflags = zeros(1,nlines); % zero flags
             % Add in channel offsets and apply resolution (should help reduce number of instructions)
             offsets = reshape([chans.offset],2,[]);
             maxOffset = max(offsets(1,:)); % This could probably be done better
@@ -426,6 +437,9 @@ classdef sequence < handle
                     obj.StartNode.next(i).delta = obj.StartNode.next(i).delta + lowestT;
                 end
             end
+            if resolution <= 0
+                warning('Ignoring resolution of %g ns. Application of positive resolutions only.',resolution);
+            end
             for i = 1:numel(seq)
                 switch seq(i).node.type
                     case 'transition'
@@ -435,7 +449,9 @@ classdef sequence < handle
                     case 'end'
                         seq(i).t = seq(i).t - minOffset;
                 end
-                seq(i).t = round(seq(i).t/resolution)*resolution;
+                if resolution > 0
+                    seq(i).t = round(seq(i).t/resolution)*resolution;
+                end
             end
             % Reorder in case an offset changed the order
             % Should add check to see if loop start changes logical order
@@ -446,7 +462,7 @@ classdef sequence < handle
             % and most significant node type. Also check for multiple loops
             % in one flag (cannot do that).
             assert(strcmp(seq(1).node.type,'null'),'The first node in time is not the null node. This means there must be a negative delta set which orders another node before the null node!')
-            instInfo = struct('flag',zeros(1,24),'dt',seq(2).t - seq(1).t,'msn',seq(1).node,'notes',''); % msn = most significant node
+            instInfo = struct('flag',zflags,'dt',seq(2).t - seq(1).t,'msn',seq(1).node,'notes',''); % msn = most significant node
             seq(1) = [];
             while ~isempty(seq)
                 notes = {};  % Use for warnings 'name:data,...'
@@ -489,23 +505,12 @@ classdef sequence < handle
                     dt = minDuration;
                 end
                 newflag = instInfo(end).flag;
-                newflag(end-chans) = double(not(newflag(end-chans)));
+                chanInds = arrayfun(@(a)hwlines_map(a),chans);
+                newflag(chanInds) = double(not(newflag(chanInds)));
                 newinstInfo.flag = newflag;
                 newinstInfo.dt = dt;
                 newinstInfo.msn = msn;
                 newinstInfo.notes = strjoin(notes,',');
-                instInfo(end+1) = newinstInfo;
-            end
-            % The first instInfo useful only for starting flags, don't need
-            % it anymore unless we want to include any 0 flags at beginning
-            if instInfo(1).dt == 0
-                instInfo(1) = [];
-            end
-            % If last instruction is END loop, append one more instruction of all off
-            if strcmp(instInfo(end).msn.type,'end')
-                newinstInfo.flag = zeros(1,24);
-                newinstInfo.dt = minDuration;
-                newinstInfo.msn = node.empty(0);  % Shouldn't be used
                 instInfo(end+1) = newinstInfo;
             end
             % Create instructions
@@ -518,14 +523,13 @@ classdef sequence < handle
                 'units','ns',...
                 'repeat', rep,...
                 'channels', [], ...
-                'sequence', struct('flags',zeros(1,24),...
+                'sequence', struct('flags',zeros(1,length(hardware_lines)),...
                        'duration',0,...
                        'instruction','',...
                        'notes','',...
                        'data', cell(length(instInfo),1)));
-            % {'23','22',...'0'}
             instructionSet.channels = ...
-                cellfun(@num2str,num2cell(23:-1:0),'uniformoutput',false);
+                arrayfun(@num2str,hardware_lines,'uniformoutput',false);
             for i = 1:length(instInfo)
                 instructionSet.sequence(i).flags = instInfo(i).flag;
                 instructionSet.sequence(i).duration = instInfo(i).dt;
@@ -545,13 +549,23 @@ classdef sequence < handle
                         instructionSet.sequence(i).instruction = 'END_LOOP';
                         row = find(instInfo(i).msn==loops(:,2));
                         loopName = loops(row,1).data;
-                        instructionSet.sequence(i).data = row;
+                        row_of_start = find([instInfo.msn] == loops(row,1));
+                        instructionSet.sequence(i).data = row_of_start;
                         notes = sprintf('loop name: %s',loopName);
                 end
                 if ~isempty(instInfo(i).notes)
                     notes = [notes '; ' instInfo(i).notes]; %#ok<AGROW>
                 end
                 instructionSet.sequence(i).notes = notes;
+            end
+            % If last instruction is END loop, append one more instruction of all off
+            % TODO: might make more sense to use flags from last CONTINUE
+            % instruction
+            if strcmp(instructionSet.sequence(end).instruction,'END_LOOP')
+                instructionSet.sequence(end+1).instruction = 'CONTINUE';
+                instructionSet.sequence(end).flags = zflags;
+                instructionSet.sequence(end).duration = minDuration;
+                instructionSet.sequence(end).notes = 'All off after final loop';
             end
         end
         
