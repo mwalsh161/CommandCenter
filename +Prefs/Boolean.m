@@ -7,6 +7,9 @@ classdef Boolean < Base.pref
     end
     
     methods
+        function obj = Boolean(varargin)
+            obj = obj@Base.pref(varargin{:});
+        end
         function validate(obj,val)
             validateattributes(val,{'numeric','logical'},{'binary','scalar'})
         end

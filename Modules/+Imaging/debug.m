@@ -5,7 +5,7 @@ classdef debug < Modules.Imaging
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
         %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
-        prefs = {'fyi','my_old_array','my_array','my_array2','my_module','my_integer','my_double','my_logical'};
+        prefs = {'old_style','fyi','my_old_array','my_array','my_array2','my_module','my_integer','my_double','my_logical'};
        % show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
@@ -14,7 +14,7 @@ classdef debug < Modules.Imaging
                            'help_text','This is a readonly string.',...
                            'readonly',true);
         my_old_array = [1,2,3];
-        my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0);
+        my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0,'set','testSet');
         my_array2 = Prefs.DoubleArray([1,2;3,4],'hide_label',true,'props',{'RowName',{'this','that'},'ColumnName',{'foo','bar'}});
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
         my_double = Prefs.Double('name','This double has a super long name!','units','um','min',-50,'max',50);
@@ -23,7 +23,7 @@ classdef debug < Modules.Imaging
         options_1 = Prefs.MultipleChoice('help_text','sooo many options!','choices',{'foo',41,'bar'})
         options_2 = Prefs.MultipleChoice(42,'allow_empty',false,'choices',{'foo',42,'bar'})
         my_module = Prefs.ModuleInstance();
-        old_style = 5;
+        old_style = 'abc';
         fn_based = @Imaging.debug.get_options;
         cell_based = {'options1','option2',6};
         source = Modules.Source.empty(1,0);
@@ -52,6 +52,9 @@ classdef debug < Modules.Imaging
         end
     end
     methods
+        function val = testSet(obj,val,pref)
+            fprintf('Here!\n')
+        end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>

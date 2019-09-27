@@ -6,6 +6,9 @@ classdef Integer < Prefs.Double
     end
     
     methods
+        function obj = Integer(varargin)
+            obj = obj@Prefs.Double(varargin{:});
+        end
         function validate(obj,val)
             validate@Prefs.Double(obj,val);
             % Only further check is integer (allow Inf/NaN as integer)
