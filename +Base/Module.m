@@ -195,12 +195,19 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 warning('MODULE:prefs2struct','No prefs defined for %s!',class(obj))
             end
         end
-        function loadPrefs(obj)
+        function varargout = loadPrefs(obj,varargin)
             % loadPrefs is a useful method to load any saved prefs. Not
             % called by default, because order might matter to user.
-            %
             % Loads prefs listed in obj.prefs cell array
-            
+            % If output is requested, the warnings will not occur, rather the
+            %   errors will be returned in a struct where the field name corresponds
+            %   to the pref that errored and the value is the MException
+            % Optional input allows only loading a subset of prefs or not loading them:
+            %   prepending a '-' will indicate the instruction to not load that pref
+            %   e.g. loadPrefs('pref1') will only load pref1 (if it is a pref)
+            %        loadPrefs('-pref2') will load all but pref2
+            varargout{1} = struct();
+            assert(all(ismember(strrep(varargin,'-',''), obj.prefs)),'Make sure all inputs in loadPrefs are also in obj.prefs')
             % if namespace isn't set, means error in constructor
             if isempty(obj.namespace)
                 return
@@ -208,15 +215,30 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             assert(ischar(obj.namespace),'Namespace must be a string!')
             if isprop(obj,'prefs')
                 assert(iscell(obj.prefs),'Property "prefs" must be a cell array')
-                for i = 1:numel(obj.prefs)
-                    if ~ischar(obj.prefs{i})
+                prefs = obj.prefs;
+                skip = {};
+                if ~isempty(varargin)
+                    % Separate into prefs and skip prefs. If prefs is empty, perhaps user only supplied skip prefs
+                    mask = cellfun(@(a)a(1)=='-',varargin);
+                    prefs = varargin(~mask);
+                    skip = cellfun(@(a)a(2:end),varargin(mask),'uniformoutput',false);
+                    if isempty(prefs)
+                        prefs = obj.prefs;
+                    end
+                end
+                obj.pref_set_try = true;  % try block for validation (caught after setting below)
+                for i = 1:numel(prefs)
+                    if ismember(prefs{i},skip)
+                        continue
+                    end
+                    if ~ischar(prefs{i})
                         warning('MODULE:load_prefs','Error on loadPrefs (position %i): %s',i,'Must be a string!')
                         continue
                     end
-                    if ispref(obj.namespace,obj.prefs{i})
-                        pref = getpref(obj.namespace,obj.prefs{i});
+                    if ispref(obj.namespace,prefs{i})
+                        pref = getpref(obj.namespace,prefs{i});
                         try
-                            mp = findprop(obj,obj.prefs{i});
+                            mp = findprop(obj,prefs{i});
                             if mp.HasDefault && any(ismember([{class(mp.DefaultValue)}; superclasses(mp.DefaultValue)],...
                                             {'Base.Module','Prefs.ModuleInstance'}))
                                 if isempty(pref)% Means it is the default value, and not set
@@ -227,12 +249,22 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                                 end
                                 pref = temp;
                             end
-                            obj.(obj.prefs{i}) = pref;
+                            obj.(prefs{i}) = pref;
+                            if ~isempty(obj.last_pref_set_err)
+                                % Effectively brings a listener "thread" to the main one
+                                rethrow(obj.last_pref_set_err);
+                            end
                         catch err
-                            warning('MODULE:load_prefs','Error on loadPrefs (%s): %s',obj.prefs{i},err.message)
+                            if nargout
+                                varargout{1}.(prefs{i}) = err;
+                            else
+                                warning('MODULE:load_prefs','Error on loadPrefs (%s): %s',prefs{i},err.message)
+                            end
                         end
                     end
                 end
+                obj.pref_set_try = false;
+                varargout = varargout(1:nargout);
             end
         end
         function delete(obj)

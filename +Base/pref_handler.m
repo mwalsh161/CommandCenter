@@ -256,8 +256,14 @@ classdef pref_handler < handle
             % obj.(prop.Name) as well as the obvious SetEvent does)
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
             try
+                new_val.getEvent = strcmp(event.EventName,'PostGet');
                 new_val.value = obj.(prop.Name); % validation occurs here
+                new_val.getEvent = false;
                 obj.execute_external_ls(prop,event); % Execute any external listeners
+                if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
+                    % This should now be interpreted as a set event
+                    new_val.value = obj.(prop.Name); % validation occurs here
+                end
             catch err
             end
             % Update the class-pref and re-engage listeners
