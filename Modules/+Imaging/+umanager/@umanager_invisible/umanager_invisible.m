@@ -234,7 +234,7 @@ classdef umanager_invisible < Modules.Imaging
         end
  
         % Set methods for prefs
-        function val = set_exposure(obj,val)
+        function val = set_exposure(obj,val,~)
             if val == obj.mmc('getExposure')
                 return
             end
@@ -252,7 +252,7 @@ classdef umanager_invisible < Modules.Imaging
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end
         end
-        function val = set_binning(obj,val)
+        function val = set_binning(obj,val,~)
             if val==str2double(obj.mmc('getProperty',obj.dev,'Binning'))
                 return
             end

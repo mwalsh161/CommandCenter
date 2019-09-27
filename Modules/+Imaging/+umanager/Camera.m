@@ -28,7 +28,7 @@ classdef Camera < Imaging.umanager.umanager_invisible
         end
     end
     methods
-        function val = reload_toggle(obj,~)
+        function val = reload_toggle(obj,~,~)
             % TODO: replace with a Prefs.Button
             % Pretends to be a button from a boolean pref
             val = false; % Swap back to false
