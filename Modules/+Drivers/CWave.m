@@ -13,9 +13,9 @@ classdef CWave < Modules.Driver
         dll_ver
         ip
         status
-        target_wavelength = 615.000001; % Target Wavelength
+        target_wavelength = 0; % Target Wavelength
         all_shutters = 'open';
-        shg_shutter = 'close';
+        shg_shutter = 'open';
         lsr_shutter = 'open'; 
         opo_stepper_stat = 0;
         opo_temp_stat = false(1);
@@ -52,6 +52,7 @@ classdef CWave < Modules.Driver
         SetCommand = 'set_command';
         LaserPower = 'get_photodiode_laser';
         OPO_Power = 'get_photodiode_opo';
+        OptimizeSHG = 'opt_tempshg';
         SHG_Power = 'get_photodiode_shg';
         StatusReport = 'get_statusbits';
         LaserStatus  = 'get_status_laser';
@@ -64,10 +65,12 @@ classdef CWave < Modules.Driver
         WLM_PID_Optimize = 'WLM_PID_Compute';
         WLM_PID_Setpoint = 'WLM_pid_setpoint'; % valid range 450 - 1300 (nm), double
         WLM_BigSteps = 'WLM_bigsteps';
+        WLM_EtalonSteps = 'WLM_etalonsteps';
         WLM_PiezoSteps = 'WLM_piezosteps'
         Ext_SetCommand = 'ext_set_command';
         ExtGet_IntValue = 'ext_get_intvalue';
         ExtGet_FloatValue = 'ext_get_floatvalue';
+        RelockEtalon = 'reg_etacatch';
         ShutterSHG = 'shtter_shg';
         ShutterLaser = 'shtter_las';
         Open = 'open';
@@ -113,9 +116,10 @@ classdef CWave < Modules.Driver
          function obj = CWave(ip)
             obj.dll_ver =  load_cwave_dll(obj); %load dll for cwave
             obj.status = obj.cwave_connect(ip); %connect cwave
+            pause(1);
             % open all internal and output shutters in cwave system
-            obj.shutter_lsr();
-            obj.shutter_shg();
+            %obj.shutter_lsr();
+            %obj.shutter_shg();
             %obj.initialize_shutters; 
             %ret = obj.set_intvalue(obj.WLM_BigSteps, 0);
             %assert(ret == 1, 'Turning off large steps in PID failed');
@@ -170,18 +174,21 @@ classdef CWave < Modules.Driver
             obj.CheckErrorStatus(status, FunctionName);
         end
         
-        function CheckErrorStatus(obj,status,FunctionName)
+        function status = CheckErrorStatus(obj,status,FunctionName)
             %edit cases TBD. Need to sort out string to report and
             %flag/status for each function
             inversion_condition = {obj.ConnectCwave,obj.Admin,obj.UpdateStatus,obj.Set_IntValue, ...
                                    obj.Set_FloatValue,obj.SetCommand,obj.LaserStatus, obj.Ext_SetCommand};
             if(ismember(FunctionName, inversion_condition))
+                if(status==-1)
+                    status = 0;
+                end
                 status = ~status;
             end
             switch FunctionName
                 case obj.ConnectCwave
                     % 0=connection failed, 1==connection successful
-                    assert(status == 0, ['CWAVE Error: Connecting to ' obj.ip ' failed']);
+                    assert(status == 0, ['CWAVE Error: Connecting to ' obj.ip ' failed. Disconnect Cwave from Hubner software.']);
                 case obj.DLL_Version
                     assert(status == 0, ['CWAVE Error: Unauthorized CWAVE DLL version loaded']);
                 case obj.Admin
@@ -242,7 +249,7 @@ classdef CWave < Modules.Driver
             end
         end
         
-        function [status] = cwave_connect(obj, ip)
+        function status = cwave_connect(obj, ip)
             %Description: Connects to the C-Wave. This function has to be executed once during runtime.
             %Arguments: ipAddress is the IP address of the CWAVE as string in the format 123.123.123.123
             %Returns: int value, 0 means connection failed, 1 means successfully connected. 
@@ -251,7 +258,7 @@ classdef CWave < Modules.Driver
             status = obj.LibraryFunction(obj.ConnectCwave, ip);
             % mitigate bug in DLL, first connection attempt might fail -> retry
             if (status == 0)
-                status = LibraryFunction(obj.ConnectCwave, ip);
+                status = obj.LibraryFunction(obj.ConnectCwave, ip);
             end
         end
        
@@ -456,13 +463,13 @@ classdef CWave < Modules.Driver
             obj.CheckErrorStatus(status,obj.OPO_Power);
         end
         
-        function [shg_power] = get_photodiode_shg(obj)
+        function [status, shg_power] = get_photodiode_shg(obj)
             % Description: Reads the current (second harmonic generator) SHG visible power
             % Arguments: none
             % Returns: Returns the visible output power in mW
             %% Read SHG power
             shg_power = calllib(obj.LibraryName, obj.SHG_Power);
-            if (shg_power > obj.SHG_MaxPower || opo_power < obj.OPO_MinPower)
+            if (shg_power > obj.SHG_MaxPower || shg_power < obj.SHG_MinPower)
                 status = 1;
             else 
                 status = 0;
@@ -551,16 +558,37 @@ classdef CWave < Modules.Driver
             status = obj.cwave_connect(obj.ip);
         end
         
-        function status = delete(obj)
+        function delete(obj)
             %Delete instance of CWAVE object.
             %Disconnect CWAVE 
             obj.disconnect_cwave();
+            
+            %clear public properties
+            obj.init_warnings = [];
+            obj.dll_ver = [];
+            obj.ip = [];
+            obj.status = [];
+            obj.target_wavelength = []; % Target Wavelength
+            obj.all_shutters = [];
+            obj.shg_shutter = [];
+            obj.lsr_shutter = []; 
+            obj.opo_stepper_stat = [];
+            obj.opo_temp_stat = [];
+            obj.shg_stepper_stat = [];
+            obj.shg_temp_stat = [];
+            obj.thin_etalon_stat = [];
+            obj.opo_lock_stat = [];
+            obj.shg_lock_stat = [];
+            obj.etalon_lock_stat = [];
+            obj.laser_emission_stat = [];
+            obj.ref_temp_stat = [];
+            
             %clean up loaded library from memory 
             unloadlibrary(obj.LibraryName);
-            status = libisloaded(obj.LibraryName);
-            if status
-                assert(status==1, 'CWAVE Library still in memory!');
-            end      
+            %status = libisloaded(obj.LibraryName);
+            %if status
+            %    assert(status==1, 'CWAVE Library still in memory!');
+            %end      
         end
         
         function disconnect_cwave(obj)
