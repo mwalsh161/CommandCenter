@@ -116,8 +116,8 @@ classdef CWave < Modules.Driver
          function obj = CWave(ip)
             obj.dll_ver =  load_cwave_dll(obj); %load dll for cwave
             obj.status = obj.cwave_connect(ip); %connect cwave
-            pause(1);
-            % open all internal and output shutters in cwave system
+            pause(1)
+            %open all internal and output shutters in cwave system
             %obj.shutter_lsr();
             %obj.shutter_shg();
             %obj.initialize_shutters; 
@@ -171,7 +171,7 @@ classdef CWave < Modules.Driver
             else
                 [status,varargout{1:nargs-1}] = calllib(obj.LibraryName,FunctionName,varargin{:});
             end
-            obj.CheckErrorStatus(status, FunctionName);
+            status = obj.CheckErrorStatus(status, FunctionName);
         end
         
         function status = CheckErrorStatus(obj,status,FunctionName)
@@ -187,13 +187,13 @@ classdef CWave < Modules.Driver
             end
             switch FunctionName
                 case obj.ConnectCwave
-                    % 0=connection failed, 1==connection successful
-                    assert(status == 0, ['CWAVE Error: Connecting to ' obj.ip ' failed. Disconnect Cwave from Hubner software.']);
+                    % 0=connection successful, 1==connection failed
+                    assert(status ==0, ['CWAVE Error: Connecting to ' obj.ip ' failed. Disconnect Cwave from Hubner software.']);
                 case obj.DLL_Version
                     assert(status == 0, ['CWAVE Error: Unauthorized CWAVE DLL version loaded']);
                 case obj.Admin
                     % 0==admin rights granted, 1=no admin rights granted
-                    assert(status == 0, ['CWAVE Error: Admin Rights Not Granted. Incorrect password given']);
+                    assert(status ==0, ['CWAVE Error: Admin Rights Not Granted. Incorrect password given']);
                 case obj.UpdateStatus
                     %  0==update succeeded, 1=update failed
                     assert(status == 0, ['CWAVE Error: Measurement status of C-wave not updated']);
@@ -587,7 +587,7 @@ classdef CWave < Modules.Driver
             unloadlibrary(obj.LibraryName);
             %status = libisloaded(obj.LibraryName);
             %if status
-            %    assert(status==1, 'CWAVE Library still in memory!');
+            %    assert(status==0, 'CWAVE Library still in memory!');
             %end      
         end
         
@@ -608,9 +608,10 @@ classdef CWave < Modules.Driver
         
         function set_pid_target_wavelength(obj, setpoint)
             % set the target wavelength to fine tune toward
-            typecheck = isa(setpoint, 'double')
-            assert(typecheck == 1, 'Setpoint must be double precision float')
-            ret = obj.set_intvalue(WLM_PID_Setpoint, setpoint);
+            typecheck = isa(setpoint, 'double');
+            assert(typecheck == 1, 'Setpoint must be double precision float');
+            
+            ret = obj.set_floatvalue(obj.WLM_PID_Setpoint, setpoint);
             assert(ret == 1, 'Setting setpoint wavelength failed');
             disp(['Setpoint wavelength set: ' num2str(setpoint) 'nm']);
             % IMPORTANT: wait one second before starting to poll for ready
@@ -618,34 +619,46 @@ classdef CWave < Modules.Driver
         end
 
         function set_target_deviation(obj, target_dev)
-            obj.set_intvalue(obj.WLM_targetdeviation, target_dev);
+            obj.set_floatvalue(obj.WLM_targetdeviation, target_dev);
         end
 
         function fine_tune(obj)
             % fine tune based on wavemeter measurement
-            ret = obj.set_intvalue(WLM_PiezoSteps, 1);
+            ret = obj.set_intvalue(obj.WLM_PiezoSteps, 1);
             assert(ret == 1, 'Turning on cavity piezo during PID failed');
-            ret = obj.set_intvalue(WLM_etalonsteps, 0);
+            % turn off etalon control 
+            ret = obj.set_intvalue(obj.WLM_EtalonSteps, 0);
             assert(ret == 1, 'Turning off etalon steps during PID failed');
+            %turn off big wavelength steps (OPO and SHG remain locked)
+            ret = obj.set_intvalue(obj.WLM_BigSteps, 0);
+            assert(ret == 1, 'Turning off big wavelength steps during PID failed');
         end
 
         function coarse_tune(obj)
             % coarse tune based on wavemeter measurement
-            ret = obj.set_intvalue(WLM_PiezoSteps, 1);
+            % turn on reference cavity steps
+            ret = obj.set_intvalue(obj.WLM_PiezoSteps, 1);
             assert(ret == 1,'Turning on cavity piezo during PID failed');
-            ret = obj.set_intvalue(WLM_etalonsteps, 1);
+            %turn on etalon steps
+            ret = obj.set_intvalue(obj.WLM_EtalonSteps, 1);
             assert(ret == 1, 'Turning on etalon steps during PID failed');
+            %turn off big wavelength steps (OPO and SHG remain locked)
+            ret = obj.set_intvalue(obj.WLM_BigSteps, 0);
+            assert(ret == 1, 'Turning off big wavelength steps during PID failed');
         end
         
         function flag = abort_tune(obj)
+            %currently the StopOptimization parameter is not recognized by
+            %the set_command function. Needs correction on Hubner's end
             %Stops optimization of wavelength tuning.
             flag = obj.set_command(obj.StopOptimization);
-            assert(flag==1, 'Optimization has not stopped');
+            %assert(flag==1, 'Optimization has not stopped');
+            %StopOptimization = 'opt_stop';
         end
 
         function piezo = get_ref_cavity_percent(obj)
             % returns reference cavity piezo percent value
-            piezo_voltage = obj.get_intvalue('x');
+            piezo_voltage = obj.get_intvalue(obj.RefCavity_Piezo);
             piezo = piezo_voltage/obj.Piezo_maxBit;
         end
         
@@ -655,25 +668,34 @@ classdef CWave < Modules.Driver
             %Convert from percentage to integer
             piezo_voltage = round(piezo_percent*obj.Piezo_maxBit);
           
-            flag = obj.LibraryFunction(obj.Set_IntValue,obj.RefCavity_Piezo,piezo_voltage);
-            if (flag == 1)
-                piezo = piezo_percent;
-            elseif (flag == -1)
-                piezo = obj.get_ref_cavity_percent();
-            end    
+            flag = obj.set_intvalue(obj.RefCavity_Piezo,piezo_voltage);
+            assert(flag ==0, 'Reference cavity not tuned.')
+   
+            piezo = obj.get_ref_cavity_percent();    
         end
         
-        function piezo = tune_thick_etalon(obj,relative_wl_pm)
-            %Piezo voltage is passed a a percentage of the total range
-            %Total range is 0-65535
-            %Convert from percentage to integer
-            flag = obj.LibraryFunction(obj.Set_IntValue,obj.ThickEtalon_Piezo_hr,relative_wl_pm);
-            if (flag == 1)
-                piezo = piezo_percent;
-            elseif (flag == -1)
-                piezo = get_ref_cavity_percent();
-            end    
-        end     
+        function tune_thick_etalon(obj,relative_wl_pm)
+            %execute relative wavelength step of thick etalon in pm.
+            %Total range is -1000 to 1000 pm (type int)
+            
+            flag = obj.set_intvalue(obj.ThickEtalon_Piezo_hr,relative_wl_pm);
+            assert(flag==0, 'Relative tuning of etalon failed.');     
+        end
+        
+        function optimize_shg(obj)
+            %currently the OptimizeSHG parameter is not recognized by
+            %the set_command function. Needs correction on Hubner's end
+            flag = obj.set_command(obj.OptimizeSHG);
+            assert(flag == 0, 'SHG optimization failed.');
+        end
+        
+        function relock_etalon(obj)
+            %currently the RelockEtalon parameter is not recognized by
+            %the set_command function. Needs correction on Hubner's end
+            flag = obj.set_command(obj.RelockEtalon);
+            assert(flag == 0, 'Etalon failed to relock.');
+        end
+        
     end
     
     %Methods I will likey never use
