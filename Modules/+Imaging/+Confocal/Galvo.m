@@ -1,6 +1,9 @@
 classdef Galvo < Modules.Imaging
-    %CONFOCAL Summary of this class goes here
-    %   Detailed explanation goes here
+    %CONFOCAL Control galvo mirrors and an APD to snap an image
+    %   This is typically instantiated along side Stages.Galvos
+    %
+    %   ToDo: consolidate the calibration property into NIDAQ, so they
+    %       can't accidentally be out of sync!
     
     properties
         maxROI = [-1.18 1.18; -1.18 1.18];

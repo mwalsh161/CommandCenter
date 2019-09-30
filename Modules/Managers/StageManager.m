@@ -402,30 +402,31 @@ classdef StageManager < Base.Manager
         end
         % Active Stage Commands
         function move(obj,new_pos)
-            % Can take a cell array or num array
+            % Will ignore any NaN entries
+            validateattributes(new_pos,{'numeric'},{'vector','numel',3});
             cal = obj.get_cal;
             new_pos = new_pos./cal;
-            current_pos = obj.active_module.position;
-            new_pos = num2cell(new_pos);
+            new_pos_cell = cell(1,3);
             for i = 1:length(new_pos)
-                if new_pos{i}==current_pos(i)
-                    new_pos{i} = [];
+                if ~isnan(new_pos(i))
+                    new_pos_cell{i} = new_pos(i);
                 end
             end
-            obj.sandboxed_function({obj.active_module,'move'},new_pos{:});
+            obj.sandboxed_function({obj.active_module,'move'},new_pos_cell{:});
         end
         function jog(obj,delta)
+            % Will ignore any NaN entries
             cal = obj.get_cal;
             delta = delta./cal;
             current_pos = obj.active_module.position;
             new_pos = current_pos + delta;
-            new_pos = num2cell(new_pos);
-            for i = 1:length(delta)
-                if isnan(delta(i)) || ~delta(i)
-                    new_pos{i} = [];
+            new_pos_cell = cell(1,3);
+            for i = 1:length(new_pos)
+                if ~isnan(new_pos(i))
+                    new_pos_cell{i} = new_pos(i);
                 end
             end
-            obj.sandboxed_function({obj.active_module,'move'},new_pos{:});
+            obj.sandboxed_function({obj.active_module,'move'},new_pos_cell{:});
         end
         
         % Active Stage Commands, but also possible callbacks

@@ -27,7 +27,8 @@ classdef Stage < Base.Module
     end
     
     methods(Abstract)
-        % Move to position x,y,z. If feedback is true, make sure to query posHandle
+        % Move to position x,y,z (note this is different call syntax than the manager)
+        % The method should be callable with any of x,y,z as an empty array
         move(obj,x,y,z)
         
         % Return stage to its home. This also resets tracking for many stages.

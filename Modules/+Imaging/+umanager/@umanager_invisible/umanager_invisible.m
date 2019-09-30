@@ -295,7 +295,7 @@ classdef umanager_invisible < Modules.Imaging
             obj.mmc('clearROI');
             roi = obj.mmc('getROI');
             xstart = max(roi.x,val(1));
-            ystart = max(roi.y,val(1));
+            ystart = max(roi.y,val(2));
             width = min(roi.width-xstart,val(3));
             height = min(roi.height-ystart,val(4));
             obj.mmc('setROI',xstart,ystart,width,height);
