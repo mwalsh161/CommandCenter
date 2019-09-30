@@ -30,6 +30,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         % TODO fill in prefs all the way
         show_prefs = {'tuning', 'cwave_ip', 'pulseStreamer_ip', 'wavemeter_ip'};
         readonly_prefs = {'tuning'};
+        PSline = 1; % Index from 1 (Pulsestreamer has 8 digital out channels)
     end
 
     properties(SetAccess=private)
@@ -82,6 +83,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         function on(obj)
             assert(~isempty(obj.PulseStreamer), 'No IP set for PulseStreamer!')
             % TODO say something to PulseStreamer
+            obj.PulseStreamer.constant([obj.PSline],0,0)
             obj.source_on = true;
             
         end
@@ -89,6 +91,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             assert(~isempty(obj.PulseStreamer), 'No IP set for PulseStreamer!')
             % TODO say something to PulseStreamer
             obj.source_on = false;
+            obj.PulseStreamer.constant([],0,0)
         end
 
         % tunable laser methods
