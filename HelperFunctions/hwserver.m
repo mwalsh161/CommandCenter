@@ -28,6 +28,22 @@ classdef hwserver < handle
             end
             delete(obj.connection);
         end
+        function response = reload(obj,module)
+            if ~exist('module','var')
+                module = '';
+            end
+            module = urlencode(module);
+            handshake = urlencode(jsonencode(struct('name',['_reload_' module])));
+            fopen(obj.connection);
+            try
+                fprintf(obj.connection,'%s\n',handshake);
+                response = obj.receive; % Error handling in method
+            catch err
+                fclose(obj.connection);
+                rethrow(err)
+            end
+            fclose(obj.connection);
+        end
         function response = help(obj)
             handshake = urlencode(jsonencode(struct('name','_help')));
             fopen(obj.connection);

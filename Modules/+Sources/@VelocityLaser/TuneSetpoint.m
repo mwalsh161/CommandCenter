@@ -2,8 +2,6 @@ function TuneSetpoint(obj,setpoint)
 %TuneSetpoint Sets the wavemeter setpoint
 %   frequency = desired setpoint in THz or nm
 
-%check if in range
-obj.RangeCheck(setpoint);
 obj.tuning = true;
 try
     obj.percent_setpoint = NaN;

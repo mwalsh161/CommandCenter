@@ -42,12 +42,12 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
                 resChannel = channel('Resonant','color','r','hardware',obj.resLaser.PBline-1);
                 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
                 s.channelOrder = [repumpChannel, resChannel, APDchannel];
-                g = node(s.StartNode,repumpChannel,'delta',0);
+                g = node(s.StartNode,repumpChannel,'units','us','delta',0);
                 g = node(g,repumpChannel,'units','us','delta',obj.repumpTime_us);
-                r = node(g,resChannel,'delta',obj.resOffset_us);
-                node(r,APDchannel,'delta',0);
+                r = node(g,resChannel,'units','us','delta',obj.resOffset_us);
+                node(r,APDchannel,'units','us','delta',0);
                 r = node(r,resChannel,'units','us','delta',obj.resTime_us);
-                node(r,APDchannel,'delta',0);
+                node(r,APDchannel,'units','us','delta',0);
                 
                 obj.sequence = s;
             end

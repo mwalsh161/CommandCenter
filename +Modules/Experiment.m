@@ -39,6 +39,37 @@ classdef Experiment < Base.Module
         end
     end
     methods(Static)
+        function varargout = analyze(data)
+            % Assuming data is a struct that is built by the DBModule, the
+            % method will attempt to call the appropriate analysis method
+            % of data's origin module with data.data
+            % NOTE: depending on module used to save the data struct, the
+            % data struct may need to be reassembled!
+            if ~isfield(data,'origin')
+                error('Data struct does not contain origin. Perhaps saved before this update was implemented.')
+            end
+            origin = data.origin;
+            mmc = meta.class.fromName(origin);
+            assert(~isempty(mmc),sprintf('Could not find "%s" on path. Make sure CommandCenter is on your path.',origin))
+            mask = ismember({mmc.MethodList.Name},'analyze');
+            assert(sum(mask)==1,'Impossible! Did not find one analyze method (should have inherited this one).');
+            % Verify that method was not this one
+            if ~strcmp(mfilename('class'), mmc.MethodList(mask).DefiningClass.Name)
+                fn = str2func([origin '.analyze']);
+                nout = abs(nargout(fn)); % abs will get all optional ones too
+                varargout = cell(1,nout);
+                try
+                    [varargout{:}] = fn(data.data);
+                    varargout = varargout(1:nargout); % Cut down to requested number from caller
+                catch err
+                    error(['Unable to call %s.analysis(data.data). ',...
+                        'This could be due to a poorly formatted or incorrectly reassembled data struct:\n%s'],...
+                        origin, err.message);
+                end
+            else
+                error('"%s" does not have an analysis method implemented.',origin);
+            end
+        end
         function new(experiment_name)
             % Pull templates into correct folder
             thisfolder = fileparts(mfilename('fullpath'));

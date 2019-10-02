@@ -43,6 +43,8 @@ classdef WhiteLight < Modules.Source
         end
     end
     methods
+        function arm(~) % Nothing to do here
+        end
         function task = inactive(obj)
             task = '';
             if obj.source_on
