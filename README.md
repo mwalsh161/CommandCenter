@@ -1,3 +1,4 @@
+https://github.com/mwalsh161/CommandCenter/blob/master/README.md
 # CommandCenter
 
 [CommandCenter](https://github.com/mwalsh161/CommandCenter/wiki "CommandCenter Wiki") is a modular experimental framework. The user can load modules from the various menus (at the top of the application) and operate them using their controls within the left side panel. All of these control containers can be adjusted in size by dragging their bottom edge, or minimized by clicking their top edge.
