@@ -99,7 +99,8 @@ try
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
     end
-    [loading_fig,textH]=Base.loadIm('load.png','CommandCenter Loading','initialmagnification',40);
+    [loading_fig,textH]=Base.loadIm(fullfile(path,'static','load.png'),...
+        'CommandCenter Loading','initialmagnification',40);
     addpath(path)
     addpath(genpath(fullfile(path,'overload_builtin')))
     addpath(genpath(fullfile(path,'HelperFunctions')))
