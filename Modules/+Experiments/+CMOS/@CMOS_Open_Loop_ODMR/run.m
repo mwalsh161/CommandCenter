@@ -34,19 +34,19 @@ function run( obj,status,managers,ax )
     % Setup graphics
     y = NaN(1,n);
     hold(ax,'on');
-    plotH(1) = plot(obj.volt_list/1e9, y,'color', 'k','parent',ax);
+    plotH(1) = plot(obj.volt_list, y,'color', 'k','parent',ax);
     current_freqH = plot(ax,NaN,NaN,'--r');
     ylabel(ax,'ODMR (normalized)');
     
     yyaxis(ax, 'right')
     cs = lines(2);
-    plotH(2) = plot(obj.volt_list/1e9, y,...
+    plotH(2) = plot(obj.volt_list, y,...
         'color', cs(1,:),'linestyle','-','parent',ax);
-    plotH(3) = plot(obj.volt_list/1e9, y,...
+    plotH(3) = plot(obj.volt_list, y,...
         'color', cs(2,:),'linestyle','-','parent',ax);
     legend(plotH,{'Normalized (left)','Signal (right)','Normalization (right)'})
     ylabel(ax,'Counts (cps)');
-    xlabel(ax,'Frequency (GHz)');
+    xlabel(ax,'VCO Control Voltage (V)');
     yyaxis(ax, 'left');
     try
         obj.Laser.on;
