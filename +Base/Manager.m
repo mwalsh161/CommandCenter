@@ -20,6 +20,14 @@ classdef Manager < handle
     %   A manager can subclass this as a "simple" manager as well in which
     %   all module related methods will error
     
+    properties(Hidden)
+        prefs = {'settings_vertical_pad_px','settings_horizontal_margin_px'};
+    end
+    properties
+        settings_vertical_pad_px = 5; % pixels between setting UIs
+        settings_horizontal_margin_px = 20 % Additional pixels on left & right margins*
+        % * NOTE: this can be easily extended to 1x2 if Base.propedit gains support for that
+    end
     properties(Access=protected)
         no_module_str = 'No Modules Loaded';
     end
@@ -109,27 +117,23 @@ classdef Manager < handle
     end
     methods(Access=protected)
         function savePrefs(obj)
-            if isprop(obj,'prefs')
-                for i = 1:numel(obj.prefs)
-                    try
-                        eval(sprintf('setpref(obj.namespace,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));
-                    catch err
-                        warning('MANAGER:save_prefs','%s',err.message)
-                    end
+            for i = 1:numel(obj.prefs)
+                try
+                    eval(sprintf('setpref(obj.namespace,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));
+                catch err
+                    warning('MANAGER:save_prefs','%s',err.message)
                 end
             end
         end
         function loadPrefs(obj)
             % Load prefs
-            if isprop(obj,'prefs')
-                for i = 1:numel(obj.prefs)
-                    if ispref(obj.namespace,obj.prefs{i})
-                        pref = getpref(obj.namespace,obj.prefs{i});
-                        try
-                            obj.(obj.prefs{i}) = pref;
-                        catch err
-                            warning('MANAGER:load_prefs','Error on loadPrefs (%s): %s',obj.prefs{i},err.message)
-                        end
+            for i = 1:numel(obj.prefs)
+                if ispref(obj.namespace,obj.prefs{i})
+                    pref = getpref(obj.namespace,obj.prefs{i});
+                    try
+                        obj.(obj.prefs{i}) = pref;
+                    catch err
+                        warning('MANAGER:load_prefs','Error on loadPrefs (%s): %s',obj.prefs{i},err.message)
                     end
                 end
             end
@@ -181,7 +185,7 @@ classdef Manager < handle
             end
             if ~isempty(errors)
                 errors = strjoin(errors,'\n\n');
-                obj.error(errors)
+                obj.error(errors)  % TODO: somehow keep track of traceback for these errors
             end
             set(obj.blockOnLoad,'enable','on')
         end
@@ -243,7 +247,8 @@ classdef Manager < handle
                 temp = figure('visible','off');
                 settings_panel = uipanel(temp,'BorderType','None',...
                     'units','characters','position',[0 0 width 0]);
-                obj.sandboxed_function({obj.active_module,'settings'},settings_panel);
+                obj.sandboxed_function({obj.active_module,'settings'},...
+                        settings_panel,obj.settings_vertical_pad_px,[0 0] + obj.settings_horizontal_margin_px);
                 % Make sure width wasn't changed
                 set(settings_panel,'units','characters')
                 w = get(settings_panel,'position');
@@ -254,15 +259,16 @@ classdef Manager < handle
                 else
                     % Adjust length of panel to fit contents.
                     contents = allchild(settings_panel);
+                    ncontents = numel(contents);
                     set(contents,'units','characters')
-                    lengths = 0;
-                    for i = 1:numel(contents)
+                    positions = [0, NaN(1,ncontents)]; % 0, bottom1, top1, bottom2, top2, ...
+                    for i = 1:ncontents
                         contents_pos = get(contents(i),'position');
-                        lengths(end+1) = contents_pos(2);
-                        lengths(end+1) = lengths(end) + contents_pos(4);
+                        positions(2*i-1) = contents_pos(2);
+                        positions(2*i) = positions(2*i-1) + contents_pos(4);
                     end
-                    bottom = min(lengths);
-                    top = max(lengths);
+                    bottom = min(positions);
+                    top = max(positions);
                     if bottom < 0
                         obj.warning('MANAGER:settings','Detected some panels with negative positions, this may cause display errors.')
                     end

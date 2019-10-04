@@ -256,6 +256,8 @@ classdef stage < Modules.Driver
             assert(~isempty(obj.taskPulseTrain)&&isobject(obj.taskPulseTrain)&&isvalid(obj.taskPulseTrain),'No scan setup!')
             numpoints = max(length(obj.xVals),1)*max(length(obj.yVals),1);
             CounterRawData = NaN(numpoints+1,1);
+            ydat = linspace(imObj.YData(1),imObj.YData(end),size(imObj.CData,1));
+            tracker = line(imObj.Parent,imObj.XData([1 end]),NaN(1,2),'color','g');
             ii = 0;
             while isvalid(obj.taskCounter)&&(~obj.taskCounter.IsTaskDone || obj.taskCounter.AvailableSamples)
                 SampsAvail = obj.taskCounter.AvailableSamples;
@@ -270,9 +272,15 @@ classdef stage < Modules.Driver
                         ImageData(row,:)=fliplr(ImageData(row,:));
                     end
                 end
-                set(imObj,'cdata',ImageData)
+                mask = ~isnan(ImageData);
+                imObj.CData(mask) = ImageData(mask); % Only update new data
+                yloc = find(any(~mask,2),1);
+                if ~isempty(yloc)
+                    tracker.YData = [0 0] + ydat(yloc);
+                end
                 drawnow;
             end
+            delete(tracker);
             if ~isvalid(obj.taskCounter)
                 return
             end
