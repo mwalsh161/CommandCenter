@@ -66,7 +66,8 @@ classdef CWave < Modules.Driver
         WLM_PID_Setpoint = 'WLM_pid_setpoint'; % valid range 450 - 1300 (nm), double
         WLM_BigSteps = 'WLM_bigsteps';
         WLM_EtalonSteps = 'WLM_etalonsteps';
-        WLM_PiezoSteps = 'WLM_piezosteps'
+        WLM_PiezoSteps = 'WLM_piezosteps';
+        WLM_targetdeviation = 'WLM_targetdeviation';
         Ext_SetCommand = 'ext_set_command';
         ExtGet_IntValue = 'ext_get_intvalue';
         ExtGet_FloatValue = 'ext_get_floatvalue';
@@ -612,7 +613,7 @@ classdef CWave < Modules.Driver
             assert(typecheck == 1, 'Setpoint must be double precision float');
             
             ret = obj.set_floatvalue(obj.WLM_PID_Setpoint, setpoint);
-            assert(ret == 1, 'Setting setpoint wavelength failed');
+            assert(ret == 0, 'Setting setpoint wavelength failed');
             disp(['Setpoint wavelength set: ' num2str(setpoint) 'nm']);
             % IMPORTANT: wait one second before starting to poll for ready
             pause(1);
