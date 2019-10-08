@@ -35,7 +35,8 @@ classdef MEdge_invisible < handle
         
         function set.Secret_Key_path(obj,val)
             % Either make sure it is empty or it exists
-            if ~isempty(val) && ~isfile(val)
+            if ~isempty(val) && ~strcmp(val,'me_enable')
+                %TBD: should implement secret_key_path for future MEdge client
                 err.message = 'Secret Key path does not exist!';
                 err.identifier = 'MILLENIA EDGE:secret_key';
                 error(err)
@@ -53,7 +54,8 @@ classdef MEdge_invisible < handle
                 err.identifier = 'MILLENIA EDGE:wrong_inputs';
                 error(err)
             end
-            checkoutlaser(val,obj.Secret_Key_path)
+            %checkoutlaser(val,obj.Secret_Key_path)
+            %need to write MEdge client analgous to the Verdi Client.
             obj.enabled = val;
         end
     end
