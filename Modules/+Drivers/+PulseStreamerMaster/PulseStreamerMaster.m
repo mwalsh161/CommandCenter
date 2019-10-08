@@ -78,7 +78,6 @@ classdef PulseStreamerMaster < Modules.Driver
         PS;
         %
         builder; %PusleSequenceBuilder object used to build pulse sequences.
-        
         triggerStart; 
         triggerMode;
         % string containing pulse sequence instruction set in JSON format
@@ -95,7 +94,11 @@ classdef PulseStreamerMaster < Modules.Driver
         seq_meta = [];
         finalState;
     end
-        
+    
+    properties(SetObservable,SetAccess=private,AbortSet)
+        running = 0;
+    end
+       
     methods(Static)
          function obj = instance(ip)
              mlock;
