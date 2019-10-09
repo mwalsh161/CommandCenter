@@ -51,6 +51,7 @@ classdef CWave < Modules.Driver
         Is_Ready = 'is_ready';
         SetCommand = 'set_command';
         LaserPower = 'get_photodiode_laser';
+        OPO_Lambda = 'opo_lambda';
         OPO_Power = 'get_photodiode_opo';
         OptimizeSHG = 'opt_tempshg';
         SHG_Power = 'get_photodiode_shg';
@@ -80,7 +81,11 @@ classdef CWave < Modules.Driver
         CoarseTune = 'coarse';
         FineTune = 'fine'; 
         Disconnect = 'cwave_disconnect';
+        RegOpo_On = 'regopo_on';
+        RegOpo_Out = 'regopo_out';
+        %%RegOpo_Set = 'regopo_set'; 
         RefCavity_Piezo = 'x';
+        SetRefOpoExtramp = 'set_regopo_extramp';
         ThickEtalon_Piezo_hr = 'thicketa_rel_hr';
         ThickEtalon_Piezo = 'thicketa_rel';
         Piezo_maxBit = 65535/100;
@@ -172,13 +177,13 @@ classdef CWave < Modules.Driver
             else
                 [status,varargout{1:nargs-1}] = calllib(obj.LibraryName,FunctionName,varargin{:});
             end
-            status = obj.CheckErrorStatus(status, FunctionName);
+            status = obj.CheckErrorStatus(status, FunctionName,varargin{:});
         end
         
-        function status = CheckErrorStatus(obj,status,FunctionName)
+        function status = CheckErrorStatus(obj,status,FunctionName,varargin)
             %edit cases TBD. Need to sort out string to report and
             %flag/status for each function
-            inversion_condition = {obj.ConnectCwave,obj.Admin,obj.UpdateStatus,obj.Set_IntValue, ...
+            inversion_condition = {obj.ConnectCwave,obj.Admin,obj.UpdateStatus,obj.Set_IntValue, obj.SetRefOpoExtramp ...
                                    obj.Set_FloatValue,obj.SetCommand,obj.LaserStatus, obj.Ext_SetCommand};
             if(ismember(FunctionName, inversion_condition))
                 if(status==-1)
@@ -199,15 +204,56 @@ classdef CWave < Modules.Driver
                     %  0==update succeeded, 1=update failed
                     assert(status == 0, ['CWAVE Error: Measurement status of C-wave not updated']);
                 case obj.Set_IntValue
+                    switch cmd
+                        case obj.RegOpo_Out
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'OPO cavity not tuned');
+                        case obj.RefCavity_Piezo
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'Reference cavity not tuned.');
+                        case obj.WLM_BigSteps
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'Turning off big wavelength steps during PID failed');
+                        case obj.WLM_EtalonSteps
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'Turning off etalon steps during PID failed');
+                        case obj.WLM_PiezoSteps
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'Turning on cavity piezo during PID failed');
+                        case obj.OPO_Lambda 
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'Setting target wavelength failed');
+                        case obj.ShutterSHG
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'SHG shutter failed')
+                        case obj.ShutterLaser
+                            %0: integer value set, 1: integer value not set
+                            assert(status==0,'Laser shutter failed')
+                    end   
                     %  0== integer value set, 1= integer value not set
-                    assert(status == 0, ['CWAVE Error: Int value not set']);
+                    assert(status == 0, 'CWAVE Error: Int value not set');
+                case obj.SetRefOpoExtramp
+                    assert(status == 0, 'Opo Piezo was not set to ramp.')
                 case obj.Is_Ready
                     % 0=C-wave is ready, Optimization has completed; 1==C-wave still optimizing
                      assert(status == 0, ['CWAVE Error: C-Wave not ready. Optimization still in progress']);
                 case obj.Set_FloatValue
+                    switch varargin{1}
+                        case obj.WLM_PID_Setpoint
+                            %  0==update succeeded, 1=update failed
+                            assert(ret == 0, 'Setting setpoint wavelength failed');
+                    end
                     %  0==update succeeded, 1=update failed
                     assert(status == 0, ['CWAVE Error: float value not set']);
                 case obj.SetCommand
+                    switch varargin{1}
+                        case obj.StopOptimization
+                            assert(status == 0, 'Optimization has not stopped');
+                        case obj.OptimizeSHG
+                            assert(status == 0, 'SHG optimization failed.');
+                        case obj.RelockEtalon
+                            assert(status == 0, 'Etalon failed to relock.');
+                    end
                     % 0=update succeeded,  1=update failed
                     assert(status == 0, ['CWAVE Error: command not executed. Check that set_command input are valid.']);
                 case obj.LaserPower
@@ -220,6 +266,28 @@ classdef CWave < Modules.Driver
                     % 0=update succeeded,  1=update failed
                     assert(status == 0, ['CWAVE Error: SHG power not within standard operating range.']);
                 case obj.StatusReport
+                    if (obj.opo_stepper_stat == 1)
+                        disp('Error OPO stepper not locked')
+                        elif (obj.opo_temp_stat == 1)
+                            disp('OPO temperature not locked')
+                        elif (obj.shg_stepper_stat == 1)
+                            disp('SHG stepper not locked')
+                        elif (obj.shg_temp_stat == 1)
+                            disp('SHG temp not locked')
+                        elif (obj.thin_etalon_stat == 1)
+                            disp('Thin etalon not locked')
+                        elif (obj.opo_lock_stat == 1 && obj.get_intvalue(RegOPO_On) == 2)
+                            disp('OPO cavity piezo not locked.')
+                        elif (obj.shg_lock_stat == 1)
+                            disp('SHG cavity piezo not locked')
+                        elif (obj.etalon_lock_stat == 1)
+                            disp('thick etalon not locked')
+                        elif (obj.laser_emission_stat == 1)
+                            disp('No Pump emission! Unshutter Millenia Edge!')
+                        elif (obj.ref_temp_stat == 1)
+                            disp('Reference cavity temperature is not locked!!!')
+                    end
+                    
                     % 0=update succeeded,  1=update failed
                     assert(status == 0, ['CWAVE Error: All elements are not stable and/or locked.']);
                 case obj.LaserStatus
@@ -533,22 +601,18 @@ classdef CWave < Modules.Driver
         function shutter_lsr(obj)
             %open or close internal pump laser shutter
             if strcmp(obj.lsr_shutter, obj.Open)
-                ret = obj.set_intvalue(obj.ShutterLaser,1);
-                assert(ret == 1, 'Opening pump laser shutter failed'); 
+                obj.set_intvalue(obj.ShutterLaser,1); 
             elseif strcmp(obj.lsr_shutter, obj.Close)
-                ret = obj.set_intvalue(obj.ShutterLaser,0);
-                assert(ret == 0, 'Closing pump laser shutter failed'); 
+                obj.set_intvalue(obj.ShutterLaser,0); 
             end 
         end 
         
         function shutter_shg(obj)
             %open or close SHG shutter
             if strcmp(obj.shg_shutter, obj.Open)
-                ret = obj.set_intvalue(obj.ShutterSHG,1);
-                assert(ret == 1, 'Opening SHG shutter failed'); 
+                obj.set_intvalue(obj.ShutterSHG,1); 
             elseif strcmp(obj.shg_shutter, obj.Close)
-                ret = obj.set_intvalue(obj.ShutterSHG,0);
-                assert(ret == 1, 'Closing SHG shutter failed'); 
+                obj.set_intvalue(obj.ShutterSHG,0);; 
             end 
         end 
         
@@ -600,8 +664,7 @@ classdef CWave < Modules.Driver
         
         function set_target_wavelength(obj)
             %set target wavelength with a coarse 0.01 nm resolution
-            ret = obj.set_intvalue('opo_lambda',round(obj.target_wavelength*100));
-            assert(ret == 1, 'Setting target wavelength failed');
+            obj.set_intvalue(obj.OPO_Lambda,round(obj.target_wavelength*100));
             disp(['Target wavelength set: ' num2str(round(obj.target_wavelength*100)/100) 'nm']);
             % IMPORTANT: wait one second before starting to poll for ready
             pause(1);       
@@ -625,36 +688,26 @@ classdef CWave < Modules.Driver
 
         function fine_tune(obj)
             % fine tune based on wavemeter measurement
-            ret = obj.set_intvalue(obj.WLM_PiezoSteps, 1);
-            assert(ret == 1, 'Turning on cavity piezo during PID failed');
+            obj.set_intvalue(obj.WLM_PiezoSteps, 1);
             % turn off etalon control 
-            ret = obj.set_intvalue(obj.WLM_EtalonSteps, 0);
-            assert(ret == 1, 'Turning off etalon steps during PID failed');
+            obj.set_intvalue(obj.WLM_EtalonSteps, 0);
             %turn off big wavelength steps (OPO and SHG remain locked)
-            ret = obj.set_intvalue(obj.WLM_BigSteps, 0);
-            assert(ret == 1, 'Turning off big wavelength steps during PID failed');
+            obj.set_intvalue(obj.WLM_BigSteps, 0);
         end
 
         function coarse_tune(obj)
             % coarse tune based on wavemeter measurement
             % turn on reference cavity steps
-            ret = obj.set_intvalue(obj.WLM_PiezoSteps, 1);
-            assert(ret == 1,'Turning on cavity piezo during PID failed');
+            obj.set_intvalue(obj.WLM_PiezoSteps, 1);
             %turn on etalon steps
-            ret = obj.set_intvalue(obj.WLM_EtalonSteps, 1);
-            assert(ret == 1, 'Turning on etalon steps during PID failed');
+            obj.set_intvalue(obj.WLM_EtalonSteps, 1);
             %turn off big wavelength steps (OPO and SHG remain locked)
-            ret = obj.set_intvalue(obj.WLM_BigSteps, 0);
-            assert(ret == 1, 'Turning off big wavelength steps during PID failed');
+            obj.set_intvalue(obj.WLM_BigSteps, 0);
         end
         
         function flag = abort_tune(obj)
-            %currently the StopOptimization parameter is not recognized by
-            %the set_command function. Needs correction on Hubner's end
             %Stops optimization of wavelength tuning.
             flag = obj.set_command(obj.StopOptimization);
-            %assert(flag==1, 'Optimization has not stopped');
-            %StopOptimization = 'opt_stop';
         end
 
         function piezo = get_ref_cavity_percent(obj)
@@ -663,39 +716,82 @@ classdef CWave < Modules.Driver
             piezo = piezo_voltage/obj.Piezo_maxBit;
         end
         
+        function piezo = get_opo_cavity_percent(obj)
+            % returns reference cavity piezo percent value
+            piezo_voltage = obj.get_intvalue(obj.RegOpo_Out);
+            piezo = piezo_voltage/obj.Piezo_maxBit;
+        end
+        
         function piezo = tune_ref_cavity(obj,piezo_percent)
             %Piezo voltage is passed a a percentage of the total range
             %Total range is 0-65535
             %Convert from percentage to integer
             piezo_voltage = round(piezo_percent*obj.Piezo_maxBit);
-          
-            flag = obj.set_intvalue(obj.RefCavity_Piezo,piezo_voltage);
-            assert(flag ==0, 'Reference cavity not tuned.')
-   
+            obj.set_intvalue(obj.RefCavity_Piezo,piezo_voltage);
             piezo = obj.get_ref_cavity_percent();    
         end
         
         function tune_thick_etalon(obj,relative_wl_pm)
             %execute relative wavelength step of thick etalon in pm.
             %Total range is -1000 to 1000 pm (type int)
-            
-            flag = obj.set_intvalue(obj.ThickEtalon_Piezo_hr,relative_wl_pm);
-            assert(flag==0, 'Relative tuning of etalon failed.');     
+            obj.set_intvalue(obj.ThickEtalon_Piezo_hr,relative_wl_pm);    
         end
         
         function optimize_shg(obj)
-            %currently the OptimizeSHG parameter is not recognized by
-            %the set_command function. Needs correction on Hubner's end
-            flag = obj.set_command(obj.OptimizeSHG);
-            assert(flag == 0, 'SHG optimization failed.');
+            obj.set_command(obj.OptimizeSHG);
         end
         
         function relock_etalon(obj)
-            %currently the RelockEtalon parameter is not recognized by
-            %the set_command function. Needs correction on Hubner's end
-            flag = obj.set_command(obj.RelockEtalon);
-            assert(flag == 0, 'Etalon failed to relock.');
+            obj.set_command(obj.RelockEtalon);
         end
+        
+        function piezo_percent = tune_opo_cavity(obj,val)
+            %Use for wider fsr tuning range ~  20-40 GHz in the visible 
+            %Piezo voltage is passed a a percentage of the total range
+            %Total range is 0-65535
+            %Convert from percentage to integer
+            
+            if (get_regopo() ~= 4)
+                set_regopo(4);
+            end
+            piezo_voltage = round(val*obj.Piezo_maxBit);
+            obj.set_intvalue(obj.RegOpo_Out,piezo_voltage);
+            %assert(flag == 0, 'OPO cavity not tuned')
+            piezo_percent = obj.get_opo_cavity_percent();
+        end
+            
+        function set_regopo(obj,val)
+            %val = OPO regulator mode.
+            %0: off
+            %1: scan
+            %2: regulate
+            %3: user ramp
+            %4: manual setpoint (by regopo_out)
+            obj.set_intvalue(obj.RegOpo_On,val)
+        end
+        
+        function mode = get_regopo(obj)
+            %read opo piezo votlage bit.
+            mode = obj.get_intvalue(obj.RegOpo_On);
+        end
+        
+        function status = set_regopo_extramp(obj, duration, mode, lowerLimit, upperLimit)
+            % Description: Configures the waveform to be output to the OPO?s 
+            %              thick etalon when control mode is set to ?user ramp? (regopo_on=3).
+            % Arguments: duration is the waveform's duration in milliseconds
+            %            mode is the waveform's mode (0=sawtooth, 1=triangle)
+            %            lowerLimit/upperLimit are the waveform?s start and endpoint in percent of full scale output
+            % Returns: Returns 0 if the new command was executed correctly. Returns 1 if an error occurred.
+            % DLL bugs: minimum ramp is 10%. Maximum ramp duration is 60000 ms.
+            status = obj.LibraryFunction(obj.SetRefOpoExtramp, duration, mode, lowerLimit, upperLimit);    
+        end
+        
+        function opo_ramp_piezo(obj)
+            %ramp piezo with sawtooth or triangle waveform
+            obj.set_regopo(3);
+        end
+            
+            
         
     end
     
