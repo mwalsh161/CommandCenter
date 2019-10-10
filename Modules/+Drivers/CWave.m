@@ -31,9 +31,12 @@ classdef CWave < Modules.Driver
     
     properties(Constant,Hidden)
     % constants for C library
-        Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x64\';
-        Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x86\';
-        HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\';
+        %Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x64\';
+        %Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x86\';
+        %HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\';
+        Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\x64\';
+        Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\x86\';
+        HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\';
         LibraryName = 'CWAVE_DLL';            % alias for library
         LibraryFilePath = 'CWAVE_DLL.dll';     % Path to dll
         LibraryHeader = 'CWAVE_DLL.h';
@@ -41,7 +44,7 @@ classdef CWave < Modules.Driver
         ComputerArch = 'arch';
         ConnectCwave = 'cwave_connect';
         DLL_Version= 'DLL_Version';
-        DLL_identity = 20;
+        DLL_identity = 22;
         Admin = 'admin_elevate';
         UpdateStatus = 'cwave_updatestatus';
         Get_IntValue = 'get_intvalue';

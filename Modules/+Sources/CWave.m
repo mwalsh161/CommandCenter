@@ -16,8 +16,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
     end
 
     properties(SetAccess=protected)
-        vis_range = Sources.TunableLaser_invisible.c./[450, 650];
-        nir_range = Sources.TunableLaser_invisible.c./[900, 1300];
+        range = [Sources.TunableLaser_invisible.c./[450, 650],Sources.TunableLaser_invisible.c./[900, 1300]];
     end
 
     properties(SetObservable,AbortSet)
@@ -119,11 +118,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             % target in nm
             obj.tuning = true;
             if setpoint < 899
-                assert(target>=obj.c/max(obj.vis_range)&&target<=obj.c/min(obj.vis_range),...
-                sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.vis_range))
+                assert(target>=obj.c/max(obj.range(1))&&target<=obj.c/min(obj.range(1)),...
+                sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range(1)))
             elseif setpoint >= 899
-                assert(target>=obj.c/max(obj.nir_range)&&target<=obj.c/min(obj.nir_range),...
-                sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.nir_range))
+                assert(target>=obj.c/max(obj.range(2))&&target<=obj.c/min(obj.range(2)),...
+                sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range(2)))
             end
             assert(~isempty(obj.cwaveHandle), 'no cwave handle')
             err = [];
@@ -274,7 +273,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         end
 
         function set.pulseStreamer_ip(obj, ip)
-            err = obj.connect_driver('PulseStreamerMaster', 'PulseStreamerMaster.PulseStreamerMaster', ip);
+            err = obj.connect_driver('PulseStreamerHandle', 'PulseStreamerMaster.PulseStreamerMaster', ip);
             if ~isempty(err)
                 obj.pulseStreamer_ip = obj.no_server;
                 rethrow(err)
