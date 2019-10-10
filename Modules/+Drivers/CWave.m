@@ -289,7 +289,7 @@ classdef CWave < Modules.Driver
                     end
                     
                     % 0=update succeeded,  1=update failed
-                    assert(status == 0, ['CWAVE Error: All elements are not stable and/or locked.']);
+                    disp('CWAVE Warning: All elements are not stable and/or locked.');
                 case obj.LaserStatus
                     % 0=update failed, 1==update succeeded
                     assert(status == 0, ['Insufficient Laser power. Check that pump laser is active and that the laser shutter is open']);
@@ -722,13 +722,12 @@ classdef CWave < Modules.Driver
             piezo = piezo_voltage/obj.Piezo_maxBit;
         end
         
-        function piezo = tune_ref_cavity(obj,piezo_percent)
+        function tune_ref_cavity(obj,piezo_percent)
             %Piezo voltage is passed a a percentage of the total range
             %Total range is 0-65535
             %Convert from percentage to integer
             piezo_voltage = round(piezo_percent*obj.Piezo_maxBit);
-            obj.set_intvalue(obj.RefCavity_Piezo,piezo_voltage);
-            piezo = obj.get_ref_cavity_percent();    
+            obj.set_intvalue(obj.RefCavity_Piezo,piezo_voltage);   
         end
         
         function tune_thick_etalon(obj,relative_wl_pm)
@@ -745,19 +744,15 @@ classdef CWave < Modules.Driver
             obj.set_command(obj.RelockEtalon);
         end
         
-        function piezo_percent = tune_opo_cavity(obj,val)
+        function tune_opo_cavity(obj,val)
             %Use for wider fsr tuning range ~  20-40 GHz in the visible 
             %Piezo voltage is passed a a percentage of the total range
             %Total range is 0-65535
             %Convert from percentage to integer
             
-            if (get_regopo() ~= 4)
-                set_regopo(4);
-            end
             piezo_voltage = round(val*obj.Piezo_maxBit);
             obj.set_intvalue(obj.RegOpo_Out,piezo_voltage);
             %assert(flag == 0, 'OPO cavity not tuned')
-            piezo_percent = obj.get_opo_cavity_percent();
         end
             
         function set_regopo(obj,val)
