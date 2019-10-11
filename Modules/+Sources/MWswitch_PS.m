@@ -17,15 +17,15 @@ classdef MWswitch_PS < Modules.Source
         status                       % Text object reflecting running
     end
     properties(SetAccess=private)
-        PulseStreamer                 % Hardware handle
+        PulseStreamerHandle                 % Hardware handle
     end
     
     methods(Access=protected)
         function obj = MWswitch_PS()
-       %     obj.PulseStreamer = Drivers.PulseStreamer.StaticLines.instance(obj.ip);  This is accomplished in loadPrefs (set.ip)
+       %     obj.PulseStreamerHandle = Drivers.PulseStreamer.StaticLines.instance(obj.ip);  This is accomplished in loadPrefs (set.ip)
             obj.loadPrefs;
-            obj.PulseStreamer.off();
-            obj.listeners = addlistener(obj.PulseStreamer,'running','PostSet',@obj.isRunning);
+            obj.PulseStreamerHandle.off();
+            obj.listeners = addlistener(obj.PulseStreamerHandle,'running','PostSet',@obj.isRunning);
             
         end
     end
@@ -45,7 +45,7 @@ classdef MWswitch_PS < Modules.Source
         end
         function set.ip(obj,val)
             if strcmp('No Server',val)
-                obj.PulseStreamer = [];
+                obj.PulseStreamerHandle = [];
                 delete(obj.listeners)
                 obj.source_on = 0;
                 obj.ip = val;
@@ -53,14 +53,14 @@ classdef MWswitch_PS < Modules.Source
             end
             err = [];
             try
-                obj.PulseStreamer = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance(val); %#ok<*MCSUP>
-                obj.PulseStreamer.off();
+                obj.PulseStreamerHandle = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance(val); %#ok<*MCSUP>
+                obj.PulseStreamerHandle.off();
                 delete(obj.listeners)
-                obj.listeners = addlistener(obj.PulseStreamer,'running','PostSet',@obj.isRunning);
+                obj.listeners = addlistener(obj.PulseStreamerHandle,'running','PostSet',@obj.isRunning);
                 obj.ip = val;
                 obj.isRunning;
             catch err
-                obj.PulseStreamer = [];
+                obj.PulseStreamerHandle = [];
                 delete(obj.listeners)
                 obj.source_on = 0;
                 obj.ip = 'No Server';
@@ -70,14 +70,16 @@ classdef MWswitch_PS < Modules.Source
             end
         end
         function on(obj)
-            assert(~isempty(obj.PulseStreamer),'No IP set for PulseStreamer!')
-            obj.PulseStreamer.constant([obj.PSline],0,0)
+            assert(~isempty(obj.PulseStreamerHandle), 'No IP set for PulseStreamer!')
+            state = PulseStreamer.OutputState([obj.PSline],0,0);
+            obj.PulseStreamerHandle.PS.constant(state);
             obj.source_on = true;
         end
         function off(obj)
-            assert(~isempty(obj.PulseStreamer),'No IP set for PulseStreamer!')
+            assert(~isempty(obj.PulseStreamerHandle), 'No IP set for PulseStreamer!')
             obj.source_on = false;
-            obj.PulseStreamer.constant([],0,0)
+            state = PulseStreamer.OutputState([],0,0);
+            obj.PulseStreamerHandle.PS.constant(state);
         end
         
         % Settings and Callbacks
@@ -110,7 +112,7 @@ classdef MWswitch_PS < Modules.Source
             obj.ip = get(src,'string');
         end
         function isRunning(obj,varargin)
-            obj.running = obj.PulseStreamer.isStreaming();
+            obj.running = obj.source_on;
             if ~isempty(obj.status)&&isvalid(obj.status)
                 if obj.running
                     update = 'Running';
