@@ -23,8 +23,8 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     % The superclass will require a NIDAQ.dev and PulseBlaster.Remote
     %
     % obj.data looks like: max(indices) is 1xlength(vars)
-    %   obj.data.sumCounts = NaN([max(indices),obj.nCounterBins,obj.averages]);
-    %   obj.data.stdCounts = NaN([max(indices),obj.nCounterBins,obj.averages]);
+    %   obj.data.sumCounts = NaN([obj.averages,max(indices),obj.nCounterBins]);
+    %   obj.data.stdCounts = NaN([obj.averages,max(indices),obj.nCounterBins]);
     
     properties(Constant,Abstract)
         % 1xN Cell array of strings for each sweep (breadth-first traversal)

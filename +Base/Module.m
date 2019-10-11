@@ -207,9 +207,14 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             %   e.g. loadPrefs('pref1') will only load pref1 (if it is a pref)
             %        loadPrefs('-pref2') will load all but pref2
             varargout{1} = struct();
+            if ~isprop(obj,'prefs')
+                varargout = varargout(1:nargout);
+                return
+            end
             assert(all(ismember(strrep(varargin,'-',''), obj.prefs)),'Make sure all inputs in loadPrefs are also in obj.prefs')
             % if namespace isn't set, means error in constructor
             if isempty(obj.namespace)
+                varargout = varargout(1:nargout);
                 return
             end
             assert(ischar(obj.namespace),'Namespace must be a string!')
