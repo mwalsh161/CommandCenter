@@ -69,6 +69,10 @@ classdef APDPulseSequence < handle
             if nargin < 3
                 overrideMinDuration = false;
             end
+            dur = obj.pb.minDuration;
+            if overrideMinDuration
+                dur = 0;
+            end
             % Get the gate channels
             gate_chans = obj.seq.getSequenceChannels;
             gate_chans(cellfun(@(a)isempty(a),{gate_chans.counter}))=[];
@@ -96,7 +100,7 @@ classdef APDPulseSequence < handle
                 obj.tasks(i).Start;
             end
             try
-                [program,s] = obj.seq.compile(overrideMinDuration);
+                program = obj.seq.compile(dur, obj.pb.resolution);
                 obj.pb.open;
                 obj.pb.load(program);
                 obj.pb.start;

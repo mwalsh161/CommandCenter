@@ -6,8 +6,6 @@ classdef sequence < handle
     
     properties
         name;            % Name of sequence (used when saving)
-        resolution = 2;  % ns
-        minDuration = 10;% Minimum duration in ns
         channelOrder = channel.empty(0);     % Channel Order for edit
         repeat = 1;      % How to handle entire sequence
     end
@@ -394,21 +392,34 @@ classdef sequence < handle
             end
             
         end
-        function [instructionSet,seqOut,instInfo] = compile(obj,overrideMinDuration)
-            % repeat puts a loop around the full thing. If Inf, a branch
-            % statement is used instead. If more than a single command can
-            % handle, nested loops will be used
-            % First and last instruction create mandatory pause of at least
-            % 12.5 ns between repeats
-            %   The last instruction is given default of obj.minDurration
-            % If overrideMinDuration, the compiler will make sure all
-            %   instructions are atleast minduration, and fix and warn you
-            %   if not.
-            if nargin < 2
-                overrideMinDuration = false;
-            end
+        function [instructionSet,seqOut,instInfo] = compile(obj,minDuration,resolution)
+            % COMPILE will take the sequence tree, flatten it and apply
+            % minDuration (ns) as well as resolution (ns) rules before compiling it
+            % into a struct that is converted to a struct
             chans = obj.getSequenceChannels;
-            assert(numel(chans)==numel(unique([chans.hardware])),'Channels have repeated hardware lines.')
+            % Make sure any repeated hardware lines have the same offset (should be enforced via channel objects)
+            hardware_lines = [chans.hardware];
+            offsets = reshape([chans.offset],2,[]);
+            % As long as hardware and offset match should be good to go
+            [~,uniqueCombo] = unique([hardware_lines' offsets'],'rows');
+            [~,uniqueLines] = unique(hardware_lines);
+            offending = setdiff(uniqueCombo,uniqueLines);
+            if ~isempty(offending) % Prepare error message
+                noffending = length(offending);
+                msg = cell(1,noffending);
+                for i = 1:noffending
+                    line = hardware_lines(offending(i));
+                    names = strjoin({chans(hardware_lines == line).label},', ');
+                    msg{i} = sprintf('  Hardare %i: %s',line, names);
+                end
+                msg = strjoin(msg,newline);
+                error('The following lines have the same hardware line but different offsets:\n%s',msg);
+            end
+            % Prepare channel maps and flag
+            hardware_lines = unique(hardware_lines);
+            nlines = length(hardware_lines);
+            hwlines_map = containers.Map(hardware_lines,1:nlines);
+            zflags = zeros(1,nlines); % zero flags
             % Add in channel offsets and apply resolution (should help reduce number of instructions)
             offsets = reshape([chans.offset],2,[]);
             maxOffset = max(offsets(1,:)); % This could probably be done better
@@ -426,6 +437,9 @@ classdef sequence < handle
                     obj.StartNode.next(i).delta = obj.StartNode.next(i).delta + lowestT;
                 end
             end
+            if resolution <= 0
+                warning('Ignoring resolution of %g ns. Application of positive resolutions only.',resolution);
+            end
             for i = 1:numel(seq)
                 switch seq(i).node.type
                     case 'transition'
@@ -435,7 +449,9 @@ classdef sequence < handle
                     case 'end'
                         seq(i).t = seq(i).t - minOffset;
                 end
-                seq(i).t = round(seq(i).t/obj.resolution)*obj.resolution;
+                if resolution > 0
+                    seq(i).t = round(seq(i).t/resolution)*resolution;
+                end
             end
             % Reorder in case an offset changed the order
             % Should add check to see if loop start changes logical order
@@ -446,7 +462,7 @@ classdef sequence < handle
             % and most significant node type. Also check for multiple loops
             % in one flag (cannot do that).
             assert(strcmp(seq(1).node.type,'null'),'The first node in time is not the null node. This means there must be a negative delta set which orders another node before the null node!')
-            instInfo = struct('flag',zeros(1,24),'dt',seq(2).t - seq(1).t,'msn',seq(1).node,'notes',''); % msn = most significant node
+            instInfo = struct('flag',zflags,'dt',seq(2).t - seq(1).t,'msn',seq(1).node,'notes',''); % msn = most significant node
             seq(1) = [];
             while ~isempty(seq)
                 notes = {};  % Use for warnings 'name:data,...'
@@ -454,7 +470,7 @@ classdef sequence < handle
                 active = seq(I);
                 seq(I) = [];  % Pop from list
                 if isempty(seq) % Last instruction should just be as short as possible
-                    dt = obj.minDuration;
+                    dt = minDuration;
                 else
                     dt = seq(1).t - active(1).t; % All active should have same t
                 end
@@ -466,13 +482,9 @@ classdef sequence < handle
                 for i = 1:numel(active)
                     types.(active(i).type)(end+1) = active(i);
                     if isa(active(i).data,'channel')
-                        % If for somereason two of the same, then remove it
-                        rmv = find(active(i).data.hardware==chans);
-                        if isempty(rmv)
-                            chans(end+1) = active(i).data.hardware; % hardware indexed from 0 (from the right)
-                        else
-                            chans(rmv) = [];
-                        end
+                        % Shouldn't have two channels in one set of active instructions
+                        assert(~any(active(i).data.hardware==chans),'Channel appeared twice in instruction - likely due to a toggle with dt < resolution.')
+                        chans(end+1) = active(i).data.hardware; % hardware indexed from 0 (from the right)
                     end
                 end
                 assert(isempty(types.start)||isempty(types.end),'Cannot have both start and end of loop at same time.')
@@ -486,101 +498,79 @@ classdef sequence < handle
                 else
                     error('No type found!!')
                 end
-                if dt < obj.minDuration && overrideMinDuration
+                if dt < minDuration
                     instNum = length(instInfo); % no plus 1, because we remove the first instruction immediately after this loop
-                    warning('Instruction %i of length %i ns was extended to min duration (%i ns)',instNum,dt,obj.minDuration)
+                    warning('Instruction %i of length %i ns was extended to min duration (%i ns)',instNum,dt,minDuration)
                     notes{end+1} = sprintf('dt:%i',dt);
-                    dt = obj.minDuration;
+                    dt = minDuration;
                 end
                 newflag = instInfo(end).flag;
-                newflag(end-chans) = double(not(newflag(end-chans)));
+                chanInds = arrayfun(@(a)hwlines_map(a),chans);
+                newflag(chanInds) = double(not(newflag(chanInds)));
                 newinstInfo.flag = newflag;
                 newinstInfo.dt = dt;
                 newinstInfo.msn = msn;
                 newinstInfo.notes = strjoin(notes,',');
                 instInfo(end+1) = newinstInfo;
             end
-            % The first instInfo useful only for starting flags, don't need
-            % it anymore unless we want to include any 0 flags at beginning
-            if instInfo(1).dt == 0
-                instInfo(1) = [];
-            end
-            % If last instruction is END loop, append one more instruction of all off
-            if strcmp(instInfo(end).msn.type,'end')
-                newinstInfo.flag = zeros(1,24);
-                newinstInfo.dt = obj.minDuration;
-                newinstInfo.msn = node.empty(0);  % Shouldn't be used
-                instInfo(end+1) = newinstInfo;
-            end
             % Create instructions
             [~,loops] = obj.getSequenceLoops;
-            
-            instructionSet = cell(length(instInfo),1);
-            % Take care of first instruction depending on repeat
-            append = '';
-            indent = 'Start: ';
-            if obj.repeat > 1 && obj.repeat < Inf && ~strcmp(instInfo(1).msn.type,'start')
-                % If the first instruction is a loop as well, we will have
-                % to add the main loop at the very end by prepending
-                append = sprintf(', LOOP, %i // main loop',obj.repeat);
+            rep = obj.repeat;
+            if rep == Inf
+                rep = -1;
             end
-            % Take care of middle instructions
-            for i = 1:length(instInfo)-1
-                notes = {};
+            instructionSet = struct('name',obj.name,...
+                'units','ns',...
+                'repeat', rep,...
+                'channels', [], ...
+                'sequence', struct('flags',zeros(1,length(hardware_lines)),...
+                       'duration',0,...
+                       'instruction','',...
+                       'notes','',...
+                       'data', cell(length(instInfo),1)));
+            instructionSet.channels = ...
+                arrayfun(@num2str,hardware_lines,'uniformoutput',false);
+            for i = 1:length(instInfo)
+                instructionSet.sequence(i).flags = instInfo(i).flag;
+                instructionSet.sequence(i).duration = instInfo(i).dt;
                 switch instInfo(i).msn.type
+                    case 'null'
+                        instructionSet.sequence(i).instruction = 'CONTINUE';
+                        notes = 'Begin';
                     case 'transition'
-                        if i > 1  % First instruction append is set above
-                            append = '';
-                        end
+                        instructionSet.sequence(i).instruction = 'CONTINUE';
+                        notes = '';
                     case 'start'
-                        row = find(instInfo(i).msn==loops(:,1));
-                        nloops = loops(row,2).data;
-                        append = sprintf(', LOOP, %i',nloops);
-                        notes{end+1} = sprintf('loop name: %s',instInfo(i).msn.data);
+                        nloops = loops(instInfo(i).msn==loops(:,1),2).data;
+                        instructionSet.sequence(i).instruction = 'LOOP';
+                        instructionSet.sequence(i).data = nloops;
+                        notes = sprintf('loop name: %s',instInfo(i).msn.data);
                     case 'end'
+                        instructionSet.sequence(i).instruction = 'END_LOOP';
                         row = find(instInfo(i).msn==loops(:,2));
                         loopName = loops(row,1).data;
-                        append = ', END_LOOP';
-                        notes{end+1} = sprintf('loop name: %s',loopName);
+                        row_of_start = find([instInfo.msn] == loops(row,1));
+                        instructionSet.sequence(i).data = row_of_start;
+                        notes = sprintf('loop name: %s',loopName);
                 end
                 if ~isempty(instInfo(i).notes)
-                    notes{end+1} = instInfo(i).notes;
+                    notes = [notes '; ' instInfo(i).notes]; %#ok<AGROW>
                 end
-                % Format notes
-                if isempty(notes)
-                    notes = '';
-                else
-                    notes = sprintf('// %s',strjoin(notes,','));
-                end
-                instructionSet{i} = sprintf('%s0b %s, %0.2f ns%s%s',indent,num2str(instInfo(i).flag,'%i'),instInfo(i).dt,append,notes);
-                indent = '       ';  % Just to align nicely with the Start
+                instructionSet.sequence(i).notes = notes;
             end
-            % Take care of last instruction depending on repeat
-            if obj.repeat == Inf
-                append = sprintf(', BRANCH, Start');
-            elseif obj.repeat > 1
-                append = ', END_LOOP // main loop';
-            else
-                append = '';
+            % If last instruction is END loop, append one more instruction of all off
+            % TODO: might make more sense to use flags from last CONTINUE
+            % instruction
+            if strcmp(instructionSet.sequence(end).instruction,'END_LOOP')
+                instructionSet.sequence(end+1).instruction = 'CONTINUE';
+                instructionSet.sequence(end).flags = zflags;
+                instructionSet.sequence(end).duration = minDuration;
+                instructionSet.sequence(end).notes = 'All off after final loop';
             end
-            assert(length(instructionSet)>1,'Somehow ended up with only one instruction! Does not make sense.');
-            if length(instructionSet)==2
-                i = 1; % Because for loop above would have set this to []
-            end
-            instructionSet{i+1} = sprintf('%s0b %s, %0.2f ns%s',indent,num2str(instInfo(i+1).flag,'%i'),instInfo(i+1).dt,append);
-            instructionSet{end+1} = sprintf('%s0x000000, 100ms',indent);
-            instructionSet{end+1} = sprintf('%sSTOP',indent);
-            if obj.repeat > 1 && obj.repeat < Inf && strcmp(instInfo(1).msn.type,'start')
-                % If the first instruction is a loop as well, we will have
-                % to add the main loop at the very end by prepending
-                append = sprintf(', LOOP, %i // main loop',obj.repeat);
-                instructionSet = [{sprintf('Main:  0b %s, %0.2f ns%s',num2str(zeros(1,length(instInfo(1).flag)),'%i'),obj.minDuration,append)}; instructionSet];
-            end
-            assert(numel(instructionSet) <= 4096,...
-                sprintf('Can only handle 4096 instructions, have %i currently.',numel(instructionSet)))
         end
         
         function simulate(obj,seq,ax)
+            error('Outdated, needs to be updated for new JSON format')
             if nargin < 2
                 f = figure('name','Simulation');
                 ax = axes('parent',f);
