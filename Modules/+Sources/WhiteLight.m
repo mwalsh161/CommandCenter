@@ -43,6 +43,8 @@ classdef WhiteLight < Modules.Source
         end
     end
     methods
+        function arm(~) % Nothing to do here
+        end
         function task = inactive(obj)
             task = '';
             if obj.source_on
@@ -76,7 +78,7 @@ classdef WhiteLight < Modules.Source
         end
         
         % Settings and Callbacks
-        function settings(obj,panelH)
+        function  settings(obj,panelH,~,~)
             spacing = 1.5;
             num_lines = 2;
             line = 1;

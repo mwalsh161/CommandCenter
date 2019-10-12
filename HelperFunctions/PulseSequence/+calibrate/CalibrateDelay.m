@@ -14,7 +14,7 @@ pb = Drivers.PulseBlaster.Remote.instance(PB_ip);
 SNR = 6; %averages will be increased until SNR on counts is this
 
 % First, figure out the number of averages needed to get desired SNR
-s = Calibration.BuildCalibrateSequence(laserLine,2*maxDelay,apdLine,apdBin,maxDelay,1000); %builds sequence object
+s = calibrate.BuildCalibrateSequence(laserLine,2*maxDelay,apdLine,apdBin,maxDelay,1000); %builds sequence object
 apdPS = APDPulseSequence(nidaq,pb,s);
 f = figure('visible','on','name',mfilename);
 ax = axes('Parent',f);
@@ -43,7 +43,7 @@ while ~runFlag || isnan(datSNR) || datSNR < SNR
 end
 
 %get reference laser off measurement
-s = Calibration.BuildCalibrateSequence(laserLine,0,apdLine,apdBin,0,s.repeat); %if laserTime = 0, then just APD, no laser pulse
+s = calibrate.BuildCalibrateSequence(laserLine,0,apdLine,apdBin,0,s.repeat); %if laserTime = 0, then just APD, no laser pulse
 apdPS = APDPulseSequence(nidaq,pb,s);
 apdPS.start(maxCounts);
 title(ax,sprintf('Determining off reference. Using %i avgs.',s.repeat))
@@ -56,7 +56,7 @@ meanOFF = nanmean(countsOFF);
 stderrOFF = nanstd(countsOFF)/sqrt(s.repeat);
 
 %get reference zero delay measurement
-[s, ~, a] = Calibration.BuildCalibrateSequence(laserLine,maxDelay,apdLine,apdBin,0,s.repeat);
+[s, ~, a] = calibrate.BuildCalibrateSequence(laserLine,maxDelay,apdLine,apdBin,0,s.repeat);
 apdPS = APDPulseSequence(nidaq,pb,s);
 apdPS.start(maxCounts);
 title(ax,sprintf('Determining off reference. Using %i avgs.',s.repeat))

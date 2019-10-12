@@ -20,6 +20,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
 
     properties(SetObservable,AbortSet)
         tuning = false;
+        debug = false;
         prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel','cal_local'};
         show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip','velocity_ip','wavemeter_channel','wavemeter_ip'};
         readonly_prefs = {'PB_status','tuning'};
@@ -69,6 +70,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     methods(Access=protected)
         function obj = VelocityLaser()
             obj.loadPrefs;
+            try % Turn off wavemeter if diode isn't on (ignore not connected errors)
+                if ~obj.diode_on
+                    obj.wavemeter_active = false;
+                end
+            end
         end
     end
     methods(Static)
@@ -251,13 +257,15 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
         function arm(obj)
+            % Make sure calibration is available
+            cal = obj.calibration;
             if ~obj.diode_on
                 obj.activate;
             end
         end
         function blackout(obj)
             if obj.diode_on
-                obj.diode_on = false;
+                obj.deactivate;
             end
         end
         function val = getFrequency(obj)
@@ -274,11 +282,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                     obj.PB_status = 'Unknown State, to update, change state.';
                 end
             end
-        end
-        function RangeCheck(obj,val)
-            %checks if frequency is in tunable range of laser
-            assert(val >= min(obj.range) && val <= max(obj.range),...
-                sprintf('Laser frequency must be in range [%g,%g] THz',obj.range(1),obj.range(2)))
         end
         function calibrate(obj,ax) 
             %calibrates the frequency as read by the wavemeter to the 
@@ -301,6 +304,10 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 ax = axes('parent',f);
             end
             try
+                % First set cal_local to x = y 
+                obj.cal_local.THz2nm = cfit(fittype('a/x'),obj.c);
+                obj.cal_local.datetime = datetime;
+                % Continue with calibration
                 setpoints = linspace(set_range(1),set_range(end),10); %take 10 points across the range of the laser
                 wavelocs = NaN(1,length(setpoints)); %location as read by the wavemeter in THz
                 obj.wavemeter.setDeviationChannel(false);
@@ -360,6 +367,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                     end
                 end
             end
+            % Potential flaws in calibration method may leave obj.cal_local.datetime invalid
+            % Use assert to double check this condition to produce a parsable error
+            assert(isdatetime(obj.cal_local.datetime),'cal_local.datetime is not a datetime. Likely error in calibration method.')
             if days(datetime-obj.cal_local.datetime) >= obj.calibration_timeout % expired
                 obj.cal_local.expired = true;
                 if  ~obj.calibration_timeout_override
@@ -378,6 +388,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 obj.cal_local.expired = false;
             end
             cal = obj.cal_local;
+        end
+        function resetCalibration(obj)
+            obj.cal_local = [];
         end
         function setMotorFrequency(obj,val)
             %internal method for setting the frequency using the motor;

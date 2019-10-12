@@ -1,6 +1,9 @@
 classdef Galvo < Modules.Imaging
-    %CONFOCAL Summary of this class goes here
-    %   Detailed explanation goes here
+    %CONFOCAL Control galvo mirrors and an APD to snap an image
+    %   This is typically instantiated along side Stages.Galvos
+    %
+    %   ToDo: consolidate the calibration property into NIDAQ, so they
+    %       can't accidentally be out of sync!
     
     properties
         maxROI = [-1.18 1.18; -1.18 1.18];
@@ -104,14 +107,15 @@ classdef Galvo < Modules.Imaging
             end
         end
         function stopVideo(obj)
-            if strcmp(obj.galvos.taskPulseTrain.status,'Started')
+            if isvalid(obj.galvos.taskPulseTrain) && ...
+                strcmp(obj.galvos.taskPulseTrain.status,'Started')
                 obj.galvos.AbortScan;
             end
             obj.continuous = false;
         end
         
         % Settings and Callbacks
-        function settings(obj,panelH)
+        function  settings(obj,panelH,~,~)
             spacing = 1.5;
             num_lines = 4;
             line = 1;

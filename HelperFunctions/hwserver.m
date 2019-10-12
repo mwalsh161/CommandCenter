@@ -14,7 +14,7 @@ classdef hwserver < handle
     methods
         function obj = hwserver(ip,~)
             if nargin > 1
-                warning('Port (second input) is legacy. Consider updating your code.')
+                warning('CC:legacy','Port (second input) is legacy. Consider updating your code.')
             end
             obj.connection = tcpip(ip,36577);
             obj.connection.Timeout = 2;
@@ -27,6 +27,22 @@ classdef hwserver < handle
                 fclose(obj.connection);
             end
             delete(obj.connection);
+        end
+        function response = reload(obj,module)
+            if ~exist('module','var')
+                module = '';
+            end
+            module = urlencode(module);
+            handshake = urlencode(jsonencode(struct('name',['_reload_' module])));
+            fopen(obj.connection);
+            try
+                fprintf(obj.connection,'%s\n',handshake);
+                response = obj.receive; % Error handling in method
+            catch err
+                fclose(obj.connection);
+                rethrow(err)
+            end
+            fclose(obj.connection);
         end
         function response = help(obj)
             handshake = urlencode(jsonencode(struct('name','_help')));
