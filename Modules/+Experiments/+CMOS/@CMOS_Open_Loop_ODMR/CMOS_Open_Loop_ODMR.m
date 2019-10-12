@@ -18,7 +18,10 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
         Exposure_ms = 100;
 
         % CMOS MW control properties
-        MW_Control_line = 1;               % Pulse Blaster flag bit (indexed from 1)
+        MW_Control_line_1 = 1;    % Pulse Blaster flag bit (indexed from 1)
+        MW_Control_line_2 = 2;    % Pulse Blaster flag bit (indexed from 1) for the other control line
+        MW_1_on = false;          % Boolean whether to turn on MW control line 1 during experiment
+        MW_2_on = false;          % Boolean whether to turn on MW control line 2 during experiment
         ip = 'No Server';         % ip of host computer (with PB)
 
         % CMOS bias properties
@@ -36,8 +39,7 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
     end
     properties
         prefs = {'Exposure_ms','averages','Laser',...
-                 'PowerSupply','keep_bias_on','VDD_CTRL_norm','VDD_VCO','VDD_CTRL','VDD_IND','IND_BIAS','APD_line', ... %'MW_Control_line',
-                 'APD_Sync_line','VDD_VCO_Channel','VDD_CTRL_Channel','VDD_IND_Channel','IND_BIAS_Channel'};
+                 'PowerSupply','keep_bias_on','MW_1_on','MW_2_on','VDD_CTRL_norm','VDD_VCO','VDD_CTRL','VDD_IND','IND_BIAS','APD_line', 'MW_Control_line_1', 'MW_Control_line_2','APD_Sync_line','VDD_VCO_Channel','VDD_CTRL_Channel','VDD_IND_Channel','IND_BIAS_Channel'};
     end
     properties(SetAccess=private,Hidden)
         % Internal properties that should not be accessible by command line
@@ -81,14 +83,12 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
                 delete(obj.listeners)
-                obj.source_on = 0;
                 obj.ip = val;
                 return
             end
             err = [];
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline);
                 delete(obj.listeners)
                 obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
                 obj.ip = val;
@@ -96,7 +96,6 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
             catch err
                 obj.PulseBlaster = [];
                 delete(obj.listeners)
-                obj.source_on = 0;
                 obj.ip = 'No Server';
             end
             if ~isempty(err)

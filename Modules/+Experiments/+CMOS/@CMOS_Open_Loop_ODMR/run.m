@@ -27,10 +27,21 @@ function run( obj,status,managers,ax )
     n = length(obj.volt_list);
     obj.data = NaN(obj.averages,n,2);
 
-    % Turn on microwave control line
-    %assert(~isempty(obj.PulseBlaster),'No IP set!')
-    %obj.PulseBlaster.lines(obj.PBline) = true;
-
+    % Turn on microwave control line if the line is requested to be on
+    if isempty(obj.PulseBlaster)
+        warning('No IP set, MW control lines will not be changed')
+    else
+        if MW_1_on
+            obj.PulseBlaster.lines(obj.MW_Control_line_1) = false; % line on when signal low
+        else
+            obj.PulseBlaster.lines(obj.MW_Control_line_1) = true;
+        end
+        if MW_2_on
+            obj.PulseBlaster.lines(obj.MW_Control_line_2) = false; % line on when signal low
+        else
+            obj.PulseBlaster.lines(obj.MW_Control_line_2) = true;
+        end
+    end
     % Setup graphics
     y = NaN(1,n);
     hold(ax,'on');
@@ -87,8 +98,9 @@ function run( obj,status,managers,ax )
     end
     obj.Laser.off;
 
-    % Turn microwave control off
-    %obj.PulseBlaster.lines(obj.PBline) = false;
+    % Turn microwave control off by setting lines high
+    obj.PulseBlaster.lines(obj.MW_Control_line_1) = true;
+    obj.PulseBlaster.lines(obj.MW_Control_line_1) = true;
 
     % Turn off biasing
     if ~obj.keep_bias_on
