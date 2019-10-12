@@ -41,7 +41,7 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
     end
     properties(SetAccess=private,Hidden)
         % Internal properties that should not be accessible by command line
-        volt_list = linspace(2.85,2.91,101)*1e9; % Internal, set using MW_freqs_GHz
+        volt_list = linspace(0,2,20); % Internal, set using VDD_CTRL
         VDD_CTRL_voltage = [];
         data = [] % Useful for saving data from run method
         meta = [] % Useful to store meta data in run method
@@ -131,8 +131,8 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
         end
 
         function set.VDD_CTRL(obj,val)
-            obj.volt_list = str2num(val)*1e9;
-            obj.MW_freqs_GHz = val;
+            obj.volt_list = str2num(val);
+            obj.VDD_CTRL = val;
         end
 
         function set.VDD_CTRL_voltage(obj,val)
