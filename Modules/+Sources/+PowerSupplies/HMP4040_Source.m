@@ -3,7 +3,7 @@ classdef HMP4040_Source <  Sources.PowerSupplies.PowerSupply_invisible
 
     properties(SetObservable,AbortSet)
         Com_Address = 'NONE'; % COM address for serial connection. Is 'NONE' if no connection is desired.
-        Channel = {'1','2','3','4'};
+        Channel = Prefs.MultipleChoice('1','allow_empty',false,'choices',{'1','2','3','4'},'help_text','Power supply channel to change');
         Currents = [.05, .05, .05, .05]; % Memory of what all the voltages are to be saved in prefs
         Voltages = [1 1 1 1]; % Memory of what all the currents are to be saved in prefs
         SourceModes = {'Voltage','Voltage','Voltage','Voltage'} % Memory of what all the Source_Modes are to be saved in prefs
