@@ -9,10 +9,10 @@ classdef PowerSupply_invisible < Modules.Source
     % connection) should be handled on a case by case basis by the
     % subclass.
     
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,GetObservable,AbortSet)
         prefs = {'Voltages','Currents','SourceModes'};
         show_prefs = {'Channel','Source_Mode','Voltage','Current'};
-        Source_Mode = {'Voltage','Current'} % Whether current or voltage mode active for selected channel
+        Source_Mode = Prefs.MultipleChoice('Voltage','allow_empty',false,'choices',{'Voltage','Current'},'help_text','Whether current or voltage mode active for selected channel','set','changeSource_Mode');
         Current = 0.05; % Set current for selected channel (amps).
         Voltage = 1;  % Set voltage for selected channel (volts).
         Channel_Name = '1'; % User-defined name for selected channel
@@ -78,9 +78,8 @@ classdef PowerSupply_invisible < Modules.Source
     methods
         %% set methods are wrappers for set (no dot) methods
         
-        function set.Source_Mode(obj,val)
+        function val = changeSource_Mode(obj,val,pref)
             obj.setSource_Mode(val);
-            obj.Source_Mode = val;
         end
         
         function set.Current(obj,val)
@@ -178,16 +177,21 @@ classdef PowerSupply_invisible < Modules.Source
         function updateValues(obj,~,~)
             %Updates voltage, current and source mode that are diplayed by
             %getting them from the driver by calling get methods (only
-            %updates current channel)
+            %updates current channel). If not connected, use save values
+            %**note** this will be overriden when new power supply is connected!
             if obj.power_supply_connected
                 sourceMode = obj.getSource_Mode;
                 Current = obj.getCurrent(false);
                 Voltage = obj.getVoltage(false);
-                %% reassign their values
-                obj.Source_Mode = sourceMode;
-                obj.Current = Current;
-                obj.Voltage = Voltage;
-              end
+            else
+                sourceMode = obj.SourceModes{obj.getHWIndex(obj.Channel)};
+                Current = obj.Currents(obj.getHWIndex(obj.Channel));
+                Voltage = obj.Voltages(obj.getHWIndex(obj.Channel));
+            end
+            %% reassign their values
+            obj.Source_Mode = sourceMode;
+            obj.Current = Current;
+            obj.Voltage = Voltage;
         end
         
         function updatePrefs(obj)
