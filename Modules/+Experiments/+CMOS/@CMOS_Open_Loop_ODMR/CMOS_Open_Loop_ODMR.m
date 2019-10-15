@@ -38,8 +38,12 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
         IND_BIAS_Channel = ''; % String channel for bias 2; no channel if empty
     end
     properties
-        prefs = {'Exposure_ms','averages','Laser',...
-                 'PowerSupply','keep_bias_on','MW_1_on','MW_2_on','VDD_CTRL_norm','VDD_VCO','VDD_CTRL','VDD_IND','IND_BIAS','APD_line', 'MW_Control_line_1', 'MW_Control_line_2','APD_Sync_line','VDD_VCO_Channel','VDD_CTRL_Channel','VDD_IND_Channel','IND_BIAS_Channel'};
+        prefs = {'Exposure_ms','averages','Laser','PowerSupply',...
+            'keep_bias_on','MW_1_on','MW_2_on','VDD_CTRL_norm',...
+            'VDD_VCO','VDD_CTRL','VDD_IND','IND_BIAS','APD_line',...
+            'MW_Control_line_1', 'MW_Control_line_2','APD_Sync_line',...
+            'VDD_VCO_Channel','VDD_CTRL_Channel','VDD_IND_Channel',...
+            'IND_BIAS_Channel','ip'};
     end
     properties(SetAccess=private,Hidden)
         % Internal properties that should not be accessible by command line
@@ -82,20 +86,15 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
         function set.ip(obj,val) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
                 obj.ip = val;
                 return
             end
             err = [];
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
-                delete(obj.listeners)
-                obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
                 obj.ip = val;
-                obj.isRunning;
             catch err
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
                 obj.ip = 'No Server';
             end
             if ~isempty(err)
@@ -178,9 +177,8 @@ classdef CMOS_Open_Loop_ODMR < Modules.Experiment
             if ~isempty(val) && ~isempty(obj.PowerSupply)
                 assert(~strcmp(val,obj.VDD_VCO_Channel) && ~strcmp(val,obj.VDD_IND_Channel) && ~strcmp(val,obj.IND_BIAS_Channel), 'Channel already assigned')
                 obj.PowerSupply.checkChannel(val)
-                obj.VDD_CTRL
                 voltage = obj.PowerSupply.Voltages( obj.PowerSupply.getHWIndex(val));
-                obj.VDD_CTRL = voltage;
+                obj.VDD_CTRL_voltage = voltage;
             end
             obj.VDD_CTRL_Channel = val;
         end

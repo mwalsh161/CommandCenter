@@ -31,12 +31,12 @@ function run( obj,status,managers,ax )
     if isempty(obj.PulseBlaster)
         warning('No IP set, MW control lines will not be changed')
     else
-        if MW_1_on
+        if obj.MW_1_on
             obj.PulseBlaster.lines(obj.MW_Control_line_1) = false; % line on when signal low
         else
             obj.PulseBlaster.lines(obj.MW_Control_line_1) = true;
         end
-        if MW_2_on
+        if obj.MW_2_on
             obj.PulseBlaster.lines(obj.MW_Control_line_2) = false; % line on when signal low
         else
             obj.PulseBlaster.lines(obj.MW_Control_line_2) = true;
@@ -98,9 +98,9 @@ function run( obj,status,managers,ax )
     end
     obj.Laser.off;
 
-    % Turn microwave control off by setting lines high
-    obj.PulseBlaster.lines(obj.MW_Control_line_1) = true;
-    obj.PulseBlaster.lines(obj.MW_Control_line_1) = true;
+    % Turn pulseblaster lines off
+    obj.PulseBlaster.lines(obj.MW_Control_line_1) = false;
+    obj.PulseBlaster.lines(obj.MW_Control_line_1) = false;
 
     % Turn off biasing
     if ~obj.keep_bias_on
