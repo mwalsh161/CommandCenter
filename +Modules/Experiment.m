@@ -40,7 +40,7 @@ classdef Experiment < Base.Module
     end
     methods(Static)
         function varargout = analyze(data)
-            % Assuming data is a struct that is built by the DBModule, the
+            % Assuming data is a struct that is built by the DBManager, the
             % method will attempt to call the appropriate analysis method
             % of data's origin module with data.data
             % NOTE: depending on module used to save the data struct, the
