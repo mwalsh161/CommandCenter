@@ -2,14 +2,12 @@ classdef PulseTimer_invisible < handle
     %PulseTimer_invisible Superclass for all pulse sequence hardware
     %Properties:
     %   clk: internal or external clock rate of pusle sequence hardware.
-    %   resolution: timining resolution of pulse sequence hardware.
-    %   minDuration: minimum pusle duration of pulse sequence hardware. 
     %Methods:
     %   reset: reset device to default settings
     %   start: run pulse sequence 
     %   load: load pulse sequence program into memory of puslse timing
     %   hardware
-    %   stop: stop pulse sequence and output default value (low).
+    %   stop: stop pulse sequence and output default value (e.g. all channels low).
         
     properties(Abstract)
         clk;         % clock sampling rate
