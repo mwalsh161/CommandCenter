@@ -207,7 +207,7 @@ classdef CWave < Modules.Driver
                     %  0==update succeeded, 1=update failed
                     assert(status == 0, ['CWAVE Error: Measurement status of C-wave not updated']);
                 case obj.Set_IntValue
-                    switch cmd
+                    switch varargin{1}
                         case obj.RegOpo_Out
                             %0: integer value set, 1: integer value not set
                             assert(status==0,'OPO cavity not tuned');
@@ -244,7 +244,7 @@ classdef CWave < Modules.Driver
                     switch varargin{1}
                         case obj.WLM_PID_Setpoint
                             %  0==update succeeded, 1=update failed
-                            assert(ret == 0, 'Setting setpoint wavelength failed');
+                            assert(status == 0, 'Setting setpoint wavelength failed');
                     end
                     %  0==update succeeded, 1=update failed
                     assert(status == 0, ['CWAVE Error: float value not set']);

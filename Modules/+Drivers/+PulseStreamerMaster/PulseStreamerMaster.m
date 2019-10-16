@@ -141,7 +141,6 @@ classdef PulseStreamerMaster < Modules.Driver
             obj.triggerStart = PulseStreamer.TriggerStart.SOFTWARE();
             obj.triggerMode  = PulseStreamer.TriggerRearm.AUTO();
             obj.sequence = obj.PS.createSequence();
-            obj.PS.reset();
             obj.map.command(:)=[];
             obj.cmd.command(:)=[];
             % initialize final state to 0V for all channels.
@@ -176,8 +175,10 @@ classdef PulseStreamerMaster < Modules.Driver
         %                
         %       seq_meta.units:   time units for pulse durations
         %       seq_meta.name:    label for sequence.
-        %       seq_meta.forever: boolean indicating whether to
-        %       repeat sequence indefinitely until explicitly halted.
+        %       seq_meta.repeat: boolean indicating how many times the 
+        %                        sequence will be repeated until explicitly halted.
+        %                        The value of -1 is reserved for infinite
+        %                        repetitions.
         % 
         % The build method workflow is as follows:
         %       1. Determine if json input is a string or a json file name
@@ -290,39 +291,43 @@ classdef PulseStreamerMaster < Modules.Driver
         end
         
         
-        function load(obj,repeats) 
+        function load(obj,program) 
         % The load method converts the sequence object to the properly
         % formated 64 bit string and uploads this to the xilinx chip in the
         % pulse streamer via an eithernet connection managed by a hardware
         % server.
         
-            switch nargin
-               case 1
-                   repeats = 1;
-            end
-           
+            build(obj,program);
             start = obj.triggerStart;%initialize the trigger to be software defined
             mode  = obj.triggerMode; % initialize the trigger to be rearmed after each run.
             obj.PS.setTrigger(start, mode); % set triggers
             
-            if obj.seq_meta.forever == 1
-                runs =-1; %run until halt() is called
-            else
-                runs = repeats;
-            end
-            
             % upload sequence to hardware, but do not run the sequence.
-            obj.PS.stream(obj.sequence,runs,obj.finalState); 
+            obj.PS.stream(obj.sequence,obj.seq_meta.repeat,obj.finalState); 
         end
         
         
-        function run(obj)
+        function start(obj)
             % starts the sequence if the sequence was uploaded with the
             % PSStart.Software option
+            
+%             % Get caller info
+%             a = dbstack('-completenames');
+%             caller = strsplit(a(end).file,filesep);
+%             prefix = '';
+%             for i = 1:numel(caller)
+%                 if numel(caller{i}) && caller{i}(1)=='+'
+%                     prefix = [prefix caller{i}(2:end) '.'];
+%                 end
+%             end
+%             [~,name,~]=fileparts(caller{end});
+%             caller = [prefix name];
             obj.PS.startNow();
+%             obj.running = caller;
         end
         
-        function halt(obj)
+        function stop(obj)
+            %stops the PulseStreamer
             % Interrupt the sequence and set the final state of the 
             % hardware. This method does not modify the final state if 
             % the sequence has already finished. This method also releases 
@@ -330,6 +335,13 @@ classdef PulseStreamerMaster < Modules.Driver
             % allows for faster upload sequence during next call of 
             % "stream" method.
             obj.PS.forceFinal()
+            if obj.PS.isStreaming() == 1 
+                obj.PulseStreamerHandle.PS.constant(obj.finalState);
+            end
+        end
+        
+        function reset(obj)
+            obj.PS.reset();  
         end
         
         function [index] = decodeInstructions(obj, json_seq, cmd, depth, index)
@@ -762,9 +774,12 @@ classdef PulseStreamerMaster < Modules.Driver
         
         DEBUG = 0;
         
-            % convert json string into a structure
-            json_total = jsondecode(obj.json);
+            % compile now pass a matlab structure equivalent to
+            % the old structure = jsondecode(json_pulse_sequence)
+            %json_total = jsondecode(obj.json);
+            json_total = obj.json;
             json_struct = json_total.sequence;
+           
             
             %initialize the json_seq cell array and fill each element in
             %array with map for each instruction line. 
@@ -780,7 +795,7 @@ classdef PulseStreamerMaster < Modules.Driver
             seq_metadata.channels = json_total.channels;
             seq_metadata.units = json_total.units;
             seq_metadata.name = json_total.name;
-            seq_metadata.forever = json_total.forever;
+            seq_metadata.repeat = json_total.repeat;
             
             obj.seq_meta = seq_metadata;
             
@@ -798,9 +813,9 @@ classdef PulseStreamerMaster < Modules.Driver
            % Destructor method. Clears object properties.
          function delete(obj)
              if obj.PS.isStreaming() == 1 
-                 obj.halt()
+                 obj.stop()
              elseif obj.PS.hasSequence() == 1
-                 obj.halt()
+                 obj.stop()
              end
          end
     end
