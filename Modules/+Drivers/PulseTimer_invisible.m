@@ -12,10 +12,7 @@ classdef PulseTimer_invisible < handle
     %   stop: stop pulse sequence and output default value (low).
         
     properties(Abstract)
-        clk;         % MHz
-        % resolution;  % ns
-        % minDuration; % Minimum duration in ns
-        % maxRepitiions; % Maximum number of repitions
+        clk;         % clock sampling rate
     end
     
     methods(Abstract)
