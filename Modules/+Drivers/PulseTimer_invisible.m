@@ -13,8 +13,9 @@ classdef PulseTimer_invisible < handle
         
     properties(Abstract)
         clk;         % MHz
-        resolution;  % ns
-        minDuration;% Minimum duration in ns
+        % resolution;  % ns
+        % minDuration; % Minimum duration in ns
+        % maxRepitiions; % Maximum number of repitions
     end
     
     methods(Abstract)

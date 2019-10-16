@@ -16,8 +16,6 @@ classdef APDPulseSequence < handle
             obj.ni = ni;
             obj.seq = seq;
             obj.pb = pb;
-            obj.seq.resolution = obj.pb.resolution;  
-            obj.seq.minDuration = obj.pb.minDuration; 
             % Verify chanels exist in nidaq
             chans = seq.getSequenceChannels;
             chans(cellfun(@(a)isempty(a),{chans.counter}))=[];
