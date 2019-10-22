@@ -9,7 +9,7 @@ function varargout = analyze(data,varargin)
 %   Outputs: None (see below)
 %   Interactivity:
 %       click on a spot to see corresponding data
-%       [alt+] left/right arrows to change site index. The alt is only
+%       [alt+] left/right arrows to change site fig.UserData.index. The alt is only
 %           necessary if viewonly=false, which is default.
 %       Right clicking on axis will allow you to choose lorentz/gauss for that axis
 %   Tag info for data:
@@ -89,7 +89,7 @@ else
 end
 
 % Frequently updated and small stuff here
-index = 1;
+fig.UserData.index = 1;
 busy = false;
 new_data = false;
 
@@ -143,7 +143,7 @@ end
         busy = true;
         % Save the current analysis before moving to next site
         save_state();
-        index = new_index;
+        fig.UserData.index = new_index;
         try
             update();
         catch err
@@ -170,14 +170,14 @@ end
             otherwise % Ignore anything else
                 return
         end
-        ind = mod(index-1+direction,n)+1;
+        ind = mod(fig.UserData.index-1+direction,n)+1;
         changeSite(ind);
     end
 
     function update()
-        site = sites(index);
+        site = sites(fig.UserData.index);
         % Image
-        ax(1).Title.String = sprintf('Site %i/%i',index,n);
+        ax(1).Title.String = sprintf('Site %i/%i',fig.UserData.index,n);
         set(pos,'xdata',site.position(1),'ydata',site.position(2));
         
         cla(ax(2),'reset'); cla(ax(3),'reset'); cla(ax(4),'reset');
@@ -244,15 +244,15 @@ end
         ax(4).YLabel.String = 'Counts';
         if ~viewonly
             if ~isempty(findall(ax(2),'type','line'))
-                attach_uifitpeaks(ax(2),AutoExperiment_analysis(index,1),...
+                attach_uifitpeaks(ax(2),AutoExperiment_analysis(fig.UserData.index,1),...
                     'AmplitudeSensitivity',1);
             end
             if ~isempty(findall(ax(3),'type','line'))
-                attach_uifitpeaks(ax(3),AutoExperiment_analysis(index,2),...
+                attach_uifitpeaks(ax(3),AutoExperiment_analysis(fig.UserData.index,2),...
                     'AmplitudeSensitivity',1);
             end
             if ~isempty(findall(ax(4),'type','line'))
-                attach_uifitpeaks(ax(4),AutoExperiment_analysis(index,3),...
+                attach_uifitpeaks(ax(4),AutoExperiment_analysis(fig.UserData.index,3),...
                     'AmplitudeSensitivity',1);
             end
         end
@@ -276,7 +276,7 @@ end
                 if strcmpi(FitType,'gauss')
                     dat(i-1).widths = dat(i-1).widths*2*sqrt(2*log(2));
                 end
-                dat(i-1).index = inds(index);
+                dat(i-1).index = inds(fig.UserData.index);
             else
                 dat(i-1).fit = [];
                 dat(i-1).amplitudes = [];
@@ -287,7 +287,7 @@ end
             end
         end
         if ~isempty(dat)
-            AutoExperiment_analysis(index,:) = dat;
+            AutoExperiment_analysis(fig.UserData.index,:) = dat;
             new_data = true;
         end
     end
