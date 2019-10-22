@@ -38,7 +38,7 @@ function varargout = uifitpeaks(ax,varargin)
 %       corresponding to that peak.
 %       [Shift+] Tab will change the selected point.
 
-if ~isempty(findall(ax,'tag',mfilename))
+if ~isempty(findobj(ax,'tag',mfilename))
     warning('UIFITPEAKS already initialized on this axis');
     return % Already running on this axes
 end
@@ -57,7 +57,7 @@ fittype = lower(p.Results.FitType);
 
 x = [];
 y = [];
-children = [findall(ax,'type','line') findall(ax,'type','scatter')];
+children = [findobj(ax,'type','line') findobj(ax,'type','scatter')];
 for i = 1:length(children)
     if ~strcmp(get(children(i),'tag'),mfilename)
         x = [x; children(i).XData'];
@@ -240,7 +240,7 @@ ax = hObj.Parent;
 handles = ax.UserData;
 set(ax,'buttondownfcn',handles.old_buttondownfcn);
 ax.Color = handles.original_color;
-delete(findall(ax,'tag',mfilename))
+delete(findobj(ax,'tag',mfilename))
 % Now, reset figure stuff
 f = handles.figure;
 f.UserData.([mfilename '_count']) = f.UserData.([mfilename '_count']) - 1;
@@ -256,7 +256,7 @@ ax = gca;
 if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
     return;
 end
-set(findall(hObj.Parent,'tag',mfilename),'linewidth',1);
+set(findobj(hObj.Parent,'tag',mfilename),'linewidth',1);
 set(hObj,'linewidth',2);
 ax.UserData.active_point = hObj;
 end
@@ -300,7 +300,7 @@ switch eventdata.Key
     case 'downarrow'
         dir = -1;
     case 'tab'
-        from_uifitpeaks = findall(ax,'tag',mfilename);
+        from_uifitpeaks = findobj(ax,'tag',mfilename);
         guess_gobs = gobjects(0);
         for i = 1:length(from_uifitpeaks)
             if isstruct(from_uifitpeaks(i).UserData) && isfield(from_uifitpeaks(i).UserData,'guess')

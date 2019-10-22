@@ -77,7 +77,7 @@ wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
 
 if isstruct(p.Results.Analysis)
-    AutoExperiment_analysi = p.Results.Analysis;
+    AutoExperiment_analysis = p.Results.Analysis;
 else
     AutoExperiment_analysis = struct(...
         'fit',cell(n,3),...
@@ -200,18 +200,26 @@ end
         ax(2).YLabel.String = 'Intensity (a.u.)';
         
         titles = {'Open Loop SlowScan'};
+        set_points = [];
+        cs = NaN(0,3);
         for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
             experiment = site.experiments(i);
             if ~isempty(experiment.data)
-                errorfill(experiment.data.data.freqs_measured,...
-                    experiment.data.data.sumCounts,...
-                    experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                    'parent',ax(3),'tag','OpenLoop');
+                ef = errorfill(experiment.data.data.freqs_measured,...
+                        experiment.data.data.sumCounts,...
+                        experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
+                        'parent',ax(3),'tag','OpenLoop');
+                set_points(end+1) = experiment.data.meta.prefs.freq_THz;
+                cs(end+1,:) = ef.line.Color;
             end
             if ~isempty(experiment.err)
                 titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',...
                     i,strrep(strip(experiment.err.message),'\','\\')); % Escape backslash for tex interpreter
             end
+        end
+        ylim = get(ax(3),'ylim');
+        for i = 1:length(set_points)
+            plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', cs(i,:),'handlevisibility','off','hittest','off');
         end
         ax(3).Title.String = titles;
         ax(3).XLabel.String = 'Frequency (THz)';

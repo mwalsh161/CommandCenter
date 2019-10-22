@@ -39,7 +39,7 @@ classdef Experiment < Base.Module
         end
     end
     methods(Static)
-        function varargout = analyze(data)
+        function varargout = analyze(data,varargin)
             % Assuming data is a struct that is built by the DBManager, the
             % method will attempt to call the appropriate analysis method
             % of data's origin module with data.data
@@ -59,7 +59,7 @@ classdef Experiment < Base.Module
                 nout = abs(nargout(fn)); % abs will get all optional ones too
                 varargout = cell(1,nout);
                 try
-                    [varargout{:}] = fn(data.data);
+                    [varargout{:}] = fn(data.data,varargin{:});
                     varargout = varargout(1:nargout); % Cut down to requested number from caller
                 catch err
                     error(['Unable to call %s.analysis(data.data). ',...
