@@ -72,9 +72,10 @@ try
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==1); % Previous run, continued = 1 
                 if any(mask) && all([obj.data.sites(site_index).experiments(new_mask).completed])&&...
-                        ~any([obj.data.sites(site_index).experiments(new_mask).skipped])
+                               ~any([obj.data.sites(site_index).experiments(new_mask).skipped])&&...
+                               ~any([obj.data.sites(site_index).experiments(new_mask).redo_requested])
                     % If any over all time and the ones from the last run
-                    % are all completed and not skipped, then good to
+                    % are all completed and not skipped and have not requested a redo, then good to
                     % continue
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
@@ -104,6 +105,7 @@ try
                         obj.data.sites(site_index).experiments(end).err = [];
                         obj.data.sites(site_index).experiments(end).completed = false;
                         obj.data.sites(site_index).experiments(end).skipped = false;
+                        obj.data.sites(site_index).experiments(end).redo_requested = false;
                     end
                 else
                     % No need to move stage if nothing to do here
@@ -113,6 +115,7 @@ try
                     obj.data.sites(site_index).experiments(end).err = [];
                     obj.data.sites(site_index).experiments(end).completed = true;
                     obj.data.sites(site_index).experiments(end).skipped = true;
+                    obj.data.sites(site_index).experiments(end).redo_requested = false;
                 end
                 for j=1:length(params)
                     local_exp_index = length(obj.data.sites(site_index).experiments)-length(params)+j; % So sorry
