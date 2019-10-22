@@ -63,6 +63,8 @@ runstart = tic;
 obj.PreRun(status,managers,ax);
 err = [];
 try
+    status.String = 'Searching for first experiment to run...';
+    drawnow;
     for repetition = 1:obj.repeat
         for i=1:size(run_queue,1)
             try
