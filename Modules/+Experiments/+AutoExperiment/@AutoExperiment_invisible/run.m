@@ -72,10 +72,11 @@ try
                 exp_index = run_queue(i,2);
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
-                new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==1); % Previous run, continued = 1 
-                if any(mask) && all([obj.data.sites(site_index).experiments(new_mask).completed])&&...
-                               ~any([obj.data.sites(site_index).experiments(new_mask).skipped])&&...
-                               ~any([obj.data.sites(site_index).experiments(new_mask).redo_requested])
+                last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
+                prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
+                if any(mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed])&&...
+                        ~any([obj.data.sites(site_index).experiments(prev_mask).skipped])&&...
+                        ~any([obj.data.sites(site_index).experiments(prev_mask).redo_requested])
                     % If any over all time and the ones from the last run
                     % are all completed and not skipped and have not requested a redo, then good to
                     % continue
