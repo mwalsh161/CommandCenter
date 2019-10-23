@@ -2,13 +2,13 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
     %SpecSlowScan Automatically performs 1) spectra, 2) open-loop PLE, and
     %3) closed-loop PLE on identified sites
 
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,GetObservable)
         % Preferences for thresholding in the patch methods
-        freq_range = 299792./[635,640];
-        SpecCalExposure = 0.1;
-        SpecPeakThresh = 4; %SNR threshold for spectral peak detection
-        PointsPerPeak = 10; %how many points per std for SlowScanClosed
-        StdsPerPeak = 5; %how wide of a bin around peaks for SlowScanClosed
+        freq_range = Prefs.DoubleArray(299792./[635,640],'units','THz','min',0,'allow_nan',false);
+        SpecCalExposure = Prefs.Double(0.1,'min',0,'units','sec');
+        SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','SNR threshold for spectral peak detection');
+        PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
+        StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
     end
     properties
         patch_functions = {'','Spec2Open','Open2Closed'};

@@ -41,7 +41,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         min_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','tracker won''t run twice within this amount of time');
         max_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
         repeat = Prefs.Integer(1);
-        continue_experiment = Prefs.Boolean(false);
+        continue_experiment = Prefs.Boolean(false,'set','set_continue_experiment');
     end
     properties(Constant,Hidden)
         SITES_FIRST = 'All Sites First';
@@ -232,12 +232,8 @@ classdef AutoExperiment_invisible < Modules.Experiment
             % Now that there weren't errors, update meta
             obj.meta = val;
         end
-        function set.run_type(obj,val)
-            obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
-        end
-        function set.continue_experiment(obj,val)
+        function val = set_continue_experiment(~,val,~)
             %val is boolean; true = continue experiment, false = start anew
-            obj.continue_experiment = val;
             pan = get(gcbo,'parent'); %grab handle to settings panel
             site_sel = findobj(pan,'tag','site_selection');
             if isempty(site_sel) || ~isvalid(site_sel)
