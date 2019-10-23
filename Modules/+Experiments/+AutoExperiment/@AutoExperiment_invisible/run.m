@@ -148,8 +148,8 @@ try
                         
                         %track
                         curr_time = toc(runstart);
-                        if curr_time >= obj.min_tracking_seconds
-                            if curr_time >= obj.max_tracking_seconds
+                        if curr_time >= obj.min_tracking_dt
+                            if curr_time >= obj.max_tracking_dt
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,true);
                                 obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
                             else
