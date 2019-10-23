@@ -86,7 +86,7 @@ try
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
                 else
-                    params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
+                    params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index),site_index);%get parameters as determined from prior experiments at this site
                 end
                 if ~isempty(params)
                     managers.Stages.move([obj.data.sites(site_index).position(1)+dP(1),...

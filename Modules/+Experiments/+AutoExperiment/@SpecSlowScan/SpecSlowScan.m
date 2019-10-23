@@ -9,19 +9,22 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','SNR threshold for spectral peak detection');
         PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
         StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
+        analysis_file = Prefs.String('help','will be used in patch functions instead of fitting last result',...
+                                     'custom_validate','validate_file');
     end
     properties
         patch_functions = {'','Spec2Open','Open2Closed'};
         prerun_functions = {'PreSpec','PreSlow','PreSlow'};
         nm2THz = []; %this will be a function pulled from calibrating the spectrometer in the prerun method
+        analysis = [];
     end
     methods(Access=private)
         function obj = SpecSlowScan()
             obj.experiments = [Experiments.Spectrum.instance,...
                                 Experiments.SlowScan.Open.instance,...
                                 Experiments.SlowScan.Closed.instance];
-            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
-            obj.show_prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.show_prefs];
+            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure','analysis_file'},obj.prefs];
+            obj.show_prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure','analysis_file'},obj.show_prefs];
             obj.loadPrefs;
         end
     end
@@ -100,7 +103,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         %(site, experiment) in the run_queue for any experiment that isn't
         %the first one, and will be passed the relevant emitter site 
         %(containing) all previous experiments.
-        function params = Spec2Open(obj,site)
+        function params = Spec2Open(obj,site,index)
             params = struct('freq_THz',{}); %structure of params beings assigned
             specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
             for i=1:length(specs)
@@ -120,7 +123,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 end
             end
         end
-        function params = Open2Closed(obj,site)
+        function params = Open2Closed(obj,site,index)
             params = struct('freqs_THz',{}); %structure of params beings assigned
             scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Open')); %get all experiments named 'SlowScan_Open' associated with site
             composite.freqs = [];
@@ -169,6 +172,30 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             
             % Set SlowScan.Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;
+        end
+        
+        function validate_file(obj,val,~)
+            % We will validate and set the analysis prop here
+            if ~isempty(val)
+                flag = exist(val,'file');
+                if flag == 0
+                    error('Could not find "%s"!',val)
+                end
+                if flag ~= 2
+                    error('File "%s" must be a mat file!',val)
+                end
+                dat = load(val);
+                names = fieldnames(dat);
+                if length(names) ~= 1
+                    error('Loaded mat file should have a single variable; found\n%s',strjoin(names,', '));
+                end
+                if ~isstruct(dat.(names{1})) || size(dat.(names{1}),2) ~= 3
+                    error('Loaded variable from file should be an Nx3 struct.');
+                end
+                obj.analysis = dat.(names{1});
+            else
+                obj.analysis = [];
+            end
         end
     end
 end

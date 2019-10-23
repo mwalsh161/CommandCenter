@@ -15,10 +15,9 @@ classdef AutoExperiment_invisible < Modules.Experiment
     properties
         prefs = {'run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
         show_prefs = {'continue_experiment','experiments','run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
-        readonly_prefs = {'experiments'};
     end
     properties(Abstract)
-        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs). Run before experiment group.
+        patch_functions %cell array of method names in subclass definition that take input (site,site_index). Run before experiment group.
         prerun_functions %cell array of method names in subclass definition that take input (experiment). Run immediately before experiment's run method
     end
     properties(SetAccess=protected,Hidden)
@@ -31,7 +30,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
     end
     properties(SetObservable, GetObservable)
-        experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'inherits',{'Modules.Experiment'});
+        experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'inherits',{'Modules.Experiment'},'readonly',true);
         run_type = Prefs.MultipleChoice(Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
                     'choices',{Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
                                Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST});
