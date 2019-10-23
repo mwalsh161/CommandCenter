@@ -1,105 +1,62 @@
 classdef Saturation < Modules.Experiment
-    % Continuously acquires data from the APD and Thorlabs PM100 power meter and plots them. 
-    % User should rotate the polarizer/HWP.
-    
-    properties
-        pm_data;
-        apd_data;
-        linein = 'APD1';
-        lineout = 'CounterSync';
-        acquire = false; % this tracks when the user wants to stop acquiring data
-        nsamples = 1; % number of samples the APD collects
-        wavelength = 532;
-        prefs = {'linein', 'lineout', 'acquire', 'nsamples', 'wavelength'};
-    end
+    % Saturation changes intensity on a sample using a HWP (motorised or manually moved) and monitors the APD to measure saturation. Optionally also monitors a power meter to calibrate measurement with power.
 
-    properties (SetAccess=private)
-        PM100;
-        counter;
+    properties(SetObservable,GetObservable)
+        angles = Prefs.String('0','help_text', 'Matlab expression evaluated to find angles at which to measure APDs','units','degree','set','setAngle','allow_empty',false);
+        % motor_serial_number = Prefs.MulipleChoice('help_text','Serial number of APT motor controlling the HWP','choices',@Drivers.APTMotor.getAvailMotors)
+        exposure = Prefs.Double(100, 'help_text', 'Exposure time to measure APD counts','units','ms','min',0,'allow_nan',false)
+        motor_move_time = Prefs.Double(30, 'help_text', 'Maximum time allowed for the motor to move','units','s','min',0,'allow_nan',false)
+        motor_home_time = Prefs.Double(120, 'help_text', 'Maximum time allowed for the motor to home','units','s','min',0,'allow_nan',false)
+        motor_serial_number = @Drivers.APTMotor.getAvailMotors;
+        APD_line = Prefs.String('APD1','help_text','NiDAQ line to apd','allow_empty',false);
+        APD_sync_line = Prefs.String('CounterSync','help_text','NiDAQ synchronisation line','allow_empty',false);
+
     end
-    
-    methods(Access=private)
-        function obj = Saturation()
-            obj.loadPrefs;
-            obj.PM100 = Drivers.PM100.instance();
-            obj.counter = Drivers.Counter.instance(obj.linein,obj.lineout);
-        end
+    properties
+        prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number'};  % String representation of desired prefs
+        %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
+        %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
+    end
+    properties(SetAccess=private,Hidden)
+        % Internal properties that should not be accessible by command line
+        % Advanced users should feel free to alter these properties (keep in mind methods: abort, GetData)
+        data = [] % Useful for saving data from run method
+        meta = [] % Useful to store meta data in run method
+        abort_request = false; % Flag that will be set to true upon abort. Use in run method!
+        angle_list
     end
 
     methods(Static)
-        function obj = instance()
-            mlock;
-            persistent Object
-            if isempty(Object) || ~isvalid(Object)
-                Object = Experiments.Saturation();
-            end
-            obj = Object;
+        % Static instance method is how to call this experiment
+        % This is a separate file
+        obj = instance()
+    end
+    methods(Access=private)
+        function obj = Saturation()
+            % Constructor (should not be accessible to command line!)
+            obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
 
     methods
-        run(obj,status,managers,ax)
-        
-        function delete(obj)
-            obj.PM100.delete;
-        end
+        run(obj,status,managers,ax) % Main run method in separate file
 
         function abort(obj)
-            obj.acquire = false;
+            % Callback for when user presses abort in CC
+            obj.abort_request = true;
         end
 
         function dat = GetData(obj,stageManager,imagingManager)
-        % Saves the in v. out power, the excitation wavelength, and the dwell time and number of samples for the APD
-            dat.in_power = obj.pm_data;
-            dat.out_power = obj.apd_data;            
-
-            dat.in_wavelength = obj.PM100.get_wavelength();
-            dat.dwell_time = obj.counter.dwell;
-            dat.nsamples = obj.nsamples;
+            % Callback for saving methods
+            meta = stageManager.position;
+            dat.data = obj.data;
+            dat.meta = obj.meta;
         end
 
-        function  settings(obj,panelH,~,~)
-        % Creates a button for the user to stop acquiring data once it has started and a place for user to set the
-        % measurement wavelength of the PM
-            spacing = 2.25;
-
-            uicontrol(panelH,'style','text','string','Excitation Wavelength (nm):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*3 25 1.25]);
-            
-            uicontrol(panelH,'style','edit','string',obj.wavelength,...
-                'units','characters','callback',@obj.set_wl,...
-                'horizontalalignment','left','position',[26 spacing*3 20 1.5]);
-
-            uicontrol(panelH,'style','text','string','APD Dwell Time:','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*2 25 1.25]);
-            
-            uicontrol(panelH,'style','edit','string',obj.counter.dwell,...
-                'units','characters','callback',@obj.set_dwell,...
-                'horizontalalignment','left','position',[26 spacing*2 20 1.5]);
-
-            uicontrol(panelH,'style','text','string','APD Number of Samples:','horizontalalignment','right',...
-                'units','characters','position',[0 spacing 25 1.25]);
-            
-            uicontrol(panelH,'style','edit','string',obj.nsamples,...
-                'units','characters','callback',@obj.set_nsample,...
-                'horizontalalignment','left','position',[26 spacing 20 1.5]);
-        end
-
-        function stop_acquire(obj, varargin)
-        % Callback function for the stop acquisition button
-            obj.acquire = false;
-        end
-
-        function set_wl(obj, src, varargin)
-            obj.wavelength = str2num(get(src, 'string'));
-        end
-
-        function set_dwell(obj, src, varargin)
-            obj.counter.dwell = str2num(get(src, 'string'));
-        end
-
-        function set_nsample(obj, src, varargin)
-            obj.nsamples = str2num(get(src, 'string'));
+        % Set methods allow validating property/pref set values
+        function setAngle(obj,val,pref)
+            angle_list = str2num(val);
+            obj.angles = val
         end
     end
 end
