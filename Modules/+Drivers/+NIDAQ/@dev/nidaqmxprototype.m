@@ -100,4 +100,9 @@ fcns.thunkname{fcnNum}='longvoidPtrcstringulongThunk';fcns.name{fcnNum}='DAQmxSe
 % int32 __stdcall DAQmxCfgDigEdgeStartTrig ( TaskHandle taskHandle , const char triggerSource [], int32 triggerEdge ); 
 fcns.thunkname{fcnNum}='longvoidPtrcstringlongThunk';fcns.name{fcnNum}='DAQmxCfgDigEdgeStartTrig'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'voidPtr', 'cstring', 'long'};fcnNum=fcnNum+1;
 
+%% Device Info
+% int32 __stdcall DAQmxGetDevCOPhysicalChans ( const char device [], char * data , uInt32 bufferSize ); 
+fcns.thunkname{fcnNum}='longcstringcstringulongThunk';fcns.name{fcnNum}='DAQmxGetDevCOPhysicalChans'; fcns.calltype{fcnNum}='Thunk'; fcns.LHS{fcnNum}='long'; fcns.RHS{fcnNum}={'cstring', 'cstring', 'ulong'};fcnNum=fcnNum+1;
+
+
 methodinfo=fcns;
