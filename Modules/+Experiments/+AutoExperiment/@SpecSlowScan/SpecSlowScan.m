@@ -152,7 +152,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                     scanfit.widths = scanfit.widths*2*sqrt(2*log(2)); % sigma to FWHM
                 end
             else
-                scanfit = obj.analysis(index,2); % Note this doesn't have fitpeaks' "SNRs" field, and all widths all FWHM
+                scanfit = obj.analysis(index,2); % Note this doesn't have fitpeaks' "SNRs" field, and widths all FWHM
             end
             if isstruct(scanfit)
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
