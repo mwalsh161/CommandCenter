@@ -64,22 +64,22 @@ obj.PreRun(status,managers,ax);
 err = [];
 try
     status.String = 'Searching for first experiment to run...';
-    drawnow;
     for repetition = 1:obj.repeat
         for i=1:size(run_queue,1)
             try
+                drawnow; assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
                 prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
-                if any(mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed])&&...
-                        ~any([obj.data.sites(site_index).experiments(prev_mask).skipped])&&...
-                        ~any([obj.data.sites(site_index).experiments(prev_mask).redo_requested])
-                    % If any over all time and the ones from the last run
-                    % are all completed and not skipped and have not requested a redo, then good to
-                    % continue
+                if any([obj.data.sites(site_index).experiments(prev_mask).completed] &...
+                        not([obj.data.sites(site_index).experiments(prev_mask).skipped]) &...
+                        not([obj.data.sites(site_index).experiments(prev_mask).redo_requested]))
+                    % If any of the ones from the last run are completed,
+                    % not skipped, and have not requested a redo, skip
+                    % running again. Remember, any([]) == false
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
                 end
