@@ -74,12 +74,12 @@ try
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
                 prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
-                if any([obj.data.sites(site_index).experiments(prev_mask).completed] &...
-                        not([obj.data.sites(site_index).experiments(prev_mask).skipped]) &...
-                        not([obj.data.sites(site_index).experiments(prev_mask).redo_requested]))
-                    % If any of the ones from the last run are completed,
-                    % not skipped, and have not requested a redo, skip
-                    % running again. Remember, any([]) == false
+                if any(prev_mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed] &...
+                                        not([obj.data.sites(site_index).experiments(prev_mask).skipped]) &...
+                                        not([obj.data.sites(site_index).experiments(prev_mask).redo_requested]))
+                    % If there are any from last run, and all of them are
+                    % completed, not skipped, and have not requested a redo,
+                    % then skip running again. Remember, any([]) == false
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
                 end
