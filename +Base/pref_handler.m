@@ -61,6 +61,8 @@ classdef pref_handler < handle
                          'Instead use the callback methods available in the class-based pref.']);
                     assert(prop.GetObservable&&prop.SetObservable,...
                         sprintf('Class-based pref ''%s'' must be defined to be GetObservable and SetObservable.',prop.Name));
+                    % Grap meta pref before listeners go active to pass to set_meta_pref
+                    pref = obj.(prop.Name);
                     obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
                     obj.ls.(prop.Name)(2) = addlistener(obj, prop.Name, 'PostSet', @obj.post);
                     obj.ls.(prop.Name)(3) = addlistener(obj, prop.Name, 'PreGet',  @obj.pre);
@@ -68,7 +70,7 @@ classdef pref_handler < handle
                     obj.external_ls.(prop.Name) = external_ls_struct;
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
                     % Done after binding Set/Get listeners since the method call expects them to be set already
-                    obj.set_meta_pref(prop.Name, obj.(prop.Name), false);
+                    obj.set_meta_pref(prop.Name, pref, false);
                 end
             end
         end
@@ -103,6 +105,8 @@ classdef pref_handler < handle
             % handles preparing all class-based pref stuff
             % If update_settings is true (which is default), it will
             % trigger the module's "update_settings" event
+            % NOTE: this does not do anything with the current value and
+            %   MAY result in it changing if you aren't careful!!
             allowed_names = obj.get_class_based_prefs();
             assert(ismember(name,allowed_names),sprintf(...
                 'You may only set meta prefs for properties that were defined with them:\n%s',...
@@ -138,11 +142,11 @@ classdef pref_handler < handle
                         end
                         fnstring = sprintf('%s.%s',class(obj),fnstring);
                     else
-                        nout = nargout(pref.(avail_methods{j}));
+                        nout = abs(nargout(pref.(avail_methods{j}))); % neg values mean varargout
                         nin = nargin(pref.(avail_methods{j}));
                         fnstring = func2str(pref.(avail_methods{j}));
                     end
-                    assert(nout==argouts(j),sprintf(...
+                    assert(nout>=argouts(j),sprintf(...
                         'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
                         (avail_methods{j}),fnstring,nout))
                     assert(nin==2,sprintf(...
