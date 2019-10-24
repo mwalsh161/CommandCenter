@@ -8,6 +8,7 @@ classdef Saturation < Modules.Experiment
         motor_move_time = Prefs.Double(30, 'help_text', 'Maximum time allowed for the motor to move','units','s','min',0,'allow_nan',false)
         motor_home_time = Prefs.Double(120, 'help_text', 'Maximum time allowed for the motor to home','units','s','min',0,'allow_nan',false)
         motor_serial_number = @Drivers.APTMotor.getAvailMotors;
+        %motor_serial_number = {27251915}
         APD_line = Prefs.String('APD1','help_text','NiDAQ line to apd','allow_empty',false);
         APD_sync_line = Prefs.String('CounterSync','help_text','NiDAQ synchronisation line','allow_empty',false);
 
@@ -24,6 +25,7 @@ classdef Saturation < Modules.Experiment
         meta = [] % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
         angle_list
+        rot %Handle for rotation mount driver
     end
 
     methods(Static)
@@ -48,15 +50,35 @@ classdef Saturation < Modules.Experiment
 
         function dat = GetData(obj,stageManager,imagingManager)
             % Callback for saving methods
-            meta = stageManager.position;
             dat.data = obj.data;
             dat.meta = obj.meta;
         end
 
         % Set methods allow validating property/pref set values
-        function setAngle(obj,val,pref)
-            angle_list = str2num(val);
-            obj.angles = val
+        function newVal = setAngle(obj,val,pref)
+            obj.angle_list = str2num(val);
+            newVal = val;
+        end
+        
+        function set.motor_serial_number(obj,val)
+            val_as_double = str2double(val); % must be double to instantiate motor
+            
+            %assert(~isnan(val_as_double),'Motor SN must be a valid number.')
+            if isnan(val_as_double)
+                return
+            end
+            % Handle proper deleting of smotor driver object
+            delete(obj.rot); % Either motor obj or empty
+            obj.rot = [];
+
+            obj.motor_serial_number = val;
+            if val_as_double == 0
+                %Leave obj.rot empty if no serial number selected
+                return % Short circuit
+            end
+
+            % Add new motor
+            obj.rot = Drivers.APTMotor.instance(val_as_double, [0 360]);
         end
     end
 end
