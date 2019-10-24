@@ -21,7 +21,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         prerun_functions %cell array of method names in subclass definition that take input (experiment). Run immediately before experiment's run method
     end
     properties(SetAccess=protected,Hidden)
-        data = [] % Useful for saving data from run method
+        data = [] % struct with fields: sites (1xN struct), image (1 struct)
         meta = struct() % Useful to store meta data in run method [THIS IS IMMUTABLE in that once a field is set it can't be changed]
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort

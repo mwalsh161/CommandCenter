@@ -9,7 +9,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','SNR threshold for spectral peak detection');
         PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
         StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
-        analysis_file = Prefs.String('help','will be used in patch functions instead of fitting last result',...
+        analysis_file = Prefs.String('help','Used in patch functions instead of fitting last result. This also ignores SpecPeakThresh.',...
                                      'custom_validate','validate_file');
     end
     properties
@@ -105,40 +105,56 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         %(containing) all previous experiments.
         function params = Spec2Open(obj,site,index)
             params = struct('freq_THz',{}); %structure of params beings assigned
-            specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum')); %get all experiments named 'Spectrum' associated with site
-            for i=1:length(specs)
-                spec = specs(i); %grab ith spectrum experiment
-                if ~spec(i).completed || spec(i).skipped
-                    continue
-                end
-                x = spec.data.wavelength;
-                range = find(x>=min(299792./obj.freq_range) & x<=max(299792./obj.freq_range)); %clip to only range of interest
-                x = spec.data.wavelength(range);
-                y = spec.data.intensity(range);
-                specfit = fitpeaks(x,y,'fittype','gauss','AmplitudeSensitivity',obj.SpecPeakThresh); %fit spectrum peaks
-                for j=1:length(specfit.locations)
-                    if specfit.SNRs(j)>=obj.SpecPeakThresh
-                        params(end+1).freq_THz = obj.nm2THz(specfit.locations(j)); %add a new parameter set for each peak found
+            if isempty(obj.analysis) || isnan(obj.analysis(index,1).index)
+                % get all experiments named 'Spectrum' associated with site
+                specs = site.experiments(strcmpi({site.experiments.name},'Experiments.Spectrum'));
+                for i=1:length(specs)
+                    spec = specs(i); %grab ith spectrum experiment
+                    if ~spec(i).completed || spec(i).skipped
+                        continue
                     end
+                    x = spec.data.wavelength;
+                    range = find(x>=min(299792./obj.freq_range) & x<=max(299792./obj.freq_range)); %clip to only range of interest
+                    x = spec.data.wavelength(range);
+                    y = spec.data.intensity(range);
+                    specfit = fitpeaks(x,y,'fittype','gauss','AmplitudeSensitivity',obj.SpecPeakThresh); %fit spectrum peaks
+                    for j=1:length(specfit.locations) %add a new parameter set for each peak found
+                        if specfit.SNRs(j)>=obj.SpecPeakThresh
+                            params(end+1).freq_THz = obj.nm2THz(specfit.locations(j));
+                        end
+                    end
+                end
+            else
+                for j = 1:length(obj.analysis(index,1).locations) %add a new parameter set for each peak found
+                    % Ignore settings for SpecPeakThresh
+                    params(end+1).freq_THz = obj.nm2THz(obj.analysis(index,1).locations(j));
                 end
             end
         end
         function params = Open2Closed(obj,site,index)
             params = struct('freqs_THz',{}); %structure of params beings assigned
-            scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Open')); %get all experiments named 'SlowScan_Open' associated with site
             composite.freqs = [];
             composite.counts = [];
-            for i=1:length(scans) %compile all scans
-                if scans(i).completed && ~scans(i).skipped
-                    composite.freqs = [composite.freqs, scans(i).data.data.freqs_measured];
-                    composite.counts = [composite.counts, scans(i).data.data.sumCounts];
+            scanfit = []; % Make sure not a struct here for below if statement
+            if isempty(obj.analysis) || isnan(obj.analysis(index,2).index) % NaN index means it wasn't checked
+                % get all experiments named 'SlowScan_Open' associated with site
+                scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Open'));
+                for i=1:length(scans) %compile all scans
+                    if scans(i).completed && ~scans(i).skipped
+                        composite.freqs = [composite.freqs, scans(i).data.data.freqs_measured];
+                        composite.counts = [composite.counts, scans(i).data.data.sumCounts];
+                    end
                 end
+                if ~isempty(composite.counts) %if no data, return empty struct from above
+                    [composite.freqs,I] = sort(composite.freqs); %sort in ascending order
+                    composite.counts = composite.counts(I);
+                    scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss','NoiseModel','shot'); % Literally photon counts; shot noise
+                    scanfit.widths = scanfit.widths*2*sqrt(2*log(2)); % sigma to FWHM
+                end
+            else
+                scanfit = obj.analysis(index,2); % Note this doesn't have fitpeaks' "SNRs" field, and all widths all FWHM
             end
-            if ~isempty(composite.counts) %if no data, return empty struct from above
-                [composite.freqs,I] = sort(composite.freqs); %sort in ascending order
-                composite.counts = composite.counts(I);
-                scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss','NoiseModel','shot'); % Literally photon counts; shot noise
-                scanfit.widths = scanfit.widths*2*sqrt(2*log(2)); % sigma to FWHM
+            if isstruct(scanfit)
                 regions = Experiments.AutoExperiment.SpecSlowScan.peakRegionBin(scanfit.locations,scanfit.widths,obj.PointsPerPeak,obj.StdsPerPeak); %bin into regions with no max size
                 for i=1:length(regions)
                     % Inverse of what is used in set.freqs_THz (faster than jsonencode by 2x).
@@ -157,8 +173,25 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             sites = Experiments.AutoExperiment.AutoExperiment_invisible.SiteFinder_Confocal(managers,obj.imaging_source,obj.site_selection);
         end
         function PreRun(obj,status,managers,ax)
+            if ~isempty(obj.analysis)
+                status.String = 'Checking analysis file'; drawnow;
+                % We already checked size(...,2) in validate_file; at this
+                % point there should be data loaded as well!
+                n_analysis_sites = size(obj.analysis,1);
+                n_data_sites = length(obj.data.sites);
+                assert(n_analysis_sites==n_data_sites,...
+                    sprintf('Found %i analysis entries, but %i sites. These should be equal.',...
+                    	n_analysis_sites,n_data_sites));
+                for i = 1:n_data_sites
+                    for j = 1:3
+                        assert(isnan(obj.analysis(i,j).index) || obj.analysis(i,j).index == i,...
+                            ['At least one analysis index does not reference its position (also corresponding to data position). ',...
+                            'This is currently not supported and likely means the "inds" option was used in the analysis method.']);
+                    end
+                end
+            end
             %before running, calibrate spectrometer and check resLaser
-            status.String = 'Checking spectrometer and resLaser';
+            status.String = 'Checking spectrometer and resLaser'; drawnow;
             specH = obj.experiments(1).WinSpec;
             laserH = obj.experiments(2).resLaser;
             assert(~isempty(laserH),'No laser selected for SlowScan experiment(s)!');
@@ -169,6 +202,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             calibration = specH.calibration(laserH,obj.freq_range,obj.SpecCalExposure,ax);
             obj.nm2THz = calibration.nm2THz; %grab the calibration function
             obj.meta.nm2THz = obj.nm2THz; % And add to metadata
+            obj.meta.analysis = obj.analysis; % To avoid scenarios where analysis gets renamed/deleted
             
             % Set SlowScan.Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;

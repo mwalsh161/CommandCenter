@@ -30,7 +30,8 @@ function varargout = analyze(data,varargin)
 %       widths - Nx1 double (all FWHM)
 %       locations - Nx1 double
 %       background - 1x1 double
-%       fit - cfit object
+%       fit - cfit object or empty if no peaks found
+%       index - index into data.sites. If NaN, this wasn't analyzed
 %   Can export from file menu
 %   Will be prompted to export analysis data to base workspace upon closing
 %   figure if no export since last analysis data update (NOTE this is only
@@ -259,36 +260,32 @@ end
     end
 %% UIfitpeaks adaptor
     function save_state()
-        dat = struct('background',cell(0,3),'locations',[],'amplitudes',[],'widths',[]);
         for i = 2:4 % Go through each data axis
             if ~isstruct(ax(i).UserData) || ~isfield(ax(i).UserData,'uifitpeaks_enabled')
                 continue
             end
             fit_result = ax(i).UserData.pFit.UserData;
+            new_data = true;
+            AutoExperiment_analysis(fig.UserData.index,i-1).index = inds(fig.UserData.index);
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
                 nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
-                dat(i-1).fit = fit_result;
-                dat(i-1).amplitudes = fitcoeffs(1:nn);
-                dat(i-1).locations = fitcoeffs(nn+1:2*nn);
-                dat(i-1).widths = fitcoeffs(2*nn+1:3*nn);
-                dat(i-1).background = fitcoeffs(3*nn+1);
+                AutoExperiment_analysis(fig.UserData.index,i-1).fit = fit_result;
+                AutoExperiment_analysis(fig.UserData.index,i-1).amplitudes = fitcoeffs(1:nn);
+                AutoExperiment_analysis(fig.UserData.index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
-                    dat(i-1).widths = dat(i-1).widths*2*sqrt(2*log(2));
+                    AutoExperiment_analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
+                else
+                    AutoExperiment_analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
                 end
-                dat(i-1).index = inds(fig.UserData.index);
+                AutoExperiment_analysis(fig.UserData.index,i-1).background = fitcoeffs(3*nn+1);
             else
-                dat(i-1).fit = [];
-                dat(i-1).amplitudes = [];
-                dat(i-1).locations = [];
-                dat(i-1).widths = [];
-                dat(i-1).background = [];
-                dat(i-1).index = [];
+                AutoExperiment_analysis(fig.UserData.index,i-1).fit = [];
+                AutoExperiment_analysis(fig.UserData.index,i-1).amplitudes = [];
+                AutoExperiment_analysis(fig.UserData.index,i-1).locations = [];
+                AutoExperiment_analysis(fig.UserData.index,i-1).widths = [];
+                AutoExperiment_analysis(fig.UserData.index,i-1).background = [];
             end
-        end
-        if ~isempty(dat)
-            AutoExperiment_analysis(fig.UserData.index,:) = dat;
-            new_data = true;
         end
     end
     function attach_uifitpeaks(ax,init,varargin)
