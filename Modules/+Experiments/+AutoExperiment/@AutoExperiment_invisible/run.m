@@ -135,13 +135,13 @@ try
                         status.String = msg;
                         drawnow;
                         obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
-                        obj.data.sites(site_index).experiments(local_exp_index).tstart = toc(runstart);
+                        obj.data.sites(site_index).experiments(local_exp_index).tstart = datetime('now');
                         if ~isempty(obj.prerun_functions{exp_index})
                             obj.(obj.prerun_functions{exp_index})(experiment);
                         end
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
-                        obj.data.sites(site_index).experiments(local_exp_index).tstop = toc(runstart);
+                        obj.data.sites(site_index).experiments(local_exp_index).tstop = datetime('now');
                         obj.data.sites(site_index).experiments(local_exp_index).dP = dP;
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
@@ -151,11 +151,11 @@ try
                         if curr_time >= obj.min_tracking_dt
                             if curr_time >= obj.max_tracking_dt
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,true);
-                                obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                                obj.tracker(end+1,:) = [dx,dy,dz,metric,curr_time,site_index];
                             else
                                 last_track = find(obj.tracker(:,6)==site_index,1,'last');
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,obj.tracking_threshold*obj.tracker(last_track,4));
-                                obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                                obj.tracker(end+1,:) = [dx,dy,dz,metric,curr_time,site_index];
                             end
                             if any(isnan([dx,dy,dz]))
                                 obj.fatal_flag = true;
@@ -168,7 +168,7 @@ try
                                 obj.fatal_flag = true;
                                 error('Fatal: Tracker called in non-track mode, but still tracked.');
                             end
-                            obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                            obj.tracker(end+1,:) = [dx,dy,dz,metric,curr_time,site_index];
                         end
                     catch param_err
                         if obj.fatal_flag
