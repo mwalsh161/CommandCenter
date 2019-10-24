@@ -39,7 +39,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         tracking_threshold = Prefs.Double(Inf,'min',0,'help','tracking metric will be normalized to 1');
         min_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','tracker won''t run twice within this amount of time');
         max_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
-        repeat = Prefs.Integer(1);
+        repeat = Prefs.Integer(1,'min',1,'allow_nan',false);
         continue_experiment = Prefs.Boolean(false,'set','set_continue_experiment');
     end
     properties(Constant,Hidden)
