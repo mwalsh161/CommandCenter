@@ -71,7 +71,7 @@ classdef TableField < Base.input
             end
 
             if ~isempty(pref.help_text)
-                set([obj.label, obj.ui], 'Tooltip', pref.help_text);
+                set(obj.label, 'Tooltip', pref.help_text);
             end
         end
         function obj = link_callback(obj,callback)
@@ -88,7 +88,7 @@ classdef TableField < Base.input
                 obj.label.Position(3) = suggested_label_width;
                 if any(obj.label.Extent(3:4) > obj.label.Position(3:4))
                     help_text = get(obj.label, 'Tooltip');
-                    set([obj.label, obj.ui], 'Tooltip',...
+                    set(obj.label, 'Tooltip',...
                         ['<html>' obj.label.String(1:end-2) '<br/>' help_text(7:end)]);
                 end
             end
