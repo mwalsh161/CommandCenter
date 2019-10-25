@@ -20,6 +20,11 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       ui - class specifying UI type (value class)
     %   * These properties' values are function handles, or if you want a class
     %   method bound to your instance, specify the string names of the methods.
+    %   (The binding happens in the pref's "bind" method)
+    %
+    % Subclass properties should follow the same syntax when defining
+    % settable properties:
+    %   {default_value, validation_function_handle}
     %
     % The syntax for the custom methods:
     %   value = set(value)
@@ -82,6 +87,51 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     methods % May be overloaded by subclass pref
         function obj = pref(varargin)
             obj = obj.init(varargin{:});
+        end
+        function obj = bind(obj,module_instance)
+            % This method is called when the meta-pref is set in
+            % pref_handler. It is intended to give the pref an opportunity
+            % to bind a method of the module_instance.
+            % Can also use to check/verify input/output
+            mc = metaclass(module_instance);
+            methods = mc.MethodList;
+            avail_methods = {'set','custom_validate','custom_clean'};
+            argouts = [1,0,1];
+            for j = 1:length(avail_methods)
+                if ~isempty(obj.(avail_methods{j}))
+                    if ischar(obj.(avail_methods{j}))
+                        fnstring = obj.(avail_methods{j});
+                        fn = str2func(fnstring);
+                        obj.(avail_methods{j}) = @(val,obj)fn(module_instance,val,obj);
+                        mmethod = methods(strcmp(fnstring,{methods.Name}));
+                        assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
+                            fnstring, class(module_instance)));
+                        nout = mmethod.OutputNames;
+                        if ismember('varargout',nout)
+                            nout = -1;
+                        else
+                            nout = length(nout);
+                        end
+                        nin = mmethod.InputNames;
+                        if ~ismember('varargin',nin)
+                            nin = 2; % Doesn't matter, so make pass assertion below
+                        else
+                            nin = length(nin) - 1; % Exclude obj
+                        end
+                        fnstring = sprintf('%s.%s',class(module_instance),fnstring);
+                    else
+                        nout = abs(nargout(obj.(avail_methods{j}))); % neg values mean varargout
+                        nin = nargin(obj.(avail_methods{j}));
+                        fnstring = func2str(obj.(avail_methods{j}));
+                    end
+                    assert(nout>=argouts(j),sprintf(...
+                        'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
+                        (avail_methods{j}),fnstring,nout))
+                    assert(nin==2,sprintf(...
+                        'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
+                        (avail_methods{j}),fnstring,nin))
+                end
+            end
         end
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
