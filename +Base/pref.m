@@ -193,11 +193,17 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
     end
     methods
-        function summary = validation_summary(obj,indent)
+        function summary = validation_summary(obj,indent,varargin)
             % Used to construct more helpful error messages when validation fails
             % Displays all properties that aren't hidden or defined in
             % Base.pref or a superclass thereof. It will also ignore the
             % "ui" abstract property.
+            % The varargin inputs are useful if you want to use a different
+            % property value for a particular property. For example, if
+            % there is an input 'prop1:prop2', the help text that is
+            % displayed will show the name of prop1 and the value of prop2.
+            % If prop1 doesn't exist or wouldn't normally be shown, that
+            % input does nothing.
             mc = metaclass(obj);
             ignore_classes = superclasses('Base.pref');
             ignore_classes = [ignore_classes ,{'Base.pref'}];
@@ -212,13 +218,29 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             end
             longest_name = max(cellfun(@length,{props.Name}))+indent;
             summary = pad({props.Name},longest_name,'left');
+            n = length(varargin);
+            swap.names = arrayfun(@(~)'',1:n,'uniformoutput',false);
+            swap.vals = arrayfun(@(~)'',1:n,'uniformoutput',false);
+            for i = 1:n
+                temp = strsplit(varargin{i},':');
+                assert(length(temp)==2, 'Swapping properties should be formatted ''prop1:prop2''.');
+                assert(~ismember(temp{1},swap.names),'Can only have a prop appear once on lh side of '':''.');
+                swap.names{i} = temp{1};
+                swap.vals{i} = temp{2};
+            end
             for i = 1:length(summary)
-                if isnumeric(obj.(props(i).Name)) || islogical(obj.(props(i).Name))
-                    summary{i} = sprintf('%s: %g',summary{i},obj.(props(i).Name));
-                elseif iscell(obj.(props(i).Name))
-                    summary{i} = sprintf('%s: %s',summary{i},strjoin(obj.(props(i).Name),'|'));
+                name = props(i).Name;
+                val = obj.(props(i).Name);
+                mask = ismember(name, swap.names);
+                if any(mask)
+                    val = obj.(swap.vals{mask});
+                end
+                if isnumeric(val) || islogical(val)
+                    summary{i} = sprintf('%s: %g',summary{i},val);
+                elseif iscell(val)
+                    summary{i} = sprintf('%s: %s',summary{i},strjoin(val,'|'));
                 else % characters/strings
-                    summary{i} = sprintf('%s: %s',summary{i},obj.(props(i).Name));
+                    summary{i} = sprintf('%s: %s',summary{i},val);
                 end
             end
             summary = strjoin(summary,newline);
