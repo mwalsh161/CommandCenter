@@ -143,7 +143,7 @@ classdef ModuleSelectionField < Base.input
             height_px = height_px + obj.label.Position(4);
 
             if ~isempty(pref.help_text)
-                set([obj.label, obj.selection], 'Tooltip', pref.help_text);
+                set(obj.label, 'Tooltip', pref.help_text);
             end
         end
         function obj = link_callback(obj,callback)
@@ -174,7 +174,7 @@ classdef ModuleSelectionField < Base.input
             obj.selection.Position(3) = total_width - indent - margin(2);
             if any(obj.label.Extent(3:4) > obj.label.Position(3:4))
                 help_text = get(obj.label, 'Tooltip');
-                set([obj.label, obj.ui], 'Tooltip',...
+                set(obj.label, 'Tooltip',...
                     ['<html>' obj.label.String(1:end-2) '<br/>' help_text(7:end)]);
             end
         end

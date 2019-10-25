@@ -55,7 +55,7 @@ classdef LabelControlBasic < Base.input
             obj.ui.Position(2) = yloc_px;
 
             if ~isempty(pref.help_text)
-                set([obj.label, obj.ui], 'Tooltip', pref.help_text);
+                set(obj.label, 'Tooltip', pref.help_text);
             end
             height_px = obj.ui.Position(4);
         end
@@ -70,7 +70,7 @@ classdef LabelControlBasic < Base.input
                                 (suggested_label_width_px + sum(margin_px));
             if any(obj.label.Extent(3:4) > obj.label.Position(3:4))
                 help_text = get(obj.label, 'Tooltip');
-                set([obj.label, obj.ui], 'Tooltip',...
+                set(obj.label, 'Tooltip',...
                     ['<html>' obj.label.String(1:end-2) '<br/>' help_text(7:end)]);
             end
         end

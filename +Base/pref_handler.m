@@ -44,7 +44,6 @@ classdef pref_handler < handle
         function obj = pref_handler()
             mc = metaclass(obj);
             props = mc.PropertyList;
-            methods = mc.MethodList;
             props = props([props.HasDefault]);
             external_ls_struct.PreSet = Base.preflistener.empty(1,0);
             external_ls_struct.PostSet = Base.preflistener.empty(1,0);
@@ -62,49 +61,16 @@ classdef pref_handler < handle
                          'Instead use the callback methods available in the class-based pref.']);
                     assert(prop.GetObservable&&prop.SetObservable,...
                         sprintf('Class-based pref ''%s'' must be defined to be GetObservable and SetObservable.',prop.Name));
-                    % Check output and bind callback methods to this object if specified as strings
-                    avail_methods = {'set','custom_validate','custom_clean'};
-                    argouts = [1,0,1];
-                    for j = 1:length(avail_methods)
-                        if ~isempty(obj.(prop.Name).(avail_methods{j}))
-                            if ischar(obj.(prop.Name).(avail_methods{j}))
-                                fnstring = obj.(prop.Name).(avail_methods{j});
-                                fn = str2func(fnstring);
-                                obj.(prop.Name).(avail_methods{j}) = @(val,pref)fn(obj,val,pref);
-                                mmethod = methods(strcmp(fnstring,{methods.Name}));
-                                assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
-                                    fnstring, class(obj)));
-                                nout = mmethod.OutputNames;
-                                if ismember('varargout',nout)
-                                    nout = -1;
-                                else
-                                    nout = length(nout);
-                                end
-                                nin = mmethod.InputNames;
-                                if ~ismember('varargin',nin)
-                                    nin = 2; % Doesn't matter, so make pass assertion below
-                                else
-                                    nin = length(nin) - 1; % Exclude obj
-                                end
-                                fnstring = sprintf('%s.%s',class(obj),fnstring);
-                            else
-                                nout = nargout(obj.(prop.Name).(avail_methods{j}));
-                                nin = nargin(obj.(prop.Name).(avail_methods{j}));
-                                fnstring = func2str(obj.(prop.Name).(avail_methods{j}));
-                            end
-                            assert(nout==argouts(j),sprintf(...
-                                'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
-                                (avail_methods{j}),fnstring,nout))
-                            assert(nin==2,sprintf(...
-                                'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
-                                (avail_methods{j}),fnstring,nin))
-                        end
-                    end
+                    % Grap meta pref before listeners go active to pass to set_meta_pref
+                    pref = obj.(prop.Name);
                     obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
                     obj.ls.(prop.Name)(2) = addlistener(obj, prop.Name, 'PostSet', @obj.post);
                     obj.ls.(prop.Name)(3) = addlistener(obj, prop.Name, 'PreGet',  @obj.pre);
                     obj.ls.(prop.Name)(4) = addlistener(obj, prop.Name, 'PostGet', @obj.post);
                     obj.external_ls.(prop.Name) = external_ls_struct;
+                    % (Re)set meta pref which will validate and bind callbacks declared as strings
+                    % Done after binding Set/Get listeners since the method call expects them to be set already
+                    obj.set_meta_pref(prop.Name, pref, false);
                 end
             end
         end
@@ -131,7 +97,70 @@ classdef pref_handler < handle
             % Note: necessary to use this method to keep obj.ls private
             prefs = fields(obj.ls);
         end
-
+        
+        function set_meta_pref(obj,name,pref,update_settings)
+            % Set the "meta pref" for property "name".
+            % If the property's default value is not a class-based pref
+            % this will not allow you to set it because the constructor
+            % handles preparing all class-based pref stuff
+            % If update_settings is true (which is default), it will
+            % trigger the module's "update_settings" event
+            % NOTE: this does not do anything with the current value and
+            %   MAY result in it changing if you aren't careful!!
+            allowed_names = obj.get_class_based_prefs();
+            assert(ismember(name,allowed_names),sprintf(...
+                'You may only set meta prefs for properties that were defined with them:\n%s',...
+                strjoin(allowed_names,', ')));
+            if nargin < 4
+                update_settings = true;
+            end
+            % Check output and bind callback methods to this object if specified as strings
+            mc = metaclass(obj);
+            methods = mc.MethodList;
+            avail_methods = {'set','custom_validate','custom_clean'};
+            argouts = [1,0,1];
+            for j = 1:length(avail_methods)
+                if ~isempty(pref.(avail_methods{j}))
+                    if ischar(pref.(avail_methods{j}))
+                        fnstring = pref.(avail_methods{j});
+                        fn = str2func(fnstring);
+                        pref.(avail_methods{j}) = @(val,pref)fn(obj,val,pref);
+                        mmethod = methods(strcmp(fnstring,{methods.Name}));
+                        assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
+                            fnstring, class(obj)));
+                        nout = mmethod.OutputNames;
+                        if ismember('varargout',nout)
+                            nout = -1;
+                        else
+                            nout = length(nout);
+                        end
+                        nin = mmethod.InputNames;
+                        if ~ismember('varargin',nin)
+                            nin = 2; % Doesn't matter, so make pass assertion below
+                        else
+                            nin = length(nin) - 1; % Exclude obj
+                        end
+                        fnstring = sprintf('%s.%s',class(obj),fnstring);
+                    else
+                        nout = abs(nargout(pref.(avail_methods{j}))); % neg values mean varargout
+                        nin = nargin(pref.(avail_methods{j}));
+                        fnstring = func2str(pref.(avail_methods{j}));
+                    end
+                    assert(nout>=argouts(j),sprintf(...
+                        'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
+                        (avail_methods{j}),fnstring,nout))
+                    assert(nin==2,sprintf(...
+                        'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
+                        (avail_methods{j}),fnstring,nin))
+                end
+            end
+            obj.prop_listener_ctrl(name,false);
+            obj.(name) = pref; % Assign back to property
+            obj.prop_listener_ctrl(name,true);
+            if update_settings
+                notify(obj,'update_settings');
+            end
+        end
         function val = get_meta_pref(obj,name)
             % Return the "meta pref" which contains the pref class
             % NOTE: this is a value class, so changing anything in the
