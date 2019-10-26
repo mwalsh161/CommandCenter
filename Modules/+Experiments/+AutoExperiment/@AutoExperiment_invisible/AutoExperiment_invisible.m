@@ -30,12 +30,12 @@ classdef AutoExperiment_invisible < Modules.Experiment
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
     end
     properties(SetObservable, GetObservable)
-        experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'inherits',{'Modules.Experiment'},'readonly',true);
+        experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'n',Inf,'inherits',{'Modules.Experiment'},'readonly',true);
         run_type = Prefs.MultipleChoice(Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
                     'choices',{Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
                                Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST});
         site_selection = Prefs.MultipleChoice('Peak finder','choices',{'Peak finder','Grid','Manual sites','Load from file'});
-        imaging_source = Prefs.ModuleInstance(Modules.Source.empty(0),'n',1,'inherits',{'Modules.Source'});
+        imaging_source = Prefs.ModuleInstance(Modules.Source.empty(0),'inherits',{'Modules.Source'});
         tracking_threshold = Prefs.Double(Inf,'min',0,'help','tracking metric will be normalized to 1');
         min_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','tracker won''t run twice within this amount of time');
         max_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
