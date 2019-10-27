@@ -23,7 +23,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.experiments = [Experiments.Spectrum.instance,...
                                 Experiments.SlowScan.Open.instance,...
                                 Experiments.SlowScan.Closed.instance];
-            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure','analysis_file'},obj.prefs];
+            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
             obj.show_prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure','analysis_file'},obj.show_prefs];
             obj.loadPrefs;
         end
@@ -184,7 +184,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                     	n_analysis_sites,n_data_sites));
                 for i = 1:n_data_sites
                     for j = 1:3
-                        assert(isnan(obj.analysis(i,j).index) || obj.analysis(i,j).index == i,...
+                        assert(isnan(obj.analysis(i,j).index) || (obj.analysis(i,j).index == i),...
                             ['At least one analysis index does not reference its position (also corresponding to data position). ',...
                             'This is currently not supported and likely means the "inds" option was used in the analysis method.']);
                     end

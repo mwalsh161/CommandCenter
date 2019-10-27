@@ -25,7 +25,10 @@ obj.imaging_source.arm; % Arm imaging source for experiment
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
     % Tag all this data as not new by incrementing continued flag
-    for i = 1:length(obj.data.sites)
+    nsites = length(obj.data.sites);
+    for i = 1:nsites
+        status.String = sprintf('Incrementing continued flag on loaded data (%i/%i).',i,nsites);
+        drawnow limitrate;
         for j = 1:length(obj.data.sites(i).experiments)
             obj.data.sites(i).experiments(j).continued = obj.data.sites(i).experiments(j).continued + 1;
         end
