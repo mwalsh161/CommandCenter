@@ -25,7 +25,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip','velocity_ip','wavemeter_channel','wavemeter_ip'};
         readonly_prefs = {'PB_status','tuning'};
     end
-    properties(SetAccess={?Base.Module},Hidden)
+    properties(SetAccess={?Base.Module})
         cal_local = struct('THz2nm',[],'gof',[],'datetime',[],'expired',{}); %calibration data for going from nm to THz
     end
     properties(Constant,Hidden)
@@ -258,7 +258,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function arm(obj)
             % Make sure calibration is available
-            cal = obj.calibration;
+            [~] = obj.calibration;
             if ~obj.diode_on
                 obj.activate;
             end
@@ -292,7 +292,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                     case 'No'
                         error('Laser must be armed for wavelength calibration');
                     case 'Yes'
-                        obj.arm;
+                        obj.activate;
                 end
             end
             set_range = findprop(obj,'range'); 

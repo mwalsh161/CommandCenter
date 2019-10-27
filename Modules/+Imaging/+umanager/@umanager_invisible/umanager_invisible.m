@@ -48,7 +48,7 @@ classdef umanager_invisible < Modules.Imaging
         core            % The Micro-Manager core utility (java); Access through mmc method
         videoTimer       % Handle to video timer object for capturing frames
     end
-    methods(Access=private)
+    methods
         function obj = umanager_invisible()
             obj.path = 'camera';
         end
