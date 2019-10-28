@@ -3,18 +3,17 @@ classdef Saturation < Modules.Experiment
 
     properties(SetObservable,GetObservable)
         angles = Prefs.String('0','help_text', 'Matlab expression evaluated to find angles at which to measure APDs','units','degree','set','setAngle','allow_empty',false);
-        % motor_serial_number = Prefs.MulipleChoice('help_text','Serial number of APT motor controlling the HWP','choices',@Drivers.APTMotor.getAvailMotors)
         exposure = Prefs.Double(100, 'help_text', 'Exposure time to measure APD counts','units','ms','min',0,'allow_nan',false)
         motor_move_time = Prefs.Double(30, 'help_text', 'Maximum time allowed for the motor to move','units','s','min',0,'allow_nan',false)
         motor_home_time = Prefs.Double(120, 'help_text', 'Maximum time allowed for the motor to home','units','s','min',0,'allow_nan',false)
-        motor_serial_number = @Drivers.APTMotor.getAvailMotors;
-        %motor_serial_number = {27251915}
+        motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','choices',{'0'},'allow_empty',true)
+        reload = Prefs.Boolean(false,'set','reload_toggle','help_text','Toggle this to reload list of available motors')
         APD_line = Prefs.String('APD1','help_text','NiDAQ line to apd','allow_empty',false);
         APD_sync_line = Prefs.String('CounterSync','help_text','NiDAQ synchronisation line','allow_empty',false);
 
     end
     properties
-        prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number'};  % String representation of desired prefs
+        prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number','reload'};  % String representation of desired prefs
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -37,6 +36,7 @@ classdef Saturation < Modules.Experiment
         function obj = Saturation()
             % Constructor (should not be accessible to command line!)
             obj.loadPrefs; % Load prefs specified as obj.prefs
+            obj.reload_toggle()
         end
     end
 
@@ -60,10 +60,26 @@ classdef Saturation < Modules.Experiment
             newVal = val;
         end
         
-        function set.motor_serial_number(obj,val)
+        function val = reload_toggle(obj,~,~)
+            % TODO: replace with a Prefs.Button
+            % Pretends to be a button from a boolean pref
+            val = false; % Swap back to false
+            mp = obj.get_meta_pref('motor_serial_number');
+            mp.choices = Drivers.APTMotor.getAvailMotors(); % set new choices
+            obj.set_meta_pref('motor_serial_number', mp);
+        end
+
+        function val = set_motor_serial_number(obj,val)
+            if isempty(val)
+                % If '<None>', delete handle and short-circuit
+                delete(obj.rot); % Either motor obj or empty
+                obj.rot = [];
+                return
+            end
+            
             val_as_double = str2double(val); % must be double to instantiate motor
             
-            %assert(~isnan(val_as_double),'Motor SN must be a valid number.')
+            assert(~isnan(val_as_double),'Motor SN must be a valid number.')
             if isnan(val_as_double)
                 return
             end
@@ -80,5 +96,6 @@ classdef Saturation < Modules.Experiment
             % Add new motor
             obj.rot = Drivers.APTMotor.instance(val_as_double, [0 360]);
         end
+        
     end
 end
