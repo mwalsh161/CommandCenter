@@ -11,7 +11,8 @@ classdef MultipleChoice < Base.pref
         ui = Prefs.Inputs.DropDownField;
     end
     properties
-        choices = {{}, @(a)validateattributes(a,{'cell'},{'vector'})};
+        choices = {{}, @(a)validateattributes(a,{'cell'},{'vector'})||...
+                           validateattributes({},{'cell'},{'size',[0,0]})};
         % Note, this will error immediately unless default value supplied
         allow_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % Value displayed for empty option
@@ -20,10 +21,14 @@ classdef MultipleChoice < Base.pref
     properties(Dependent,Hidden) % Hidden hides from validation_summary
         choices_strings = {}; % Used in Prefs.Inputs.DropDownField
     end
+    properties(SetAccess=immutable,Hidden)
+        initialized = false;
+    end
     
     methods
         function obj = MultipleChoice(varargin)
             obj = obj@Base.pref(varargin{:});
+            obj.initialized = true;
         end
         function obj = set.choices(obj,val)
             % Ensure it is of the expected shape
@@ -31,6 +36,9 @@ classdef MultipleChoice < Base.pref
                 val = val';
             end
             obj.choices = val;
+            if ~obj.initialized %#ok<MCSUP>
+                return
+            end
             % Make sure current value is consistent
             try
                 obj.validate(obj.value);
@@ -38,9 +46,9 @@ classdef MultipleChoice < Base.pref
                 str_val = obj.arb2string({obj.value});
                 if obj.allow_empty %#ok<MCSUP>
                     obj.value = [];
-                    warning('New choices prohibit value "%s", changed to empty.',str_val{1});
+                    warning('New choices in "%s" prohibit value "%s", changed to empty.',obj.name,str_val{1});
                 else
-                    warning('New choices prohibit value "%s", changing to first option.',str_val{1});
+                    warning('New choices in "%s" prohibit value "%s", changing to first option.',obj.name,str_val{1});
                     obj.value = val{1};
                 end
             end
@@ -52,7 +60,7 @@ classdef MultipleChoice < Base.pref
             end
         end
         function validate(obj,val)
-            if obj.allow_empty && isempty(val)
+            if isempty(val) && obj.allow_empty
                 return
             end
             for i = 1:length(obj.choices)

@@ -114,46 +114,7 @@ classdef pref_handler < handle
             if nargin < 4
                 update_settings = true;
             end
-            % Check output and bind callback methods to this object if specified as strings
-            mc = metaclass(obj);
-            methods = mc.MethodList;
-            avail_methods = {'set','custom_validate','custom_clean'};
-            argouts = [1,0,1];
-            for j = 1:length(avail_methods)
-                if ~isempty(pref.(avail_methods{j}))
-                    if ischar(pref.(avail_methods{j}))
-                        fnstring = pref.(avail_methods{j});
-                        fn = str2func(fnstring);
-                        pref.(avail_methods{j}) = @(val,pref)fn(obj,val,pref);
-                        mmethod = methods(strcmp(fnstring,{methods.Name}));
-                        assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
-                            fnstring, class(obj)));
-                        nout = mmethod.OutputNames;
-                        if ismember('varargout',nout)
-                            nout = -1;
-                        else
-                            nout = length(nout);
-                        end
-                        nin = mmethod.InputNames;
-                        if ~ismember('varargin',nin)
-                            nin = 2; % Doesn't matter, so make pass assertion below
-                        else
-                            nin = length(nin) - 1; % Exclude obj
-                        end
-                        fnstring = sprintf('%s.%s',class(obj),fnstring);
-                    else
-                        nout = abs(nargout(pref.(avail_methods{j}))); % neg values mean varargout
-                        nin = nargin(pref.(avail_methods{j}));
-                        fnstring = func2str(pref.(avail_methods{j}));
-                    end
-                    assert(nout>=argouts(j),sprintf(...
-                        'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
-                        (avail_methods{j}),fnstring,nout))
-                    assert(nin==2,sprintf(...
-                        'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
-                        (avail_methods{j}),fnstring,nin))
-                end
-            end
+            pref = pref.bind(obj);
             obj.prop_listener_ctrl(name,false);
             obj.(name) = pref; % Assign back to property
             obj.prop_listener_ctrl(name,true);
