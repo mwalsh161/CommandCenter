@@ -11,8 +11,8 @@ classdef MultipleChoice < Base.pref
         ui = Prefs.Inputs.DropDownField;
     end
     properties
-        choices = {{}, @(a)validateattributes(a,{'cell'},{'vector'})||...
-                           validateattributes({},{'cell'},{'size',[0,0]})};
+        choices = {{}, @(a)validate_or(a, {{'cell'},{'vector'}}, ...
+                           {{'cell'},{'size',[0,0]}}) }
         % Note, this will error immediately unless default value supplied
         allow_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % Value displayed for empty option
