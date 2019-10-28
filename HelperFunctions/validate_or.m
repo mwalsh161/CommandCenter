@@ -23,4 +23,4 @@ for i = 1:numel(varargin)
 end
 
 % Throw error message if no attributes are valid
-error(sprintf('Object matches none of the attributes:%s', err))
+error('Object matches none of the attributes:%s', err)
