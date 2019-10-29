@@ -62,6 +62,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     properties(Hidden)
     	getEvent = false;   % This is reserved for pref_handler.post to avoid calling set methods on a get event
     end
+    properties(Access=private)
+        initialized = false;
+    end
     properties % Set by pref_handler constructor
         property_name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
@@ -101,8 +104,6 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                 if ~isempty(obj.(avail_methods{j}))
                     if ischar(obj.(avail_methods{j}))
                         fnstring = obj.(avail_methods{j});
-                        fn = str2func(fnstring);
-                        obj.(avail_methods{j}) = @(val,obj)fn(module_instance,val,obj);
                         mmethod = methods(strcmp(fnstring,{methods.Name}));
                         assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
                             fnstring, class(module_instance)));
@@ -113,17 +114,26 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                             nout = length(nout);
                         end
                         nin = mmethod.InputNames;
-                        if ~ismember('varargin',nin)
+                        if ismember('varargin',nin)
                             nin = 2; % Doesn't matter, so make pass assertion below
                         else
-                            nin = length(nin) - 1; % Exclude obj
+                            nin = length(nin);
+                        end
+                        if mmethod.Static
+                            fn = str2func(sprintf('%s.%s',class(module_instance),fnstring));
+                            obj.(avail_methods{j}) = fn;
+                        else
+                            nin = nin - 1; % Exclude obj
+                            fn = str2func(fnstring);
+                            obj.(avail_methods{j}) = @(val,obj)fn(module_instance,val,obj);
                         end
                         fnstring = sprintf('%s.%s',class(module_instance),fnstring);
                     else
-                        nout = abs(nargout(obj.(avail_methods{j}))); % neg values mean varargout
+                        nout = nargout(obj.(avail_methods{j})); % neg values mean varargout
                         nin = nargin(obj.(avail_methods{j}));
                         fnstring = func2str(obj.(avail_methods{j}));
                     end
+                    nout = abs(nout); % we can assume varargout has at least one output
                     assert(nout>=argouts(j),sprintf(...
                         'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
                         (avail_methods{j}),fnstring,nout))
@@ -240,6 +250,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             catch err
                 throwAsCaller(err);
             end
+            obj.initialized = true;
         end
     end
     methods
@@ -318,18 +329,15 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
         function obj = set.value(obj,val)
             if ~obj.getEvent
-                if ~isempty(obj.set) &&...
-                        isa(obj.set,'function_handle') %#ok<*MCSUP>
+                if ~isempty(obj.set) && obj.initialized %#ok<*MCSUP>
                     val = obj.set(val,obj);
                 end
                 obj.validate(val);
-                if ~isempty(obj.custom_validate) &&...
-                        isa(obj.custom_validate,'function_handle')
+                if ~isempty(obj.custom_validate) && obj.initialized
                     obj.custom_validate(val,obj);
                 end
                 val = obj.clean(val);
-                if ~isempty(obj.custom_clean) &&...
-                        isa(obj.custom_clean,'function_handle')
+                if ~isempty(obj.custom_clean) && obj.initialized
                     val = obj.custom_clean(val,obj);
                 end
             end
