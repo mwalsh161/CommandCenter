@@ -7,14 +7,13 @@ classdef Saturation < Modules.Experiment
         motor_move_time = Prefs.Double(30, 'help_text', 'Maximum time allowed for the motor to move','units','s','min',0,'allow_nan',false)
         motor_home_time = Prefs.Double(120, 'help_text', 'Maximum time allowed for the motor to home','units','s','min',0,'allow_nan',false)
         motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','set','set_motor_serial_number','allow_empty',true)
-        reload = Prefs.Boolean(false,'set','reload_toggle','help_text','Toggle this to reload list of available motors')
         APD_line = Prefs.String('APD1','help_text','NiDAQ line to apd','allow_empty',false);
         APD_sync_line = Prefs.String('CounterSync','help_text','NiDAQ synchronisation line','allow_empty',false);
 
     end
     properties
         prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number'};  % String representation of desired prefs
-        show_prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number','reload'};   % Use for ordering and/or selecting which prefs to show in GUI
+        % show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
     properties(SetAccess=private,Hidden)
@@ -36,7 +35,11 @@ classdef Saturation < Modules.Experiment
         function obj = Saturation()
             % Constructor (should not be accessible to command line!)
             obj.loadPrefs; % Load prefs specified as obj.prefs
-            obj.reload_toggle()
+            
+            % Find available motor serial numbers
+            mp = obj.get_meta_pref('motor_serial_number');
+            mp.choices = Drivers.APTMotor.getAvailMotors(); % set new choices
+            obj.set_meta_pref('motor_serial_number', mp);
         end
     end
 
@@ -58,15 +61,6 @@ classdef Saturation < Modules.Experiment
         function newVal = setAngle(obj,val,pref)
             obj.angle_list = str2num(val);
             newVal = val;
-        end
-        
-        function val = reload_toggle(obj,~,~)
-            % TODO: replace with a Prefs.Button
-            % Pretends to be a button from a boolean pref
-            val = false; % Swap back to false
-            mp = obj.get_meta_pref('motor_serial_number');
-            mp.choices = Drivers.APTMotor.getAvailMotors(); % set new choices
-            obj.set_meta_pref('motor_serial_number', mp);
         end
 
         function val = set_motor_serial_number(obj,val,~)
