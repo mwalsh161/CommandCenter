@@ -6,7 +6,7 @@ classdef Saturation < Modules.Experiment
         exposure = Prefs.Double(100, 'help_text', 'Exposure time to measure APD counts','units','ms','min',0,'allow_nan',false)
         motor_move_time = Prefs.Double(30, 'help_text', 'Maximum time allowed for the motor to move','units','s','min',0,'allow_nan',false)
         motor_home_time = Prefs.Double(120, 'help_text', 'Maximum time allowed for the motor to home','units','s','min',0,'allow_nan',false)
-        motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','choices',{'0'},'allow_empty',true)
+        motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','set','set_motor_serial_number','allow_empty',true)
         reload = Prefs.Boolean(false,'set','reload_toggle','help_text','Toggle this to reload list of available motors')
         APD_line = Prefs.String('APD1','help_text','NiDAQ line to apd','allow_empty',false);
         APD_sync_line = Prefs.String('CounterSync','help_text','NiDAQ synchronisation line','allow_empty',false);
@@ -69,7 +69,7 @@ classdef Saturation < Modules.Experiment
             obj.set_meta_pref('motor_serial_number', mp);
         end
 
-        function val = set_motor_serial_number(obj,val)
+        function val = set_motor_serial_number(obj,val,~)
             if isempty(val)
                 % If '<None>', delete handle and short-circuit
                 delete(obj.rot); % Either motor obj or empty
