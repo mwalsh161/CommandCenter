@@ -13,8 +13,8 @@ classdef Saturation < Modules.Experiment
 
     end
     properties
-        prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number','reload'};  % String representation of desired prefs
-        %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
+        prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number'};  % String representation of desired prefs
+        show_prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number','reload'};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
     properties(SetAccess=private,Hidden)
@@ -87,7 +87,6 @@ classdef Saturation < Modules.Experiment
             delete(obj.rot); % Either motor obj or empty
             obj.rot = [];
 
-            obj.motor_serial_number = val;
             if val_as_double == 0
                 %Leave obj.rot empty if no serial number selected
                 return % Short circuit
