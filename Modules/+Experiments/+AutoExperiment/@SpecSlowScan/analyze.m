@@ -109,20 +109,32 @@ end
             [~,fig] = gcbo;
         end
         save_state();
-        if ~isempty(analysis)
-            var_name = 'analysis';
-            i = 1;
-            while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
-                i = i + 1;
-                var_name = sprintf('analysis%i',i);
+        to_save = {'analysis','sites'};
+        for j = 1:2
+            if ~isempty(eval(to_save{j}))
+                var_name = to_save{j};
+                i = 1;
+                while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
+                    i = i + 1;
+                    var_name = sprintf('%s%i',to_save{j},i);
+                end
+                if i > 1
+                    answer = questdlg(sprintf('Would you like to export "%s" data to workspace as new variable "%s" or overwrite existing "%s"?',...
+                        to_save{j},var_name,to_save{j}),'Export','Overwrite','New Variable','No','Overwrite');
+                    if strcmp(answer,'Overwrite')
+                        answer = 'Yes';
+                        var_name = to_save{j};
+                    end
+                else
+                    answer = questdlg(sprintf('Would you like to export "%s" data to workspace as new variable "%s"?',to_save{j},var_name),...
+                        'Export','Yes','No','Yes');
+                end
+                if strcmp(answer,'Yes')
+                    assignin('base',var_name,eval(to_save{j}))
+                end
             end
-            answer = questdlg(sprintf('Would you like to export analysis data to workspace as "%s"?',var_name),...
-                'Export Analysis','Yes','No','Yes');
-            if strcmp(answer,'Yes')
-                assignin('base',var_name,analysis)
-            end
-            new_data = false;
         end
+        new_data = false;
     end
 
     function closereq(~,~)
@@ -140,7 +152,7 @@ end
 
     function changeSite(new_index)
         if busy
-            warning('Chill! Busy still...');
+            warning('SPECSLOWSCAN:analysis:chill','Chill! Busy fitting still...');
             return
         end
         busy = true;
