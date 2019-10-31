@@ -53,10 +53,12 @@ sites = data.sites(p.Results.inds);
 fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
-uimenu(file_menu,'Text','Export Analysis Data','callback',@export_data,'separator',true);
+uimenu(file_menu,'Text','Export Analysis Data','callback',@export_data,'separator','on');
 ax = subplot(1,5,[1 2],'parent',fig,'tag','SpatialImageAx');
 hold(ax,'on');
-imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
+if ~isempty(im)
+    imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
+end
 positions = reshape([sites.position],length(data.sites(1).position),[]);
 sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite,'tag','sites');
 sc.UserData.fig = fig;
