@@ -6,7 +6,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         % Preferences for thresholding in the patch methods
         freq_range = Prefs.DoubleArray(299792./[635,640],'units','THz','min',0,'allow_nan',false);
         SpecCalExposure = Prefs.Double(0.1,'min',0,'units','sec');
-        SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','SNR threshold for spectral peak detection');
+        SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','Number of std above noise proms');
         PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
         StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
         analysis_file = Prefs.String('help','Used in patch functions instead of fitting last result. This also ignores SpecPeakThresh.',...
@@ -119,9 +119,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                     y = spec.data.intensity(range);
                     specfit = fitpeaks(x,y,'fittype','gauss','AmplitudeSensitivity',obj.SpecPeakThresh); %fit spectrum peaks
                     for j=1:length(specfit.locations) %add a new parameter set for each peak found
-                        if specfit.SNRs(j)>=obj.SpecPeakThresh
-                            params(end+1).freq_THz = obj.nm2THz(specfit.locations(j));
-                        end
+                        params(end+1).freq_THz = obj.nm2THz(specfit.locations(j));
                     end
                 end
             else
