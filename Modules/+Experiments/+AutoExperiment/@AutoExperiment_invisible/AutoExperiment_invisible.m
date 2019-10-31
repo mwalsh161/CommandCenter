@@ -173,6 +173,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
             delete(obj.experiments);
         end
         function abort(obj)
+            obj.fatal_flag = true;
             obj.abort_request = true;
             if ~isempty(obj.current_experiment)
                 obj.current_experiment.abort;
