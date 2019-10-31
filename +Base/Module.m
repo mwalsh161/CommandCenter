@@ -367,7 +367,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 try
                     mp = obj.get_meta_pref(setting_names{i});
                 catch err
-                    warning(err.identifier,'Skipped pref "%s":\n%s',setting_names{i},err.message)
+                    warning('Skipped pref "%s":\n%s',setting_names{i},err.message)
                     continue
                 end
                 if isempty(mp.name) % Default to setting (i.e. property) name
