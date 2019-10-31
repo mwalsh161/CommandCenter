@@ -82,7 +82,7 @@ classdef UIscrollPanel < handle
         end
         function scroll(obj,hObj,eventdata)
             dir = -sign(eventdata.VerticalScrollCount);
-            step = obj.sld.SliderStep(1); % Small step size
+            step = obj.sld.SliderStep(1)*(obj.sld.Max-obj.sld.Min); % Small step size
             for i = 1:abs(eventdata.VerticalScrollCount)
                 obj.sld.Value = min(0,max(obj.sld.Min,obj.sld.Value + dir*step));
                 obj.SlideCallBack;
