@@ -24,7 +24,7 @@ function varargout = analyze(data,varargin)
 %       location (and corresponding guess value).
 %       ctl+arrows allow fine control.
 %       [Shift+] Tab changes selected point
-%   Analysis data is stored in figure.UserData.AutoExperiment_analysis as follows:
+%   Analysis data is stored in figure.UserData.analysis as follows:
 %     N×3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
 %       amplitudes - Nx1 double
 %       widths - Nx1 double (all FWHM)
@@ -53,7 +53,7 @@ sites = data.sites(p.Results.inds);
 fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
-uimenu(file_menu,'Text','Export Analysis Data','callback',@export_data,'separator','on');
+uimenu(file_menu,'Text','Export Data','callback',@export_data,'separator','on');
 ax = subplot(1,5,[1 2],'parent',fig,'tag','SpatialImageAx');
 hold(ax,'on');
 if ~isempty(im)
@@ -80,9 +80,9 @@ wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
 
 if isstruct(p.Results.Analysis)
-    AutoExperiment_analysis = p.Results.Analysis;
+    analysis = p.Results.Analysis;
 else
-    AutoExperiment_analysis = struct(...
+    analysis = struct(...
         'fit',cell(n,3),...
         'amplitudes',NaN,...
         'widths',NaN,...
@@ -109,17 +109,17 @@ end
             [~,fig] = gcbo;
         end
         save_state();
-        if ~isempty(AutoExperiment_analysis)
-            var_name = 'SpecSlowScan_analysis';
+        if ~isempty(analysis)
+            var_name = 'analysis';
             i = 1;
             while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
                 i = i + 1;
-                var_name = sprintf('SpecSlowScan_analysis%i',i);
+                var_name = sprintf('analysis%i',i);
             end
             answer = questdlg(sprintf('Would you like to export analysis data to workspace as "%s"?',var_name),...
                 'Export Analysis','Yes','No','Yes');
             if strcmp(answer,'Yes')
-                assignin('base',var_name,AutoExperiment_analysis)
+                assignin('base',var_name,analysis)
             end
             new_data = false;
         end
@@ -247,15 +247,15 @@ end
         ax(4).YLabel.String = 'Counts';
         if ~viewonly
             if ~isempty(findall(ax(2),'type','line'))
-                attach_uifitpeaks(ax(2),AutoExperiment_analysis(fig.UserData.index,1),...
+                attach_uifitpeaks(ax(2),analysis(fig.UserData.index,1),...
                     'AmplitudeSensitivity',1);
             end
             if ~isempty(findall(ax(3),'type','line'))
-                attach_uifitpeaks(ax(3),AutoExperiment_analysis(fig.UserData.index,2),...
+                attach_uifitpeaks(ax(3),analysis(fig.UserData.index,2),...
                     'AmplitudeSensitivity',1);
             end
             if ~isempty(findall(ax(4),'type','line'))
-                attach_uifitpeaks(ax(4),AutoExperiment_analysis(fig.UserData.index,3),...
+                attach_uifitpeaks(ax(4),analysis(fig.UserData.index,3),...
                     'AmplitudeSensitivity',1);
             end
         end
@@ -268,25 +268,25 @@ end
             end
             fit_result = ax(i).UserData.pFit.UserData;
             new_data = true;
-            AutoExperiment_analysis(fig.UserData.index,i-1).index = inds(fig.UserData.index);
+            analysis(fig.UserData.index,i-1).index = inds(fig.UserData.index);
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
                 nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
-                AutoExperiment_analysis(fig.UserData.index,i-1).fit = fit_result;
-                AutoExperiment_analysis(fig.UserData.index,i-1).amplitudes = fitcoeffs(1:nn);
-                AutoExperiment_analysis(fig.UserData.index,i-1).locations = fitcoeffs(nn+1:2*nn);
+                analysis(fig.UserData.index,i-1).fit = fit_result;
+                analysis(fig.UserData.index,i-1).amplitudes = fitcoeffs(1:nn);
+                analysis(fig.UserData.index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
-                    AutoExperiment_analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
+                    analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
                 else
-                    AutoExperiment_analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                    analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
                 end
-                AutoExperiment_analysis(fig.UserData.index,i-1).background = fitcoeffs(3*nn+1);
+                analysis(fig.UserData.index,i-1).background = fitcoeffs(3*nn+1);
             else
-                AutoExperiment_analysis(fig.UserData.index,i-1).fit = [];
-                AutoExperiment_analysis(fig.UserData.index,i-1).amplitudes = [];
-                AutoExperiment_analysis(fig.UserData.index,i-1).locations = [];
-                AutoExperiment_analysis(fig.UserData.index,i-1).widths = [];
-                AutoExperiment_analysis(fig.UserData.index,i-1).background = [];
+                analysis(fig.UserData.index,i-1).fit = [];
+                analysis(fig.UserData.index,i-1).amplitudes = [];
+                analysis(fig.UserData.index,i-1).locations = [];
+                analysis(fig.UserData.index,i-1).widths = [];
+                analysis(fig.UserData.index,i-1).background = [];
             end
         end
     end
