@@ -52,6 +52,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         diode_on = Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
         wavemeter_active = Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
         percent_setpoint = Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
+        TuneSetpointAttempts = Prefs.Integer(3,'min',1,'allow_nan',false);
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
