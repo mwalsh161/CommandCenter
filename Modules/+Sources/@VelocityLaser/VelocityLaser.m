@@ -43,7 +43,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     properties(SetObservable,GetObservable)
         tuning = Prefs.Boolean(false,'readonly',true);
         debug = Prefs.Boolean(false);
-        TuningTimeout = Prefs.Double(60,'units','min',0,'sec','help','Timeout for home-built PID used in TuneCoarse');
+        TuningTimeout = Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
         pb_ip = Prefs.String('No Server','set','set_pb_ip','help','IP/hostname of computer with PB server');
         PBline = Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
         velocity_ip = Prefs.String('No Server','set','set_velocity_ip','help','IP/hostname of computer with hwserver for velocity laser');
@@ -51,10 +51,12 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_channel = Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
         diode_on = Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
         wavemeter_active = Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
-        percent_setpoint = Prefs.Double(NaN,'units','THz','help','local memory of tuning percent as applied by the wavemeter');
+        percent_setpoint = Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
     end
-    properties(SetObservable,GetObservable,SetAccess=private)
+    properties(SetObservable,SetAccess=private)
         source_on = false;
+    end
+    properties(SetObservable,GetObservable)
         running = Prefs.Boolean(false,'help','Boolean specifying if StaticLines program running');
         PB_status = Prefs.String('Unknown','readonly',true);
     end
@@ -149,7 +151,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
         end
-        function set_velocity_ip(obj,val,~)
+        function val = set_velocity_ip(obj,val,~)
             err = obj.connect_driver('serial','VelocityLaser',val);
             if isempty(obj.serial) %#ok<*MCSUP>
                 obj.velocity_ip = 'No Server';
@@ -162,7 +164,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~isempty(err)
                 rethrow(err)
             end
-            obj.velocity_ip = val;
             obj.diode_on = obj.serial.getDiodeState;
         end
         function val = set_pb_ip(obj,val,~)

@@ -13,13 +13,13 @@ classdef TunableLaser_invisible < handle
     %   TuneSetpoint: Tuning with feedback to a unit-value
     %   getFrequency: Should return a real-time readout of laser frequency (NOT just setpoint, but where the laser ACTUALLY is)
     
-    properties(Abstract,SetObservable,AbortSet)
+    properties(Abstract,SetObservable)
         % User must define even if empty cell array!
         show_prefs
         tuning  % True/false if laser is actively tuning (used in trackWavelength)
     end
-    properties(SetAccess=protected,SetObservable,GetObservable)
-        setpoint = Pref.Double(NaN,'readonly',true,'units','THz');
+    properties(SetObservable,GetObservable)
+        setpoint = Prefs.Double(NaN,'readonly',true,'units','THz');
     end
     properties(SetObservable,GetObservable)
         locked = Prefs.Boolean(false,'readonly',true);
