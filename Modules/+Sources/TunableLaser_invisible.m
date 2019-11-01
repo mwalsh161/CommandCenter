@@ -16,14 +16,13 @@ classdef TunableLaser_invisible < handle
     properties(Abstract,SetObservable,AbortSet)
         % User must define even if empty cell array!
         show_prefs
-        readonly_prefs
         tuning  % True/false if laser is actively tuning (used in trackWavelength)
     end
-    properties(SetAccess=protected,SetObservable)
-        setpoint
+    properties(SetAccess=protected,SetObservable,GetObservable)
+        setpoint = Pref.Double(NaN,'readonly',true,'units','THz');
     end
-    properties(SetObservable,AbortSet)
-        locked = false;
+    properties(SetObservable,GetObservable)
+        locked = Prefs.Boolean(false,'readonly',true);
     end
     properties(Abstract,SetAccess=protected)
         range
@@ -42,7 +41,6 @@ classdef TunableLaser_invisible < handle
         end
         function obj = TunableLaser_invisible()
             obj.show_prefs = [{'setpoint','locked'},obj.show_prefs];
-            obj.readonly_prefs = [{'setpoint','locked'},obj.readonly_prefs];
         end
         function TuneCoarse(~,varargin)
             error('Method TuneCoarse not defined')
