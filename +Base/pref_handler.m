@@ -70,7 +70,7 @@ classdef pref_handler < handle
                     obj.external_ls.(prop.Name) = external_ls_struct;
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
                     % Done after binding Set/Get listeners since the method call expects them to be set already
-                    obj.set_meta_pref(prop.Name, pref, false);
+                    obj.set_meta_pref(prop.Name, pref);
                 end
             end
         end
@@ -98,29 +98,21 @@ classdef pref_handler < handle
             prefs = fields(obj.ls);
         end
         
-        function set_meta_pref(obj,name,pref,update_settings)
+        function set_meta_pref(obj,name,pref)
             % Set the "meta pref" for property "name".
             % If the property's default value is not a class-based pref
             % this will not allow you to set it because the constructor
             % handles preparing all class-based pref stuff
-            % If update_settings is true (which is default), it will
-            % trigger the module's "update_settings" event
             % NOTE: this does not do anything with the current value and
             %   MAY result in it changing if you aren't careful!!
             allowed_names = obj.get_class_based_prefs();
             assert(ismember(name,allowed_names),sprintf(...
                 'You may only set meta prefs for properties that were defined with them:\n%s',...
                 strjoin(allowed_names,', ')));
-            if nargin < 4
-                update_settings = true;
-            end
             pref = pref.bind(obj);
             obj.prop_listener_ctrl(name,false);
             obj.(name) = pref; % Assign back to property
             obj.prop_listener_ctrl(name,true);
-            if update_settings
-                notify(obj,'update_settings');
-            end
         end
         function val = get_meta_pref(obj,name)
             % Return the "meta pref" which contains the pref class
@@ -128,6 +120,9 @@ classdef pref_handler < handle
             % returned instance does nothing.
             % NOTE: This by-passes pref get listeners
             if isfield(obj.ls,name) % Indicates class-based pref
+                assert(all([obj.ls.(name).Enabled]),...
+                    sprintf(['"%s" pref is in use elsewhere. You may be getting this because you are trying ',...
+                    'to reload settings in a set/custom_validate/custom_clean method of a meta pref.'],name));
                 obj.prop_listener_ctrl(name,false);
                 val = obj.(name);
                 obj.prop_listener_ctrl(name,true);
