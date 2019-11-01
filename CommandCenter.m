@@ -147,6 +147,8 @@ try
     set(handles.file_logger,'checked',handles.logger.visible)
     
     % Convert panels to scrollPanels
+    loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
+    handles.reload_CData = loaded_vars.im;
     handles.panelStage = Base.UIscrollPanel(handles.panelStage);
     handles.panelImage = Base.UIscrollPanel(handles.panelImage);
     handles.panelSource = Base.UIscrollPanel(handles.panelSource);
