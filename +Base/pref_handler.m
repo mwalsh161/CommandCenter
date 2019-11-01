@@ -52,6 +52,8 @@ classdef pref_handler < handle
             for i = 1:length(props)
                 prop = props(i);
                 if contains('Base.pref',superclasses(prop.DefaultValue))
+                    assert(~strcmp(prop.GetAccess,'private')&&~strcmp(prop.SetAccess,'private'),...
+                        sprintf('Class-based pref ''%s'' cannot have set/get access private.',prop.Name));
                     obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
                     % Add listeners to get and set so we can swap the value
                     % in/out behind the scenes. All listeners relate to
