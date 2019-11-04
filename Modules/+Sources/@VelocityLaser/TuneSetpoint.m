@@ -14,7 +14,7 @@ try
         PIDstart = tic;
         while sum(abs(setpoint-frequency) < obj.wavemeter.resolution) < 10 %wait until laser settles to frequency
             frequency = [frequency, obj.wavemeter.getFrequency];
-            if toc(PIDstart) == obj.TuningTimeout
+            if toc(PIDstart) > obj.TuningTimeout
                 if n > obj.TuneSetpointAttempts
                     error('Unable to complete tuning within timeout (%i attempts).',obj.TuneSetpointAttempts);
                 end
