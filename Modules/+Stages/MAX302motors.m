@@ -11,9 +11,9 @@ classdef MAX302motors < Modules.Stage
         prefs = {'X_Motor','Y_Motor','Z_Motor','direction'};
     end
     properties(SetObservable,AbortSet)
-        X_Motor = @Drivers.APTMotor.getAvailMotors;  % Motor serial number
-        Y_Motor = @Drivers.APTMotor.getAvailMotors;  % Motor serial number
-        Z_Motor = @Drivers.APTMotor.getAvailMotors;  % Motor serial number
+        X_Motor = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the X axis','set','set_motor_serial_number','allow_empty',true)
+        Y_Motor = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the Y axis','set','set_motor_serial_number','allow_empty',true)
+        Z_Motor = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the Z axis','set','set_motor_serial_number','allow_empty',true)
         direction = [1 1 1];
     end
     properties(SetAccess=private,SetObservable,AbortSet)
@@ -45,6 +45,13 @@ classdef MAX302motors < Modules.Stage
     methods(Access=private)
         function obj = MAX302motors()
             obj.loadPrefs;
+
+            % Find available motor serial numbers
+            for motor = ["X_Motor","Y_Motor","Z_Motor"]
+                mp = obj.get_meta_pref(motor);
+                mp.choices = Drivers.APTMotor.getAvailMotors(); % set new choices
+                obj.set_meta_pref(motor, mp);
+            end
         end
     end
     % Callback functions for APTMotor
