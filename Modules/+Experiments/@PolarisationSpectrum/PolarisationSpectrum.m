@@ -16,7 +16,7 @@ classdef PolarisationSpectrum < Modules.Experiment
     
     properties(SetObservable,AbortSet)
         angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
-        motor_serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
+        motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','set','set_motor_serial_number','allow_empty',true)
         spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run. Settings for the experiment accessed from GUI
         motor_move_time = 30;  % Maximum time allowed for motor to move between positions
         motor_home_time = 120; % Maximum time allowed for the motor to home itself
@@ -47,6 +47,11 @@ classdef PolarisationSpectrum < Modules.Experiment
             % Constructor (should not be accessible to command line!)
             obj.spec_experiment = Experiments.Spectrum.instance;
             obj.loadPrefs; % Load prefs specified as obj.prefs
+
+            % Find available motor serial numbers
+            mp = obj.get_meta_pref('motor_serial_number');
+            mp.choices = Drivers.APTMotor.getAvailMotors(); % set new choices
+            obj.set_meta_pref('motor_serial_number', mp);
         end
     end
 
