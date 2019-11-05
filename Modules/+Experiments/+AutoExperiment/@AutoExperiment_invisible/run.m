@@ -43,7 +43,7 @@ else % Start a new experiment
     obj.data.image.meta = sites.meta;
     for i = 1:size(sites.positions,1)
         obj.data.sites(i).position = sites.positions(i,:);
-        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{},'continued',{});
+        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{},'continued',{},'redo_requested',{});
     end
 end
 
@@ -65,12 +65,14 @@ dP = [0,0,0]; % Cumulative tracker offset
 runstart = tic;
 obj.PreRun(status,managers,ax);
 err = [];
+nsites = size(run_queue,1);
 try
-    status.String = 'Searching for first experiment to run...';
     for repetition = 1:obj.repeat
-        for i=1:size(run_queue,1)
+        for i=1:nsites
+            status.String = 'Searching for next experiment to run...';
             try
-                drawnow; assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
+                drawnow limitrate;
+                assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
                 experiment = obj.experiments(exp_index); %grab experiment instance
@@ -123,7 +125,8 @@ try
                     obj.data.sites(site_index).experiments(end).skipped = true;
                     obj.data.sites(site_index).experiments(end).redo_requested = false;
                 end
-                for j=1:length(params)
+                niter = length(params);
+                for j=1:niter
                     local_exp_index = length(obj.data.sites(site_index).experiments)-length(params)+j; % So sorry
                     try
                         fields = fieldnames(params(j)); %grab list of parameter names
@@ -133,7 +136,7 @@ try
                             end
                             experiment.(fields{k}) = params(j).(fields{k});
                         end
-                        msg = sprintf('Running iteration %i of %s on site %i',j,class(experiment),site_index);
+                        msg = sprintf('Running iteration %i/%i of %s on site %i/%i',j,niter,class(experiment),site_index,nsites);
                         obj.logger.log(msg,obj.logger.DEBUG)
                         status.String = msg;
                         drawnow;
