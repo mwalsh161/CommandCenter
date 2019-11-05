@@ -69,7 +69,7 @@ classdef UIscrollPanel < handle
             obj.local_resizeCallback;
             obj.scroll_listener = addlistener(fig,'WindowScrollWheel',@obj.scroll);
             obj.scroll_listener.Enabled = false;
-            set([obj.concealer, obj.content, obj.sld],'visible','on');
+            set([obj.concealer, obj.content],'visible','on'); % obj.sld controled in callback
         end
         function delete(obj)
             delete(obj.scroll_listener);
