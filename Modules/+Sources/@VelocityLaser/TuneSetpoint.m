@@ -14,7 +14,7 @@ if obj.debug
     p_debug(3) = plot(ax_debug(2),[0 1], obj.wavemeter.resolution*1000*1000*[1 1],'--k');
     p_debug(4) = plot(ax_debug(2),NaN, NaN,'.-');
     ylabel(ax_debug(1),'Frequency (THz)');
-    ylabel(ax_debug(2),'dF (MHz)');
+    ylabel(ax_debug(2),'|dF| (MHz)');
     xlabel(ax_debug(2),'Time (s)')
     debug_clk = tic;
     all_freq = [];
