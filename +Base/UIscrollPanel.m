@@ -15,30 +15,38 @@ classdef UIscrollPanel < handle
         scroll_listener             % Listen to scroll wheel
     end
     properties(SetAccess=immutable,Hidden)
+        minimizable                 % Determine if allowed to be minimized
         concealer                   % Handle to concealer panel to preserve asthetics of base panel. Do not adjust size of this manually!
     end
     methods
         % Constructor
-        function [ obj ] = UIscrollPanel( base )
+        function [ obj ] = UIscrollPanel( base, minimizable )
             %UISCROLLPANEL Create scroll panel out of uipanel
             %   There are three panels involved. Children of the input panel are moved
             %   to a new panel that has no boundry lines that is placed inside the
             %   original panel. There is a third panel that masks the new panel.
             %
             %   uipanel <-- uipanel_concealer <-- uipanel_content
+            if nargin < 2
+                minimizable = true;
+            end
+            obj.minimizable = minimizable;
+            
             children = allchild(base);
             tag = get(base,'tag');
             tempBase = get(base,'units');
             set(base,'tag',[tag '_Base'],'units','characters');
             set(base,'deleteFcn',@(~,~)obj.delete)
             set(base,'sizeChangedFcn',@obj.resizeBase)
-            set(base,'buttonDownFcn',@obj.clicked)
-            obj.base = base;
-            pos = get(obj.base,'position');
-            % Configure pointer
             fig = Base.getParentFigure(base);
             iptPointerManager(fig)
-            iptSetPointerBehavior(base,@obj.pointerHover)
+            if obj.minimizable
+                set(base,'buttonDownFcn',@obj.clicked)
+                % Configure pointer
+                iptSetPointerBehavior(base,@obj.pointerHover)
+            end
+            obj.base = base;
+            pos = get(obj.base,'position');
             
             % Make concealer (do not resize manually!)
             obj.concealer = uipanel(base,'tag',[tag '_concealer'],'BorderType','None',...
