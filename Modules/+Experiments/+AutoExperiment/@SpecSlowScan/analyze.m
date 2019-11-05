@@ -70,7 +70,9 @@ splitPan(2) = Base.SplitPanel(inner(1),inner(2),'vertical');
 set(splitPan(2).dividerH,'BorderType','etchedin')
 for i_ax = 1:3
     pan_ax(i_ax) = uipanel(inner(1),'units','normalized','position',[(i_ax-1)/3 0 1/3 1],'BorderType','none');
-    pan_ctl(i_ax) = Base.UIscrollPanel(uipanel(inner(2),'units','normalized','position',[(i_ax-1)/3 0 1/3 1]),false);
+    selector(i_ax) = uicontrol(inner(2),'style','listbox','units','normalized','position',[(i_ax-1)/3 0 1/3 1],...
+        'value',[],'min',0,'max',Inf,'callback',@expSelectorCallback);
+    selector(i_ax).UserData = i_ax;
 end
 
 ax = axes('parent',bg(1),'tag','SpatialImageAx');
@@ -89,11 +91,12 @@ colormap(fig,'gray');
 axis(ax,'image');
 set(ax,'ydir','normal');
 hold(ax,'off');
-
 ax(2) = axes('parent',pan_ax(1),'tag','SpectraAx'); hold(ax(2),'on');
 ax(3) = axes('parent',pan_ax(2),'tag','OpenLoopAx'); hold(ax(3),'on');
 ax(4) = axes('parent',pan_ax(3),'tag','ClosedLoopAx'); hold(ax(4),'on');
+
 % Constants and large structures go here
+line_size = 1.5; % characters
 n = length(sites);
 viewonly = p.Results.viewonly;
 FitType = p.Results.FitType;
@@ -225,30 +228,28 @@ end
     function update()
         ctls = gobjects(0);
         site = sites(fig.UserData.index);
+        set(selector,'String',{},'Value',[]); % Reset selectors
         % Image
         ax(1).Title.String = sprintf('Site %i/%i',fig.UserData.index,n);
         set(pos,'xdata',site.position(1),'ydata',site.position(2));
         
         cla(ax(2),'reset'); cla(ax(3),'reset'); cla(ax(4),'reset');
         hold(ax(2),'on'); hold(ax(3),'on'); hold(ax(4),'on');
-        errs = {};
         for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
             experiment = site.experiments(i);
-            %ctls(end+1) = uicontrol(pan_ctl(1),'style','checkbox','value',false,'string','Test');
             if ~isempty(experiment.data)
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
-                plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra');
-            end
-            if ~isempty(experiment.err)
-                errs{end+1} = strip(experiment.err.message);
+                tempP = plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra');
+                formatSelector(selector(1),experiment,i,tempP.Color);
+            else
+                formatSelector(selector(1),experiment,i);
             end
         end
         ax(2).Title.String = 'Spectrum';
         ax(2).XLabel.String = 'Wavelength (nm)';
         ax(2).YLabel.String = 'Intensity (a.u.)';
         
-        errs = {};
         set_points = [];
         cs = NaN(0,3);
         for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
@@ -260,9 +261,9 @@ end
                         'parent',ax(3),'tag','OpenLoop');
                 set_points(end+1) = experiment.data.meta.prefs.freq_THz;
                 cs(end+1,:) = ef.line.Color;
-            end
-            if ~isempty(experiment.err)
-                errs{end+1} = strip(experiment.err.message);
+                formatSelector(selector(2),experiment,i,ef.line.Color);
+            else
+                formatSelector(selector(2),experiment,i);
             end
         end
         ylim = get(ax(3),'ylim');
@@ -273,17 +274,16 @@ end
         ax(3).XLabel.String = 'Frequency (THz)';
         ax(3).YLabel.String = 'Counts';
         
-        errs = {};
         for i = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}))
             experiment = site.experiments(i);
             if ~isempty(experiment.data)
-                errorfill(experiment.data.data.freqs_measured,...
-                    experiment.data.data.sumCounts,...
-                    experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                    'parent',ax(4),'tag','ClosedLoop');
-            end
-            if ~isempty(experiment.err)
-                errs{end+1} = strip(experiment.err.message);
+                ef = errorfill(experiment.data.data.freqs_measured,...
+                        experiment.data.data.sumCounts,...
+                        experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
+                        'parent',ax(4),'tag','ClosedLoop');
+                formatSelector(selector(3),experiment,i,ef.line.Color);
+            else
+                formatSelector(selector(3),experiment,i);
             end
         end
         ax(4).Title.String = 'Closed Loop SlowScan';
@@ -303,6 +303,40 @@ end
                     'AmplitudeSensitivity',1);
             end
         end
+    end
+    function formatSelector(selectorH,experiment,i,color)
+        % Format selector
+        if experiment.skipped
+            desc = 'Skipped';
+            assert(isempty(experiment.tstart),'Hmmm, tstart should be empty');
+        else
+            desc = datestr(experiment.tstart);
+        end
+        desc = sprintf('%i: %s',i,desc);
+        if experiment.redo_requested
+            continued = sprintf('<font color="red">%i</font>',experiment.continued);
+        else
+            continued = num2str(experiment.continued);
+        end
+        if ~isempty(experiment.err)
+            desc = sprintf('<font color="red">%s</font>',desc);
+            assert(~experiment.completed,'Hmmm, completed should be false if error');
+        end
+        if experiment.completed && ~experiment.skipped
+            desc = sprintf('<font color="green">%s</font>',desc);
+        end
+        if nargin < 4
+            selectorH.String{end+1} = sprintf('<html>%s (%s)</html>',desc,continued);
+        else
+            % Conver to hex
+            rgb = round(color*255);
+            hex(:,2:7) = reshape(sprintf('%02X',rgb.'),6,[]).';
+            hex(:,1) = '#';
+            selectorH.String{end+1} = sprintf('<html>%s (%s) <strong><font color="%s">&emsp;&#11035;</font></strong></html>',desc,continued,hex);
+        end
+    end
+    function expSelectorCallback(hObj,eventdata)
+        fprintf('here\n');
     end
 %% UIfitpeaks adaptor
     function save_state()
