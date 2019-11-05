@@ -58,7 +58,8 @@ sites = data.sites(p.Results.inds);
 fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
-uimenu(file_menu,'Text','Export Data','callback',@export_data,'separator','on');
+uimenu(file_menu,'Text','Go to Index','callback',@go_to,'separator','on');
+uimenu(file_menu,'Text','Export Data','callback',@export_data);
 bg(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
 bg(2) = uipanel(fig,'units','normalized','position',[1/4 0 3/4 1],'BorderType','none');
 splitPan(1) = Base.SplitPanel(bg(1),bg(2),'horizontal');
@@ -67,9 +68,9 @@ inner(1) = uipanel(bg(2),'units','normalized','position',[0 1/4 1 3/4],'BorderTy
 inner(2) = uipanel(bg(2),'units','normalized','position',[0 0   1 1/4],'BorderType','none');
 splitPan(2) = Base.SplitPanel(inner(1),inner(2),'vertical');
 set(splitPan(2).dividerH,'BorderType','etchedin')
-for i = 1:3
-    pan_ax(i) = uipanel(inner(1),'units','normalized','position',[(i-1)/3 0 1/3 1],'BorderType','none');
-    pan_ctl(i) = Base.UIscrollPanel(uipanel(inner(2),'units','normalized','position',[(i-1)/3 0 1/3 1]));
+for i_ax = 1:3
+    pan_ax(i_ax) = uipanel(inner(1),'units','normalized','position',[(i_ax-1)/3 0 1/3 1],'BorderType','none');
+    pan_ctl(i_ax) = Base.UIscrollPanel(uipanel(inner(2),'units','normalized','position',[(i_ax-1)/3 0 1/3 1]),false);
 end
 
 ax = axes('parent',bg(1),'tag','SpatialImageAx');
@@ -196,6 +197,18 @@ end
         end
     end
 
+    function go_to(~,~)
+        site = inputdlg(sprintf('Jump to site (between 1 and %i):',n),mfilename,1,{num2str(n)});
+        if ~isempty(site)
+            site_num = str2double(site{1});
+            if ~isnan(site_num) && site_num <= n && site_num > 0
+                changeSite(site_num);
+            else
+                errordlg(sprintf('"%s" is not a number between 1 and %i.',site{1},n),mfilename);
+            end
+        end
+    end
+
     function cycleSite(~,eventdata)
         switch eventdata.Key
             case 'leftarrow'
@@ -210,6 +223,7 @@ end
     end
 
     function update()
+        ctls = gobjects(0);
         site = sites(fig.UserData.index);
         % Image
         ax(1).Title.String = sprintf('Site %i/%i',fig.UserData.index,n);
@@ -220,6 +234,7 @@ end
         errs = {};
         for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
             experiment = site.experiments(i);
+            %ctls(end+1) = uicontrol(pan_ctl(1),'style','checkbox','value',false,'string','Test');
             if ~isempty(experiment.data)
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
