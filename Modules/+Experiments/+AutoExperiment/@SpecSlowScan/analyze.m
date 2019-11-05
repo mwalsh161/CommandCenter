@@ -69,7 +69,7 @@ splitPan(2) = Base.SplitPanel(inner(1),inner(2),'vertical');
 set(splitPan(2).dividerH,'BorderType','etchedin')
 for i = 1:3
     pan_ax(i) = uipanel(inner(1),'units','normalized','position',[(i-1)/3 0 1/3 1],'BorderType','none');
-    pan_ctl(i) = uipanel(inner(2),'units','normalized','position',[(i-1)/3 0 1/3 1],'BorderType','none');
+    pan_ctl(i) = Base.UIscrollPanel(uipanel(inner(2),'units','normalized','position',[(i-1)/3 0 1/3 1],'BorderType','none'));
 end
 
 ax = axes('parent',bg(1),'tag','SpatialImageAx');

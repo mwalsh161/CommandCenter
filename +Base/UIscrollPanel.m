@@ -42,13 +42,13 @@ classdef UIscrollPanel < handle
             
             % Make concealer (do not resize manually!)
             obj.concealer = uipanel(base,'tag',[tag '_concealer'],'BorderType','None',...
-                'units','characters','position',[0 0 pos(3) pos(4)-1]);
+                'units','characters','position',[0 0 pos(3) pos(4)-1],'visible','off');
             iptSetPointerBehavior(obj.concealer,struct('enterFcn',@obj.pointerEnter,'exitFcn',@obj.pointerExit,'traverseFcn',''));
             
             % Make content
             obj.content = uipanel(obj.concealer,'tag',tag,'BorderType','none',...
                 'units','characters','position',[0 0 pos(3) pos(4)-1],...
-                'sizeChangedFcn',@obj.local_resizeCallback);
+                'sizeChangedFcn',@obj.local_resizeCallback,'visible','off');
             obj.home = get(obj.content,'position');
             
             % Move children
@@ -60,7 +60,7 @@ classdef UIscrollPanel < handle
                 'units','characters',...
                 'SliderStep',[.01 .1],...
                 'position',[pos(3)-3.5 0 3 pos(4)-1.5],...
-                'callback',@obj.SlideCallBack);
+                'callback',@obj.SlideCallBack,'visible','off');
             iptSetPointerBehavior(obj.sld,@(hObj,~)set(hObj,'pointer','arrow'))
             % Fix width now that we have hte slider
             obj.concealer.Position(3) = pos(3) - obj.sld.Position(3);
@@ -69,6 +69,7 @@ classdef UIscrollPanel < handle
             obj.local_resizeCallback;
             obj.scroll_listener = addlistener(fig,'WindowScrollWheel',@obj.scroll);
             obj.scroll_listener.Enabled = false;
+            set([obj.concealer, obj.content, obj.sld],'visible','on');
         end
         function delete(obj)
             delete(obj.scroll_listener);
