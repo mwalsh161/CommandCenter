@@ -59,12 +59,20 @@ fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
 uimenu(file_menu,'Text','Export Data','callback',@export_data,'separator','on');
-pan(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
-pan(2) = uipanel(fig,'units','normalized','position',[1/4 0 1/4 1],'BorderType','none');
-pan(3) = uipanel(fig,'units','normalized','position',[1/2 0 1/4 1],'BorderType','none');
-pan(4) = uipanel(fig,'units','normalized','position',[3/4 0 1/4 1],'BorderType','none');
+bg(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
+bg(2) = uipanel(fig,'units','normalized','position',[1/4 0 3/4 1],'BorderType','none');
+splitPan(1) = Base.SplitPanel(bg(1),bg(2),'horizontal');
+set(splitPan(1).dividerH,'BorderType','etchedin')
+inner(1) = uipanel(bg(2),'units','normalized','position',[0 1/4 1 3/4],'BorderType','none');
+inner(2) = uipanel(bg(2),'units','normalized','position',[0 0   1 1/4],'BorderType','none');
+splitPan(2) = Base.SplitPanel(inner(1),inner(2),'vertical');
+set(splitPan(2).dividerH,'BorderType','etchedin')
+for i = 1:3
+    pan_ax(i) = uipanel(inner(1),'units','normalized','position',[(i-1)/3 0 1/3 1],'BorderType','none');
+    pan_ctl(i) = uipanel(inner(2),'units','normalized','position',[(i-1)/3 0 1/3 1],'BorderType','none');
+end
 
-ax = axes('parent',pan(1),'tag','SpatialImageAx');
+ax = axes('parent',bg(1),'tag','SpatialImageAx');
 hold(ax,'on');
 if ~isempty(im)
     imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
@@ -81,9 +89,9 @@ axis(ax,'image');
 set(ax,'ydir','normal');
 hold(ax,'off');
 
-ax(2) = axes('parent',pan(2),'tag','SpectraAx'); hold(ax(2),'on');
-ax(3) = axes('parent',pan(3),'tag','OpenLoopAx'); hold(ax(3),'on');
-ax(4) = axes('parent',pan(4),'tag','ClosedLoopAx'); hold(ax(4),'on');
+ax(2) = axes('parent',pan_ax(1),'tag','SpectraAx'); hold(ax(2),'on');
+ax(3) = axes('parent',pan_ax(2),'tag','OpenLoopAx'); hold(ax(3),'on');
+ax(4) = axes('parent',pan_ax(3),'tag','ClosedLoopAx'); hold(ax(4),'on');
 % Constants and large structures go here
 n = length(sites);
 viewonly = p.Results.viewonly;
@@ -209,7 +217,7 @@ end
         
         cla(ax(2),'reset'); cla(ax(3),'reset'); cla(ax(4),'reset');
         hold(ax(2),'on'); hold(ax(3),'on'); hold(ax(4),'on');
-        titles = {'Spectrum'};
+        errs = {};
         for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
             experiment = site.experiments(i);
             if ~isempty(experiment.data)
@@ -218,15 +226,14 @@ end
                 plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra');
             end
             if ~isempty(experiment.err)
-                titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',...
-                    i,strrep(strip(experiment.err.message),'\','\\')); % Escape backslash for tex interpreter
+                errs{end+1} = strip(experiment.err.message);
             end
         end
-        ax(2).Title.String = titles;
+        ax(2).Title.String = 'Spectrum';
         ax(2).XLabel.String = 'Wavelength (nm)';
         ax(2).YLabel.String = 'Intensity (a.u.)';
         
-        titles = {'Open Loop SlowScan'};
+        errs = {};
         set_points = [];
         cs = NaN(0,3);
         for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
@@ -240,19 +247,18 @@ end
                 cs(end+1,:) = ef.line.Color;
             end
             if ~isempty(experiment.err)
-                titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',...
-                    i,strrep(strip(experiment.err.message),'\','\\')); % Escape backslash for tex interpreter
+                errs{end+1} = strip(experiment.err.message);
             end
         end
         ylim = get(ax(3),'ylim');
         for i = 1:length(set_points)
             plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', cs(i,:),'handlevisibility','off','hittest','off');
         end
-        ax(3).Title.String = titles;
+        ax(3).Title.String = 'Open Loop SlowScan';
         ax(3).XLabel.String = 'Frequency (THz)';
         ax(3).YLabel.String = 'Counts';
         
-        titles = {'Closed Loop SlowScan'};
+        errs = {};
         for i = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}))
             experiment = site.experiments(i);
             if ~isempty(experiment.data)
@@ -262,11 +268,10 @@ end
                     'parent',ax(4),'tag','ClosedLoop');
             end
             if ~isempty(experiment.err)
-                titles{end+1} = sprintf('\\rm\\color{red}\\fontsize{8}%i\\Rightarrow%s',...
-                    i,strrep(strip(experiment.err.message),'\','\\')); % Escape backslash for tex interpreter
+                errs{end+1} = strip(experiment.err.message);
             end
         end
-        ax(4).Title.String = titles;
+        ax(4).Title.String = 'Closed Loop SlowScan';
         ax(4).XLabel.String = 'Frequency (THz)';
         ax(4).YLabel.String = 'Counts';
         if ~viewonly
