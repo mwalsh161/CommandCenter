@@ -36,7 +36,12 @@ function varargout = analyze(data,varargin)
 %   Will be prompted to export analysis data to base workspace upon closing
 %   figure if no export since last analysis data update (NOTE this is only
 %   saved when switching sites).
-%       This will not overwrite previously exported data sets.
+%       This will not overwrite previously exported data sets unless
+%       specified.
+%
+%   *NOTE*: sites is also (optionally) exported. If you loaded this from a
+%   file, you will need to re-insert the sites field in at the right spot!!
+%       Can be useful for updating the redo_requested flag
 
 p = inputParser();
 addParameter(p,'Analysis',[],@isstruct);
@@ -54,24 +59,31 @@ fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
 uimenu(file_menu,'Text','Export Data','callback',@export_data,'separator','on');
-ax = subplot(1,5,[1 2],'parent',fig,'tag','SpatialImageAx');
+pan(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
+pan(2) = uipanel(fig,'units','normalized','position',[1/4 0 1/4 1],'BorderType','none');
+pan(3) = uipanel(fig,'units','normalized','position',[1/2 0 1/4 1],'BorderType','none');
+pan(4) = uipanel(fig,'units','normalized','position',[3/4 0 1/4 1],'BorderType','none');
+
+ax = axes('parent',pan(1),'tag','SpatialImageAx');
 hold(ax,'on');
 if ~isempty(im)
     imagesc(ax,im.ROI(1,:),im.ROI(2,:),im.image,'tag','SpatialImage');
 end
 positions = reshape([sites.position],length(data.sites(1).position),[]);
-sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite,'tag','sites');
+sc = scatter(positions(1,:),positions(2,:),'ButtonDownFcn',@selectSite,...
+    'MarkerEdgeAlpha',0.3,'tag','sites');
 sc.UserData.fig = fig;
-pos = scatter(NaN,NaN,'r+');
+pos = scatter(NaN,NaN,'r');
 xlabel(ax,'X Position (um)');
 ylabel(ax,'Y Position (um)');
 colormap(fig,'gray');
 axis(ax,'image');
 set(ax,'ydir','normal');
 hold(ax,'off');
-ax(2) = subplot(1,5,3,'parent',fig,'tag','SpectraAx'); hold(ax(2),'on');
-ax(3) = subplot(1,5,4,'parent',fig,'tag','OpenLoopAx'); hold(ax(3),'on');
-ax(4) = subplot(1,5,5,'parent',fig,'tag','ClosedLoopAx'); hold(ax(4),'on');
+
+ax(2) = axes('parent',pan(2),'tag','SpectraAx'); hold(ax(2),'on');
+ax(3) = axes('parent',pan(3),'tag','OpenLoopAx'); hold(ax(3),'on');
+ax(4) = axes('parent',pan(4),'tag','ClosedLoopAx'); hold(ax(4),'on');
 % Constants and large structures go here
 n = length(sites);
 viewonly = p.Results.viewonly;
