@@ -82,8 +82,10 @@ try
         error('Invalid argument(s) provided to CommandCenter upon launching:\n  %s',...
             strjoin(varargin,'\n  '));
     end
+    debugLevel = Base.Logger.INFO;
     if debug
         loggerStartState = 'on';
+        debugLevel = Base.Logger.DEBUG;
     end
     if reset
         % Remove Manager prefs which is responsible for remembering which
@@ -141,6 +143,7 @@ try
     
     % Setup Logging
     handles.logger = Base.Logger(mfilename,loggerStartState);
+    handles.logger.logLevel = [debugLevel, debugLevel]; % [listbox,textfile]
     handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
     setappdata(hObject,'ALLmodules',{})
     setappdata(hObject,'logger',handles.logger)
