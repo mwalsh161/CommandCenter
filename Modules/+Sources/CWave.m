@@ -32,13 +32,13 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             'opo_stepper','opo_temp','shg_stepper', 'shg_temp','thin_etalon',...
             'opo_lock','shg_lock','pump_emission','ref_temp','resonator_percent',...
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
-            'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep'};
+            'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep','tunePercentRange'};
          show_prefs = {'tuning','enabled','target_wavelength','wavelength_lock','etalon_lock',...
             'opo_stepper','opo_temp','shg_stepper', 'shg_temp','thin_etalon',...
             'opo_lock','shg_lock','pump_emission','ref_temp','resonator_percent',...
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
             'MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep'...
-            'resonator_tune_speed'};
+            'resonator_tune_speed', 'tunePercentRange'};
         readonly_prefs = {'tuning','etalon_lock','opo_stepper','opo_temp',...
             'shg_stepper', 'shg_temp','thin_etalon','opo_lock','shg_lock',...
             'pump_emission','ref_temp','MidEtalon_wl'};
@@ -79,6 +79,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_ip = Sources.CWave.no_server;
         EtalonStep='';
         target_wavelength;
+        tunePercentRange = '';
         MinEtalon_wl = '0';
         MaxEtalon_wl = '.25';
         
@@ -618,6 +619,99 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           
         function val = get_regopo(obj)
               val = obj.cwaveHandle.get_regopo;
+        end
+        
+         function set.tunePercentRange(obj,val)
+              
+              obj.tunePercentRange = eval(val);
+              if (strcmp( val,''))
+                  return
+              end
+              
+              dlgs = questdlg('Tune with OPO Cavity (Open Loop) or Reference Cavity (Closed Loop)?', ...
+                             'Tuning Warning', ...
+                             'OPO Cavity','Reference Cavity','Reference Cavity');
+                         % Handle response
+                         switch dlgs
+                             case 'OPO Cavity'
+                                 isLocked = false;
+                             case 'Reference Cavity'
+                                 isLocked = true;
+                         end
+                                
+              if (isLocked == true)
+                  while ( obj.get_regopo() ~= 2)
+                      obj.set_regopo(2);
+                      pause(1);
+                      disp('regopo');
+                      obj.get_regopo
+                      disp('end iteration')
+                  end
+              elseif (isLocked == false)
+                  obj.set_regopo(4);
+                   while ( obj.get_regopo() ~= 4)
+                      obj.set_regopo(4);
+                      pause(1);
+                      disp('regopo');
+                      obj.get_regopo
+                      disp('end iteration')
+                  end
+              end
+              tuneRange =  obj.tunePercentRange;
+              
+              %Tune to opo center
+              str1 = 'Please wait while cavity tunes to';
+              str = strcat(str1, ' 50%.');
+              dlg = msgbox(str,mfilename,'modal');
+              textH = findall(dlg,'tag','MessageBox');
+              delete(findall(dlg,'tag','OKButton'));
+              drawnow;
+              if (isLocked == true)
+                  obj.TuneRefPercent(50);
+              elseif (isLocked == false)
+                  obj.TunePercent(50);
+              end
+              delete(dlg);
+
+              %Tune to low end
+              str = strcat(str1, sprintf(' %.2f%%',tuneRange(1)));
+              dlg = msgbox(str,mfilename,'modal');
+              textH = findall(dlg,'tag','MessageBox');
+              delete(findall(dlg,'tag','OKButton'));
+              drawnow;
+              if (isLocked == true)
+                  obj.TuneRefPercent(tuneRange(1));
+              elseif (isLocked == false)
+                  obj.TunePercent(tuneRange(1));
+              end
+              delete(dlg);
+
+              %Tune to high end
+              str = strcat(str1, sprintf(' %.2f%%',tuneRange(2)));
+              dlg = msgbox(str,mfilename,'modal');
+              textH = findall(dlg,'tag','MessageBox');
+              delete(findall(dlg,'tag','OKButton'));
+              drawnow;
+              if (isLocked == true)
+                  obj.TuneRefPercent(tuneRange(2));
+              elseif (isLocked == false)
+                  obj.TunePercent(tuneRange(2));
+              end
+              delete(dlg);
+
+              %Tune back to center
+              str1 = 'Please wait while cavity tunes to';
+              str = strcat(str1, ' 50%.');
+              dlg = msgbox(str,mfilename,'modal');
+              textH = findall(dlg,'tag','MessageBox');
+              delete(findall(dlg,'tag','OKButton'));
+              drawnow;
+              if (isLocked == true)
+                  obj.TuneRefPercent(50.0);
+              elseif (isLocked == false)
+                  obj.TunePercent(50.0);
+              end
+              delete(dlg);  
         end
           
         function delete(obj)
