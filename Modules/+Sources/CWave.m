@@ -16,34 +16,60 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
     end
     properties(Constant,Hidden)
         no_server = 'No Server';  % Message when not connected
+        OPOwindupGuardmax= 2; %1.5
+        OPOwindupGuardmin= -2; %-1.5
+        EtaWindupGuardmax = 10000; %was 100 on 11/6/19
+        EtaWindupGuardmin = -10000; % was -100 on 11/6/19
+        MaxPercent = 99.5; % percent
+        MinPercent = 0.5; % percent
         MaxThickEtalonRange = 0.375; %nm
+        pWLM_gain = 10; %10;
+        iWLM_gain = 75 ; %75;
+        EtalonMeasureDelay = 1.5; %seconds
+        wmExposureTolerance = 0.05; % percent/100
+        powerStatusDelay = 1; % seconds
+        timeoutSHG = 300; % seconds
+        timeoutThickEtalon = 300; %seconds
+        wmPower_min = 0; %units?
     end
     properties(Hidden)
+        MaxEtalon = 15; % in pm %maybe step these down to 15 look a little unstable when trying to ajdust thick etalon manually with 0.025nm steps
+        MinEtalon = -10;% in pm %maybe step this down to 15
+        LocalMaxEtalon = 6;
+        LocalMinEtalon = -6;
+        windupGuardmax = 0;
+        windupGuardmin = 0;
         sOPO_power;
         sSHG_power;
         sPump_power;
+        ThickEtalonTolerance = 0.005; %nm
     end
-    
     properties(SetAccess=protected)
         range = [Sources.TunableLaser_invisible.c./[450, 650],Sources.TunableLaser_invisible.c./[900, 1300]];
     end
      properties
         prefs = {'tuning','enabled','target_wavelength','wavelength_lock','etalon_lock',...
-            'opo_stepper','opo_temp','shg_stepper', 'shg_temp','thin_etalon',...
-            'opo_lock','shg_lock','pump_emission','ref_temp','resonator_percent',...
+            'opo_stepper_lock','opo_temp_lock','shg_stepper_lock', 'shg_temp_lock','thin_etalon_lock',...
+            'opo_lock','shg_lock','pump_emission','ref_temp_lock','resonator_percent',...
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
-            'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep','tunePercentRange'};
-         show_prefs = {'tuning','enabled','target_wavelength','wavelength_lock','etalon_lock',...
-            'opo_stepper','opo_temp','shg_stepper', 'shg_temp','thin_etalon',...
-            'opo_lock','shg_lock','pump_emission','ref_temp','resonator_percent',...
-            'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
-            'MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep'...
-            'resonator_tune_speed', 'tunePercentRange'};
-        readonly_prefs = {'tuning','etalon_lock','opo_stepper','opo_temp',...
-            'shg_stepper', 'shg_temp','thin_etalon','opo_lock','shg_lock',...
-            'pump_emission','ref_temp','MidEtalon_wl'};
-    end
+            'resonator_tune_speed','tunePercentRange','MaxEtalon_wl','MinEtalon_wl',...
+            'EtalonStep','MidEtalon_wl','OPO_power','SHG_power','Pump_power',...
+            'TempRef','TempOPO', 'TempSHG','TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
+         show_prefs = {'target_wavelength','resonator_percent','EtalonStep','tunePercentRange',...
+            'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','tuning',...
+            'enabled','wavelength_lock','etalon_lock','opo_stepper_lock','opo_temp_lock','shg_stepper_lock',...
+            'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock','pump_emission','ref_temp_lock',...
+            'etalon_percent','OPO_power','SHG_power','Pump_power','TempOPO','TempOPO_setpoint',...
+            'TempSHG','TempSHG_setpoint','TempRef','TempRef_setpoint','PSline',...
+            'pulseStreamer_ip','cwave_ip','wavemeter_ip'};
+        readonly_prefs = {'tuning','etalon_lock','opo_stepper_lock','opo_temp_lock',...
+            'shg_stepper_lock', 'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock',...
+            'pump_emission','ref_temp_lock','MidEtalon_wl',...
+            'OPO_power','SHG_power','Pump_power','TempRef','TempOPO', 'TempSHG',...
+            'TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
+     end
     properties(SetObservable,GetObservable)
+        MidEtalon_wl = '';
         enabled = Prefs.Boolean();
         resonator_percent =  Prefs.Double(0.00,'units','percent','min',0.00,'max',100.00);
         tuning = Prefs.Boolean(false, 'help_text','This is a readonly string.','readonly',true);
@@ -54,15 +80,15 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         resonator_tune_speed = Prefs.Double(0.5,'units','percent','min',0.001,'max',1); % percent per step
         etalon_lock = Prefs.Boolean('help_text','This is a readonly string.','readonly',true);
         etalon_percent = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
-        opo_stepper = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
-        opo_temp = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
-        shg_stepper = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
-        shg_temp = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
-        thin_etalon = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
+        opo_stepper_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
+        opo_temp_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
+        shg_stepper_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
+        shg_temp_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
+        thin_etalon_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
         opo_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
         shg_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
         pump_emission = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
-        ref_temp = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
+        ref_temp_lock = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
         wavelength_lock = Prefs.Boolean();
         OPO_power =  Prefs.Double(0.0,'units','mW','min',0,'max',5000);
         SHG_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
@@ -77,12 +103,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         cwave_ip = Sources.CWave.no_server;
         pulseStreamer_ip = Sources.CWave.no_server;
         wavemeter_ip = Sources.CWave.no_server;
+        target_wavelength='';
+        tunePercentRange = ''; %tunePercentRange = Prefs.DoubleArray();
         EtalonStep='';
-        target_wavelength;
-        tunePercentRange = '';
         MinEtalon_wl = '0';
         MaxEtalon_wl = '.25';
-        
     end
     
     properties(SetAccess=private)
@@ -90,12 +115,16 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         wavemeterHandle
         cwaveHandle
     end
-
     
-
     methods(Access=private)
         function obj = CWave()
             obj.loadPrefs;
+            % while loop with poling to cehck that all drivers are loaded.
+            % if they are then run updateStatus and set initial conditions
+            % such as wavemeter continuous model alternatively set these to
+            % directly in the set.ip methods.
+            %obj.updateStatus; %updateStatus before cwave library loaded.
+            %can have it here.
         end
 
         function err = connect_driver(obj,propname,drivername,varargin)
@@ -153,8 +182,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         end
 
         % tunable laser methods
-
-         % tunable laser methods
         function tune(obj, setpoint,target_dev,coarse,lock)
             % target in nm
             obj.tuning = true;
@@ -313,6 +340,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
              end
         end
         
+
         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   setpoint = setpoint in THz
@@ -330,7 +358,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 %             end
         end
 
-         function TuneCoarse(obj, setpoint)
+        function TuneCoarse(obj, setpoint)
             %TuneCoarse moves the laser to the target frequency (THz)
             %
             %   It assumes the laser is already close enough to not 
@@ -367,7 +395,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             %include error checks for power and clamping
         end
 
-        function TunePercent(obj, target)
+        function wl = TunePercent(obj, target)
             %TunePercent sets the resonator or the opo cavity piezo percentage
             %ref cavity has fsr = 10GHz, opo cavity has fsr = 40 GHz
             % For both cavties spectral drift for ~10 MHz steps is about 5-7 MHz
@@ -378,6 +406,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             assert(target>=0 && target<=100,'Target must be a percentage')
             %set opo cavity to tuning mode 
             if (obj.cwaveHandle.get_regopo() ~= 4)
+                %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4)
                 obj.cwaveHandle.set_regopo(4);
             end
             % tune at a limited rate per step
@@ -385,7 +414,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
+                %tstart = tic;
                 obj.cwaveHandle.tune_opo_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
+                wl(i) = obj.wavemeterHandle.getWavelength;
+                %telapsed(i+1) = toc(tstart);
             end
             obj.cwaveHandle.tune_opo_cavity(target);
             obj.resonator_percent = obj.GetPercent();
@@ -421,7 +453,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.updateStatus(); % Get voltage of resonator
         end
         
-         function updateStatus(obj)
+        function updateStatus(obj)
             % Get status report from laser and update a few fields
             tic
             obj.locked = ~(obj.cwaveHandle.get_statusbits);
@@ -522,12 +554,30 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-        function set.target_wavelength(obj,val)
-            %edite 10/30/19 note sure why this is read only???
+        %change to set_target_wavlength and make turn this into setmethod
+        %as defined in https://github.com/mwalsh161/CommandCenter/blob/dev/%2BBase/pref.m
+        %example of implementation: https://github.com/mwalsh161/CommandCenter/blob/dev/Modules/%2BImaging/debug.m#L55
+        %f you're wondering where the set property is defined, it is in Base.pref - also worth reading until I get it onto the wiki to better understand what's happening: https://github.com/mwalsh161/CommandCenter/blob/dev/%2BBase/pref.m
+% Matthew Feldman 5:16 PM
+% Yea the latter. Thanks. But just for my own understanding the testSet method sets a value to a preference (even though there is only a print statemet in the body of the method)? Is this behavior explained in the pref.m link you just sent?
+% Michael Walsh 5:25 PM
+% it should be explained
+% unlike MATLAB's set.prop methods, these set methods require you to return the value
+% new messages
+% so while testSet seems to only be doing an fprintf, the input val is returned as well
+%         function set.target_wavelength(obj,val)
+%             %if isnan(val.default); obj.target_wavelength = val; return; end % Short circuit on NaN
+%             if isnan(val.ui); obj.target_wavelength = val; return; end % Short circuit on NaN
+%             if obj.internal_call; obj.target_wavelength = val; return; end
+%             obj.tune(val);
+%         end
+        
+          function set.target_wavelength(obj,val)
+              %edite 10/30/19 note sure why this is read only???
             %if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
             %if obj.internal_call; obj.target_wavelength = val; return;
             %else
-            obj.target_wavelength = eval(val);
+                obj.target_wavelength = eval(val);
             %end
             if strcmp(val,''); return; end
             %target_dev = 0.000001;
@@ -562,9 +612,9 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 %             else
 %                 obj.TuneCoarse(obj.target_wavelength);
 %             end
-        end
+          end
           
-        function [currentSHG_Power, powerSHG_status, total_step,exit] = EtalonStepper(obj ,step, delay_val)
+          function [currentSHG_Power, powerSHG_status, total_step,exit] = EtalonStepper(obj ,step, delay_val)
               %step etalon
               direction = sign(step);
               obj.cwaveHandle.tune_thick_etalon(step);
@@ -714,13 +764,12 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                             break;
                         end
                     end
-        end
-         
-        
-        function abort = centerThickEtalon(obj)
+          end
+
+          function abort = centerThickEtalon(obj)
               dlgs = questdlg('Is Min and Max range of Etalon correctly set? MaxEtalon_wl and MinEtalon_wl must be measured by autotune or manually by adjusting EtalonStep. If tuning manually MaxEtalon_wl and MinEtalon_wl in Cwave Source preferences', ...
                              'Centering Etalon Warning', ...
-                             'Yes, Continue Tuning','No, Abort','No, Abort');
+                             'Yes, Continue Tuning','No, Please Autotune', 'No, Abort','No, Abort');
                          % Handle response
                          switch dlgs
                              case 'Yes, Continue Tuning'
@@ -736,45 +785,344 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      obj.etalon_pid(obj.MidEtalon_wl);
                                      abort = false;
                                  end
+                                 
+                             case 'No, Please Autotune'
+                                 pstep = 25;
+                                 nstep = -25;
+                                 obj.updateStatus;
+
+                                 PowerMeasureCondition_regopo2 = (obj.ref_temp_lock == true) & (obj.pump_emission == true) & ...
+                                     (obj.opo_lock == true) & (obj.thin_etalon_lock == true) & ...
+                                     (obj.shg_temp_lock == true) & (obj.shg_stepper_lock == true) & ...
+                                     (obj.opo_temp_lock == true) & (obj.opo_stepper_lock == true);
+                                 
+                                 PowerMeasureCondition_regopo4 = (obj.ref_temp_lock == true) & (obj.pump_emission == true) & ...
+                                     (obj.thin_etalon_lock == true) & (obj.shg_temp_lock == true) &...
+                                     (obj.shg_stepper_lock == true) & (obj.opo_temp_lock == true) & ...
+                                     (obj.opo_stepper_lock == true);
+                                     %(obj.etalon_lock == true) & (obj.shg_lock);
+                                 if  (obj.cwaveHandle.get_regopo == 2 &    PowerMeasureCondition_regopo2 == false)
+                                     obj.cwaveHandle.abort_tune;
+                                     error('Etalon not tunable. Check lock status of OPO elements.')
+                                 elseif (obj.cwaveHandle.get_regopo == 4 &    PowerMeasureCondition_regopo4 == false)
+                                     obj.cwaveHandle.abort_tune;
+                                     error('Etalon not tunable. Check lock status of OPO elements.')
+                                 elseif (PowerMeasureCondition_regopo2 == true | PowerMeasureCondition_regopo4 | obj.locked)
+                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                     if (currPower < obj.cwaveHandle.SHG_MinPower)
+                                         dlgs1 = questdlg('SHG power is very low (SHG is not lock)! Would you like to reoptimize SHG power?', ...
+                                             'Yes, optimize SHG Power','No, retune etalon', 'No, Abort','No, Abort');
+                                         % Handle response
+                                         switch dlgs1
+                                             case 'Yes, optimize SHG Power'
+                                                 % The CWave is slow at tuning, so message is useful until a non-blocking operation exists
+                                                 dlgs2 = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
+                                                 textH = findall(dlg,'tag','MessageBox');
+                                                 delete(findall(dlg,'tag','OKButton'));
+                                                 drawnow;
+                                                 tic
+                                                 obj.cwaveHandle.optimize_shg();
+                                                 while( (currPower < obj.cwaveHandle.SHG_MinPower & obj.shg_lock == false & obj.etalon_lock == false) | toc <= obj.timeoutSHG)
+                                                     obj.updateStatus;
+                                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                                 end
+                                                 delete(dlgs2);
+                                                 if(toc > obj.timeoutSHG)
+                                                         dlgs3 = msgbox('Error: Re-optimizing of SHG timed out. Tune Manually.',mfilename,'modal');
+                                                         textH = findall(dlg,'tag','MessageBox');
+                                                         %delete(findall(dlg,'tag','OKButton'));
+                                                         drawnow;
+                                                         %delete( dlgs3);
+                                                         obj.cwaveHandle.abort_tune;
+                                                         error('Re-optimizing of SHG timed out. Tune Manually.')
+                                                 end
+                                             case 'No, retune etalon'
+                                                 % The CWave is slow at tuning, so message is useful until a non-blocking operation exists
+                                                 dlgs4 = msgbox('Please wait while CWave relocks etalon.',mfilename,'modal');
+                                                 textH = findall(dlg,'tag','MessageBox');
+                                                 delete(findall(dlg,'tag','OKButton'));
+                                                 drawnow;
+                                                 tic
+                                                 obj.cwaveHandle.relock_etalon();
+                                                 while( (obj.etalon_lock == false) | toc <= obj.timeoutThickEtalon)
+                                                     obj.updateStatus;
+                                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                                 end
+                                                 delete(dlgs4);
+                                                 if(toc > obj.timeoutThickEtalon)
+                                                     dlgs5 = msgbox('Error: Retuning of thick etalon timed out. Tune Manually.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                                     %delete( dlgs5);
+                                                     obj.cwaveHandle.abort_tune;
+                                                     error('Retuning of thick etalon timed out. Tune Manually')
+                                                 end
+                                                 if (currPower < obj.cwaveHandle.SHG_MinPower | obj.shg_lock == false | obj.shg_temp_lock == false)
+                                                     % The CWave is slow at tuning, so message is useful until a non-blocking operation exists
+                                                     dlgs6 = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                                     tic
+                                                     obj.cwaveHandle.optimize_shg();
+                                                     while( (currPower < obj.cwaveHandle.SHG_MinPower & obj.shg_lock == false & obj.etalon_lock == false) | toc <= obj.timeoutSHG)
+                                                         obj.updateStatus;
+                                                         [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                                     end
+                                                     delete(dlgs6);
+                                                     if(toc > obj.obj.timeoutSHG)
+                                                         dlgs7 = msgbox('Error: Re-optimizing of SHG timed out. Tune Manually.',mfilename,'modal');
+                                                         textH = findall(dlg,'tag','MessageBox');
+                                                         %delete(findall(dlg,'tag','OKButton'));
+                                                         drawnow;
+                                                         %delete( dlgs7);
+                                                         obj.cwaveHandle.abort_tune;
+                                                         error('Re-optimizing of SHG timed out. Tune Manually.')
+                                                     end
+                                                 end
+                                             case 'No, Abort'
+                                                  abort = true;
+                                                  return
+                                         end
+                                        
+                                         %prompt user to either manually
+                                         %tune first or to reset SHG
+                                     end
+                                 end
+                                 
+                                 j=0;
+                                 EtalonTotalStep = 0;
+                                 obj.updateStatus;
+                                 wm_exptime_c =  wm_exptime_i;
+                                 wm_exptime_c = wm_exptime_i;
+                                 wm_lambda_c = wm_lambda_i;
+                                 
+                                 while ( (currPower > obj.cwaveHandle.SHG_MinPower) )
+                                     obj.updateStatus;
+                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                     [currPower, Status_powerSHG, EtalonTotalStep,exiting] = obj.EtalonStepper(pstep, obj.EtalonMeasureDelay);
+                                     pause(obj.EtalonMeasureDelay)
+
+                                     disp('Enter +eta loop')
+                                     fprintf('Control power: %.8f\n',currPower);
+                                     fprintf('Initial Power: %.8f\n',powerSHG_i);
+                                     fprintf('lock status (1 is locked): %.8f\n',obj.locked);
+                                     fprintf('initial exposure: %.8f\n',wm_exptime_i);
+                                     fprintf('current exposure: %.8f\n',wm_exptime_c);
+                                     
+                                     if (currPower <  obj.cwaveHandle.SHG_MinPower)
+                                         while(currPower < obj.cwaveHandle.SHG_MinPower)
+                                             direction = sign(EtalonTotalStep);
+                                             correction_step = direction*pstep;
+                                             [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                             [currPower, Status_powerSHG, EtalonTotalStep, exiting] = obj.EtalonStepper(correction_step, obj.EtalonMeasureDelay);
+                                             %obj.EtalonStep = nstep;
+                                             pause(obj.EtalonMeasureDelay)
+                                             obj.updateStatus;
+                                         end
+                                         [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                         %return;
+                                     else 
+                                         [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                         obj.MaxEtalon_wl = sprintf('%.80f',wm_lambda_c);
+                                         %obj.MaxEtalon_wl = sprintf('%.80f',obj.getWavelength);
+                                     end
+%                                      if currPower > powerSHG_i
+%                                          powerSHG_i = currPower;
+%                                          wmPower_i = wmPower_c;
+%                                      end
+                                     %[wm_lambda,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                     %currPower = obj.wavemeterHandle.getPower();
+                                     %wm_exptime_c = obj.wavemeterHandle.getExposure();
+                                     if ( (currPower >  obj.cwaveHandle.SHG_MinPower) & exiting == true)
+                                         del_wl = 1000*abs(wm_lambda_i-wl_lambda_c); % in pm
+                                         if (del_wl < EtalonTotalStep)
+                                             %maybe put obj.MaxEtalon_wl =
+                                             %sprintf('%.80f',wm_lambda_c);
+                                             %here
+                                             if wmPower_c < obj.wmPower_min
+                                                 dlgs8 = msgbox('Error: Low Power reading from wavemeter. Check wavemeter coupling.',mfilename,'modal');
+                                                         textH = findall(dlg,'tag','MessageBox');
+                                                         delete(findall(dlg,'tag','OKButton'));
+                                                         drawnow;
+                                                         %delete( dlgs3);
+                                                         obj.cwaveHandle.abort_tune;
+                                                         error('Re-optimizing of SHG timed out. Tune Manually.')
+                                             elseif (wmPower_c < wmPower_i/10 | wm_exptime_c > 10*wm_exptime_i)
+                                                 dlgs9 = msgbox('Warning: Low Power reading from wavemeter. Check wavemeter coupling.',mfilename,'modal');
+                                                         textH = findall(dlg,'tag','MessageBox');
+                                                         delete(findall(dlg,'tag','OKButton'));
+                                                         drawnow;
+                                                         %delete( dlgs3);
+                                             else
+                                                 return;
+                                             end
+                                         elseif (del_wl > EtalonTotalStep)
+                                            currPower = -1; %renter loop
+                                            obj.MaxEtalon_wl = 'NaN';
+                                            j = j+1;
+                                         elseif j>3
+                                             dlgs10 = msgbox('Error: etalon stick. Reset manually.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                             %delete(dlgs10);
+                                             obj.cwaveHandle.abort_tune;
+                                             error('etalon stick. Reset etalon manually.')
+                                             %maybe replace error with
+                                             %dialog box to prompt user to
+                                             %adjust etalon mannually
+                                         
+                                         end
+                                     end
+                                        
+                                 end
+                                 
+                                 [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                 
+                                 k=0;
+                                 EtalonTotalStep = 0;
+                                 obj.updateStatus;
+                                 wm_exptime_c =  wm_exptime_i;
+                                 wm_exptime_c = wm_exptime_i;
+                                 wm_lambda_c = wm_lambda_i;
+                                
+                                 while ( currPower > obj.cwaveHandle.SHG_MinPower ) 
+%                                      obj.updateStatus;
+%                                      %obj.EtalonStep = nstep;
+%                                      obj.cwaveHandle.tune_thick_etalon(
+%                                      sign = -1;
+%                                      
+%                                      %[currPower, powerSHG_status] = obj.EtalonStepper(sign,obj.EtalonMeasureDelay);
+%                                      pause(obj.EtalonMeasureDelay)
+                                     
+                                     obj.updateStatus;
+                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                     [currPower, Status_powerSHG, EtalonTotalStep,exiting] = obj.EtalonStepper(nstep, obj.EtalonMeasureDelay);
+                                     pause(obj.EtalonMeasureDelay)
+
+                                     disp('Enter -eta loop')
+                                     fprintf('Control power: %.8f\n',currPower);
+                                     fprintf('Initial Power: %.8f\n',powerSHG_i);
+                                     fprintf('lock status (1 is locked): %.8f\n',obj.locked);
+                                     fprintf('exposure initial: %.8f\n',wm_exptime_i);
+                                     fprintf('exposure control: %.8f\n',wm_exptime_c);
+                                     if (currPower < obj.cwaveHandle.SHG_MinPower)
+                                         while(currPower < obj.cwaveHandle.SHG_MinPower)
+%                                              %obj.EtalonStep = pstep;
+%                                              sign = 1;
+%                                              [currPower, powerSHG_status] = obj.EtalonStepper(sign,obj.EtalonMeasureDelay);
+%                                              pause(obj.EtalonMeasureDelay)
+%                                              obj.updateStatus;
+                                             
+                                             direction = sign(EtalonTotalStep);
+                                             correction_step = direction*pstep;
+                                             [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                             [currPower, Status_powerSHG, EtalonTotalStep, exiting] = obj.EtalonStepper(correction_step, obj.EtalonMeasureDelay);
+                                             %obj.EtalonStep = nstep;
+                                             pause(obj.EtalonMeasureDelay)
+                                             obj.updateStatus;
+                                         end
+                                         [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                         %return
+                                     else 
+                                         [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                         obj.MinEtalon_wl = sprintf('%.80f',wm_lambda);
+                                         %obj.MinEtalon_wl = sprintf('%.80f',obj.getWavelength);
+                                     end
+                                     
+                                     
+%                                      if currPower > powerSHG_i
+%                                          powerSHG_i = currPower;
+%                                      end
+%                                      [wm_lambda,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(0.05,1);
+                                     %currPower = obj.wavemeterHandle.getPower();
+                                     %wm_exptime_c = obj.wavemeterHandle.getExposure();
+                                      if ( (currPower >  obj.cwaveHandle.SHG_MinPower) & exiting == true)
+                                         del_wl = 1000*abs(wm_lambda_i-wl_lambda_c); % in pm
+                                         if (del_wl < EtalonTotalStep)
+                                             %maybe put obj.MaxEtalon_wl =
+                                             %sprintf('%.80f',wm_lambda_c);
+                                             %here
+                                             if wmPower_c < obj.wmPower_min
+                                                 dlgs11 = msgbox('Error: Low Power reading from wavemeter. Check wavemeter coupling.',mfilename,'modal');
+                                                         textH = findall(dlg,'tag','MessageBox');
+                                                         delete(findall(dlg,'tag','OKButton'));
+                                                         drawnow;
+                                                         %delete( dlgs11);
+                                                         obj.cwaveHandle.abort_tune;
+                                                         error('Re-optimizing of SHG timed out. Tune Manually.')
+                                             elseif (wmPower_c < wmPower_i/10 | wm_exptime_c > 10*wm_exptime_i)
+                                                 dlgs12 = msgbox('Warning: Low Power reading from wavemeter. Check wavemeter coupling.',mfilename,'modal');
+                                                         textH = findall(dlg,'tag','MessageBox');
+                                                         delete(findall(dlg,'tag','OKButton'));
+                                                         drawnow;
+                                                         %delete( dlgs12);
+                                             else
+                                                 return;
+                                             end
+                                         elseif (del_wl > EtalonTotalStep)
+                                            currPower = -1; %renter loop
+                                            obj.MinEtalon_wl = 'NaN';
+                                            k = k+1;
+                                         elseif k>3
+                                             dlgs13 = msgbox('Error: etalon stick. Reset manually.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                             %delete(dlgs13);
+                                             obj.cwaveHandle.abort_tune;
+                                             error('etalon stick. Reset etalon manually.')
+                                             %maybe replace error with
+                                             %dialog box to prompt user to
+                                             %adjust etalon mannually
+                                         
+                                         end
+                                     end
+                                 end                     
+%%%%%%%%%%%%%%%%%%%%%%%% End of 'No, Please Autotune' case %%%%%%%%%%%%%
+           
+                                 
                              case 'No, Abort'
                                  abort = true;
-                                 return;
+                                 return
                          end
-                                 
-        end
-        
-        function set.MaxEtalon_wl(obj,val)
+  
+          end
+          
+          function set.MaxEtalon_wl(obj,val)
               a = eval(val);
               obj.MaxEtalon_wl = a;
-        end
-        function set.MinEtalon_wl(obj,val)
+          end
+          function set.MinEtalon_wl(obj,val)
                a = eval(val);
                obj.MinEtalon_wl = a;
-        end
+          end
 %           
-        function set.EtalonStep(obj,val)
+          function set.EtalonStep(obj,val)
               obj.EtalonStep = eval(val);
               %disp(val);
               %obj.tune_etalon;
               obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
               pause(obj.EtalonMeasureDelay);
               %obj.updateStatus;
-        end
+          end
           
-        function tune_etalon(obj)
+          function tune_etalon(obj)
               obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
               %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
-        end
+          end
           
-        function set_regopo(obj,val)
+          function set_regopo(obj,val)
               obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,val);
-        end
+          end
           
-        function val = get_regopo(obj)
+          function val = get_regopo(obj)
               val = obj.cwaveHandle.get_regopo;
-        end
-        
-         function set.tunePercentRange(obj,val)
+          end
+              
+          function set.tunePercentRange(obj,val)
               
               obj.tunePercentRange = eval(val);
               if (strcmp( val,''))
@@ -866,13 +1214,14 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               end
               delete(dlg);  
         end
-          
-        function delete(obj)
-              obj.cwaveHandle.delete()
-              obj.PulseStreamerHandle.delete() 
-              obj.wavemeterHandle.delete()
-        end
         
+          function delete(obj)
+              obj.cwaveHandle.delete();
+              obj.PulseStreamerHandle.delete(); 
+              obj.wavemeterHandle.delete();
+          end
+          
+          %%%%%%%%%%%%
         function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = opo_pid(obj,setpoint,tolerance)
             i=0;
             kp_slow = 200;
@@ -957,7 +1306,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-        function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
+         function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
             
             obj.windupGuardmax = obj.EtaWindupGuardmax; 
             obj.windupGuardmin = obj.EtaWindupGuardmin;
@@ -1093,5 +1442,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             prev_error = curr_error;
         end
       %%%%%%%%%%%%
+         
+   
     end
 end
