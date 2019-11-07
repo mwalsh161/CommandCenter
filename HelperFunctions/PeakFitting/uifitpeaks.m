@@ -38,10 +38,11 @@ function varargout = uifitpeaks(ax,varargin)
 %       corresponding to that peak.
 %       [Shift+] Tab will change the selected point.
 
-if ~isempty(findobj(ax,'tag',mfilename))
+if isstruct(ax.UserData) && isfield(ax.UserData,[mfilename '_enabled'])
     warning('UIFITPEAKS already initialized on this axis');
     return % Already running on this axes
 end
+ax.UserData.([mfilename '_enabled']) = true;
 persistent p
 if isempty(p) % Avoid having to rebuild on each function call
     p = inputParser();
@@ -111,6 +112,7 @@ pnt.UserData.ind = NaN;
 pnt.UserData.desc = 0; % desc=0 -> background
 
 % Set up data structures
+handles.([mfilename '_enabled']) = true; % Need to repeat because of how it is assigned later
 handles.Bounds = p.Results.Bounds;
 handles.StepSize = p.Results.StepSize;
 handles.InitWid = p.Results.InitWidth;
@@ -155,7 +157,6 @@ end
 handles.old_buttondownfcn = get(ax,'buttondownfcn');
 set(ax,'buttondownfcn',@ax_clicked);
 ax.UserData = handles;
-ax.UserData.([mfilename '_enabled']) = true;
 ax.UserData.original_color = ax.Color;
 iptPointerManager(f, 'enable');
 addlistener(pFit,'ObjectBeingDestroyed',@clean_up);
@@ -282,8 +283,8 @@ end
 function keypressed(hObj,eventdata)
 % If modified with control, [dx,dy] = [dx,dy]/10
 ax = gca;
-if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
-    return;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled']) || ax.UserData.lock
+    return
 end
 handles = ax.UserData;
 if isempty(handles.active_point)

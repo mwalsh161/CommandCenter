@@ -108,7 +108,7 @@ FitType = p.Results.FitType;
 wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
 AmplitudeSensitivity = 1;
-update_exp = {@update_spec, @udpate_open, @update_closed}; % Easily index by exp_id
+update_exp = {@update_spec, @update_open, @update_closed}; % Easily index by exp_id
 colors = lines;
 
 if isstruct(p.Results.Analysis)
@@ -189,17 +189,10 @@ end
             warning('SPECSLOWSCAN:analysis:chill','Chill! Busy fitting still...');
             return
         end
-        busy = true;
         % Save the current analysis before moving to next site
         save_state();
         site_index = new_index;
-        try
-            update_all();
-        catch err
-            busy = false;
-            rethrow(err)
-        end
-        busy = false;
+        update_all();
     end
 
     function selectSite(sc,eventdata)
@@ -253,6 +246,9 @@ end
     end
     function update_spec()
         % Update spectrometer data (analysis(:,1), selector(1), ax(2))
+        if busy; error('Busy!'); end
+        busy = true;
+        try
         site = sites(site_index);
         prepUI(ax(2),selector(1));
         set(selector(1),'Data',cell(0,10)); % Reset selector
@@ -279,9 +275,17 @@ end
             attach_uifitpeaks(ax(2),analysis(site_index,1),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
         end
+        catch err
+            busy = false;
+            rethrow(err);
+        end
+        busy = false;
     end
     function update_open()
         % Update PLE open (analysis(:,2), selector(2), ax(3))
+        if busy; error('Busy!'); end
+        busy = true;
+        try
         site = sites(site_index);
         prepUI(ax(3),selector(2));
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Open',{site.experiments.name})));
@@ -318,9 +322,17 @@ end
             attach_uifitpeaks(ax(3),analysis(site_index,2),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
         end
+        catch err
+            busy = false;
+            rethrow(err);
+        end
+        busy = false;
     end
     function update_closed()
         % Update PLE closed (analysis(:,3), selector(3), ax(4))
+        if busy; error('Busy!'); end
+        busy = true;
+        try
         site = sites(site_index);
         prepUI(ax(4),selector(3));
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name})));
@@ -349,6 +361,11 @@ end
             attach_uifitpeaks(ax(4),analysis(site_index,3),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
         end
+        catch err
+            busy = false;
+            rethrow(err);
+        end
+        busy = false;
     end
     function formatSelector(selectorH,experiment,i,exp_ind,site_ind,rgb)
         if nargin < 6
@@ -411,6 +428,10 @@ end
     function selector_edit_callback(hObj,eventdata)
         switch eventdata.Indices(2)
             case 1 % Display
+                if busy
+                    hObj.Data{eventdata.Indices(1),1} = ~hObj.Data{eventdata.Indices(1),1};
+                    return
+                end
                 exp_ind = hObj.Data{eventdata.Indices(1),3};
                 exp_type = hObj.UserData;
                 mask = analysis(site_index,exp_type).uses==exp_ind;
@@ -420,7 +441,7 @@ end
                     analysis(site_index,exp_type).uses(end+1) = exp_ind;
                 end
                 update_exp{exp_type}();
-            case 4 % Redo Request (no need to update_all)
+            case 6 % Redo Request (no need to update_all)
                 % Can only toggle most recent experiment
                 % Find most recent age
                 most_recent = min([hObj.Data{:,5}]);
