@@ -185,10 +185,7 @@ end
 
     function changeSite(new_index)
         % Only function allowed to update site_index
-        if busy
-            warning('SPECSLOWSCAN:analysis:chill','Chill! Busy fitting still...');
-            return
-        end
+        if busy; return; end
         % Save the current analysis before moving to next site
         save_state();
         site_index = new_index;
