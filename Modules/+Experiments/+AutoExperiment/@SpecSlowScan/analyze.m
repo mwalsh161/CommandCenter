@@ -97,6 +97,9 @@ hold(ax,'off');
 ax(2) = axes('parent',pan_ax(1),'tag','SpectraAx'); hold(ax(2),'on');
 ax(3) = axes('parent',pan_ax(2),'tag','OpenLoopAx'); hold(ax(3),'on');
 ax(4) = axes('parent',pan_ax(3),'tag','ClosedLoopAx'); hold(ax(4),'on');
+addlistener(ax(2),'XLim','PostSet',@xlim_changed);
+addlistener(ax(3),'XLim','PostSet',@xlim_changed);
+addlistener(ax(4),'XLim','PostSet',@xlim_changed);
 
 % Constants and large structures go here
 n = length(sites);
@@ -127,7 +130,7 @@ busy = false;
 new_data = false;
 
 % Link UI control
-fig.KeyPressFcn = @cycleSite;
+set([fig, selector],'KeyPressFcn',@cycleSite);
 update_all(); % Bypass changeSite since we have no previous site
 
 if nargout
@@ -231,7 +234,11 @@ end
         ind = mod(site_index-1+direction,n)+1;
         changeSite(ind);
     end
-
+%% Update UI methods
+    function prepUI(ax,selector)
+        set(selector,'Data',cell(0,10)); % Reset selector
+        cla(ax,'reset'); hold(ax,'on');
+    end
     function update_all()
         update_im();
         update_spec();
@@ -247,9 +254,10 @@ end
     function update_spec()
         % Update spectrometer data (analysis(:,1), selector(1), ax(2))
         site = sites(site_index);
+        prepUI(ax(2),selector(1));
         set(selector(1),'Data',cell(0,10)); % Reset selector
         cla(ax(2),'reset'); hold(ax(2),'on');
-        exp_inds = find(strcmp('Experiments.Spectrum',{site.experiments.name}),'last');
+        exp_inds = fliplr(find(strcmp('Experiments.Spectrum',{site.experiments.name})));
         if isnan(analysis(site_index,1).uses) % First time visiting, so add all experiments by default
             analysis(site_index,1).uses = exp_inds;
         end
@@ -275,13 +283,13 @@ end
     function update_open()
         % Update PLE open (analysis(:,2), selector(2), ax(3))
         site = sites(site_index);
-        set(selector(2),'Data',cell(0,10)); % Reset selector
-        cla(ax(3),'reset'); hold(ax(3),'on');
-        exp_inds = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}),'last');
+        prepUI(ax(3),selector(2));
+        exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Open',{site.experiments.name})));
         set_points = NaN(1,length(exp_inds));
         if isnan(analysis(site_index,2).uses) % First time visiting, so add all experiments by default
             analysis(site_index,2).uses = exp_inds;
         end
+        j = 1; % Loop counter (e.g. index into set_points)
         for i = exp_inds
             experiment = site.experiments(i);
             if ~isempty(experiment.data) && any(i==analysis(site_index,2).uses)
@@ -289,16 +297,17 @@ end
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
                         'parent',ax(3),'tag','OpenLoop','color',colors(i,:));
-                set_points(i) = experiment.data.meta.prefs.freq_THz;
+                set_points(j) = experiment.data.meta.prefs.freq_THz;
                 formatSelector(selector(2),experiment,i,2,site_index,colors(i,:));
             else
                 formatSelector(selector(2),experiment,i,2,site_index);
             end
+            j = j + 1;
         end
         ylim = get(ax(3),'ylim');
         for i = 1:length(set_points)
             if ~isnan(set_points(i))
-                plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', colors(i,:),...
+                plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', colors(exp_inds(i),:),...
                     'handlevisibility','off','hittest','off');
             end
         end
@@ -313,9 +322,8 @@ end
     function update_closed()
         % Update PLE closed (analysis(:,3), selector(3), ax(4))
         site = sites(site_index);
-        set(selector(3),'Data',cell(0,10)); % Reset selector
-        cla(ax(4),'reset'); hold(ax(4),'on');
-        exp_inds = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}),'last');
+        prepUI(ax(4),selector(3));
+        exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name})));
         if isnan(analysis(site_index,3).uses) % First time visiting, so add all experiments by default
             analysis(site_index,3).uses = exp_inds;
         end
@@ -372,6 +380,22 @@ end
                                    experiment.skipped,...
                                    experiment.completed,...
                                    ~isempty(experiment.err)};
+    end
+%% Callbacks
+    function xlim_changed(~,eventdata)
+        % Find fit line and redraw with more points
+        ax_changed = eventdata.AffectedObject;
+        uifitpeaks_lines = findobj(ax_changed,'tag','uifitpeaks');
+        nlines = length(uifitpeaks_lines);
+        xlim = ax_changed.XLim;
+        for i = nlines:-1:1
+            if isa(uifitpeaks_lines(i).UserData,'cfit')
+                x = linspace(xlim(1),xlim(2),length(uifitpeaks_lines(i).XData));
+                uifitpeaks_lines(i).XData = x;
+                uifitpeaks_lines(i).YData = uifitpeaks_lines(i).UserData(x);
+                return
+            end
+        end
     end
     function selector_click_callback(hObj,eventdata)
         if ~strcmp(eventdata.EventName,'CellSelection') ||...
@@ -449,7 +473,7 @@ end
         end
         if fig.UserData.uifitpeaks_count == 1 % Only set on first creation
             fig.UserData.uifitpeaks_keypress_callback = get(fig,'keypressfcn');
-            set(fig,'keypressfcn',@keypress_wrapper);
+            set([fig, selector],'keypressfcn',@keypress_wrapper);
         end
     end
     function keypress_wrapper(hObj,eventdata)
