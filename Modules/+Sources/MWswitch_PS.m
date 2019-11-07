@@ -13,10 +13,12 @@ classdef MWswitch_PS < Modules.Source
         source_on = false;
         running = false;                    % Boolean specifying if StaticLines program running
     end
-    properties
+      properties
           prefs;
           show_prefs;
-    end
+%         prefs = {'PSline','ip','enabled'};
+%         show_prefs = {'PSline','ip'};
+     end
     properties(Access=private)
         listeners
         status                       % Text object reflecting running
