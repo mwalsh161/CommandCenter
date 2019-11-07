@@ -562,7 +562,160 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 %             else
 %                 obj.TuneCoarse(obj.target_wavelength);
 %             end
+        end
+          
+        function [currentSHG_Power, powerSHG_status, total_step,exit] = EtalonStepper(obj ,step, delay_val)
+              %step etalon
+              direction = sign(step);
+              obj.cwaveHandle.tune_thick_etalon(step);
+              exit = false;
+              %correct for excessive stick-slip motion....
+              i =1;
+              total_step = 0;
+              [currentSHG_Power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+              while currentSHG_Power < obj.cwaveHandle.SHG_MinPower 
+                  if i == 1
+                      step = 5;
+                  elseif i == 2
+                      step = 10;
+                  elseif i == 3
+                      step = 15;
+                  elseif i == 4
+                      step = 20;
+                  elseif i == 5
+                      step = 25;
+                  elseif i == 6
+                      step = 50;
+                  elseif i > 6
+                      step = 50;
+                  end
+                  i = i+1;
+                  if i >= 10
+                      return;
+                  end
+                     
+%                   if currentSHG_Power < obj.cwaveHandle.SHG_MinPower
+                      stepSize = -direction*step;
+                      %sprintf('%i',stepSize);
+                      %obj.EtalonStep = Stepsize;
+                      obj.cwaveHandle.tune_thick_etalon(stepSize);
+                      pause(delay_val);
+                      total_step = stepSize + total_step;
+                      exit = true;
+%                       if (currentSHG_Power >= obj.cwaveHandle.SHG_MinPower)
+%                           wl_wm = obj.getWavelength;
+%                       elseif (currentSHG_Power < obj.cwaveHandle.SHG_MinPower)
+%                           wl_wm = NaN;
+%                       end 
+%                   end
+                  [currentSHG_Power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+              end
           end
+	      
+          function [wm_wl,wm_power,wm_exptime,SHG_power] = powerStatus(obj, tol,delay_val)
+                    i = 0;
+                    maxj_interation = 10;
+                    MaxExposuretime = 1500;
+                    obj.wavemeterHandle.setExposureMode(false); % manually set exposure
+                    obj.wavemeterHandle.setExposure(1) % set exposure to 1 ms
+                    obj.wavemeterHandle.setExposureMode(true); %sert exposure mode auto
+                    prev_expTime = obj.wavemeterHandle.getExposure();
+                    curr_expTime = 100000*prev_expTime;
+                    while (  curr_expTime <= (1-tol)*prev_expTime | curr_expTime >= (1+tol)*prev_expTime )
+                        i = i+1;
+                        pause(delay_val)
+                        if i > maxj_interation
+                            obj.updateStatus
+                            regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
+                                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+                            
+                            regopo4_noEta_locked =   obj.opo_stepper_lock & obj.opo_temp_lock...
+                                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+                           
+                            if (obj.cwaveHandle.get_regopo == 4)
+                                [SHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                if( regopo4_locked == false)
+                                    dialog0 = msgbox('Error: CWave is not locked for regopo4. Refer to lock status to determine failing elements. Currently in OPO regulator mode 4.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                    %delete( dialog0);
+                                    error('CWave is not locked for regopo4. Refer to lock status to determine failing elements. Currently in OPO regulator mode 4.');
+                                elseif (regopo4_noEta_locked == true & obj.etalon_lock == false)
+                                    dialog1 = msgbox('Error: Etalon is not locked. Currently in OPO regulator mode 4.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                    %delete( dialog1);
+                                    error('Etalon is not locked. Currently in OPO regulator mode 4.');
+                                elseif (regopo4_locked == true & powerSHG_status == true)
+                                    dialog2 = msgbox('insufficient power from SHG.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                    %delete( dialog2);
+                                    disp('insufficient power from SHG.');
+                                end
+                            end
+                                    
+                            if (obj.cwaveHandle.get_regopo == 2)
+                                if (obj.regopo4_locked == true &  obj.etalon_lock == true & obj.shg_lock == false )
+                                    dialog3 = msgbox('Error: SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                    %delete( dialog3);
+                                    error('SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
+                                elseif (obj.regopo4_locked == true &  obj.etalon_lock == false & obj.shg_lock == true )
+                                     dialog4 = msgbox('Error: Etalon cannot lock. Try retuning manually. Currently in OPO regulator mode 2.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                    delete( dialog4);
+                                    error('Etalon cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
+                                elseif (obj.regopo4_locked == true &  obj.etalon_lock == false & obj.shg_lock == false )
+                                    dialog5 = msgbox('Error: Etalon and SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                    %delete( dialog5);
+                                    error('Etalon and SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
+                                end
+                            end
+                            
+                            if( obj.wavemeterHandle.setExposure >= MaxExposuretime)
+                                dialog6 = msgbox('Error: Dim emission. Check that light is well coupled into wave meter.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                %delete( dialog6);
+                                error('Dim emission. Check that light is well coupled into wave meter')
+                            else
+                                dialog7 = msgbox('Error: Large fluctuations in CWave power.',mfilename,'modal');
+                                                     textH = findall(dlg,'tag','MessageBox');
+                                                     %delete(findall(dlg,'tag','OKButton'));
+                                                     drawnow;
+                                %delete( dialog7);
+                                error('Large fluctuations in CWave power.')
+                            end
+                        
+                        elseif ( (1+tol)*prev_expTime >= curr_expTime & curr_expTime >= (1-tol)*prev_expTime )
+                            [SHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                            wm_exptime = obj.wavemeterHandle.getExposure(); 
+                            
+                            if (powerSHG_status == false)
+                                wm_wl = obj.getWavlength(); 
+                                wm_power = obj.wavemeterHandle.getPower(); 
+                                wm_exptime = obj.wavemeterHandle.getExposure(); 
+                            elseif (powerSHG_status == true)
+                                wm_wl = NaN;
+                                wm_power = NaN;
+                            end  
+                            break;
+                        end
+                    end
+        end
+         
         
         function abort = centerThickEtalon(obj)
               dlgs = questdlg('Is Min and Max range of Etalon correctly set? MaxEtalon_wl and MinEtalon_wl must be measured by autotune or manually by adjusting EtalonStep. If tuning manually MaxEtalon_wl and MinEtalon_wl in Cwave Source preferences', ...
