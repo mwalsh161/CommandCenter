@@ -803,5 +803,46 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  D_term(i) = d_term;  
             end
         end
+        
+        function [ctrl,prev_error,int_error,p_term,i_term,d_term] = pid_update(obj, curr_error,prev_error, int_error, kp,ki,kd,dt)
+ 
+            % integration
+            int_error = int_error + (curr_error * dt);
+ 
+            % integration windup guarding
+            if (int_error < obj.windupGuardmin)
+                int_error = obj.windupGuardmin;
+                saturation = 1;
+            elseif (int_error > obj.windupGuardmax)
+                int_error = obj.windupGuardmax;
+                saturation = 1;
+            else 
+                saturation = 0;
+            end
+    
+            if ((sign(curr_error) == sign(prev_error)) && (saturation == 1))
+                int_error = 0;
+            end
+    
+            % differentiation
+            if dt == 0
+                int_error = 0;
+                diff = 0;
+            else
+                diff = ((curr_error - prev_error) / dt);
+            end
+
+            % scaling
+            p_term = (kp * curr_error);
+            i_term = (ki     * int_error);
+            d_term = (kd   * diff);
+            
+            % summation of terms
+            ctrl = p_term + i_term + d_term;
+             
+            % save current error as previous error for next iteration
+            prev_error = curr_error;
+        end
+      %%%%%%%%%%%%
     end
 end
