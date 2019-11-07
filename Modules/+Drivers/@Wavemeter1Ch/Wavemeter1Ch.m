@@ -18,6 +18,9 @@ classdef Wavemeter1Ch < Modules.Driver
     properties(Constant)
         hwname = 'wavemeter';
         resolution = 0.00001; %frequency resolution in THz
+        wlDefaultRange = 6; %(400-1000nm for WS6 wavemeter) 
+                            %will need modified to account 
+                            %for different wavemeters in the future
     end
     properties
         timeout = 2; %timeout for attempting to read from wavemeter
@@ -61,7 +64,33 @@ classdef Wavemeter1Ch < Modules.Driver
             % Not sure if interactive input is useful for anything 
             %if interactive
             %end
-            
+            %ensure initialized to CW mode
+            if (obj.getPulseMode == 1)
+                obj.setPulseMode(0);
+            end
+            %ensure initialized to fine precision
+            if (obj.getWideMode == 1)
+                obj.setWideMode(0);
+            end
+            %ensure initialized to fast measurement mode
+            if (obj.getFastMode == 0)
+                obj.setFastMode = 1;
+            end 
+            %ensure initialized to autoexposure mode
+            if (obj.getExposureMode == false)
+                obj.setExposureMode(true);
+            end
+            if (obj.getResultMode ~= 1)
+                obj.setResultMode(1);
+                 %    'cReturnWavelengthVac' = 0
+                 %    'cReturnWavelengthAir' = 1
+                 %    'cReturnFrequency' = 2
+                 %    'cReturnWavenumber' = 3
+                 %    'cReturnPhotonEnergy' = 4
+            end
+            if ( obj.getRange ~= 6 )
+                obj.setRange(obj.wlDefaultRange);
+            end
         end
         function response = com(obj,funcname,varargin) %keep this
 %             if length(funcname) >= 2 && strcmpi(funcname(1:3),'set')
@@ -225,5 +254,127 @@ classdef Wavemeter1Ch < Modules.Driver
         function val = setExposure(obj,val)
             obj.com('SetExposure',val); 
         end
+        
+        function lw = getLinewidth(obj) %66
+            lw = obj.com('GetLinewidth','cReturnFrequency');
+            %requires R or L version wavemeters 
+            %that can measure linewidths.
+        end
+        function meas_mode = getOperationState(obj) %75
+            meas_mode  = obj.com('GetOperationState');
+            % Mode: Adjusting = 'cAdjustment'
+            %        Measuring = 'cMeasurement'
+            %        Stopped   = 'cStop'
+        end
+        function stop_measurement(obj)
+            obj.com('Operation','cCtrlStopAll')
+        end
+        function start_measurement(obj)
+            obj.com('Operation','cCtrlStartMeasurement')
+            %obj.com('Operation','cCtrlStartRecord')
+        end
+        function calibration(obj,val,cal_wl)
+            switch nargin
+                case 0
+                    val = 'cNEL';
+                   % cal_wl = ...;
+                case 1
+                   % cal_wl= ...;
+            end
+            %what is the calibration wavelength for the CNEL Neon lamp?
+            obj.com('Calibration', val, 'cReturnWavelengthVac',cal_wl,1) %76
+        end
+        %function triggerMeasurement %77
+        %end
+        function setBackground(obj,val) %78
+            % 1 activates background consideration
+            % 0 deactivates it
+            obj.com('SetBackground',val)
+        end
+        function ResultMode = getResultMode(obj) %79
+            ResultMode = obj.com('GetResultMode',0);
+        end
+        function setResultMode(obj, val) %79
+            %Allowable Modes:
+            %    'cReturnWavelengthVac' = 0
+            %    'cReturnWavelengthAir' = 1
+            %    'cReturnFrequency' = 2
+            %    'cReturnWavenumber' = 3
+            %    'cReturnPhotonEnergy' = 4
+            obj.com('SetResultMode',val)
+        end
+        function wl_Range = getRange(obj) %79
+            wl_Range = obj.com('GetRange',0);
+            %Returns active wavelength range int
+            % returns 6 for 400-1000nm range on WS6
+            % returns 7 for 1000-17000 nm range on WS6
+        end
+        function setRange(obj,val) %79
+            %Allowable Values for WS6
+            obj.com('SetRange', val)
+        end
+        function PulseMode = getPulseMode(obj) %80
+            %Returns 1 if in pulse mode and a 0 if
+            %in CW mode.
+            PulseMode = obj.com('GetPulseMode',0);
+        end
+        function setPulseMode(obj,val) %81
+            %Allowable values
+            %   CW mode: val = 1
+            %	Pulsed Mode: val = 0
+            obj.com('SetPulseMode',val)
+        end
+        function precisionMode = getWideMode(obj) %81
+            %sets measurement precision
+            % returns 1 for coarse resolution
+            % returns 0 for fine resolution (full precision)
+            precisionMode = obj.com('GetWideMode',0);
+        end
+        function setWideMode(obj, val) %81
+            %Allowable values
+            %   coarse precision: val = 1
+            %	full precision: val = 0
+            obj.com('SetWideMode',val);
+        end
+        function FastMode = getFastMode(obj) %82
+            % returns 1 for faster calculation by fuzzy drawing
+            %        of interference patterns
+            % returns 0 for exact drawing.
+            FastMode = obj.com('GetFastMode',0);
+        end
+        function setFastMode(obj, val) %82
+            %Allowable values
+            %   fast mode: val = 1
+            %	slow slow: val = 0
+            obj.com('SetFastMode',val)
+        end
+        function bg = getBackground(obj) %83
+            % returns 1 when bg is loaded and is used to correct signal
+            % returns 0 otherwise
+            bg = obj.com('GetBackground');
+        end
+        function lwMode = getLinewidthMode(obj) %84
+            % returns 1 if linewidth mode is available
+            % returns 0 otherwise
+            lwMode = obj.com('GetLinewidthMode',0);
+        end
+        function calMode = getAutoCalMode(obj)  %86
+            % returns 1 if in autocal mode
+            % returns 0 otherwise
+            calMode = obj.com('GetAutoCalMode',0);
+        end
+        function setAutoCalMode(obj,val) %86
+             %Allowable values
+            %   Autocal on:  val = 1
+            %	Autocal off: val = 0
+            obj.com('SetAutoCalMode',val);
+        end
+        %function getAutoCalSetting %87
+        %end
+        %function setAutoCalSetting %88
+        %end
+        
+        
+     
     end
 end
