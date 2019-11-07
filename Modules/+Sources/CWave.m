@@ -16,7 +16,14 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
     end
     properties(Constant,Hidden)
         no_server = 'No Server';  % Message when not connected
+        MaxThickEtalonRange = 0.375; %nm
     end
+    properties(Hidden)
+        sOPO_power;
+        sSHG_power;
+        sPump_power;
+    end
+    
     properties(SetAccess=protected)
         range = [Sources.TunableLaser_invisible.c./[450, 650],Sources.TunableLaser_invisible.c./[900, 1300]];
     end
@@ -56,6 +63,15 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         pump_emission = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
         ref_temp = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
         wavelength_lock = Prefs.Boolean();
+        OPO_power =  Prefs.Double(0.0,'units','mW','min',0,'max',5000);
+        SHG_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
+        Pump_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
+        TempRef =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempOPO =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempSHG =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempRef_setpoint =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempOPO_setpoint =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempSHG_setpoint =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         %target_wavelength = Prefs.Double('default',NaN,'units','nm','min',450,'max',1300,'set','set_target_wavelength');
         cwave_ip = Sources.CWave.no_server;
         pulseStreamer_ip = Sources.CWave.no_server;
@@ -132,7 +148,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 
         % tunable laser methods
 
-        function tune(obj, setpoint,target_dev)
+         % tunable laser methods
+        function tune(obj, setpoint,target_dev,coarse,lock)
             % target in nm
             obj.tuning = true;
             if setpoint < 899
@@ -151,37 +168,106 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             drawnow;
             obj.tuning = true;
             
-            try 
-                %target_dev = 0.5;
-                %measured_wavelength = obj.wavemeterHandle.getWavelength();
-                %mid_setpoint = measured_wavelength;
-                %while round(target_dev, 5) > 0
-                %    while abs(mid_setpoint - setpoint) > 2*target_dev
-                %        mid_setpoint = mid_setpoint + 2*target_dev;
-                %        obj.cwaveHandle.set_target_deviation(target_dev);
-                %        obj.cwaveHandle.set_pid_target_wavelength(mid_setpoint);
-                %        while abs(measured_wavelength - mid_setpoint) > target_dev
-                %            obj.cwaveHandle.WLM_PID_Compute(measured_wavelength);
-                %           pause(0.001);
-                %        end
-                %    end
-                %    target_dev = target_dev/10;
+            try
+                obj.updateStatus;
+                if (coarse == true)
+                     if (obj.sOPO_power | obj.sSHG_power |  obj.sPump_power | obj.wavemeterHandle.getExposure == 2000)
+                         detune = 2*obj.MaxThickEtalonRange;
+                         disp(detune)
+                         obj.wavemeterHandle.setExposureMode(false); %Manually set exposure 
+                         obj.wavemeterHandle.setExposure(1); %set to 1ms
+                     else
+                         detune = abs(setpoint-obj.getWavelength);
+                     end
+                     
+                     if  (detune > abs(obj.MaxEtalon_wl-obj.MinEtalon_wl)) | (detune > obj.MaxThickEtalonRange )
+                         % need to add warning option allowsing user to exit
+                         % this is a very costly operation
+                         dlg = questdlg('Target wavelength exceeds tuning etalon and OPO range (> 0.2 nm)! Tuning will be very slow. Do you wish to continue with tuning?', ...
+                             'Tuning Warning', ...
+                             'Continue Tuning','Abort','Abort');
+                         % Handle response
+                         switch dlg
+                             case 'Continue Tuning'
+                                 obj.cwaveHandle.target_wavelength = setpoint + 1;
+                                 obj.cwaveHandle.set_target_wavelength();
+                                 pause(10);
+                                 obj.cwaveHandle.target_wavelength = setpoint;
+                                 obj.cwaveHandle.set_target_wavelength();
+                                 while(1)
+                                     ret = obj.locked;
+                                     if  (ret == true)
+                                         obj.updateStatus;
+                                         break;
+                                     else
+                                         obj.updateStatus;
+                                         pause(1);
+                                     end
+                                 end
+                                 obj.wavemeterHandle.setExposureMode(true);
+                                 obj.updateStatus;
+                             case 'Abort'
+                                 return
+                         end 
+                     elseif  abs(setpoint-obj.getWavelength) < abs(obj.MaxEtalon_wl-obj.MinEtalon_wl)
+                         abort = obj.centerThickEtalon;
+                         if (abort )
+                             delete(dlg)
+                             return
+                         end
+                         
+                         if (lock == true)
+                             while ( obj.cwaveHandle.get_regopo() ~= 2)
+                                 obj.cwaveHandle.set_regopo(2);
+                             end
+                             if (obj.cwaveHandle.get_ref_cavity_percent ~= 50) 
+                                 obj.TuneRefPercent(50.0);
+                             end
+                             obj.etalon_pid(setpoint,obj.ThickEtalonTolerance);
+                             %obj.etalon_pid(setpoint);
+                             for i=1:2
+                                 obj.WLM_tune(setpoint,target_dev)
+                             end
+                         elseif (lock == false)
+                             while ( obj.cwaveHandle.get_regopo() ~= 4)
+                                 obj.cwaveHandle.set_regopo(4);
+                                 pause(1);
+                                 disp('regopo');
+                                 obj.cwaveHandle.get_regopo
+                                 disp('end iteration')
+                             end
+                             if (obj.GetPercent() ~= 50)
+                                 obj.TunePercent(50);
+                             end
+                             obj.etalon_pid(setpoint);
+                             for i=1:2
+                                 obj.opo_pid(setpoint,target_dev);
+                             end
+                         end
+                         obj.updateStatus;
+                     end
                     
-               
-                while round(target_dev, 5) > 0
-                    measured_wavelength = obj.wavemeterHandle.getWavelength();
-                    mid_setpoint = measured_wavelength;
-                    direction = sign(setpoint-mid_setpoint);
-                    while abs(mid_setpoint - setpoint) > 2*target_dev
-                        mid_setpoint = mid_setpoint + direction*target_dev/5;
-                        obj.cwaveHandle.set_target_deviation(target_dev);
-                        obj.cwaveHandle.set_pid_target_wavelength(mid_setpoint);
-                        while abs(measured_wavelength - mid_setpoint) > target_dev
-                            obj.cwaveHandle.WLM_PID_Compute(measured_wavelength);
-                            pause(0.001);
-                        end
-                    end
-                    target_dev = target_dev/10;    
+                 elseif coarse == false
+                     if (lock == true)
+                         if (obj.cwaveHandle.get_ref_cavity_percent ~= 50)
+                             obj.TuneRefPercent(50.0);
+                         end
+                         obj.cwaveHandle.set_regopo(2);
+                         for i=1:2
+                             obj.WLM_tune(setpoint,target_dev)
+                         end
+                     else
+                         if (obj.GetPercent() ~= 50)
+                             obj.TunePercent(50);
+                         end
+                         %obj.set_regopo(4);
+                         %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4);
+                         obj.cwaveHandle.set_regopo(4);
+                         for i=1:2
+                             obj.opo_pid(setpoint,target_dev);
+                         end
+                     end
+                     obj.updateStatus;
                 end
                 obj.tuning = false;
             catch err 
@@ -193,13 +279,12 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 obj.wavelength_lock = false;
                 obj.setpoint = NaN;
                 rethrow(err)
+            elseif (lock)
+                obj.wavelength_lock = true;
             end
-            obj.setpoint = obj.c/target;
-            obj.locked = true;
-            obj.wavelength_lock = true;
-            obj.etalon_lock = true;  % We don't know at this point anything about etalon if not locked
+            obj.setpoint = setpoint;
         end
-
+        
         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   setpoint = setpoint in nm
@@ -249,22 +334,47 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.updateStatus(); % Get voltage of resonator
         end
         
-        function updateStatus(obj)
+         function updateStatus(obj)
             % Get status report from laser and update a few fields
+            tic
+            obj.locked = ~(obj.cwaveHandle.get_statusbits);
+            obj.etalon_lock = ~obj.cwaveHandle.etalon_lock_stat;
+            obj.opo_stepper_lock = ~obj.cwaveHandle.opo_stepper_stat;
+            obj.opo_temp_lock = ~obj.cwaveHandle.opo_temp_stat;
+            obj.shg_stepper_lock = ~obj.cwaveHandle.shg_stepper_stat;
+            obj.shg_temp_lock = ~obj.cwaveHandle.shg_temp_stat;
+            obj.thin_etalon_lock = ~obj.cwaveHandle.thin_etalon_stat;
+            obj.opo_lock = ~obj.cwaveHandle.opo_lock_stat;
+            obj.shg_lock = ~obj.cwaveHandle.shg_lock_stat;
+            obj.pump_emission = ~obj.cwaveHandle.laser_emission_stat;
+            obj.ref_temp_lock = ~obj.cwaveHandle.get_status_temp_ref;
+           
+            [obj.OPO_power,obj.sOPO_power] = obj.cwaveHandle.get_photodiode_opo;
+            [obj.SHG_power,obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
+            [obj.Pump_power,obj.sPump_power] = obj.cwaveHandle.get_photodiode_laser;
+            obj.TempRef = obj.cwaveHandle.get_tref;
+            obj.TempOPO = obj.cwaveHandle.get_topo;
+            obj.TempSHG = obj.cwaveHandle.get_tshg;
+            obj.TempRef_setpoint = obj.cwaveHandle.get_tref_sp;
+            obj.TempOPO_setpoint = obj.cwaveHandle.get_topo_sp;
+            obj.TempSHG_setpoint = obj.cwaveHandle.get_tshg_sp;
             
-            lock_status = obj.cwaveHandle.getStatus();
-            obj.etalon_lock = obj.cwaveHandle.etalon_lock_stat;
-            obj.opo_stepper = obj.cwaveHandle.opo_stepper_stat;
-            obj.opo_temp = obj.cwaveHandle.opo_temp_stat;
-            obj.shg_stepper = obj.cwaveHandle.shg_stepper_stat;
-            obj.shg_temp = obj.cwaveHandle.shg_temp_stat;
-            obj.thin_etalon = obj.cwaveHandle.thin_etalon_stat;
-            obj.opo_lock = obj.cwaveHandle.opo_lock_stat;
-            obj.shg_lock = obj.cwaveHandle.shg_lock_stat;
-            obj.pump_emission = obj.cwaveHandle.laser_emission_stat;
-            obj.ref_temp = obj.cwaveHandle.ref_temp_stat; 
-            obj.setpoint = obj.c/obj.getWavelength; % This sets wavelength_lock
-            obj.tuning = ~lock_status;
+            regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
+                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+          
+            if(obj.locked | ((obj.cwaveHandle.get_regopo == 4) & regopo4_locked))
+                obj.setpoint = obj.c/obj.getWavelength;  % This sets wavelength_lock
+            end
+
+            obj.tuning = ~(obj.locked);
+            
+            if (~obj.locked) 
+                %replace below with dialog box 
+                disp('CWAVE Warning: All elements are not stable and/or locked.');
+            end
+            
+            toc
+            fprintf('toc %.8f\n',toc);
             %obj.setpoint = obj.cwaveHandle.WLM_PID_Setpoint;
             % Overwrite getWavelength tuning status with EMM tuning state 
         end
@@ -329,6 +439,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
             if obj.internal_call; obj.target_wavelength = val; return; end
             obj.tune(val);
+        end
+        
+        function abort = centerThickEtalon(obj)
+            %add functionality later. This method will initialzie the
+            %etalon to the center of its tuning range.
         end
         
         function delete(obj)
