@@ -447,7 +447,8 @@ end
                     % Toggle back
                     hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
                 else % Maybe this should go in save_state
-                    sites(site_index).experiments(eventdata.Indices(2)).redo_requested = hObj.Data{eventdata.Indices(1),6};
+                    exp_ind = hObj.Data{eventdata.Indices(1),3};
+                    sites(site_index).experiments(exp_ind).redo_requested = hObj.Data{eventdata.Indices(1),6};
                 end
         end
     end
