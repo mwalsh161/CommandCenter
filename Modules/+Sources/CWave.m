@@ -285,16 +285,25 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.setpoint = setpoint;
         end
         
-        function TuneSetpoint(obj,setpoint)
+         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
-            %   setpoint = setpoint in nm
-            obj.cwaveHandle.fine_tune();
-            target_dev = 0.02;
-            obj.tune(setpoint,target_dev);
+            %   setpoint = setpoint in THz
+            %obj.cwaveHandle.fine_tune();
+            %cwave.cwaveHandle.setWLM_gains(20,150);
+            target_dev = 0.000001;
+            isLocked = true;
+            isCoarse = false;
+            user_speed = obj.resonator_tune_speed;
+            obj.resonator_tune_speed = 0.1;
+            obj.tune(obj.c/setpoint,target_dev,isCoarse, isLocked); 
+            obj.resonator_tune_speed = user_speed;
+%             parfor i = 1:500
+%                 obj.tune(setpoint,target_dev,isCoarse);    
+%             end
         end
 
-        function TuneCoarse(obj, setpoint)
-            %TuneCoarse moves the laser to the target frequency
+         function TuneCoarse(obj, setpoint)
+            %TuneCoarse moves the laser to the target frequency (THz)
             %
             %   It assumes the laser is already close enough to not 
             %   require changing of the OPO temperature to reach the target.
@@ -304,9 +313,30 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             %   the cavity piezo.
             % 
             %   setpoint = setpoint in nm
-            obj.cwaveHandle.coarse_tune();
-            target_dev = 0.2;
-            obj.tune(setpoint,target_dev);
+            %obj.cwaveHandle.setWLM_gains(20,150);
+            %obj.cwaveHandle.coarse_tune();
+            
+            dlgs = questdlg('Tune with OPO Cavity (Open Loop) or Reference Cavity (Closed Loop)?', ...
+                             'Tuning Warning', ...
+                             'OPO Cavity','Reference Cavity','Reference Cavity');
+                         % Handle response
+                         switch dlgs
+                             case 'OPO Cavity'
+                                 isLocked = false;
+                                  obj.MaxEtalon = 50; %25; %25; 
+                                 obj.MinEtalon = -50; %-1; %-25;
+                             case 'Reference Cavity'
+                                 isLocked = true;
+                                 obj.MaxEtalon = 15; 
+                                 obj.MinEtalon = -10;
+                         end
+            target_dev = 0.000001;
+            isCoarse = true;
+            user_speed = obj.resonator_tune_speed;
+            obj.resonator_tune_speed = 0.1;
+            obj.tune( obj.c/setpoint,target_dev,isCoarse,isLocked);
+            obj.resonator_tune_speed = user_speed;
+            %include error checks for power and clamping
         end
 
         function TunePercent(obj, target)
@@ -330,6 +360,35 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 obj.cwaveHandle.tune_opo_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
             end
             obj.cwaveHandle.tune_opo_cavity(target);
+            obj.resonator_percent = obj.GetPercent();
+            obj.updateStatus(); % Get voltage of resonator
+        end
+        
+        function wl = TuneRefPercent(obj, target)
+            %TunePercent sets the resonator or the opo cavity piezo percentage
+            %ref cavity has fsr = 10GHz, opo cavity has fsr = 40 GHz
+            % For both cavties spectral drift for ~10 MHz steps is about 5-7 MHz
+            %
+            % percent = desired piezo percentage from 1 to 100 (float type)
+            %This is the OPO resonator
+            assert(~isempty(obj.cwaveHandle)&&isobject(obj.cwaveHandle) && isvalid(obj.cwaveHandle),'no cwave handle')
+            assert(target>=0 && target<=100,'Target must be a percentage')
+            %set opo cavity to tuning mode 
+            if (obj.cwaveHandle.get_regopo() ~= 2)
+                %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4)
+                obj.cwaveHandle.set_regopo(2);
+            end
+            % tune at a limited rate per step
+            currentPercent = obj.GetPercent;
+            numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
+            direction = sign(target-currentPercent);
+            for i = 1:numberSteps
+                %tstart = tic;
+                obj.cwaveHandle.tune_ref_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
+                wl(i) = obj.wavemeterHandle.getWavelength;
+                %telapsed(i+1) = toc(tstart);
+            end
+            obj.cwaveHandle.tune_ref_cavity(target);
             obj.resonator_percent = obj.GetPercent();
             obj.updateStatus(); % Get voltage of resonator
         end
@@ -436,10 +495,46 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         end
         
         function set.target_wavelength(obj,val)
-            if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
-            if obj.internal_call; obj.target_wavelength = val; return; end
-            obj.tune(val);
-        end
+            %edite 10/30/19 note sure why this is read only???
+            %if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
+            %if obj.internal_call; obj.target_wavelength = val; return;
+            %else
+            obj.target_wavelength = eval(val);
+            %end
+            if strcmp(val,''); return; end
+            %target_dev = 0.000001;
+            %isCoarse = true;
+            %isLocked = false;
+            
+            
+            %obj.tune(obj.target_wavelength,target_dev,isCoarse,isLocked);
+            obj.TuneCoarse(obj.c/obj.target_wavelength);
+                           
+%             obj.centerThickEtalon;
+%             if  abs(obj.target_wavelength-obj.getWavelength) > abs(obj.MaxEtalon_wl-obj.MinEtalon_wl)
+%                 % need to add warning option allowsing user to exit
+%                 % this is a very costly operation
+%                 dlg = questdlg('Target wavelength exceeds tuning etalon and OPO range (> 0.2 nm)! Tuning will be very slow. Do you wish to continue with tuning?', ...
+%                     'Tuning Warning', ...
+%                     'Continue Tuning','Abort','Abort');
+%                     % Handle response
+%                     switch answer
+%                         case 'Tune'
+%                             obj.cwaveHandle.target_wavelength = obj.target_wavelength + 1;
+%                             obj.cwaveHandle.set_target_wavelength();
+%                             pause(30)
+%                             obj.cwaveHandle.target_wavelength = obj.target_wavelength;
+%                             obj.cwaveHandle.set_target_wavelength();
+%                         case 'Abort'
+%                             return
+%                         case 'Abort'
+%                             return
+%                     end 
+%             %elseif abs(obj.target_wavelength-obj.getWavelength) < abs(obj.MaxEtalon-obj.MinEtalon)
+%             else
+%                 obj.TuneCoarse(obj.target_wavelength);
+%             end
+          end
         
         function abort = centerThickEtalon(obj)
             %add functionality later. This method will initialzie the
