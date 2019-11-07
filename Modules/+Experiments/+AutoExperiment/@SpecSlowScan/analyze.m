@@ -9,7 +9,7 @@ function varargout = analyze(data,varargin)
 %   Outputs: None (see below)
 %   Interactivity:
 %       click on a spot to see corresponding data
-%       [alt+] left/right arrows to change site fig.UserData.index. The alt is only
+%       [alt+] left/right arrows to change site site_index. The alt is only
 %           necessary if viewonly=false, which is default.
 %       Right clicking on axis will allow you to choose lorentz/gauss for that axis
 %   Tag info for data:
@@ -34,7 +34,7 @@ function varargout = analyze(data,varargin)
 %       index - index into data.sites. If NaN, this wasn't analyzed
 %   Can export from file menu
 %   Will be prompted to export analysis data to base workspace upon closing
-%   figure if no export since last analysis data update (NOTE this is only
+%   figure if no export since last analysis data update_all (NOTE this is only
 %   saved when switching sites).
 %       This will not overwrite previously exported data sets unless
 %       specified.
@@ -70,8 +70,11 @@ splitPan(2) = Base.SplitPanel(inner(1),inner(2),'vertical');
 set(splitPan(2).dividerH,'BorderType','etchedin')
 for i_ax = 1:3
     pan_ax(i_ax) = uipanel(inner(1),'units','normalized','position',[(i_ax-1)/3 0 1/3 1],'BorderType','none');
-    selector(i_ax) = uicontrol(inner(2),'style','listbox','units','normalized','position',[(i_ax-1)/3 0 1/3 1],...
-        'value',[],'min',0,'max',Inf,'callback',@expSelectorCallback);
+    selector(i_ax) = uitable(inner(2),'ColumnName',{'','',  'i',  'Datetime','Age','Redo','Duration','Skipped','Completed','Error'},...
+                                  'ColumnEditable',[true,false,false,false,     false,true,  false,     false,    false,      false],...
+                                  'ColumnWidth',   {15,15,   20,   120,       25,   35,    50,        50,       70,         40},...
+                                  'units','normalized','Position',[(i_ax-1)/3 0 1/3 1],...
+                                  'CellEditCallback',@selector_edit_callback);
     selector(i_ax).UserData = i_ax;
 end
 
@@ -96,12 +99,14 @@ ax(3) = axes('parent',pan_ax(2),'tag','OpenLoopAx'); hold(ax(3),'on');
 ax(4) = axes('parent',pan_ax(3),'tag','ClosedLoopAx'); hold(ax(4),'on');
 
 % Constants and large structures go here
-line_size = 1.5; % characters
 n = length(sites);
 viewonly = p.Results.viewonly;
 FitType = p.Results.FitType;
 wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
+AmplitudeSensitivity = 1;
+update_exp = {@update_spec, @udpate_open, @update_closed}; % Easily index by exp_id
+colors = lines;
 
 if isstruct(p.Results.Analysis)
     analysis = p.Results.Analysis;
@@ -112,17 +117,18 @@ else
         'widths',NaN,...
         'locations',NaN,...
         'background',NaN,...
-        'index',NaN);
+        'index',NaN,... % Index into sites
+        'uses',NaN);     % indices of experiments in the fit
 end
 
 % Frequently updated and small stuff here
-fig.UserData.index = 1;
+site_index = 1;
 busy = false;
 new_data = false;
 
 % Link UI control
 fig.KeyPressFcn = @cycleSite;
-update(); % Bypass changeSite since we have no previous site
+update_all(); % Bypass changeSite since we have no previous site
 
 if nargout
     varargout = {fig};
@@ -175,6 +181,7 @@ end
     end
 
     function changeSite(new_index)
+        % Only function allowed to update site_index
         if busy
             warning('SPECSLOWSCAN:analysis:chill','Chill! Busy fitting still...');
             return
@@ -182,9 +189,9 @@ end
         busy = true;
         % Save the current analysis before moving to next site
         save_state();
-        fig.UserData.index = new_index;
+        site_index = new_index;
         try
-            update();
+            update_all();
         catch err
             busy = false;
             rethrow(err)
@@ -221,122 +228,186 @@ end
             otherwise % Ignore anything else
                 return
         end
-        ind = mod(fig.UserData.index-1+direction,n)+1;
+        ind = mod(site_index-1+direction,n)+1;
         changeSite(ind);
     end
 
-    function update()
-        ctls = gobjects(0);
-        site = sites(fig.UserData.index);
-        set(selector,'String',{},'Value',[]); % Reset selectors
-        % Image
-        ax(1).Title.String = sprintf('Site %i/%i',fig.UserData.index,n);
+    function update_all()
+        update_im();
+        update_spec();
+        update_open();
+        update_closed();
+    end
+    function update_im()
+        % Update spectrometer data (ax(1))
+        site = sites(site_index);
+        ax(1).Title.String = sprintf('Site %i/%i',site_index,n);
         set(pos,'xdata',site.position(1),'ydata',site.position(2));
-        
-        cla(ax(2),'reset'); cla(ax(3),'reset'); cla(ax(4),'reset');
-        hold(ax(2),'on'); hold(ax(3),'on'); hold(ax(4),'on');
-        for i = find(strcmp('Experiments.Spectrum',{site.experiments.name}))
+    end
+    function update_spec()
+        % Update spectrometer data (analysis(:,1), selector(1), ax(2))
+        site = sites(site_index);
+        set(selector(1),'Data',cell(0,10)); % Reset selector
+        cla(ax(2),'reset'); hold(ax(2),'on');
+        exp_inds = find(strcmp('Experiments.Spectrum',{site.experiments.name}),'last');
+        if isnan(analysis(site_index,1).uses) % First time visiting, so add all experiments by default
+            analysis(site_index,1).uses = exp_inds;
+        end
+        for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data)
+            if ~isempty(experiment.data) && any(i==analysis(site_index,1).uses)
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
-                tempP = plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra');
-                formatSelector(selector(1),experiment,i,tempP.Color);
+                plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra','color',colors(i,:));
+                formatSelector(selector(1),experiment,i,1,site_index,colors(i,:));
             else
-                formatSelector(selector(1),experiment,i);
+                formatSelector(selector(1),experiment,i,1,site_index);
             end
         end
         ax(2).Title.String = 'Spectrum';
         ax(2).XLabel.String = 'Wavelength (nm)';
         ax(2).YLabel.String = 'Intensity (a.u.)';
-        
-        set_points = [];
-        cs = NaN(0,3);
-        for i = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}))
+        if ~viewonly && ~isempty(findall(ax(2),'type','line'))
+            attach_uifitpeaks(ax(2),analysis(site_index,1),...
+                'AmplitudeSensitivity',AmplitudeSensitivity);
+        end
+    end
+    function update_open()
+        % Update PLE open (analysis(:,2), selector(2), ax(3))
+        site = sites(site_index);
+        set(selector(2),'Data',cell(0,10)); % Reset selector
+        cla(ax(3),'reset'); hold(ax(3),'on');
+        exp_inds = find(strcmp('Experiments.SlowScan.Open',{site.experiments.name}),'last');
+        set_points = NaN(1,length(exp_inds));
+        if isnan(analysis(site_index,2).uses) % First time visiting, so add all experiments by default
+            analysis(site_index,2).uses = exp_inds;
+        end
+        for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data)
-                ef = errorfill(experiment.data.data.freqs_measured,...
+            if ~isempty(experiment.data) && any(i==analysis(site_index,2).uses)
+                errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                        'parent',ax(3),'tag','OpenLoop');
-                set_points(end+1) = experiment.data.meta.prefs.freq_THz;
-                cs(end+1,:) = ef.line.Color;
-                formatSelector(selector(2),experiment,i,ef.line.Color);
+                        'parent',ax(3),'tag','OpenLoop','color',colors(i,:));
+                set_points(i) = experiment.data.meta.prefs.freq_THz;
+                formatSelector(selector(2),experiment,i,2,site_index,colors(i,:));
             else
-                formatSelector(selector(2),experiment,i);
+                formatSelector(selector(2),experiment,i,2,site_index);
             end
         end
         ylim = get(ax(3),'ylim');
         for i = 1:length(set_points)
-            plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', cs(i,:),'handlevisibility','off','hittest','off');
+            if ~isnan(set_points(i))
+                plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', colors(i,:),...
+                    'handlevisibility','off','hittest','off');
+            end
         end
         ax(3).Title.String = 'Open Loop SlowScan';
         ax(3).XLabel.String = 'Frequency (THz)';
         ax(3).YLabel.String = 'Counts';
-        
-        for i = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}))
+        if ~viewonly && ~isempty(findall(ax(3),'type','line'))
+            attach_uifitpeaks(ax(3),analysis(site_index,2),...
+                'AmplitudeSensitivity',AmplitudeSensitivity);
+        end
+    end
+    function update_closed()
+        % Update PLE closed (analysis(:,3), selector(3), ax(4))
+        site = sites(site_index);
+        set(selector(3),'Data',cell(0,10)); % Reset selector
+        cla(ax(4),'reset'); hold(ax(4),'on');
+        exp_inds = find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name}),'last');
+        if isnan(analysis(site_index,3).uses) % First time visiting, so add all experiments by default
+            analysis(site_index,3).uses = exp_inds;
+        end
+        for i = exp_inds
+            if isnan(analysis(site_index,3).uses) % First time visiting, so add all experiments by default
+                analysis(site_index,3).uses(end+1) = i;
+            end
             experiment = site.experiments(i);
-            if ~isempty(experiment.data)
-                ef = errorfill(experiment.data.data.freqs_measured,...
+            if ~isempty(experiment.data) && any(i==analysis(site_index,3).uses)
+                errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                        'parent',ax(4),'tag','ClosedLoop');
-                formatSelector(selector(3),experiment,i,ef.line.Color);
+                        'parent',ax(4),'tag','ClosedLoop','color',colors(i,:));
+                formatSelector(selector(3),experiment,i,3,site_index,colors(i,:));
             else
-                formatSelector(selector(3),experiment,i);
+                formatSelector(selector(3),experiment,i,3,site_index);
             end
         end
         ax(4).Title.String = 'Closed Loop SlowScan';
         ax(4).XLabel.String = 'Frequency (THz)';
         ax(4).YLabel.String = 'Counts';
-        if ~viewonly
-            if ~isempty(findall(ax(2),'type','line'))
-                attach_uifitpeaks(ax(2),analysis(fig.UserData.index,1),...
-                    'AmplitudeSensitivity',1);
-            end
-            if ~isempty(findall(ax(3),'type','line'))
-                attach_uifitpeaks(ax(3),analysis(fig.UserData.index,2),...
-                    'AmplitudeSensitivity',1);
-            end
-            if ~isempty(findall(ax(4),'type','line'))
-                attach_uifitpeaks(ax(4),analysis(fig.UserData.index,3),...
-                    'AmplitudeSensitivity',1);
-            end
+        if ~viewonly && ~isempty(findall(ax(4),'type','line'))
+            attach_uifitpeaks(ax(4),analysis(site_index,3),...
+                'AmplitudeSensitivity',AmplitudeSensitivity);
         end
     end
-    function formatSelector(selectorH,experiment,i,color)
-        % Format selector
-        if experiment.skipped
-            desc = 'Skipped';
-            assert(isempty(experiment.tstart),'Hmmm, tstart should be empty');
+    function formatSelector(selectorH,experiment,i,exp_ind,site_ind,rgb)
+        if nargin < 6
+            color = '';
         else
-            desc = datestr(experiment.tstart);
+            hex = sprintf('#%02X%02X%02X',round(rgb*255));
+            color = sprintf('<html><font color="%s">&#11035;</font></html>',hex);
         end
-        desc = sprintf('%i: %s',i,desc);
-        if experiment.redo_requested
-            continued = sprintf('<font color="red">%i</font>',experiment.continued);
-        else
-            continued = num2str(experiment.continued);
-        end
+        date = datestr(experiment.tstart);
         if ~isempty(experiment.err)
-            desc = sprintf('<font color="red">%s</font>',desc);
-            assert(~experiment.completed,'Hmmm, completed should be false if error');
+            date = sprintf('<html><font color="red">%s</font></html>',date);
+        elseif experiment.completed && ~experiment.skipped
+            date = sprintf('<html><font color="green">%s</font></html>',date);
         end
-        if experiment.completed && ~experiment.skipped
-            desc = sprintf('<font color="green">%s</font>',desc);
-        end
-        if nargin < 4
-            selectorH.String{end+1} = sprintf('<html>%s (%s)</html>',desc,continued);
+        if isempty(experiment.tstop) % Errors cause empty
+            duration = '-';
         else
-            % Conver to hex
-            rgb = round(color*255);
-            hex(:,2:7) = reshape(sprintf('%02X',rgb.'),6,[]).';
-            hex(:,1) = '#';
-            selectorH.String{end+1} = sprintf('<html>%s (%s) <strong><font color="%s">&emsp;&#11035;</font></strong></html>',desc,continued,hex);
+            duration = char(experiment.tstop - experiment.tstart);
+        end
+        displayed = false;
+        if any(i==analysis(site_ind,exp_ind).uses)
+            displayed = true;
+        end
+        selectorH.Data(end+1,:) = {displayed,color, i,...
+                                   date,...
+                                   experiment.continued,...
+                                   experiment.redo_requested,...
+                                   duration,...
+                                   experiment.skipped,...
+                                   experiment.completed,...
+                                   ~isempty(experiment.err)};
+    end
+    function selector_click_callback(hObj,eventdata)
+        if ~strcmp(eventdata.EventName,'CellSelection') ||...
+                hObj.ColumnEditable(eventdata.Indices(2))
+            return
+        end
+        exp_ind = hObj.Data{eventdata.Indices(1),3};
+        errmsg = sites(sites_index).experiments(exp_ind).err;
+        if ~isempty(errmsg)
+            msgbox(getReport(errmsg),sprintf('Error (site: %i, exp: %i)',sites_index,exp_ind));
         end
     end
-    function expSelectorCallback(hObj,eventdata)
-        fprintf('here\n');
+    function selector_edit_callback(hObj,eventdata)
+        switch eventdata.Indices(2)
+            case 1 % Display
+                exp_ind = hObj.Data{eventdata.Indices(1),3};
+                exp_type = hObj.UserData;
+                mask = analysis(site_index,exp_type).uses==exp_ind;
+                if any(mask) % Remove it
+                    analysis(site_index,exp_type).uses(mask) = [];
+                else % Add it
+                    analysis(site_index,exp_type).uses(end+1) = exp_ind;
+                end
+                update_exp{exp_type}();
+            case 4 % Redo Request (no need to update_all)
+                % Can only toggle most recent experiment
+                % Find most recent age
+                most_recent = min([hObj.Data{:,5}]);
+                if hObj.Data{eventdata.Indices(1),5} ~= most_recent
+                    errordlg('You can only toggle the most recent experiment.',mfilename);
+                    % Toggle back
+                    hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
+                else % Maybe this should go in save_state
+                    sites(site_index).experiments(eventdata.Indices(2)).redo_requested = hObj.Data{eventdata.Indices(1),6};
+                end
+        end
     end
 %% UIfitpeaks adaptor
     function save_state()
@@ -346,25 +417,25 @@ end
             end
             fit_result = ax(i).UserData.pFit.UserData;
             new_data = true;
-            analysis(fig.UserData.index,i-1).index = inds(fig.UserData.index);
+            analysis(site_index,i-1).index = inds(site_index);
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
                 nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
-                analysis(fig.UserData.index,i-1).fit = fit_result;
-                analysis(fig.UserData.index,i-1).amplitudes = fitcoeffs(1:nn);
-                analysis(fig.UserData.index,i-1).locations = fitcoeffs(nn+1:2*nn);
+                analysis(site_index,i-1).fit = fit_result;
+                analysis(site_index,i-1).amplitudes = fitcoeffs(1:nn);
+                analysis(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
-                    analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
+                    analysis(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
                 else
-                    analysis(fig.UserData.index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                    analysis(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
                 end
-                analysis(fig.UserData.index,i-1).background = fitcoeffs(3*nn+1);
+                analysis(site_index,i-1).background = fitcoeffs(3*nn+1);
             else
-                analysis(fig.UserData.index,i-1).fit = [];
-                analysis(fig.UserData.index,i-1).amplitudes = [];
-                analysis(fig.UserData.index,i-1).locations = [];
-                analysis(fig.UserData.index,i-1).widths = [];
-                analysis(fig.UserData.index,i-1).background = [];
+                analysis(site_index,i-1).fit = [];
+                analysis(site_index,i-1).amplitudes = [];
+                analysis(site_index,i-1).locations = [];
+                analysis(site_index,i-1).widths = [];
+                analysis(site_index,i-1).background = [];
             end
         end
     end
