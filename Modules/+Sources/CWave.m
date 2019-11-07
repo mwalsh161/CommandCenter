@@ -804,6 +804,102 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
+        function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
+            
+            obj.windupGuardmax = obj.EtaWindupGuardmax; 
+            obj.windupGuardmin = obj.EtaWindupGuardmin;
+            
+            switch nargin
+                case 2
+                    tolerance = 0.005;
+                    kp = 200; %was 500 on 11/6/19 noticed it has strong kick back sometimes when near edged of etalon.
+                    ki = 100;
+                    kd = 0;
+                case 3
+                    kp = 200; %was 500 on 11/6/19 noticed it has strong kick back sometimes
+                    ki = 100;
+                    kd = 0;     
+            end
+                  
+            i=0;
+            %if (obj.cwaveHandle.get_regopo ~= 4)
+            %    obj.cwaveHandle.set_regopo(4);
+            %    %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4)
+            %end
+                
+            curr_error = 2*tolerance; %arbitrary condidtion to start PID loop.
+            ctrl = 0;
+            p_term = 0;
+            i_term = 0;
+            d_term = 0;
+            Error = [];
+            Dt = [];
+            IntError = [];
+            Control = [];
+            Measured = [];
+            
+            while (abs(curr_error) > tolerance )
+                tic
+                measured = obj.getWavelength();
+                if i == 0
+                    dt = 0;
+                    prev_error = 0;
+                    int_error = 0;
+                    curr_error = setpoint - measured;
+                else
+                    curr_error = setpoint - measured;
+                end
+                i=i+1;
+                
+                 if abs(curr_error) > tolerance %was elseif
+                      j = 0;
+                      if j == 0
+                          int_error = 0;
+                          j = j+1;
+                      end
+                   
+                      [ctrl,prev_error,int_error,p_term,i_term,d_term] = obj.pid_update(curr_error,prev_error,int_error,kp,ki,kd,dt);
+                      if obj.wavemeterHandle.getExposure() > 25 % was 100
+                          delay = obj.wavemeterHandle.getExposure()/1000+0.025; %in seconds
+                          pause(delay)
+                      else
+                          if (obj.get_regopo == 2)
+                              pause(0.075) %(was 0.001 s)
+                          elseif (obj.get_regopo == 4)
+                              %pause(obj.wavemeterHandle.getExposure()/1000+0.025) 
+                              pause(0.001); %pause(0.025)
+                          end
+                      end
+                      if (ctrl < obj.MinEtalon)
+                          obj.cwaveHandle.tune_thick_etalon(obj.MinEtalon);
+                          Control(i) = obj.MinEtalon;
+                      elseif (ctrl > obj.LocalMinEtalon & ctrl < 0)
+                          obj.cwaveHandle.tune_thick_etalon(obj.LocalMinEtalon);
+                          Control(i) = obj.MinEtalon;
+                      elseif (ctrl > obj.MaxEtalon)
+                          obj.cwaveHandle.tune_thick_etalon(obj.MaxEtalon);
+                          Control(i) = obj.MaxEtalon;
+                      elseif (ctrl < obj.LocalMaxEtalon & ctrl > 0)
+                          obj.cwaveHandle.tune_thick_etalon(obj.LocalMaxEtalon);
+                          Control(i) = obj.LocalMaxEtalon;
+                      else
+                          obj.cwaveHandle.tune_thick_etalon(ctrl);
+                          Control(i) = ctrl;
+                      end
+                      dt = toc;
+                   
+                end
+                 
+                 Dt(i) = dt;
+                 Error(i) = curr_error;
+                 IntError(i) = int_error;
+                 Measured(i) = measured;
+                 P_term(i) = p_term;
+                 I_term(i) = i_term;
+                 D_term(i) = d_term;  
+            end
+         end
+        
         function [ctrl,prev_error,int_error,p_term,i_term,d_term] = pid_update(obj, curr_error,prev_error, int_error, kp,ki,kd,dt)
  
             % integration
