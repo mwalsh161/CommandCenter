@@ -175,10 +175,8 @@ classdef PulseStreamerMaster < Modules.Driver
         %                
         %       seq_meta.units:   time units for pulse durations
         %       seq_meta.name:    label for sequence.
-        %       seq_meta.repeat: boolean indicating how many times the 
-        %                        sequence will be repeated until explicitly halted.
-        %                        The value of -1 is reserved for infinite
-        %                        repetitions.
+        %       seq_meta.forever: boolean indicating whether to
+        %       repeat sequence indefinitely until explicitly halted.
         % 
         % The build method workflow is as follows:
         %       1. Determine if json input is a string or a json file name
@@ -297,7 +295,7 @@ classdef PulseStreamerMaster < Modules.Driver
         % pulse streamer via an eithernet connection managed by a hardware
         % server.
         
-            build(obj,program);
+            obj.build(program);
             start = obj.triggerStart;%initialize the trigger to be software defined
             mode  = obj.triggerMode; % initialize the trigger to be rearmed after each run.
             obj.PS.setTrigger(start, mode); % set triggers
@@ -322,6 +320,7 @@ classdef PulseStreamerMaster < Modules.Driver
 %             end
 %             [~,name,~]=fileparts(caller{end});
 %             caller = [prefix name];
+            obj.plot;
             obj.PS.startNow();
 %             obj.running = caller;
         end
