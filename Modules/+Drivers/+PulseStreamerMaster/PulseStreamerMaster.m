@@ -103,20 +103,21 @@ classdef PulseStreamerMaster < Modules.Driver
          function obj = instance(ip)
              mlock;
              persistent Objects
-             if isempty(Objects) || ~isvalid(Objects)
+             if isempty(Objects) %|| ~isvalid(Objects)
                  Objects = Drivers.PulseStreamerMaster.PulseStreamerMaster.empty(1,0);
                  %changed from Object to Objects in above line
              end
              [~,resolvedIP] = resolvehost(ip);
              for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
-                    error('%s driver is already instantiated!',mfilename)
+                    obj = Objects(i);
+                    return
                 end
             end
             obj = Drivers.PulseStreamerMaster.PulseStreamerMaster(ip);
             obj.singleton_id = resolvedIP;
             Objects(end+1) = obj;
-         end    
+         end 
     end
     
     methods(Access={?Drivers.PulseStreamerMaster.PulseStreamerMaster})
