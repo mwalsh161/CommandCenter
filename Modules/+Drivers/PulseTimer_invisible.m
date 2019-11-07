@@ -12,7 +12,7 @@ classdef PulseTimer_invisible < handle
     %   hardware
     %   stop: stop pulse sequence and output default value (e.g. all channels low).
         
-    properties(Abstract)
+    properties(Constant,Abstract)
         clk;         % clock sampling rate
         resolution;  % ns
         minDuration; % ns
@@ -24,14 +24,14 @@ classdef PulseTimer_invisible < handle
         end
     end
     methods(Abstract)
-        reset(~,varargin) % reset timing device (may have different definitions depending
+        reset(obj) % reset timing device (may have different definitions depending
             % on device)
 
-        start(~,varargin)  % start pulse sequence
+        start(obj)  % start pulse sequence
 
-        load(~,varargin) % load pusle sequence to hardware
+        load(obj,program) % load pusle sequence program to hardware
 
-        stop(~,varargin) % stop the pulse sequence     
+        stop(obj) % stop the pulse sequence     
     end
     
 end
