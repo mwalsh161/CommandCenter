@@ -26,7 +26,8 @@ classdef CWave < Modules.Driver
         shg_lock_stat = false(1);
         etalon_lock_stat = false(1);
         laser_emission_stat = false(1);
-        ref_temp_stat = false(1);  
+        ref_temp_stat = false(1); 
+        CurrentLaserPWR;
     end
     
     properties(Constant,Hidden)
@@ -44,8 +45,15 @@ classdef CWave < Modules.Driver
         ComputerArch = 'arch';
         ConnectCwave = 'cwave_connect';
         DLL_Version= 'DLL_Version';
-        DLL_identity = 22;
+        DLL_identity = 22;  %20;
         Admin = 'admin_elevate';
+        TempRef  = 'tref_is';
+        TempOPO = 'topo_is';
+        TempSHG1 = 'tshg_is1';
+        TempSHG2 = 'tshg_is2';
+        TempOPO_sp = 'topo_set';
+        TempSHG_sp = 'tshg_set';
+        TempRef_sp = 'tref_set';
         UpdateStatus = 'cwave_updatestatus';
         Get_IntValue = 'get_intvalue';
         Get_floatValue = 'get_floatvalue';
@@ -72,6 +80,8 @@ classdef CWave < Modules.Driver
         WLM_EtalonSteps = 'WLM_etalonsteps';
         WLM_PiezoSteps = 'WLM_piezosteps';
         WLM_targetdeviation = 'WLM_targetdeviation';
+        WLM_pid_p = 'WLM_pid_p';
+        WLM_pid_i = 'WLM_pid_i';
         Ext_SetCommand = 'ext_set_command';
         ExtGet_IntValue = 'ext_get_intvalue';
         ExtGet_FloatValue = 'ext_get_floatvalue';
@@ -92,12 +102,12 @@ classdef CWave < Modules.Driver
         ThickEtalon_Piezo_hr = 'thicketa_rel_hr';
         ThickEtalon_Piezo = 'thicketa_rel';
         Piezo_maxBit = 65535/100;
-        Laser_MaxPower = 1000000; %dummy value. value needs to be calibrated (testing needed)
-        Laser_MinPower = 0; %dummy value. value needs to be calibrated (testing needed)
-        OPO_MaxPower = 1000000; %dummy value. value needs to be calibrated (testing needed)
-        OPO_MinPower = 0; %dummy value. value needs to be calibrated (testing needed)
-        SHG_MaxPower = 1000000; %dummy value. value needs to be calibrated (testing needed)
-        SHG_MinPower = 0; %dummy value. value needs to be calibrated (testing needed)
+        Laser_MaxPower = 5000; %dummy value. value needs to be calibrated (testing needed)
+        Laser_MinPower = 1000; %dummy value. value needs to be calibrated (testing needed)
+        OPO_MaxPower = 10000; %dummy value. value needs to be calibrated (testing needed)
+        OPO_MinPower = 100; %dummy value. value needs to be calibrated (testing needed)
+        SHG_MaxPower = 10000; %dummy value. value needs to be calibrated (testing needed)
+        SHG_MinPower = 100; %was 100%dummy value. value needs to be calibrated (testing needed)
     end
     %% Signleton Method
     methods(Static)
@@ -228,15 +238,15 @@ classdef CWave < Modules.Driver
                             assert(status==0,'Setting target wavelength failed');
                         case obj.ShutterSHG
                             %0: integer value set, 1: integer value not set
-                            assert(status==0,'SHG shutter failed')
+                            assert(status==0,'SHG shutter failed');
                         case obj.ShutterLaser
                             %0: integer value set, 1: integer value not set
-                            assert(status==0,'Laser shutter failed')
+                            assert(status==0,'Laser shutter failed');
                     end   
                     %  0== integer value set, 1= integer value not set
                     assert(status == 0, 'CWAVE Error: Int value not set');
                 case obj.SetRefOpoExtramp
-                    assert(status == 0, 'Opo Piezo was not set to ramp.')
+                    assert(status == 0, 'Opo Piezo was not set to ramp.');
                 case obj.Is_Ready
                     % 0=C-wave is ready, Optimization has completed; 1==C-wave still optimizing
                      assert(status == 0, ['CWAVE Error: C-Wave not ready. Optimization still in progress']);
@@ -261,38 +271,41 @@ classdef CWave < Modules.Driver
                     assert(status == 0, ['CWAVE Error: command not executed. Check that set_command input are valid.']);
                 case obj.LaserPower
                     % 0=update succeeded,  1=update failed
-                    assert(status == 0, ['CWAVE Error: Laser power not within standard operating range.']);
+                    if (obj.CurrentLaserPWR > obj.Laser_MaxPower)
+                        assert(status == 0,'CWAVE Error: Laser power not within standard operating range. Lower Power Immediately!!!');
+                    end
+                    disp('CWAVE Warning: Laser power not within standard operating range.');
                 case obj.OPO_Power
                     % 0=update succeeded,  1=update failed
-                    assert(status == 0, ['CWAVE Error: OPO power not within standard operating range.']);
+                    disp('CWAVE Warning: OPO power not within standard operating range.');
                 case obj.SHG_Power
                     % 0=update succeeded,  1=update failed
-                    assert(status == 0, ['CWAVE Error: SHG power not within standard operating range.']);
+                    disp('CWAVE Warning: SHG power not within standard operating range.');
                 case obj.StatusReport
                     if (obj.opo_stepper_stat == 1)
-                        disp('Error OPO stepper not locked')
+                        disp('Error OPO stepper not locked');
                         elif (obj.opo_temp_stat == 1)
-                            disp('OPO temperature not locked')
+                            disp('OPO temperature not locked');
                         elif (obj.shg_stepper_stat == 1)
-                            disp('SHG stepper not locked')
+                            disp('SHG stepper not locked');
                         elif (obj.shg_temp_stat == 1)
-                            disp('SHG temp not locked')
+                            disp('SHG temp not locked');
                         elif (obj.thin_etalon_stat == 1)
-                            disp('Thin etalon not locked')
+                            disp('Thin etalon not locked');
                         elif (obj.opo_lock_stat == 1 && obj.get_intvalue(RegOPO_On) == 2)
-                            disp('OPO cavity piezo not locked.')
+                            disp('OPO cavity piezo not locked.');
                         elif (obj.shg_lock_stat == 1)
-                            disp('SHG cavity piezo not locked')
+                            disp('SHG cavity piezo not locked');
                         elif (obj.etalon_lock_stat == 1)
-                            disp('thick etalon not locked')
+                            disp('thick etalon not locked');
                         elif (obj.laser_emission_stat == 1)
-                            disp('No Pump emission! Unshutter Millenia Edge!')
+                            disp('No Pump emission! Unshutter Millenia Edge!');
                         elif (obj.ref_temp_stat == 1)
-                            disp('Reference cavity temperature is not locked!!!')
+                            disp('Reference cavity temperature is not locked!!!');
                     end
                     
                     % 0=update succeeded,  1=update failed
-                    disp('CWAVE Warning: All elements are not stable and/or locked.');
+                    %disp('CWAVE Warning: All elements are not stable and/or locked.');
                 case obj.LaserStatus
                     % 0=update failed, 1==update succeeded
                     assert(status == 0, ['Insufficient Laser power. Check that pump laser is active and that the laser shutter is open']);
@@ -329,7 +342,7 @@ classdef CWave < Modules.Driver
             %% connect to device
             status = obj.LibraryFunction(obj.ConnectCwave, ip);
             % mitigate bug in DLL, first connection attempt might fail -> retry
-            if (status == 0)
+            if (status == 1)
                 status = obj.LibraryFunction(obj.ConnectCwave, ip);
             end
         end
@@ -472,7 +485,34 @@ classdef CWave < Modules.Driver
             %% Writable Wavelength stabilization parameters are listed above in get_intvalue function comments
             status = obj.LibraryFunction(obj.Set_IntValue,cmd, value);
         end
-       
+        
+        function tref = get_tref(obj)
+            tref = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempRef);
+            tref = tref/1000; % Celcius
+        end
+        function topo = get_topo(obj)
+            %topo = get_intvalue(obj.TempOPO);
+            topo = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempOPO);
+            topo = topo/1000; % Celcius
+        end
+        function tshg = get_tshg(obj)
+            t_shg1 = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempSHG1); %mk
+            t_shg2 = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempSHG2); %mk
+            tshg = (t_shg1 + t_shg2)/2000; %Celcius
+        end
+        function tref = get_tref_sp(obj)
+            tref = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempRef_sp);
+            tref= tref/1000; % Celcius
+        end
+        function topo = get_topo_sp(obj)
+            topo = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempOPO_sp);
+            topo = topo/1000; % Celcius
+        end
+        function tshg = get_tshg_sp(obj)
+            tshg = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempSHG_sp);
+            tshg = tshg/1000; % Celcius
+        end
+   
         function optimize_status = is_ready(obj)
             %Description: Checks if all C-Wave routines have finished and the C-Wave produces the desired output
             %Arguments: none
@@ -507,26 +547,29 @@ classdef CWave < Modules.Driver
             status = obj.LibraryFunction(obj.SetCommand,cmd);   
         end
         
-        function [status,laser_power] = get_photodiode_laser(obj)
+        function [laser_power,status] = get_photodiode_laser(obj)
             % Description: Reads the current laser power (what unit??)
             % Arguments: none
             % Returns: Returns the laser photodiode value
             %% Read laser power
             laser_power = calllib(obj.LibraryName,obj.LaserPower);
+            %laser_power = calllib('CWAVE_DLL','get_photodiode_laser');
             if( laser_power > obj.Laser_MaxPower || laser_power < obj.Laser_MinPower)
                 status = 1;
             else 
                 status = 0;
             end
-            obj.CheckErrorStatus(status,obj.LaserPower)
+            obj.CurrentLaserPWR = laser_power;
+            obj.CheckErrorStatus(status,obj.LaserPower);
         end
 
-        function [status,opo_power] = get_photodiode_opo(obj)
+        function [opo_power,status] = get_photodiode_opo(obj)
             % Description: Reads the current OPO infrared power
             % Arguments: none
             % Returns: Returns the infrared output power in mW
             %% Read IR opo power
             opo_power = calllib(obj.LibraryName,obj.OPO_Power);
+            %opo_power = calllib('CWAVE_DLL','get_photodiode_opo');
             if (opo_power > obj.OPO_MaxPower || opo_power < obj.OPO_MinPower)
                 status = 1;
             else
@@ -535,7 +578,7 @@ classdef CWave < Modules.Driver
             obj.CheckErrorStatus(status,obj.OPO_Power);
         end
         
-        function [status, shg_power] = get_photodiode_shg(obj)
+        function [shg_power,status] = get_photodiode_shg(obj)
             % Description: Reads the current (second harmonic generator) SHG visible power
             % Arguments: none
             % Returns: Returns the visible output power in mW
@@ -568,23 +611,24 @@ classdef CWave < Modules.Driver
             % Poll cwave status
             cwave_status = calllib(obj.LibraryName, obj.StatusReport); %change to callib
             status_vector = de2bi(cwave_status);
-            obj.opo_stepper_stat = status_vector(1);
-            obj.opo_temp_stat = status_vector(2);
-            obj.shg_stepper_stat = status_vector(3);
-            obj.shg_temp_stat = status_vector(4);
-            obj.thin_etalon_stat = status_vector(5);
-            obj.opo_lock_stat = status_vector(6);
-            obj.shg_lock_stat = status_vector(7);
-            obj.etalon_lock_stat = status_vector(8);
-            obj.laser_emission_stat = ~status_vector(9);
-            obj.ref_temp_stat = status_vector(10); 
-            if(~all(status_vector(1:10) == 0))
+            obj.opo_stepper_stat = boolean(status_vector(1));
+            obj.opo_temp_stat = boolean(status_vector(2));
+            obj.shg_stepper_stat = boolean(status_vector(3));
+            obj.shg_temp_stat = boolean(status_vector(4));
+            obj.thin_etalon_stat = boolean(status_vector(5));
+            obj.opo_lock_stat = boolean(status_vector(6));
+            obj.shg_lock_stat = boolean(status_vector(7));
+            obj.etalon_lock_stat = boolean(status_vector(8));
+            obj.laser_emission_stat = ~boolean(status_vector(9));
+            %obj.ref_temp_stat = status_vector(10); %doesnt sense error bit
+            %sometimes 
+            if(all([status_vector(1:8),~status_vector(9)] == 0))
                 % there is an 11th bit with no documented hw meaning; should be ignored
-                status = 1;
-            else 
                 status = 0;
+            else 
+                status = 1;
             end
-            obj.CheckErrorStatus(status,obj.StatusReport) 
+            obj.CheckErrorStatus(status,obj.StatusReport); 
         end
    
         function WLM_PID_Compute(obj, wl_measured)
@@ -615,10 +659,11 @@ classdef CWave < Modules.Driver
             if strcmp(obj.shg_shutter, obj.Open)
                 obj.set_intvalue(obj.ShutterSHG,1); 
             elseif strcmp(obj.shg_shutter, obj.Close)
-                obj.set_intvalue(obj.ShutterSHG,0);; 
+                obj.set_intvalue(obj.ShutterSHG,0); 
             end 
         end 
         
+        %should this function still exist seems useless
         function status = getStatus(obj)
             % poll connection status if CWAVE
             % Function Call currently not avialable waiting DLL file info
@@ -788,8 +833,14 @@ classdef CWave < Modules.Driver
             %ramp piezo with sawtooth or triangle waveform
             obj.set_regopo(3);
         end
+        
+        function setWLM_gains(obj,p,i)
+            obj.set_intvalue(obj.WLM_pid_p,p)
+            obj.set_intvalue(obj.WLM_pid_i,i)
+        end
             
             
+      
         
     end
     
