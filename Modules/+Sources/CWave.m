@@ -32,15 +32,16 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             'opo_stepper','opo_temp','shg_stepper', 'shg_temp','thin_etalon',...
             'opo_lock','shg_lock','pump_emission','ref_temp','resonator_percent',...
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
-            'resonator_tune_speed'};
+            'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep'};
          show_prefs = {'tuning','enabled','target_wavelength','wavelength_lock','etalon_lock',...
             'opo_stepper','opo_temp','shg_stepper', 'shg_temp','thin_etalon',...
             'opo_lock','shg_lock','pump_emission','ref_temp','resonator_percent',...
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
+            'MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','EtalonStep'...
             'resonator_tune_speed'};
         readonly_prefs = {'tuning','etalon_lock','opo_stepper','opo_temp',...
             'shg_stepper', 'shg_temp','thin_etalon','opo_lock','shg_lock',...
-            'pump_emission','ref_temp'};
+            'pump_emission','ref_temp','MidEtalon_wl'};
     end
     properties(SetObservable,GetObservable)
         enabled = Prefs.Boolean();
@@ -76,7 +77,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         cwave_ip = Sources.CWave.no_server;
         pulseStreamer_ip = Sources.CWave.no_server;
         wavemeter_ip = Sources.CWave.no_server;
+        EtalonStep='';
         target_wavelength;
+        MinEtalon_wl = '0';
+        MaxEtalon_wl = '.25';
+        
     end
     
     properties(SetAccess=private)
@@ -285,7 +290,29 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.setpoint = setpoint;
         end
         
-         function TuneSetpoint(obj,setpoint)
+        function WLM_tune(obj,setpoint,target_dev)
+             switch nargin
+                 case 1
+                     target_dev = 0.000001;
+             end
+             obj.cwaveHandle.fine_tune();
+             obj.cwaveHandle.setWLM_gains(obj.pWLM_gain,obj.iWLM_gain);
+             obj.cwaveHandle.set_target_deviation(target_dev);
+             obj.cwaveHandle.set_pid_target_wavelength(setpoint);
+             measured_wavelength = obj.wavemeterHandle.getWavelength();
+             while abs(measured_wavelength - setpoint) > target_dev
+                 obj.cwaveHandle.WLM_PID_Compute(measured_wavelength);
+                 if obj.wavemeterHandle.getExposure() > 100
+                     delay = obj.wavemeterHandle.getExposure()/1000; %in seconds
+                      pause(delay)
+                 else
+                     pause(0.0001) %(was 0.001 s)
+                 end
+                 measured_wavelength = obj.wavemeterHandle.getWavelength(); 
+             end
+        end
+        
+        function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   setpoint = setpoint in THz
             %obj.cwaveHandle.fine_tune();
@@ -537,10 +564,62 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           end
         
         function abort = centerThickEtalon(obj)
-            %add functionality later. This method will initialzie the
-            %etalon to the center of its tuning range.
+              dlgs = questdlg('Is Min and Max range of Etalon correctly set? MaxEtalon_wl and MinEtalon_wl must be measured by autotune or manually by adjusting EtalonStep. If tuning manually MaxEtalon_wl and MinEtalon_wl in Cwave Source preferences', ...
+                             'Centering Etalon Warning', ...
+                             'Yes, Continue Tuning','No, Abort','No, Abort');
+                         % Handle response
+                         switch dlgs
+                             case 'Yes, Continue Tuning'
+                                 
+                                 if abs(obj.MaxEtalon_wl-obj.MinEtalon_wl) > obj.MaxThickEtalonRange
+                                     dlgs2 = questdlg('Exiting Tuning. User Selected Etalon range exceeds thick etalon range. Difference bewteen MaxEtalon_wl and MinEtalon_wl should be less than 0.2 nm.', ...
+                                         'Thick Etalon Range Warning', ...
+                                         'Reselect MaxEtalon_wl and MinEtalon_wl','Reselect MaxEtalon_wl and MinEtalon_wl');
+                                     abort = true;     
+                                     return;
+                                 else
+                                     obj.MidEtalon_wl = obj.MinEtalon_wl + abs(obj.MaxEtalon_wl-obj.MinEtalon_wl)/2;
+                                     obj.etalon_pid(obj.MidEtalon_wl);
+                                     abort = false;
+                                 end
+                             case 'No, Abort'
+                                 abort = true;
+                                 return;
+                         end
+                                 
         end
         
+        function set.MaxEtalon_wl(obj,val)
+              a = eval(val);
+              obj.MaxEtalon_wl = a;
+        end
+        function set.MinEtalon_wl(obj,val)
+               a = eval(val);
+               obj.MinEtalon_wl = a;
+        end
+%           
+        function set.EtalonStep(obj,val)
+              obj.EtalonStep = eval(val);
+              %disp(val);
+              %obj.tune_etalon;
+              obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
+              pause(obj.EtalonMeasureDelay);
+              %obj.updateStatus;
+        end
+          
+        function tune_etalon(obj)
+              obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
+              %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
+        end
+          
+        function set_regopo(obj,val)
+              obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,val);
+        end
+          
+        function val = get_regopo(obj)
+              val = obj.cwaveHandle.get_regopo;
+        end
+          
         function delete(obj)
               obj.cwaveHandle.delete()
               obj.PulseStreamerHandle.delete() 
