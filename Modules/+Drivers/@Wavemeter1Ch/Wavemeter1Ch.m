@@ -216,8 +216,14 @@ classdef Wavemeter1Ch < Modules.Driver
             bool = logical(bool);
             obj.com('SetExposureModeNum',obj.Channel,bool);     
         end
+        function val = getExposure(obj)
+           val = obj.com('GetExposure',0);
+        end
         function val = getPower(obj)
             val = obj.com('GetPowerNum',obj.Channel,0);
+        end
+        function val = setExposure(obj,val)
+            obj.com('SetExposure',val); 
         end
     end
 end
