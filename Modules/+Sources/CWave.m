@@ -719,5 +719,89 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               obj.PulseStreamerHandle.delete() 
               obj.wavemeterHandle.delete()
         end
+        
+        function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = opo_pid(obj,setpoint,tolerance)
+            i=0;
+            kp_slow = 200;
+            ki_slow = 1;
+            kd_slow = 0;
+            kp_fast = 1250;%1000; %.1; %kcr = 5510, Pcr = 6.748-3.3046 = 3.4434
+            ki_fast = 1250; %200; %.4; 
+            kd_fast = 0;
+            obj.windupGuardmax = obj.OPOwindupGuardmax;
+            obj.windupGuardmin = obj.OPOwindupGuardmin;
+       
+            if (obj.cwaveHandle.get_regopo ~= 4)
+                obj.cwaveHandle.set_regopo(4);
+                %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4)
+            end
+                
+            curr_error = 2*tolerance; %arbitrary condidtion to start PID loop.
+            ctrl = 0;
+            p_term = 0;
+            i_term = 0;
+            d_term = 0;
+            Error = [];
+            Dt = [];
+            IntError = [];
+            Control = [];
+            Measured = [];
+            while (abs(curr_error) > tolerance )
+                tic
+                measured = obj.getWavelength();
+                initial_percent = obj.GetPercent();
+                if i == 0
+                    dt = 0;
+                    prev_error = 0;
+                    int_error = 0;
+                    curr_error = setpoint - measured;
+                else
+                    curr_error = setpoint - measured;
+                end
+                i=i+1;
+                
+                %slow control
+                if abs(curr_error) > 0.00125 
+                    
+                    [ctrl,prev_error,int_error,p_term,i_term,d_term] = obj.pid_update(curr_error,prev_error,int_error,kp_slow,ki_slow,kd_slow,dt);
+                    if (initial_percent+ctrl < obj.MinPercent)
+                        obj.TunePercent(obj.MinPercent);
+                    elseif (initial_percent+ctrl > obj.MaxPercent)
+                         obj.TunePercent(obj.MaxPercent);
+                    else
+                        obj.TunePercent(initial_percent+ctrl);
+                    end
+                    dt = toc;
+                %fast control
+                elseif abs(curr_error) > tolerance 
+                      j = 0;
+                      if j == 0
+                          int_error = 0;
+                          j = j+1;
+                      end
+                     
+                      [ctrl,prev_error,int_error,p_term,i_term,d_term] = obj.pid_update(curr_error,prev_error,int_error,kp_fast,ki_fast,kd_fast,dt);
+                      delay = obj.wavemeterHandle.getExposure()/1000 + 0.010; %in seconds
+                      pause(delay)
+                      if (initial_percent+ctrl < obj.MinPercent)
+                          obj.cwaveHandle.tune_opo_cavity(obj.MinPercent);
+                      elseif (initial_percent+ctrl > obj.MaxPercent)
+                          obj.cwaveHandle.tune_opo_cavity(obj.MaxPercent);
+                      else
+                          obj.cwaveHandle.tune_opo_cavity(initial_percent+ctrl);
+                      end
+                      dt = toc;
+                end
+                 
+                 Dt(i) = dt;
+                 Error(i) = curr_error;
+                 IntError(i) = int_error;
+                 Control(i) = ctrl;
+                 Measured(i) = measured;
+                 P_term(i) = p_term;
+                 I_term(i) = i_term;
+                 D_term(i) = d_term;  
+            end
+        end
     end
 end
