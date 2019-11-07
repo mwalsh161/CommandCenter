@@ -51,7 +51,6 @@ try
                 p_debug(4).YData = abs(diff(all_freq))*1000*1000;
                 drawnow limitrate;
             end
-            pause(0.1); % Avoid grabbing same measurement twice
         end
         if abs(frequency(end) - setpoint) > obj.wavemeter.resolution
             if n >= obj.TuneSetpointAttempts

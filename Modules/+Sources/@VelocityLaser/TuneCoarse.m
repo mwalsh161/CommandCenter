@@ -66,7 +66,6 @@ try
         freq(2) = obj.getFrequency;
         % "Logical beginning" of PID algorithm loop
         freq(1) = freq(1) + Pgain*(target - freq(2)); %take difference, use to set again
-        pause(0.1); % Avoid grabbing same measurement twice
     end
     if obj.debug % Grab that last observation
         p_debug(3).YData = [p_debug(3).YData freq(2)];
