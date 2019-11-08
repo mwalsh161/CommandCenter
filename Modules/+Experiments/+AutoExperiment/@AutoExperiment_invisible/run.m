@@ -48,11 +48,12 @@ else % Start a new experiment
 end
 
 %set up looping if breadth or depth
+nsites = length(obj.data.sites);
 switch obj.run_type
     case obj.SITES_FIRST
-        [Y,X] = meshgrid(1:length(obj.experiments),1:length(obj.data.sites));
+        [Y,X] = meshgrid(1:length(obj.experiments),1:nsites);
     case obj.EXPERIMENTS_FIRST
-        [X,Y] = meshgrid(1:length(obj.data.sites),1:length(obj.experiments));
+        [X,Y] = meshgrid(1:nsites,1:length(obj.experiments));
     otherwise
         error('Unknown run_type %s',obj.run_type)
 end
@@ -65,10 +66,9 @@ dP = [0,0,0]; % Cumulative tracker offset
 runstart = tic;
 obj.PreRun(status,managers,ax);
 err = [];
-nsites = size(run_queue,1);
 try
     for repetition = 1:obj.repeat
-        for i=1:nsites
+        for i=1:size(run_queue,1)
             status.String = 'Searching for next experiment to run...';
             try
                 drawnow limitrate;
