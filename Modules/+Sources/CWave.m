@@ -914,14 +914,13 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                   abort = obj.is_cwaveReady(obj.EtalonStepperDelay,false);
  
                   %pause(delay_val);
-                  total_step = correction_step + total_step;
-                  if (currentSHG_Power >= obj.cwaveHandle.SHG_MinPower)
+                  %total_step = correction_step + total_step;
+                  %if (currentSHG_Power >= obj.cwaveHandle.SHG_MinPower)
                       %wm_lambda_c = obj.getWavelength;
-                      [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
-                  elseif (currentSHG_Power < obj.cwaveHandle.SHG_MinPower)
-                      [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                  [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                  %elseif (currentSHG_Power < obj.cwaveHandle.SHG_MinPower)
+                  %    [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                   end 
-              end
           end
 
           function abort = centerThickEtalon(obj)
@@ -1374,10 +1373,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             exit = false;
             while (abs(curr_error) > tolerance )
                 tic
-                [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
-                if currSHG_power < obj.cwaveHandle.SHG_MinPower
-                    while ( (exit == false) & (currSHG_power < obj.cwaveHandle.SHG_MinPower) )
-                        [wm_lambda_c,wmPower_c,wm_exptime_c, currSHG_power, abort, exit] = reset_hysteresis(currPower);
+                obj.updateStatus;
+                obj.is_cwaveReady(0.1);
+                if obj.SHG_power < obj.cwaveHandle.SHG_MinPower
+                    while ( (exit == false) & (obj.SHG_power < obj.cwaveHandle.SHG_MinPower) )
+                        [wm_lambda_c,wmPower_c,wm_exptime_c, obj.SHG_power, abort, exit] = reset_hysteresis(obj.SHG_power);
                     end
                     curr_error = 2*tolerance; %arbitrary condidtion to start PID loop.
                     ctrl = 0;
