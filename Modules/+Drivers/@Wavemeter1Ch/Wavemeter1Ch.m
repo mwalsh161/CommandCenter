@@ -80,8 +80,8 @@ classdef Wavemeter1Ch < Modules.Driver
             if (obj.getExposureMode == false)
                 obj.setExposureMode(true);
             end
-            if (obj.getResultMode ~= 1)
-                obj.setResultMode(1);
+            if (obj.getResultMode ~= 0)
+                obj.setResultMode(0);
                  %    'cReturnWavelengthVac' = 0
                  %    'cReturnWavelengthAir' = 1
                  %    'cReturnFrequency' = 2
