@@ -47,6 +47,7 @@ classdef CWave < Modules.Driver
         DLL_Version= 'DLL_Version';
         DLL_identity = 22;  %20;
         Admin = 'admin_elevate';
+        OPO_rlambda = 'opo_rlambda';
         TempRef  = 'tref_is';
         TempOPO = 'topo_is';
         TempSHG1 = 'tshg_is1';
@@ -728,6 +729,11 @@ classdef CWave < Modules.Driver
             disp(['Setpoint wavelength set: ' num2str(setpoint) 'nm']);
             % IMPORTANT: wait one second before starting to poll for ready
             pause(1);
+        end
+        
+        function set_OPOrLambda(obj,val)
+            %set realtive wavlength shift for shifts 0.1 nm or greater. 
+            obj.set_intvalue(obj.OPO_rLambda, val)
         end
 
         function set_target_deviation(obj, target_dev)
