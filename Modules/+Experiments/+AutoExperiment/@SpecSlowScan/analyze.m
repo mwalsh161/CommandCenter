@@ -121,7 +121,7 @@ else
         'locations',NaN,...
         'background',NaN,...
         'index',NaN,... % Index into sites
-        'uses',NaN);     % indices of experiments in the fit
+        'ignore',[]);     % indices of experiments in the fit
 end
 
 % Frequently updated and small stuff here
@@ -251,12 +251,9 @@ end
         set(selector(1),'Data',cell(0,10)); % Reset selector
         cla(ax(2),'reset'); hold(ax(2),'on');
         exp_inds = fliplr(find(strcmp('Experiments.Spectrum',{site.experiments.name})));
-        if isnan(analysis(site_index,1).uses) % First time visiting, so add all experiments by default
-            analysis(site_index,1).uses = exp_inds;
-        end
         for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data) && any(i==analysis(site_index,1).uses)
+            if ~isempty(experiment.data) && ~any(i == analysis(site_index,1).ignore)
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
                 plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra','color',colors(i,:));
@@ -287,13 +284,10 @@ end
         prepUI(ax(3),selector(2));
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Open',{site.experiments.name})));
         set_points = NaN(1,length(exp_inds));
-        if isnan(analysis(site_index,2).uses) % First time visiting, so add all experiments by default
-            analysis(site_index,2).uses = exp_inds;
-        end
         j = 1; % Loop counter (e.g. index into set_points)
         for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data) && any(i==analysis(site_index,2).uses)
+            if ~isempty(experiment.data) &&  ~any(i == analysis(site_index,2).ignore)
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
@@ -333,15 +327,9 @@ end
         site = sites(site_index);
         prepUI(ax(4),selector(3));
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name})));
-        if isnan(analysis(site_index,3).uses) % First time visiting, so add all experiments by default
-            analysis(site_index,3).uses = exp_inds;
-        end
         for i = exp_inds
-            if isnan(analysis(site_index,3).uses) % First time visiting, so add all experiments by default
-                analysis(site_index,3).uses(end+1) = i;
-            end
             experiment = site.experiments(i);
-            if ~isempty(experiment.data) && any(i==analysis(site_index,3).uses)
+            if ~isempty(experiment.data) &&  ~any(i == analysis(site_index,3).ignore)
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
@@ -383,7 +371,7 @@ end
             duration = char(experiment.tstop - experiment.tstart);
         end
         displayed = false;
-        if any(i==analysis(site_ind,exp_ind).uses)
+        if ~any(i==analysis(site_ind,exp_ind).ignore)
             displayed = true;
         end
         selectorH.Data(end+1,:) = {displayed,color, i,...
@@ -431,11 +419,11 @@ end
                 end
                 exp_ind = hObj.Data{eventdata.Indices(1),3};
                 exp_type = hObj.UserData;
-                mask = analysis(site_index,exp_type).uses==exp_ind;
+                mask = analysis(site_index,exp_type).ignore==exp_ind;
                 if any(mask) % Remove it
-                    analysis(site_index,exp_type).uses(mask) = [];
+                    analysis(site_index,exp_type).ignore(mask) = [];
                 else % Add it
-                    analysis(site_index,exp_type).uses(end+1) = exp_ind;
+                    analysis(site_index,exp_type).ignore(end+1) = exp_ind;
                 end
                 update_exp{exp_type}();
             case 6 % Redo Request (no need to update_all)
