@@ -70,11 +70,15 @@ classdef File < Base.pref
             name = sprintf('Select File: %s',obj.name);
             [file,path] = uigetfile(obj.filter_spec,name,hObj.UserData.last_choice);
             if isequal(file,0) % No file selected; quitely abort
-                answer = questdlg('Remove current file?',name,'Yes','No','No');
-                if strcmp(answer,'Yes')
-                    file = '';
-                    path = '';
-                else
+                if ~isempty(obj.value)
+                    answer = questdlg('Remove current file?',name,'Yes','No','No');
+                    if strcmp(answer,'Yes') % Proceed and remove value
+                        file = '';
+                        path = '';
+                    else % Chose not to remove value, cancel silently
+                        return
+                    end
+                else % Already empty, so cancel silently
                     return
                 end
             end
