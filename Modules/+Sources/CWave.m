@@ -269,9 +269,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                          if (abort_tune )
                                              break
                                          end
-                                         [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                         
+                                         obj.updateStatus;
                                          tic
-                                         while (( currSHG_power < obj.cwaveHandle.SHG_MinPower) )    % | powerSHG_status == false)
+                                         while (( obj.SHG_power < obj.cwaveHandle.SHG_MinPower) )    % | powerSHG_status == false)
                                              pause(1)
                                              abort = obj.is_cwaveReady(1,false);
                                              %check if user has selected to exit
@@ -279,9 +280,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                              if (abort_tune )
                                                 break
                                              end
-                                             [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                             obj.updateStatus;
+                                             %[currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
                                              timer = toc;
-                                             if timer > 2*obj.timeoutSHG
+                                             if timer > obj.timeoutSHG
                                                  abort_tune = true;
                                                  break
                                              end
@@ -320,9 +322,9 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                              if (abort_tune )
                                                  break
                                              end
-                                             [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                             obj.updateStatus;
                                              tic
-                                             while (( currSHG_power < obj.cwaveHandle.SHG_MinPower) )    % | powerSHG_status == false)
+                                             while (( obj.SHG_power < obj.cwaveHandle.SHG_MinPower) )    % | powerSHG_status == false)
                                                  pause(1)
                                                  abort = obj.is_cwaveReady(1,false);
                                                  %check if user has selected to exit
@@ -330,7 +332,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                                  if (abort_tune )
                                                     break
                                                  end
-                                                 [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                                 obj.updateStatus;
                                                  timer = toc;
                                                  if timer > 2*obj.timeoutSHG
                                                      abort_tune = true;
@@ -633,12 +635,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
 
             obj.tuning = ~(obj.locked);
-            
-            if (~obj.locked) 
-                %replace below with dialog box 
-                disp('CWAVE Warning: All elements are not stable and/or locked.');
-            end
-            
             toc
             fprintf('toc %.8f\n',toc);
             %obj.setpoint = obj.cwaveHandle.WLM_PID_Setpoint;
@@ -730,25 +726,23 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.TuneCoarse(obj.c/obj.target_wavelength);
           end
           
-          function [currentSHG_Power, powerSHG_status, exit] = EtalonStepper(obj ,step, delay_val)
+          function exit = EtalonStepper(obj ,step, delay_val)
               %step etalon
               %direction = sign(step);
               obj.cwaveHandle.tune_thick_etalon(step);
-%               while(obj.cwaveHandle.is_ready)
-%                   pause(obj.EtalonStepperDelay);
-%               end
-              obj.is_cwaveReady(delay_val);
-              pause(obj.EtalonStepperDelay);
+              obj.is_cwaveReady(delay_val,false,false); %(no SHG reset, only update SHG power)
+              %pause(obj.EtalonStepperDelay);
               exit = false;
               %correct for excessive stick-slip motion....=
-              [currentSHG_Power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
-              if (currentSHG_Power < obj.cwaveHandle.SHG_MinPower)
+              [obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
+              %obj.updateStatus;
+              if (obj.SHG_power > obj.cwaveHandle.SHG_MinPower)
                   exit = true;
               end
                                                   
           end
 	      
-          function [wm_wl,wm_power,wm_exptime,SHG_power] = powerStatus(obj, tol,delay_val)
+          function [wm_wl,wm_power,wm_exptime] = powerStatus(obj, tol,delay_val)
                     i = 0;
                     max_interation = 10;
                     MaxExposuretime = 1500;
@@ -759,9 +753,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                     curr_expTime = 100000*prev_expTime;
                     while (  curr_expTime <= (1-tol)*prev_expTime | curr_expTime >= (1+tol)*prev_expTime )
                         i = i+1;
-                        pause(delay_val)
+                        %obj.updateStatus;
+                        %pause(delay_val)
+                        obj.is_cwaveReady(delay_val,false,false) %try is_cwaveReady instead of updateStatus and pause. SHould be faster
                         if i > max_interation
-                            obj.updateStatus
                             regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
                                 & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
                             
@@ -769,7 +764,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                 & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
                            
                             if (obj.cwaveHandle.get_regopo == 4)
-                                [SHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
                                 if( regopo4_locked == false)
                                     error('CWave is not locked for regopo4. Refer to lock status to determine failing elements. Currently in OPO regulator mode 4.');
                                 elseif (regopo4_noEta_locked == true & obj.etalon_lock == false)
@@ -801,7 +795,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                             end
                         
                         elseif ( (1+tol)*prev_expTime >= curr_expTime & curr_expTime >= (1-tol)*prev_expTime )
-                            [SHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
                             wm_exptime = obj.wavemeterHandle.getExposure(); 
                             
                             if (powerSHG_status == false)
@@ -817,13 +810,17 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                     end
           end
           
-          function abort = is_cwaveReady(obj,delay_val,SHG_tuning)
+          function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus)
               switch nargin
                   case 0
                       delay_val = 1;
                       SHG_tuning = false;
+                      allStatus = true;
                   case 1
                       SHG_tuning = false;
+                      allStatus = true;
+                  case 2
+                      allStatus = true;
               end
                       
               abort = false;
@@ -831,7 +828,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               
               while(obj.cwaveHandle.is_ready)
                   pause(delay_val); %in seconds
-                  obj.udpateStatus;
+                  if allStatus == true
+                      obj.udpateStatus;
+                  else
+                      [obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
+                  end
                   time = toc; 
                   if (time > obj.timeoutSHG & SHG_tuning == true & (obj.shg_lock == false | obj.shg_temp_lock == false) )
                       dialog = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
@@ -841,22 +842,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                       obj.cwaveHandle.optimize_shg;
                       pause(5)
                       delete(dialog);
-%                       dialog =  questdlg('SHG not locked. Relock SHG?', ...
-%                              'Cwave Not Ready', ...
-%                              'Continue','No, Abort','No, Abort');
-%                          % Handle response
-%                          switch dialog
-%                              case 'Yes'
-%                                  obj.cwaveHandle.optimize_shg;
-%                              case 'No, Abort'
-%                                  if toc > (obj.timeoutSHG + 15)
-%                                      obj.cwaveHandle.optimize_shg;
-%                                  else
-%                                      obj.cwaveHandle.abort_tune;
-%                                      abort = true;
-%                                      return;
-%                                  end
-%                          end
                   elseif time > obj.timeoutAllElements
                      dialog =  questdlg('Tuning Timed out. Continue or abort tuning?', ...
                              'Cwave Not Ready', ...
@@ -874,15 +859,18 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               end
           end
           
-          function [wm_lambda_c,wmPower_c,wm_exptime_c,currPower, abort, exit] = reset_hysteresis(currPower)
+          function [wm_lambda_c,wmPower_c,wm_exptime_c, abort, exit] = reset_hysteresis(obj,pstep)
               i =1;
-              total_step = 0;
-              while(currPower < obj.cwaveHandle.SHG_MinPower)
+              %total_step = 0;
+              obj.updateStatus;
+              while(obj.SHG_power < obj.cwaveHandle.SHG_MinPower)
+                  %obj.is_cwaveReady(obj.EtalonStepperDelay,false,false);
+                  %obj.updateStatus; %updatStatus is slow ~0.1-0.5 s long may need to replace with [obj.SHG_power,~] = obj.cwaveHandle.get_photodiode_shg
                   %direction = sign(EtalonTotalStep);
                   %correction_step = direction*pstep;
                   correction_step = pstep;
-                  [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
-                  [currPower, Status_powerSHG, exiting] = obj.EtalonStepper(correction_step, obj.EtalonMeasureDelay);
+                  %[wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay); %updateStatus called internally
+                  exiting = obj.EtalonStepper(correction_step, obj.EtalonMeasureDelay); % update Status called internally.
                   if exiting == true
                       exit = true;
                   end
@@ -892,35 +880,35 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                   obj.updateStatus;
  
                   if i == 1
-                      correction_step = 5;
-                  elseif i == 2
-                      correction_step = 10;
-                  elseif i == 3
                       correction_step = 15;
-                  elseif i == 4
+                  elseif i == 2
                       correction_step = 20;
+                  elseif i == 3
+                      correction_step = 25;
+                  elseif i == 4
+                      correction_step = 50;
                   elseif i == 5
-                      correction_step = 23;
+                      correction_step = 75;
                   elseif i == 6
-                      correction_step = 25;
+                      correction_step = 100;
                   elseif i > 6
-                      correction_step = 25;
+                      correction_step = 100;
                   end
                   i = i+1;
                   if i >= 25
                       error('Etalon hysteresis not reset');
                       %return;
                   end
-                  abort = obj.is_cwaveReady(obj.EtalonStepperDelay,false);
+                  abort = obj.is_cwaveReady(obj.EtalonStepperDelay,false,false);
  
                   %pause(delay_val);
                   %total_step = correction_step + total_step;
                   %if (currentSHG_Power >= obj.cwaveHandle.SHG_MinPower)
                       %wm_lambda_c = obj.getWavelength;
-                  [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                  [wm_lambda_c,wmPower_c,wm_exptime_c] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                   %elseif (currentSHG_Power < obj.cwaveHandle.SHG_MinPower)
                   %    [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
-                  end 
+              end 
           end
 
           function abort = centerThickEtalon(obj)
@@ -965,8 +953,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      obj.cwaveHandle.abort_tune;
                                      error('Etalon not tunable. Check lock status of OPO elements.')
                                  elseif (PowerMeasureCondition_regopo2 == true | PowerMeasureCondition_regopo4 | obj.locked)
-                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
-                                     if (currPower < obj.cwaveHandle.SHG_MinPower)
+                                     [wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                     if (obj.SHG_power < obj.cwaveHandle.SHG_MinPower)
                                          dlgs1 = questdlg('SHG power is very low (SHG is not lock)! Would you like to reoptimize SHG power?', ...
                                              'Yes, optimize SHG Power','No, retune etalon', 'No, Abort','No, Abort');
                                          % Handle response
@@ -979,9 +967,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                                  drawnow;
                                                  tic
                                                  obj.cwaveHandle.optimize_shg();
-                                                 while( (currPower < obj.cwaveHandle.SHG_MinPower & obj.shg_lock == false & obj.etalon_lock == false) | toc <= obj.timeoutSHG)
-                                                     obj.updateStatus;
-                                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                                 while( (obj.SHG_power < obj.cwaveHandle.SHG_MinPower & obj.shg_lock == false & obj.etalon_lock == false) | toc <= obj.timeoutSHG)
+                                                     %obj.updateStatus;
+                                                     %updateStatus called
+                                                     %in powerStatus
+                                                     [wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                                                  end
                                                  delete(dlgs2);
                                                  if(toc > obj.timeoutSHG)
@@ -998,14 +988,14 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                                  obj.cwaveHandle.relock_etalon();
                                                  while( (obj.etalon_lock == false) | toc <= obj.timeoutThickEtalon)
                                                      obj.updateStatus;
-                                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                                     [wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                                                  end
                                                  delete(dlgs4);
                                                  if(toc > obj.timeoutThickEtalon)
                                                      obj.cwaveHandle.abort_tune;
                                                      error('Retuning of thick etalon timed out. Tune Manually')
                                                  end
-                                                 if (currPower < obj.cwaveHandle.SHG_MinPower | obj.shg_lock == false | obj.shg_temp_lock == false)
+                                                 if (obj.SHG_power < obj.cwaveHandle.SHG_MinPower | obj.shg_lock == false | obj.shg_temp_lock == false)
                                                      % The CWave is slow at tuning, so message is useful until a non-blocking operation exists
                                                      dlgs6 = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
                                                      textH = findall(dlg,'tag','MessageBox');
@@ -1013,9 +1003,9 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                                      drawnow;
                                                      tic
                                                      obj.cwaveHandle.optimize_shg();
-                                                     while( (currPower < obj.cwaveHandle.SHG_MinPower & obj.shg_lock == false & obj.etalon_lock == false) | toc <= obj.timeoutSHG)
+                                                     while( (obj.SHG_power < obj.cwaveHandle.SHG_MinPower & obj.shg_lock == false & obj.etalon_lock == false) | toc <= obj.timeoutSHG)
                                                          obj.updateStatus;
-                                                         [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                                         [wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                                                      end
                                                      delete(dlgs6);
                                                      if(toc > obj.obj.timeoutSHG)
@@ -1039,11 +1029,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                  wm_exptime_c =  wm_exptime_i;
                                  wm_exptime_c = wm_exptime_i;
                                  wm_lambda_c = wm_lambda_i;
-                                 
-                                 while ( (currPower > obj.cwaveHandle.SHG_MinPower) )
-                                     obj.updateStatus;
-                                     [wm_lambda_i,wmPower_i,wm_exptime_i,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
-                                     [currPower, Status_powerSHG, exiting] = obj.EtalonStepper(pstep, obj.EtalonMeasureDelay);
+                                 currPower = obj.SHG_power;
+                                 while ( ( currPower > obj.cwaveHandle.SHG_MinPower) )
+                                     obj.updateStatus; %not sure that we need this. It would be useful to have but it slows things down.
+                                     [wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                     exiting = obj.EtalonStepper(pstep, obj.EtalonMeasureDelay);
                                      pause(obj.EtalonMeasureDelay)
 
                                      disp('Enter +eta loop')
@@ -1053,34 +1043,37 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      fprintf('initial exposure: %.8f\n',wm_exptime_i);
                                      fprintf('current exposure: %.8f\n',wm_exptime_c);
                                      
-                                     if (currPower <  obj.cwaveHandle.SHG_MinPower)
+                                     if (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower)
                                          
-                                         [wm_lambda_c,wmPower_c,wm_exptime_c,currPower, abort, exiting] = reset_hysteresis(currPower);
+                                         [wm_lambda_c,wmPower_c,wm_exptime_c,abort, exiting] = reset_hysteresis(currPower);
                                          
                                      else 
-                                         [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
+                                         [wm_lambda_c,wmPower_c,wm_exptime_c] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                                          obj.MaxEtalon_wl = sprintf('%.80f',wm_lambda_c);
                                      end
                                      
                                      del_wl = (wm_lambda_c-wl_lambda_i); % in nm
                                      
-                                     if (currPower >  obj.cwaveHandle.SHG_MinPower) & (del_wl > 0) & exiting == false %not sure you need eixiting condition
+                                     if (obj.SHG_power >  obj.cwaveHandle.SHG_MinPower) & (del_wl > 0) & exiting == false %not sure you need eixiting condition
+                                         currPower = obj.SHG_power;
                                          continue;
-                                     elseif (currPower >  obj.cwaveHandle.SHG_MinPower) & (del_wl < 0) & exiting == false %not sure you need eixiting condition
+                                     elseif (obj.SHG_power >  obj.cwaveHandle.SHG_MinPower) & (del_wl < 0) & exiting == false %not sure you need eixiting condition
+                                         currPower = obj.SHG_power;
                                          continue;
-                                     elseif (currPower <  obj.cwaveHandle.SHG_MinPower) & (del_wl < 0) & exiting == false %not sure you need eixiting condition
+                                     elseif (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower) & (del_wl < 0) & exiting == false %not sure you need eixiting condition
+                                         currPower = obj.SHG_power;
                                          continue;
-                                     elseif (currPower <  obj.cwaveHandle.SHG_MinPower) & (del_wl > 0) & exiting == false 
+                                     elseif (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower) & (del_wl > 0) & exiting == false 
                                          currPower = 2*obj.cwaveHandle.SHG_MinPower;
                                          %should force back to reset
                                          %hysteris
                                          continue;
-                                     elseif (currPower <  obj.cwaveHandle.SHG_MinPower) & (del_wl > 0) & exiting == true
+                                     elseif (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower) & (del_wl > 0) & exiting == true
                                          currPower = 2*obj.cwaveHandle.SHG_MinPower;
                                          %should force back to reset
                                          %hysteris
                                          continue;
-                                     elseif ( (currPower >  obj.cwaveHandle.SHG_MinPower) & exiting == true)
+                                     elseif ( (obj.SHG_power >  obj.cwaveHandle.SHG_MinPower) & exiting == true)
                                          
                                          if (del_wl < 0)
                                              %maybe put obj.MaxEtalon_wl =
@@ -1097,6 +1090,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                                          %delete( dlgs3);
                                              else
                                                  obj.MinEtalon_wl = wm_lambda_c;
+                                                 return;
                                              end
                                          elseif (del_wl > 0)
                                             currPower = 2*obj.cwaveHandle.SHG_MinPower; %renter loop
