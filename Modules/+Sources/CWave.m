@@ -292,6 +292,58 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      end
                                  elseif (obj.locked == false)
                                      error('Coarse tuning failed...Are you banging the table you fool. It is an OPO!')
+                                 elseif (abs(setpoint-obj.getWavelength) > obj.midTuneTolerance)
+                                     regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
+                                         & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+                                     regOPO4_cond =  regopo4_locked == true & obj.cwaveHandle.get_regopo == 4 & ...
+                                         abs(setpoint-obj.getWavelength) > obj.midTuneTolerance;
+                                     regOPO2_cond =  robj.locked == true & obj.cwaveHandle.get_regopo == 2 & ... 
+                                         abs(setpoint-obj.getWavelength) > obj.midTuneTolerance;
+                                     
+                                     obj.updateStatus;
+                                     if (regOPO2_cond | regOPO4_cond)
+                                         direction = sign(setpoint-obj.getWavelength);
+                                         while abs(setpoint-obj.getWavelength) > obj.midTuneTolerance % = 0.1 nm
+                                             control = direction*abs(setpoint-obj.getWavelength);
+                                             if abs(control) < 2.5*obj.OPOrLambdaFloor
+                                                 control = direction*(obj.OPOrLambdaFloor);
+                                             end
+                                             obj.cwaveHandle.set_OPOrLambda(obj,floor(control));
+                                             abort_tune = obj.is_cwaveReady(1,true);
+                                             %check if user has selected to exit
+                                             %tuning
+                                             if (abort_tune )
+                                                 break
+                                             end
+                                             [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                             tic
+                                             while (( currSHG_power < obj.cwaveHandle.SHG_MinPower) )    % | powerSHG_status == false)
+                                                 pause(1)
+                                                 abort = obj.is_cwaveReady(1,false);
+                                                 %check if user has selected to exit
+                                                 %tuning
+                                                 if (abort_tune )
+                                                    break
+                                                 end
+                                                 [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
+                                                 timer = toc;
+                                                 if timer > 2*obj.timeoutSHG
+                                                     abort_tune = true;
+                                                     break
+                                                 end
+                                             end
+                                         end
+                                         %check if user has selected to exit
+                                         %tuning
+                                         if (abort_tune )
+                                             delete(dlg)
+                                             %maybe I should have a error
+                                             %statement here
+                                             return
+                                         end
+                                     else
+                                         error('Coarse tuning failed...Are you banging the table you fool. It is an OPO!')
+                                     end
                                  elseif ( obj.locked == true & abs(setpoint-obj.getWavelength) < obj.midTuneTolerance &  abs(setpoint-obj.getWavelength) > obj.ThickEtalonTolerance )
                                      abort = obj.centerThickEtalon;
                                      if (abort )
@@ -302,6 +354,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      if (lock == true)
                                          while ( obj.cwaveHandle.get_regopo() ~= 2)
                                              obj.cwaveHandle.set_regopo(2);
+                                             pause(0.1);
                                          end
                                          if (obj.cwaveHandle.get_ref_cavity_percent ~= 50) 
                                              obj.TuneRefPercent(50.0);
@@ -314,10 +367,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      elseif (lock == false)
                                          while ( obj.cwaveHandle.get_regopo() ~= 4)
                                              obj.cwaveHandle.set_regopo(4);
-                                             pause(1);
-                                             disp('regopo');
-                                             obj.cwaveHandle.get_regopo
-                                             disp('end iteration')
+                                             pause(0.1);
                                          end
                                          if (obj.GetPercent() ~= 50)
                                              obj.TunePercent(50);
@@ -1319,7 +1369,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 tic
                 [currSHG_power, powerSHG_status] = obj.cwaveHandle.get_photodiode_shg;
                 if currSHG_power < obj.cwaveHandle.SHG_MinPower
-                    while exit == false & currSHG_power < obj.cwaveHandle.SHG_MinPower
+                    while ( (exit == false) & (currSHG_power < obj.cwaveHandle.SHG_MinPower) )
                         [wm_lambda_c,wmPower_c,wm_exptime_c, currSHG_power, abort, exit] = reset_hysteresis(currPower);
                     end
                     curr_error = 2*tolerance; %arbitrary condidtion to start PID loop.
