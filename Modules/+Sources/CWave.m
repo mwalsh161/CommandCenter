@@ -186,6 +186,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 
         % tunable laser methods
         function tune(obj, setpoint,target_dev,coarse,lock)
+            if (obj.wavemeterHandle.getResultMode ~= 0)
+                obj.wavemeterHandle.setResultMode(0);
+                 % initialize into WavelengthVac mode.
+                 %    'cReturnWavelengthVac' = 0
+            end
             % target in nm
             obj.tuning = true;
             if setpoint < 899
@@ -369,6 +374,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                              obj.cwaveHandle.set_regopo(4);
                                              pause(0.1);
                                          end
+                                         % error tuning occure 11/08/19
+                                         % somewhere between line 378-385
                                          if (obj.GetPercent() ~= 50)
                                              obj.TunePercent(50);
                                          end
