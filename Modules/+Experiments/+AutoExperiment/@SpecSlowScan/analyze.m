@@ -456,6 +456,13 @@ end
     function save_state()
         for i = 2:4 % Go through each data axis
             if ~isstruct(ax(i).UserData) || ~isfield(ax(i).UserData,'uifitpeaks_enabled')
+                analysis(site_index,i-1).fit = [];
+                analysis(site_index,i-1).amplitudes = NaN;
+                analysis(site_index,i-1).locations = NaN;
+                analysis(site_index,i-1).widths = NaN;
+                analysis(site_index,i-1).background = NaN;
+                analysis(site_index,i-1).index = NaN;
+                % Uses can stay
                 continue
             end
             fit_result = ax(i).UserData.pFit.UserData;
