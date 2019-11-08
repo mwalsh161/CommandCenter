@@ -20,9 +20,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
 
     properties
         prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel',...
-                 'cal_local','TuningTimeout','TuneSetpointAttempts'};
+                 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
         show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip',...
-            'velocity_ip','wavemeter_channel','wavemeter_ip','TuningTimeout','TuneSetpointAttempts','debug'};
+            'velocity_ip','wavemeter_channel','wavemeter_ip','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
         cal_local = struct('THz2nm',[],'gof',[],'datetime',[],'expired',{}); %calibration data for going from nm to THz
@@ -53,6 +53,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_active = Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
         percent_setpoint = Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
         TuneSetpointAttempts = Prefs.Integer(3,'min',1,'allow_nan',false);
+        TuneSetpointNPoints = Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;

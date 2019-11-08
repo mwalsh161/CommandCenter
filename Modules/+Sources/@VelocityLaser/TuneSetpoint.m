@@ -11,6 +11,7 @@ if obj.debug
     set(ax_debug(2),'yscale','log');
     p_debug(1) = plot(ax_debug(1),[0 1], [setpoint setpoint],'--k');
     p_debug(2) = plot(ax_debug(1),NaN, NaN,'.-');
+    % Convert THz -> MHz for derivative plot (factor 1000*1000)
     p_debug(3) = plot(ax_debug(2),[0 1], obj.wavemeter.resolution*1000*1000*[1 1],'--k');
     p_debug(4) = plot(ax_debug(2),NaN, NaN,'.-');
     ylabel(ax_debug(1),'Frequency (THz)');
@@ -35,7 +36,7 @@ try
         end
         PIDstart = tic;
         % wait until laser settles to frequency
-        n_points = 25;
+        n_points = obj.TuneSetpointNPoints;
         while (length(frequency)<=n_points || ...
               ~all(abs(diff(frequency(end-n_points:end))) < obj.wavemeter.resolution)) && ...
               toc(PIDstart) < obj.TuningTimeout
