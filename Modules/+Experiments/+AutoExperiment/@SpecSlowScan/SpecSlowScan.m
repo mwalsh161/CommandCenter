@@ -9,7 +9,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','Number of std above noise proms');
         PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
         StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
-        analysis_file = Prefs.File('filter_spec','*.m','help','Used in patch functions instead of fitting last result. This also ignores SpecPeakThresh.',...
+        analysis_file = Prefs.File('filter_spec','*.mat','help','Used in patch functions instead of fitting last result. This also ignores SpecPeakThresh.',...
                                      'custom_validate','validate_file');
     end
     properties
