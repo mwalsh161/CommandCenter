@@ -101,7 +101,7 @@ classdef APDPulseSequence < handle
             end
             try
                 program = obj.seq.compile(dur, obj.pb.resolution);
-                obj.pb.open;
+                %obj.pb.open;
                 obj.pb.load(program);
                 obj.pb.start;
             catch err
