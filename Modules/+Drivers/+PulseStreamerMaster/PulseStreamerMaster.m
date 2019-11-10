@@ -1,5 +1,5 @@
 
-classdef PulseStreamerMaster < Modules.Driver
+classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
     % PulseStreamerMaster is located in in CommandCenter > Modules >
     % +Drivers > +PulseStreamer
     % The PulseStreamerMaster class is a driver module class which 
