@@ -69,7 +69,12 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
     
     
     % ipAddress='192.168.11.2';
-    
+    properties
+        clk = 1000;         % clock sampling rate
+        resolution = 3;  % ns can be s low as 1 nd but output voltage is lower than 3.3V (TTL) so depending on uWave source trigger might be able to go down to 1ns
+        minDuration = 2; % ns (can go down to 1ns but output waveform will be distorted). 
+        maxRepeats = 2^63-1;  % positive integer value
+    end
     properties(SetAccess=private)
         % Object that provides the interface to the
         % Pulse Streamer hardware. this object provides access run, halt
@@ -297,6 +302,7 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
         % server.
         
             obj.build(program);
+            obj.plot;
             start = obj.triggerStart;%initialize the trigger to be software defined
             mode  = obj.triggerMode; % initialize the trigger to be rearmed after each run.
             obj.PS.setTrigger(start, mode); % set triggers
@@ -321,7 +327,6 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
 %             end
 %             [~,name,~]=fileparts(caller{end});
 %             caller = [prefix name];
-            obj.plot;
             obj.PS.startNow();
 %             obj.running = caller;
         end
