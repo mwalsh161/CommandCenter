@@ -6,6 +6,8 @@ classdef Remote < Modules.Driver
     
     properties
         clk = 500  % Hz
+        resolution = 2;  % ns
+        minDuration = 10;% Minimum duration in ns
     end
     properties(SetAccess=private)
         connection

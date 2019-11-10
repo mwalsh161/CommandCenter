@@ -124,7 +124,7 @@ function offset_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-val = str2double(get(hObject,'String'));
+val = str2num(get(hObject,'String')); % 1 x 2 with space
 if isnan(val)
     errordlg('Must be a number!')
     set(hObject,'String',num2str(handles.channel.offset))
