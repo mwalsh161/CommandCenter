@@ -56,9 +56,9 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             'opo_lock','shg_lock','pump_emission','ref_temp_lock','resonator_percent',...
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
             'resonator_tune_speed','tunePercentRange','MaxEtalon_wl','MinEtalon_wl',...
-            'EtalonStep','MidEtalon_wl','OPO_power','SHG_power','Pump_power',...
+            'EtalonStep','MidEtalon_wl','OPO_power','SHG_power','Pump_power','AllElementStep',...
             'TempRef','TempOPO', 'TempSHG','TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
-         show_prefs = {'target_wavelength','resonator_percent','EtalonStep','tunePercentRange',...
+         show_prefs = {'target_wavelength','resonator_percent','AllElementStep','EtalonStep','tunePercentRange',...
             'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','tuning',...
             'enabled','wavelength_lock','etalon_lock','opo_stepper_lock','opo_temp_lock','shg_stepper_lock',...
             'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock','pump_emission','ref_temp_lock',...
@@ -109,6 +109,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         target_wavelength='';
         tunePercentRange = ''; %tunePercentRange = Prefs.DoubleArray();
         EtalonStep='';
+        AllElementStep = '';
         MinEtalon_wl = '0';
         MaxEtalon_wl = '.25';
     end
@@ -1134,9 +1135,24 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               %obj.updateStatus;
           end
           
+          function set.AllElementStep(obj,val)
+              if obj.cwaveHandle.is_ready
+                  return
+              end
+              obj.AllElementStep = floor( eval(val) );
+              obj.cwaveHandle.set_OPOrLambda();
+              obj.is_cwaveReady(obj.EtalonStepperDelay,true);
+          end
+              
+          
           function tune_etalon(obj)
+              if obj.cwaveHandle.is_ready == true
+                  return
+              end
               obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
               %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
+              % obj.updateStatus;
+              %obj.is_cwaveReady(obj.EtalonStepperDelay,false,false);
           end
           
           function set_regopo(obj,val)
