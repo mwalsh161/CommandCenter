@@ -69,7 +69,7 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
     
     
     % ipAddress='192.168.11.2';
-    properties
+    properties(Constant)
         clk = 1000;         % clock sampling rate
         resolution = 3;  % ns can be s low as 1 nd but output voltage is lower than 3.3V (TTL) so depending on uWave source trigger might be able to go down to 1ns
         minDuration = 2; % ns (can go down to 1ns but output waveform will be distorted). 
