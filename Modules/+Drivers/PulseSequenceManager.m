@@ -25,7 +25,7 @@ classdef PulseSequenceManager < Modules.Driver
                     return
                 end
             end
-            obj = Drivers.PulseSequenceManager(PulseBlaster_ip,NIDAQ_dev);
+            obj = Drivers.PulseSequenceManager(PulseBlaster_ip,NIDAQ_dev); %modified 11/10/19
             obj.singleton_id = id;
             Objects(end+1) = obj;
         end
@@ -33,7 +33,7 @@ classdef PulseSequenceManager < Modules.Driver
     methods(Access=private)
         function obj = PulseSequenceManager(PulseBlaster_ip,NIDAQ_dev)
             obj.ni = Drivers.NIDAQ.dev.instance(NIDAQ_dev);
-            obj.pb = Drivers.PulseBlaster.remote.instance(PulseBlaster_ip);
+            obj.pb = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance(PulseBlaster_ip);
         end
     end
     methods
