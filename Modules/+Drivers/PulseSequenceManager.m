@@ -33,7 +33,8 @@ classdef PulseSequenceManager < Modules.Driver
     methods(Access=private)
         function obj = PulseSequenceManager(PulseBlaster_ip,NIDAQ_dev)
             obj.ni = Drivers.NIDAQ.dev.instance(NIDAQ_dev);
-            obj.pb = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance(PulseBlaster_ip);
+            obj.pb = Drivers.PulseBlaster.Remote.instance(PulseBlaster_ip);
+            %obj.pb = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance(PulseBlaster_ip);
         end
     end
     methods
