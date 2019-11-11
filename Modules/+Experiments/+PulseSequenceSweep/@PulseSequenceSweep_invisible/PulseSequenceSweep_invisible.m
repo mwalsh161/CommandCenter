@@ -41,8 +41,10 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         averages = 2;     % Number of times to perform entire sweep
         samples = 1000;   % Number of samples at each point in sweep
         %pb_IP = 'None Set';
-        pbH='None Set';
         NIDAQ_dev = 'None Set';
+    end
+    properties(GetObservable,SetObservable)
+        pbH = Prefs.String('None Set','allow_empty',false);
     end
     properties(SetAccess=protected,Hidden)
         data = [] % subclasses should not set this; it can be manipulated in GetData if necessary
