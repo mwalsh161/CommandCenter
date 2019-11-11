@@ -702,24 +702,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-        %change to set_target_wavlength and make turn this into setmethod
-        %as defined in https://github.com/mwalsh161/CommandCenter/blob/dev/%2BBase/pref.m
-        %example of implementation: https://github.com/mwalsh161/CommandCenter/blob/dev/Modules/%2BImaging/debug.m#L55
-        %f you're wondering where the set property is defined, it is in Base.pref - also worth reading until I get it onto the wiki to better understand what's happening: https://github.com/mwalsh161/CommandCenter/blob/dev/%2BBase/pref.m
-% Matthew Feldman 5:16 PM
-% Yea the latter. Thanks. But just for my own understanding the testSet method sets a value to a preference (even though there is only a print statemet in the body of the method)? Is this behavior explained in the pref.m link you just sent?
-% Michael Walsh 5:25 PM
-% it should be explained
-% unlike MATLAB's set.prop methods, these set methods require you to return the value
-% new messages
-% so while testSet seems to only be doing an fprintf, the input val is returned as well
-%         function set.target_wavelength(obj,val)
-%             %if isnan(val.default); obj.target_wavelength = val; return; end % Short circuit on NaN
-%             if isnan(val.ui); obj.target_wavelength = val; return; end % Short circuit on NaN
-%             if obj.internal_call; obj.target_wavelength = val; return; end
-%             obj.tune(val);
-%         end
-        
           function set.target_wavelength(obj,val)
               %edite 10/30/19 note sure why this is read only???
             %if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
