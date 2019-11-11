@@ -55,6 +55,8 @@ classdef CWave < Modules.Driver
         TempOPO_sp = 'topo_set';
         TempSHG_sp = 'tshg_set';
         TempRef_sp = 'tref_set';
+        TempFPGA = 'temp_fpga';
+        TempBase = 'temp_base';
         UpdateStatus = 'cwave_updatestatus';
         Get_IntValue = 'get_intvalue';
         Get_floatValue = 'get_floatvalue';
@@ -487,6 +489,12 @@ classdef CWave < Modules.Driver
             status = obj.LibraryFunction(obj.Set_IntValue,cmd, value);
         end
         
+        function tBase = get_tBase(obj)
+            tBase = calllib(obj.LibraryName, obj.Get_IntValue,obj.TempFPGA);
+        end
+        function tFPGA = get_tFPGA(obj)
+            tFPGA = calllib(obj.LibraryName, obj.Get_IntVale,obj.TempBase);
+        end
         function tref = get_tref(obj)
             tref = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempRef);
             tref = tref/1000; % Celcius
@@ -513,7 +521,7 @@ classdef CWave < Modules.Driver
             tshg = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempSHG_sp);
             tshg = tshg/1000; % Celcius
         end
-   
+        
         function optimize_status = is_ready(obj)
             %Description: Checks if all C-Wave routines have finished and the C-Wave produces the desired output
             %Arguments: none
