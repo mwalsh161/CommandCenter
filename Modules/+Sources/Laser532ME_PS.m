@@ -5,7 +5,7 @@ classdef Laser532ME_PS < Modules.Source & Sources.MEdge_invisible
     % Detailed explanation goes here
     
     properties(SetObservable)
-        PSline = 1;               % Pulse Streamer flag bit (indexed from 1)
+        PBline = 1;               % Pulse Streamer flag bit (indexed from 1)
         ip = 'No Server';         % ip of host computer (with PB)
     end
     properties(SetObservable,SetAccess=private)
@@ -20,8 +20,8 @@ classdef Laser532ME_PS < Modules.Source & Sources.MEdge_invisible
     end
     methods(Access=protected)
         function obj = Laser532ME_PS()
-            obj.prefs = [{'PSline','ip'} obj.prefs];
-            obj.show_prefs = [{'running','PSline','ip'} obj.show_prefs];
+            obj.prefs = [{'PBline','ip'} obj.prefs];
+            obj.show_prefs = [{'running','PBline','ip'} obj.show_prefs];
             obj.loadPrefs; % note that this calls set.ip
         end
     end
@@ -74,7 +74,7 @@ classdef Laser532ME_PS < Modules.Source & Sources.MEdge_invisible
         end
         function on(obj)
             assert(~isempty(obj.PulseStreamerMaster),'No IP set for PulseStreamer!')
-            state = PulseStreamer.OutputState([obj.PSline],0,0);
+            state = PulseStreamer.OutputState([obj.PBline],0,0);
             obj.PulseStreamerMaster.PS.constant(state);
             obj.source_on = true;
         end

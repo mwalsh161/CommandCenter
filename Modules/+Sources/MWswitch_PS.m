@@ -5,7 +5,7 @@ classdef MWswitch_PS < Modules.Source
     
    
     properties(SetObservable)
-        PSline = 4;                  % Pulse Blaster flag bit (indexed from 1)
+        PBline = 4;                  % Pulse Blaster flag bit (indexed from 1)
         ip = 'No Server';         % ip of host computer (with PS)
         enabled = false;
     end
@@ -16,8 +16,8 @@ classdef MWswitch_PS < Modules.Source
       properties
           prefs;
           show_prefs;
-%         prefs = {'PSline','ip','enabled'};
-%         show_prefs = {'PSline','ip'};
+%         prefs = {'PBline','ip','enabled'};
+%         show_prefs = {'PBline','ip'};
      end
     properties(Access=private)
         listeners
@@ -29,8 +29,8 @@ classdef MWswitch_PS < Modules.Source
     
     methods(Access=protected)
         function obj = MWswitch_PS()
-            obj.prefs = [{'PSline','ip'} obj.prefs];
-            obj.show_prefs = [{'running','PSline','ip'} obj.show_prefs];
+            obj.prefs = [{'PBline','ip'} obj.prefs];
+            obj.show_prefs = [{'running','PBline','ip'} obj.show_prefs];
             obj.loadPrefs;
         end
     end
@@ -77,7 +77,7 @@ classdef MWswitch_PS < Modules.Source
         end
         function on(obj)
             assert(~isempty(obj.PulseStreamerHandle), 'No IP set for PulseStreamer!')
-            state = PulseStreamer.OutputState([obj.PSline],0,0);
+            state = PulseStreamer.OutputState([obj.PBline],0,0);
             obj.PulseStreamerHandle.PS.constant(state);
             obj.source_on = true;
         end
