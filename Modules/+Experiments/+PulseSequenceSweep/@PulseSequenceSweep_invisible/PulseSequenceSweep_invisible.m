@@ -35,7 +35,7 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         nCounterBins
     end
     properties
-        prefs = {'averages','samples','pbH','NIDAQ_dev'};
+        prefs = {'averages','samples','NIDAQ_dev'};
     end
     properties(SetObservable,AbortSet)
         averages = 2;     % Number of times to perform entire sweep
