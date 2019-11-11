@@ -57,8 +57,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
             'resonator_tune_speed','tunePercentRange','MaxEtalon_wl','MinEtalon_wl',...
             'EtalonStep','MidEtalon_wl','OPO_power','SHG_power','Pump_power','AllElementStep',...
-            'TempRef','TempOPO', 'TempSHG','TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
-         show_prefs = {'target_wavelength','resonator_percent','AllElementStep','EtalonStep','tunePercentRange',...
+            'TempRef','TempOPO', 'TempSHG','TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint','TempBase','TempFPGA'};
+         show_prefs = {'TempBase','TempFPGA','target_wavelength','resonator_percent','AllElementStep','EtalonStep','tunePercentRange',...
             'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','tuning',...
             'enabled','wavelength_lock','etalon_lock','opo_stepper_lock','opo_temp_lock','shg_stepper_lock',...
             'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock','pump_emission','ref_temp_lock',...
@@ -69,7 +69,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             'shg_stepper_lock', 'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock',...
             'pump_emission','ref_temp_lock','MidEtalon_wl',...
             'OPO_power','SHG_power','Pump_power','TempRef','TempOPO', 'TempSHG',...
-            'TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
+            'TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint','TempBase','TempFPGA'};
      end
     properties(SetObservable,GetObservable)
         MidEtalon_wl = '';
@@ -96,6 +96,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         OPO_power =  Prefs.Double(0.0,'units','mW','min',0,'max',5000);
         SHG_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
         Pump_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
+        TempBase =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempFPGA =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         TempRef =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         TempOPO =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         TempSHG =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
@@ -621,6 +623,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             [obj.OPO_power,obj.sOPO_power] = obj.cwaveHandle.get_photodiode_opo;
             [obj.SHG_power,obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
             [obj.Pump_power,obj.sPump_power] = obj.cwaveHandle.get_photodiode_laser;
+            obj.TempBase = obj.cwaveHandle.get_tBase;
+            obj.TempFPGA = obj.cwaveHandle.get_tFPGA;
             obj.TempRef = obj.cwaveHandle.get_tref;
             obj.TempOPO = obj.cwaveHandle.get_topo;
             obj.TempSHG = obj.cwaveHandle.get_tshg;
