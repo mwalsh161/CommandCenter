@@ -52,22 +52,15 @@ classdef PathManager < Base.Manager
         module_types = {};
     end
     
-    methods(Static)
+    methods(Static,Hidden)
         function instruction_strings = get_string_instructions(instructions)
             instruction_strings = {};
             if isstruct(instructions)
                 for i = 1:length(instructions)
-                    inputs = {};
-                    for j = 1:length(instructions(i).method_inputs)
-                        if isnumeric(instructions(i).method_inputs{j})
-                            inputs{end+1} = ['[' num2str(instructions(i).method_inputs{j}) ']'];
-                        elseif ischar(instructions(i).method_inputs{j})
-                            inputs{end+1} = ['''' instructions(i).method_inputs{j} ''''];
-                        elseif iscell(instructions(i).method_inputs{j})
-                            inputs{end+1} = ['{' strjoin(instructions(i).method_inputs{j},', ') '}'];
-                        else
-                            inputs{end+1} = '??';
-                        end
+                    narin = length(instructions(i).method_inputs);
+                    inputs = cell(1,narin);
+                    for j = 1:narin
+                        inputs{j} = PathManager.format_instruction_inputs(instructions(i).method_inputs{j});
                     end
                     if ~isempty(instructions(i).module_name)
                         instruction_strings{end+1} = sprintf('%s.%s(%s)',...
@@ -84,6 +77,18 @@ classdef PathManager < Base.Manager
                 instruction_strings = {'alias',sprintf('---> %s',instructions)};
             else
                 error('Instructions are in the wrong format.')
+            end
+        end
+        function fmt = format_instruction_inputs(input)
+            if isnumeric(input)
+                fmt = ['[' num2str(input) ']'];
+            elseif ischar(input)
+                fmt = ['''' input ''''];
+            elseif iscell(input)
+                input = cellfun(@PathManager.format_instruction_inputs,input,'UniformOutput',false);
+                fmt = ['{' strjoin(input,', ') '}'];
+            else
+                fmt = '??';
             end
         end
     end
@@ -122,7 +127,9 @@ classdef PathManager < Base.Manager
             % Note this will not clean up any potential aliases pointing to this path
             map = ismember({obj.paths.name},name);
             obj.assert(any(map),sprintf('No path found by name "%s"',name));
-            obj.assert(~strcmp(obj.paths(map).name,obj.active_path),'Change to new path before deleting');
+            if strcmp(obj.paths(map).name,obj.active_path)
+                obj.active_path = '';
+            end
             obj.paths(map) = [];
         end
         function select_path(obj,name,prompt,update_active)
@@ -179,7 +186,9 @@ classdef PathManager < Base.Manager
                 obj.active_path = name;
             end
         end
-        
+    end
+    
+    methods(Hidden)
         % GUI methods
         function menu_open_CB(obj,hObj,~)
             % Redraw each time
@@ -197,8 +206,10 @@ classdef PathManager < Base.Manager
                 'checked',getchecked(name)),...
                 {obj.paths.name},'uniformoutput',false);
             uimenu(hObj,'separator','on','Text','New Path','callback',@obj.new_path_GUI);
-            uimenu(hObj,'Text','New Alias','callback',@obj.new_alias_GUI);
-            if length(obj.paths) > 1
+            if ~isempty(obj.paths)
+                uimenu(hObj,'Text','New Alias','callback',@obj.new_alias_GUI);
+            end
+            if ~isempty(obj.paths)
                 uimenu(hObj,'Text','Remove Path/Alias','callback',@obj.remove_path_CB);
             end
             if ~isempty(obj.paths)
@@ -229,6 +240,7 @@ classdef PathManager < Base.Manager
             if ~isempty(varargin)&&ischar(varargin{1})
                 default_name = varargin{1};
             end
+            assert(~isempty(obj.paths),'No paths!')
             f = figure('name','New Alias','IntegerHandle','off','menu','none',...
                 'toolbar','none','visible','off','units','characters','resize','off');
             f.Units = 'characters';
