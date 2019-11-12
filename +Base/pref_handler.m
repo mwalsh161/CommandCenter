@@ -21,16 +21,16 @@ classdef pref_handler < handle
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
     end
-    properties(SetAccess = private)
+    properties(SetAccess = private,Hidden)
         last_pref_set_err = [];
     end
-    properties(SetAccess=protected)
+    properties(SetAccess=protected,Hidden)
         % If true, when setting, post listener will not throw the error.
         % It will still populate last_pref_set_err. Think of this as a way
         % to implement a try/catch block
         pref_set_try = false;
     end
-    properties
+    properties(Hidden)
         pref_handler_indentation = 2;
     end
 
