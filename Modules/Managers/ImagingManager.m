@@ -332,10 +332,17 @@ classdef ImagingManager < Base.Manager
                 end
             end
         end
-        function scrolled(obj,hObject,event)
-            stage = obj.handles.Managers.Stages;
-            if ~stage.moving
-                stage.jog([0 0 event.VerticalScrollCount*0.5])
+        function scrolled(obj,~,event)
+            C = get(obj.handles.axImage,'currentpoint');
+            xlim = get(obj.handles.axImage,'xlim');
+            ylim = get(obj.handles.axImage,'ylim');
+            outX = any(diff([xlim(1) C(1,1) xlim(2)])<0);
+            outY = any(diff([ylim(1) C(1,2) ylim(2)])<0);
+            if ~(outX || outY)
+                stage = obj.handles.Managers.Stages;
+                if ~stage.moving
+                    stage.jog([0 0 event.VerticalScrollCount*0.5])
+                end
             end
         end
         function varargout = autofocus(obj,varargin)
