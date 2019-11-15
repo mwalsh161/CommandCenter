@@ -19,6 +19,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
 
         SignalGenerator = Modules.Source.empty(0,1);
         MW_freqs_GHz = 'linspace(2.85,2.91,101)';
+        freq_multiplication = 1;
         MW_Power_dBm = -30;
         MW_freq_norm_GHz = 2; % If set to -1, will turn off
 
@@ -39,8 +40,10 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         Driver_Bias_2_Channel = ''; % String channel for bias 2; no channel if empty
     end
     properties
-        prefs = {'MW_freqs_GHz','MW_freq_norm_GHz','MW_Power_dBm','Exposure_ms','averages','Laser',...
-                 'SignalGenerator','PowerSupply','keep_bias_on','VDD_VCO','VDD_Driver','Driver_Bias_1','Driver_Bias_2','APD_line','MW_Control_line','APD_Sync_line','VDD_VCO_Channel','VDD_Driver_Channel','Driver_Bias_1_Channel','Driver_Bias_2_Channel'};
+        prefs = {'MW_freqs_GHz','freq_multiplication','MW_freq_norm_GHz','MW_Power_dBm','Exposure_ms','averages','Laser',...
+                 'SignalGenerator','PowerSupply','keep_bias_on','VDD_VCO','VDD_Driver','Driver_Bias_1','Driver_Bias_2','APD_line','MW_Control_line','APD_Sync_line','ip','VDD_VCO_Channel','VDD_Driver_Channel','Driver_Bias_1_Channel','Driver_Bias_2_Channel'};
+        listeners
+        isRunning
     end
     properties(SetAccess=private,Hidden)
         % Internal properties that should not be accessible by command line
@@ -48,6 +51,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         data = [] % Useful for saving data from run method
         meta = [] % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
+        VDD_VCO_cal = [0.0263/1e6   -1.1597]
     end
     properties(SetAccess=private)
         PulseBlaster                 % Hardware handle
@@ -90,7 +94,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
             err = [];
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline);
+                %obj.source_on = obj.PulseBlaster.lines(obj.MW_Control_line);
                 delete(obj.listeners)
                 obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
                 obj.ip = val;
@@ -98,7 +102,6 @@ classdef CMOS_CW_ODMR < Modules.Experiment
             catch err
                 obj.PulseBlaster = [];
                 delete(obj.listeners)
-                obj.source_on = 0;
                 obj.ip = 'No Server';
             end
             if ~isempty(err)
@@ -108,7 +111,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
 
         % Set methods allow validating property/pref set values
         function set.MW_freqs_GHz(obj,val)
-            obj.freq_list = str2num(val)*1e9;
+            obj.freq_list = str2num(val)*1e9/obj.freq_multiplication;
             obj.MW_freqs_GHz = val;
         end
         
