@@ -252,6 +252,7 @@ classdef Manager < handle
                 % Make sure width wasn't changed
                 set(settings_panel,'units','characters')
                 w = get(settings_panel,'position');
+                wpx = getpixelposition(settings_panel);
                 if w(3) ~= width
                     delete(settings_panel)
                     msg = sprintf('%s modified settings panel width. This is not allowed!',class(obj.active_module));
@@ -273,10 +274,14 @@ classdef Manager < handle
                         obj.warning('MANAGER:settings','Detected some panels with negative positions, this may cause display errors.')
                     end
                     set(settings_panel,'position',[0 0 w(3) top])
+                    dividing_p = uipanel(temp,'units','pixels','Position',[0 0 wpx(3) 21],'BorderType','none');
+                    uicontrol(dividing_p,'style','push','units','pixels','position',[wpx(3)-35 1 20 20],...
+                              'callback',@(~,~)obj.update_settings,'CData',obj.handles.reload_CData,'tooltip','Refresh Settings');
                     if ~isempty(contents)
-                        divider = uipanel(temp,'units','characters','Position',[w(3)/8 top+0.1 w(3)*3/4 0.1]);
-                        scrollPanel.addPanel(divider,'Divider');
+                        uipanel(dividing_p,'units','pixels','Position',[wpx(3)/16 9 wpx(3)*3/4 2],...
+                                'BackgroundColor','black','BorderType','none');
                     end
+                    scrollPanel.addPanel(dividing_p,'Divider');
                     % Adjust Callbacks
                     obj.SettingsCallbackOverride(contents)
                     scrollPanel.addPanel(settings_panel,'Settings');

@@ -21,7 +21,7 @@ classdef umanager_invisible < Modules.Imaging
     end
     properties(SetObservable,GetObservable)
         exposure = Prefs.Double('min',0,'units','ms','set','set_exposure');
-        binning = Prefs.Integer(1,'min',1,'units','ms','set','set_binning',...
+        binning = Prefs.Integer(1,'min',1,'units','px','set','set_binning',...
             'help_text','Not all integers will be available for your camera.');
     end
     
@@ -47,6 +47,11 @@ classdef umanager_invisible < Modules.Imaging
     properties(Access=private)
         core            % The Micro-Manager core utility (java); Access through mmc method
         videoTimer       % Handle to video timer object for capturing frames
+    end
+    methods
+        function obj = umanager_invisible()
+            obj.path = 'camera';
+        end
     end
     methods(Sealed,Access=protected)
         function varargout = mmc(obj,function_name,varargin)

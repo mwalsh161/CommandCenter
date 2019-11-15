@@ -25,7 +25,10 @@ obj.imaging_source.arm; % Arm imaging source for experiment
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
     % Tag all this data as not new by incrementing continued flag
-    for i = 1:length(obj.data.sites)
+    nsites = length(obj.data.sites);
+    for i = 1:nsites
+        status.String = sprintf('Incrementing continued flag on loaded data (%i/%i).',i,nsites);
+        drawnow limitrate;
         for j = 1:length(obj.data.sites(i).experiments)
             obj.data.sites(i).experiments(j).continued = obj.data.sites(i).experiments(j).continued + 1;
         end
@@ -40,16 +43,17 @@ else % Start a new experiment
     obj.data.image.meta = sites.meta;
     for i = 1:size(sites.positions,1)
         obj.data.sites(i).position = sites.positions(i,:);
-        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{},'continued',{});
+        obj.data.sites(i).experiments = struct('name',{},'prefs',{},'err',{},'completed',{},'skipped',{},'continued',{},'redo_requested',{});
     end
 end
 
 %set up looping if breadth or depth
+nsites = length(obj.data.sites);
 switch obj.run_type
     case obj.SITES_FIRST
-        [Y,X] = meshgrid(1:length(obj.experiments),1:length(obj.data.sites));
+        [Y,X] = meshgrid(1:length(obj.experiments),1:nsites);
     case obj.EXPERIMENTS_FIRST
-        [X,Y] = meshgrid(1:length(obj.data.sites),1:length(obj.experiments));
+        [X,Y] = meshgrid(1:nsites,1:length(obj.experiments));
     otherwise
         error('Unknown run_type %s',obj.run_type)
 end
@@ -65,24 +69,29 @@ err = [];
 try
     for repetition = 1:obj.repeat
         for i=1:size(run_queue,1)
+            status.String = 'Searching for next experiment to run...';
             try
+                drawnow limitrate;
+                assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
-                new_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==1); % Previous run, continued = 1 
-                if any(mask) && all([obj.data.sites(site_index).experiments(new_mask).completed])&&...
-                        ~any([obj.data.sites(site_index).experiments(new_mask).skipped])
-                    % If any over all time and the ones from the last run
-                    % are all completed and not skipped, then good to
-                    % continue
+                last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
+                prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
+                if any(prev_mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed] &...
+                                        not([obj.data.sites(site_index).experiments(prev_mask).skipped]) &...
+                                        not([obj.data.sites(site_index).experiments(prev_mask).redo_requested]))
+                    % If there are any from last run, and all of them are
+                    % completed, not skipped, and have not requested a redo,
+                    % then skip running again. Remember, any([]) == false
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
                 end
                 if isempty(obj.patch_functions{exp_index})
                     params = struct; %initialize as empty struct, which has size 1 but no fields
                 else
-                    params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index));%get parameters as determined from prior experiments at this site
+                    params = obj.(obj.patch_functions{exp_index})(obj.data.sites(site_index),site_index);%get parameters as determined from prior experiments at this site
                 end
                 if ~isempty(params)
                     managers.Stages.move([obj.data.sites(site_index).position(1)+dP(1),...
@@ -104,6 +113,7 @@ try
                         obj.data.sites(site_index).experiments(end).err = [];
                         obj.data.sites(site_index).experiments(end).completed = false;
                         obj.data.sites(site_index).experiments(end).skipped = false;
+                        obj.data.sites(site_index).experiments(end).redo_requested = false;
                     end
                 else
                     % No need to move stage if nothing to do here
@@ -113,8 +123,10 @@ try
                     obj.data.sites(site_index).experiments(end).err = [];
                     obj.data.sites(site_index).experiments(end).completed = true;
                     obj.data.sites(site_index).experiments(end).skipped = true;
+                    obj.data.sites(site_index).experiments(end).redo_requested = false;
                 end
-                for j=1:length(params)
+                niter = length(params);
+                for j=1:niter
                     local_exp_index = length(obj.data.sites(site_index).experiments)-length(params)+j; % So sorry
                     try
                         fields = fieldnames(params(j)); %grab list of parameter names
@@ -124,32 +136,32 @@ try
                             end
                             experiment.(fields{k}) = params(j).(fields{k});
                         end
-                        msg = sprintf('Running iteration %i of %s on site %i',j,class(experiment),site_index);
+                        msg = sprintf('Running iteration %i/%i of %s on site %i/%i',j,niter,class(experiment),site_index,nsites);
                         obj.logger.log(msg,obj.logger.DEBUG)
                         status.String = msg;
                         drawnow;
                         obj.data.sites(site_index).experiments(local_exp_index).prefs = experiment.prefs2struct;
-                        obj.data.sites(site_index).experiments(local_exp_index).tstart = toc(runstart);
+                        obj.data.sites(site_index).experiments(local_exp_index).tstart = datetime('now');
                         if ~isempty(obj.prerun_functions{exp_index})
                             obj.(obj.prerun_functions{exp_index})(experiment);
                         end
                         RunExperiment(obj,managers,experiment,site_index,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
-                        obj.data.sites(site_index).experiments(local_exp_index).tstop = toc(runstart);
+                        obj.data.sites(site_index).experiments(local_exp_index).tstop = datetime('now');
                         obj.data.sites(site_index).experiments(local_exp_index).dP = dP;
                         obj.data.sites(site_index).experiments(local_exp_index).completed = true;
                         drawnow; assert(~obj.abort_request,'User aborted');
                         
                         %track
                         curr_time = toc(runstart);
-                        if curr_time >= obj.min_tracking_seconds
-                            if curr_time >= obj.max_tracking_seconds
+                        if curr_time >= obj.min_tracking_dt
+                            if curr_time >= obj.max_tracking_dt
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,true);
-                                obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                                obj.tracker(end+1,:) = [dx,dy,dz,metric,curr_time,site_index];
                             else
                                 last_track = find(obj.tracker(:,6)==site_index,1,'last');
                                 [dx,dy,dz,metric] = track_func(managers,obj.imaging_source,obj.tracking_threshold*obj.tracker(last_track,4));
-                                obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                                obj.tracker(end+1,:) = [dx,dy,dz,metric,curr_time,site_index];
                             end
                             if any(isnan([dx,dy,dz]))
                                 obj.fatal_flag = true;
@@ -162,7 +174,7 @@ try
                                 obj.fatal_flag = true;
                                 error('Fatal: Tracker called in non-track mode, but still tracked.');
                             end
-                            obj.tracker(end+1,:) = [dx,dy,dz,metric,toc(runstart),site_index];
+                            obj.tracker(end+1,:) = [dx,dy,dz,metric,curr_time,site_index];
                         end
                     catch param_err
                         if obj.fatal_flag

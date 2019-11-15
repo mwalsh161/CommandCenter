@@ -123,10 +123,10 @@ switch lower(p.FitType)
         fit_function = @lorentzfit;
 end
 
-yp = smooth(yp,p.Span);
-xp = [x(1)-dx; xp; x(end)+dx];
-yp = [min(yp); yp; min(yp)];
-[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp,xp);
+yp_smooth = smooth(yp,p.Span);
+xp_extend = [x(1)-dx; xp; x(end)+dx];
+yp_extend = [min(yp_smooth); yp_smooth; min(yp_smooth)];
+[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp_extend,xp_extend);
 [init.amplitudes,I] = sort(init.amplitudes,'descend');
 init.locations = init.locations(I);
 init.widths = init.widths(I);
@@ -136,7 +136,7 @@ usingN = ismember('n',pSpecified);
 if ismember('AmplitudeSensitivity',pSpecified)
     usingN = true;
     % Calculate n
-    [~, ~, ~, proms] = findpeaks(y,x); %get list of prominences
+    [~, ~, ~, proms] = findpeaks(yp,xp); %get list of prominences
     [f,xi] = ksdensity(proms);
     [~, prom_locs, prom_wids, prom_proms] = findpeaks(f,xi); %find most prominent prominences
     [~,I] = sort(prom_proms,'descend');

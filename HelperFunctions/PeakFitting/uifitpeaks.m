@@ -38,10 +38,11 @@ function varargout = uifitpeaks(ax,varargin)
 %       corresponding to that peak.
 %       [Shift+] Tab will change the selected point.
 
-if ~isempty(findall(ax,'tag',mfilename))
+if isstruct(ax.UserData) && isfield(ax.UserData,[mfilename '_enabled'])
     warning('UIFITPEAKS already initialized on this axis');
     return % Already running on this axes
 end
+ax.UserData.([mfilename '_enabled']) = true;
 persistent p
 if isempty(p) % Avoid having to rebuild on each function call
     p = inputParser();
@@ -57,7 +58,7 @@ fittype = lower(p.Results.FitType);
 
 x = [];
 y = [];
-children = [findall(ax,'type','line') findall(ax,'type','scatter')];
+children = [findobj(ax,'type','line') findobj(ax,'type','scatter')];
 for i = 1:length(children)
     if ~strcmp(get(children(i),'tag'),mfilename)
         x = [x; children(i).XData'];
@@ -111,6 +112,7 @@ pnt.UserData.ind = NaN;
 pnt.UserData.desc = 0; % desc=0 -> background
 
 % Set up data structures
+handles.([mfilename '_enabled']) = true; % Need to repeat because of how it is assigned later
 handles.Bounds = p.Results.Bounds;
 handles.StepSize = p.Results.StepSize;
 handles.InitWid = p.Results.InitWidth;
@@ -155,7 +157,6 @@ end
 handles.old_buttondownfcn = get(ax,'buttondownfcn');
 set(ax,'buttondownfcn',@ax_clicked);
 ax.UserData = handles;
-ax.UserData.([mfilename '_enabled']) = true;
 ax.UserData.original_color = ax.Color;
 iptPointerManager(f, 'enable');
 addlistener(pFit,'ObjectBeingDestroyed',@clean_up);
@@ -240,7 +241,7 @@ ax = hObj.Parent;
 handles = ax.UserData;
 set(ax,'buttondownfcn',handles.old_buttondownfcn);
 ax.Color = handles.original_color;
-delete(findall(ax,'tag',mfilename))
+delete(findobj(ax,'tag',mfilename))
 % Now, reset figure stuff
 f = handles.figure;
 f.UserData.([mfilename '_count']) = f.UserData.([mfilename '_count']) - 1;
@@ -256,7 +257,7 @@ ax = gca;
 if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
     return;
 end
-set(findall(hObj.Parent,'tag',mfilename),'linewidth',1);
+set(findobj(hObj.Parent,'tag',mfilename),'linewidth',1);
 set(hObj,'linewidth',2);
 ax.UserData.active_point = hObj;
 end
@@ -282,8 +283,8 @@ end
 function keypressed(hObj,eventdata)
 % If modified with control, [dx,dy] = [dx,dy]/10
 ax = gca;
-if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled'])
-    return;
+if ~isstruct(ax.UserData) || ~isfield(ax.UserData,[mfilename '_enabled']) || ax.UserData.lock
+    return
 end
 handles = ax.UserData;
 if isempty(handles.active_point)
@@ -300,7 +301,7 @@ switch eventdata.Key
     case 'downarrow'
         dir = -1;
     case 'tab'
-        from_uifitpeaks = findall(ax,'tag',mfilename);
+        from_uifitpeaks = findobj(ax,'tag',mfilename);
         guess_gobs = gobjects(0);
         for i = 1:length(from_uifitpeaks)
             if isstruct(from_uifitpeaks(i).UserData) && isfield(from_uifitpeaks(i).UserData,'guess')
