@@ -1,5 +1,7 @@
 # dbquit fail-safe (ignore the dbquit file)
 dbquit.m
+# Temp lock file
+.lock
 
 # MAC OS generated files #
 ######################
@@ -140,3 +142,6 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Except, add these folders/files
+!static/**/*

@@ -20,6 +20,11 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       ui - class specifying UI type (value class)
     %   * These properties' values are function handles, or if you want a class
     %   method bound to your instance, specify the string names of the methods.
+    %   (The binding happens in the pref's "bind" method)
+    %
+    % Subclass properties should follow the same syntax when defining
+    % settable properties:
+    %   {default_value, validation_function_handle}
     %
     % The syntax for the custom methods:
     %   value = set(value)
@@ -57,6 +62,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     properties(Hidden)
     	getEvent = false;   % This is reserved for pref_handler.post to avoid calling set methods on a get event
     end
+    properties(Access=private)
+        initialized = false;
+    end
     properties % Set by pref_handler constructor
         property_name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
@@ -82,6 +90,58 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     methods % May be overloaded by subclass pref
         function obj = pref(varargin)
             obj = obj.init(varargin{:});
+        end
+        function obj = bind(obj,module_instance)
+            % This method is called when the meta-pref is set in
+            % pref_handler. It is intended to give the pref an opportunity
+            % to bind a method of the module_instance.
+            % Can also use to check/verify input/output
+            mc = metaclass(module_instance);
+            methods = mc.MethodList;
+            avail_methods = {'set','custom_validate','custom_clean'};
+            argouts = [1,0,1];
+            for j = 1:length(avail_methods)
+                if ~isempty(obj.(avail_methods{j}))
+                    if ischar(obj.(avail_methods{j}))
+                        fnstring = obj.(avail_methods{j});
+                        mmethod = methods(strcmp(fnstring,{methods.Name}));
+                        assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
+                            fnstring, class(module_instance)));
+                        nout = mmethod.OutputNames;
+                        if ismember('varargout',nout)
+                            nout = -1;
+                        else
+                            nout = length(nout);
+                        end
+                        nin = mmethod.InputNames;
+                        if ismember('varargin',nin)
+                            nin = 2; % Doesn't matter, so make pass assertion below
+                        else
+                            nin = length(nin);
+                        end
+                        if mmethod.Static
+                            fn = str2func(sprintf('%s.%s',class(module_instance),fnstring));
+                            obj.(avail_methods{j}) = fn;
+                        else
+                            nin = nin - 1; % Exclude obj
+                            fn = str2func(fnstring);
+                            obj.(avail_methods{j}) = @(val,obj)fn(module_instance,val,obj);
+                        end
+                        fnstring = sprintf('%s.%s',class(module_instance),fnstring);
+                    else
+                        nout = nargout(obj.(avail_methods{j})); % neg values mean varargout
+                        nin = nargin(obj.(avail_methods{j}));
+                        fnstring = func2str(obj.(avail_methods{j}));
+                    end
+                    nout = abs(nout); % we can assume varargout has at least one output
+                    assert(nout>=argouts(j),sprintf(...
+                        'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
+                        (avail_methods{j}),fnstring,nout))
+                    assert(nin==2,sprintf(...
+                        'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
+                        (avail_methods{j}),fnstring,nin))
+                end
+            end
         end
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
@@ -190,14 +250,21 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             catch err
                 throwAsCaller(err);
             end
+            obj.initialized = true;
         end
     end
     methods
-        function summary = validation_summary(obj,indent)
+        function summary = validation_summary(obj,indent,varargin)
             % Used to construct more helpful error messages when validation fails
             % Displays all properties that aren't hidden or defined in
             % Base.pref or a superclass thereof. It will also ignore the
             % "ui" abstract property.
+            % The varargin inputs are useful if you want to use a different
+            % property value for a particular property. For example, if
+            % there is an input 'prop1:prop2', the help text that is
+            % displayed will show the name of prop1 and the value of prop2.
+            % If prop1 doesn't exist or wouldn't normally be shown, that
+            % input does nothing.
             mc = metaclass(obj);
             ignore_classes = superclasses('Base.pref');
             ignore_classes = [ignore_classes ,{'Base.pref'}];
@@ -212,13 +279,29 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             end
             longest_name = max(cellfun(@length,{props.Name}))+indent;
             summary = pad({props.Name},longest_name,'left');
+            n = length(varargin);
+            swap.names = arrayfun(@(~)'',1:n,'uniformoutput',false);
+            swap.vals = arrayfun(@(~)'',1:n,'uniformoutput',false);
+            for i = 1:n
+                temp = strsplit(varargin{i},':');
+                assert(length(temp)==2, 'Swapping properties should be formatted ''prop1:prop2''.');
+                assert(~ismember(temp{1},swap.names),'Can only have a prop appear once on lh side of '':''.');
+                swap.names{i} = temp{1};
+                swap.vals{i} = temp{2};
+            end
             for i = 1:length(summary)
-                if isnumeric(obj.(props(i).Name)) || islogical(obj.(props(i).Name))
-                    summary{i} = sprintf('%s: %g',summary{i},obj.(props(i).Name));
-                elseif iscell(obj.(props(i).Name))
-                    summary{i} = sprintf('%s: %s',summary{i},strjoin(obj.(props(i).Name),'|'));
+                name = props(i).Name;
+                val = obj.(props(i).Name);
+                mask = ismember(name, swap.names);
+                if any(mask)
+                    val = obj.(swap.vals{mask});
+                end
+                if isnumeric(val) || islogical(val)
+                    summary{i} = sprintf('%s: %g',summary{i},val);
+                elseif iscell(val)
+                    summary{i} = sprintf('%s: %s',summary{i},strjoin(val,'|'));
                 else % characters/strings
-                    summary{i} = sprintf('%s: %s',summary{i},obj.(props(i).Name));
+                    summary{i} = sprintf('%s: %s',summary{i},val);
                 end
             end
             summary = strjoin(summary,newline);
@@ -246,18 +329,15 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         end
         function obj = set.value(obj,val)
             if ~obj.getEvent
-                if ~isempty(obj.set) &&...
-                        isa(obj.set,'function_handle') %#ok<*MCSUP>
+                if ~isempty(obj.set) && obj.initialized %#ok<*MCSUP>
                     val = obj.set(val,obj);
                 end
                 obj.validate(val);
-                if ~isempty(obj.custom_validate) &&...
-                        isa(obj.custom_validate,'function_handle')
+                if ~isempty(obj.custom_validate) && obj.initialized
                     obj.custom_validate(val,obj);
                 end
                 val = obj.clean(val);
-                if ~isempty(obj.custom_clean) &&...
-                        isa(obj.custom_clean,'function_handle')
+                if ~isempty(obj.custom_clean) && obj.initialized
                     val = obj.custom_clean(val,obj);
                 end
             end

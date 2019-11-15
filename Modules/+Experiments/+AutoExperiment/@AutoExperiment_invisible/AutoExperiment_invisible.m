@@ -13,34 +13,34 @@ classdef AutoExperiment_invisible < Modules.Experiment
     % done in pre/post/patch functions (or anything with access to obj).
     
     properties
-        prefs = {'run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
-        show_prefs = {'experiments','run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','continue_experiment','repeat'};
-        readonly_prefs = {'experiments'};
+        prefs = {'run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
+        show_prefs = {'continue_experiment','experiments','run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
     end
     properties(Abstract)
-        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs). Run before experiment group.
+        patch_functions %cell array of method names in subclass definition that take input (site,site_index). Run before experiment group.
         prerun_functions %cell array of method names in subclass definition that take input (experiment). Run immediately before experiment's run method
     end
     properties(SetAccess=protected,Hidden)
-        data = [] % Useful for saving data from run method
+        data = [] % struct with fields: sites (1xN struct), image (1 struct)
         meta = struct() % Useful to store meta data in run method [THIS IS IMMUTABLE in that once a field is set it can't be changed]
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
         fatal_flag = false; % if true, an error becomes fatal
-    end
-    properties(SetObservable, AbortSet)
-        experiments = Modules.Experiment.empty(0); %array of experiment handles
-        run_type = {Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
-                    Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST};
-        site_selection = {'Peak finder','Grid','Manual sites','Load from file'};
-        imaging_source = Modules.Source.empty(1,0);
-        tracking_threshold = 0.9; %tracking metric will be normalized to 1
-        min_tracking_seconds = 0; %in seconds; tracker won't run twice within this amount of time
-        max_tracking_seconds = Inf; %in seconds; if tracking_threshold isn't hit, tracker will still run after this amount of time
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
-        repeat = 1;
-        continue_experiment = false;
+    end
+    properties(SetObservable, GetObservable)
+        experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'n',Inf,'inherits',{'Modules.Experiment'},'readonly',true);
+        run_type = Prefs.MultipleChoice(Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
+                    'choices',{Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
+                               Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST});
+        site_selection = Prefs.MultipleChoice('Peak finder','choices',{'Peak finder','Grid','Manual sites','Load from file'});
+        imaging_source = Prefs.ModuleInstance(Modules.Source.empty(0),'inherits',{'Modules.Source'});
+        tracking_threshold = Prefs.Double(Inf,'min',0,'help','tracking metric will be normalized to 1');
+        min_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','tracker won''t run twice within this amount of time');
+        max_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
+        repeat = Prefs.Integer(1,'min',1,'allow_nan',false);
+        continue_experiment = Prefs.Boolean(false,'set','set_continue_experiment');
     end
     properties(Constant,Hidden)
         SITES_FIRST = 'All Sites First';
@@ -173,6 +173,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
             delete(obj.experiments);
         end
         function abort(obj)
+            obj.fatal_flag = true;
             obj.abort_request = true;
             if ~isempty(obj.current_experiment)
                 obj.current_experiment.abort;
@@ -231,12 +232,8 @@ classdef AutoExperiment_invisible < Modules.Experiment
             % Now that there weren't errors, update meta
             obj.meta = val;
         end
-        function set.run_type(obj,val)
-            obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
-        end
-        function set.continue_experiment(obj,val)
+        function val = set_continue_experiment(~,val,~)
             %val is boolean; true = continue experiment, false = start anew
-            obj.continue_experiment = val;
             pan = get(gcbo,'parent'); %grab handle to settings panel
             site_sel = findobj(pan,'tag','site_selection');
             if isempty(site_sel) || ~isvalid(site_sel)

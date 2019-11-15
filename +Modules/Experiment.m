@@ -39,8 +39,8 @@ classdef Experiment < Base.Module
         end
     end
     methods(Static)
-        function varargout = analyze(data)
-            % Assuming data is a struct that is built by the DBModule, the
+        function varargout = analyze(data,varargin)
+            % Assuming data is a struct that is built by the DBManager, the
             % method will attempt to call the appropriate analysis method
             % of data's origin module with data.data
             % NOTE: depending on module used to save the data struct, the
@@ -59,12 +59,12 @@ classdef Experiment < Base.Module
                 nout = abs(nargout(fn)); % abs will get all optional ones too
                 varargout = cell(1,nout);
                 try
-                    [varargout{:}] = fn(data.data);
+                    [varargout{:}] = fn(data.data,varargin{:});
                     varargout = varargout(1:nargout); % Cut down to requested number from caller
                 catch err
                     error(['Unable to call %s.analysis(data.data). ',...
-                        'This could be due to a poorly formatted or incorrectly reassembled data struct:\n%s'],...
-                        origin, err.message);
+                        'This could be due to a poorly formatted or incorrectly reassembled data struct:\n\n%s'],...
+                        origin, getReport(err));
                 end
             else
                 error('"%s" does not have an analysis method implemented.',origin);

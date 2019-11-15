@@ -66,6 +66,16 @@ if strcmp(hObject.Visible,'on')
     return
 end
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
+[path,~,~] = fileparts(mfilename('fullpath'));
+% Check for lock file
+if exist(fullfile(path,'.lock'),'file')
+    delete(hObject);
+    error(['Found a lock file, are you sure there is no other CommandCenter running?\n',...
+        'If not, you may remove this file and retry launching:\n%s'],...
+        fullfile(path,'.lock'));
+else
+    fclose(fopen(fullfile(path,'.lock'), 'w'));
+end
 
 % Allocate names in case error for things that need to be cleaned up
 loading_fig = [];
@@ -82,8 +92,10 @@ try
         error('Invalid argument(s) provided to CommandCenter upon launching:\n  %s',...
             strjoin(varargin,'\n  '));
     end
+    debugLevel = Base.Logger.INFO;
     if debug
         loggerStartState = 'on';
+        debugLevel = Base.Logger.DEBUG;
     end
     if reset
         % Remove Manager prefs which is responsible for remembering which
@@ -94,7 +106,6 @@ try
     end
     
     % Update path
-    [path,~,~] = fileparts(mfilename('fullpath'));
     warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
@@ -141,12 +152,15 @@ try
     
     % Setup Logging
     handles.logger = Base.Logger(mfilename,loggerStartState);
+    handles.logger.logLevel = [debugLevel, debugLevel]; % [listbox,textfile]
     handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
     setappdata(hObject,'ALLmodules',{})
     setappdata(hObject,'logger',handles.logger)
     set(handles.file_logger,'checked',handles.logger.visible)
     
     % Convert panels to scrollPanels
+    loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
+    handles.reload_CData = loaded_vars.im;
     handles.panelStage = Base.UIscrollPanel(handles.panelStage);
     handles.panelImage = Base.UIscrollPanel(handles.panelImage);
     handles.panelSource = Base.UIscrollPanel(handles.panelSource);
@@ -309,6 +323,9 @@ delete(hObject)
 [path,~,~] = fileparts(mfilename('fullpath'));
 if exist(fullfile(path,'dbquit.m'),'file') % Disable override
     delete(fullfile(path,'dbquit.m'));
+end
+if exist(fullfile(path,'.lock'),'file')
+    delete(fullfile(path,'.lock'));
 end
 
 % --- Executes when figure1 is resized.

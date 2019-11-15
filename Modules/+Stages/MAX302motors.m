@@ -161,7 +161,7 @@ classdef MAX302motors < Modules.Stage
             uicontrol(panelH,'style','PushButton','string','Z Settings','callback',@obj.motorSettings,...
                 'units','characters','position',[0 start+spacing*(num_lines-line) 18 1.25],'UserData',3);
         end
-        function motor settings(obj,hObj,~,~)
+        function motorSettings(obj,hObj,~,~)
             axis = hObj.UserData;
             if ~isempty(obj.motors{axis})&&isobject(obj.motors{axis}) && isvalid(obj.motors{axis})
                 obj.motors{axis}.settings;

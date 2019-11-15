@@ -12,7 +12,7 @@ in_bound_flag = true;
 obj.locked = false; % Make sure to adjust if necessary before returning
 obj.tuning = true;
 if obj.debug
-    f_debug = UseFigure(mfilename('class'),'name','TuneCoarse',true);
+    f_debug = UseFigure([mfilename('class') '.TuneCoarse'],'name','TuneCoarse',true);
     figure(f_debug); % Bring to front (and gcf)
     ax_debug = axes('parent',f_debug);
     hold(ax_debug,'on');
