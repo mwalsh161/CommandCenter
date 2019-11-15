@@ -2,19 +2,18 @@ classdef Yokogawa < Drivers.PowerSupplies.PowerSupplies
     
     properties
         prefs = {'comObjectInfo'};
-        comObjectInfo = struct('comType','','comAddress','','comProperties','')
-        comObject;     % USB-Serial/GPIB/Prologix
+        comObject = []; % should be a prologix connection
     end
     
     properties (Constant)
-        Dual_Polarity='Yes'
-        Number_of_channels='1'
-        dev_id = 'Yokogawa'
-        pauseTime = 0.5 %time in seconds set to allow for power supply to set properties
+        Dual_Polarity = true;
+        Number_of_channels = 1;
+        dev_id = 'Yokogawa';
+        pauseTime = 0.5; %time in seconds set to allow for power supply to set properties
     end
     
     methods(Static)
-        function obj = instance(name)
+        function obj = instance(name,comObject)
             mlock;
             persistent Objects
             if isempty(Objects)
@@ -26,32 +25,35 @@ classdef Yokogawa < Drivers.PowerSupplies.PowerSupplies
                     return
                 end
             end
-            obj = Drivers.PowerSupplies.Yokogawa();
+            obj = Drivers.PowerSupplies.Yokogawa(comObject);
             obj.singleton_id = name;
             Objects(end+1) = obj;
         end
     end
     
     methods(Access=private)
-        function [obj] = Yokogawa()
+        function [obj] = Yokogawa(comObject)
             obj.loadPrefs;
-            display('setting comInfo for Yokogawa.')
-
-            %establish connection
-            [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = ...
-                Connect_Device(obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties);
-            
-            try
-                %try to open comObject if you fail then call
-                %Connect_Device to ask user. They may have changed com
-                %Address or changed their comType
-                fopen(obj.comObject);
-            catch error
-                [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] ...
-                    = Connect_Device;
-                fopen(obj.comObject);
+            if ~isempty(obj.comObject) %if the comObject is empty don't do anything
+                if isvalid(obj.comObject) %and it is vlaid
+                    if strcmpi(obj.comObject.Status,'open') %and is open
+                        fclose(obj.comObject); %then close and delete it
+                        delete(obj.comObject);
+                    end
+                end
             end
-            obj.reset;
+            obj.comObject = comObject; %replace old comObject handle with new user-supplied one
+            
+            %If it is closed then try to open
+            if strcmpi(obj.comObject.Status,'closed')
+                try
+                    fopen(obj.comObject);
+                catch ME
+                    err_message = sprintf('Failed to open device. Error message:\n%s\nMessage identifier:\n%s', ME.message, ME.identifier);
+                    f = msgbox(err_message);
+                    rethrow(ME); %rethrow error when trying to open comObject
+                end
+            end
         end
     end
     
