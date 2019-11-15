@@ -1,7 +1,6 @@
-classdef Yokogawa < Drivers.PowerSupplies.PowerSupplies
+classdef Yokogawa < Modules.Driver
     
     properties
-        prefs = {'comObjectInfo'};
         comObject = []; % should be a prologix connection
     end
     
@@ -33,7 +32,6 @@ classdef Yokogawa < Drivers.PowerSupplies.PowerSupplies
     
     methods(Access=private)
         function [obj] = Yokogawa(comObject)
-            obj.loadPrefs;
             if ~isempty(obj.comObject) %if the comObject is empty don't do anything
                 if isvalid(obj.comObject) %and it is vlaid
                     if strcmpi(obj.comObject.Status,'open') %and is open

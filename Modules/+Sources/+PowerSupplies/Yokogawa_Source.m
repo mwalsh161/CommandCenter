@@ -1,26 +1,29 @@
 classdef Yokogawa_Source < Sources.PowerSupplies.PowerSupply_invisible
     %Hewlett Packard MW source class
 
-    properties
+    properties(SetObservable,GetObservable,AbortSet)
         Com_Address = 'NONE'; % COM address prologix connection. Is 'NONE' if no connection is desired.
-        Prologix_Address = 'NONE'; % Primary address for prologix connection. Is 'NONE' if no connection is desired.
-        Channel = Prefs.MultipleChoice('1','allow_empty',false,'choices',{'1','2','3','4'},'help_text','Power supply channel to change','set','changeChannel');
+        Primary_Address = 'NONE'; % Primary address for prologix connection. Is 'NONE' if no connection is desired.
+        Channel = Prefs.MultipleChoice('1','allow_empty',false,'choices',{'1'},'help_text','Power supply channel to change','set','changeChannel');
         Currents = [.05]; % Memory of what all the voltages are to be saved in prefs
         Voltages = [1]; % Memory of what all the currents are to be saved in prefs
         SourceModes = {'Voltage'} % Memory of what all the Source_Modes are to be saved in prefs
-        prefs = {'Channel','Source_Mode','Voltage','Current_Limit','Current','Voltage_Limit'};
     end
     
-    properties(SetAccess=private)
+    properties
+        power_supply = [];
+    end
+    
+    properties(Constant)
         Power_Supply_Name='Yokogawa 1';
         ChannelNames = {'1'};
     end
     
     methods(Access=protected)
         function obj = Yokogawa_Source()
-            obj.connectSerial( obj.Com_Address );
-            obj.prefs = {obj.prefs{:},'Com_Address'};
-            obj.show_prefs = {obj.show_prefs{:},'Com_Address'};
+            obj.connectSerial( obj.Com_Address, obj.Primary_Address );
+            obj.prefs = {obj.prefs{:},'Com_Address','Primary_Address'};
+            obj.show_prefs = {obj.show_prefs{:},'Com_Address','Primary_Address'};
             obj.loadPrefs;
         end
 
@@ -35,7 +38,9 @@ classdef Yokogawa_Source < Sources.PowerSupplies.PowerSupply_invisible
                  success = true;
                  return
              end
- 
+             
+             Primary_Address = str2num(Primary_Address);
+             
              % Otherwise try to connect with input Com and instantiate power_supply
              oldSerial = obj.power_supply;
              try
@@ -86,7 +91,7 @@ classdef Yokogawa_Source < Sources.PowerSupplies.PowerSupply_invisible
             success  = obj.connectSerial(obj.Com_Address, val);
             
             if success
-                obj.Com_Address = val;
+                obj.Primary_address = val;
             end
         end
         function val = changeChannel(obj,val,pref)
