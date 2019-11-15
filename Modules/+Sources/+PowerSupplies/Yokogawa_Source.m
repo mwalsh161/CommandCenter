@@ -91,7 +91,7 @@ classdef Yokogawa_Source < Sources.PowerSupplies.PowerSupply_invisible
             success  = obj.connectSerial(obj.Com_Address, val);
             
             if success
-                obj.Primary_address = val;
+                obj.Primary_Address = val;
             end
         end
         function val = changeChannel(obj,val,pref)
