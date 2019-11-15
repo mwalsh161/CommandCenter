@@ -89,11 +89,6 @@ classdef Yokogawa < Modules.Driver
             end
         end
         
-        function check_channel(obj,channel)
-            assert(ischar(channel),'Channel input must be a string!')
-            assert(strcmp(channel,'1'),'Yokogawa only supports channel inputs of ''1''!')
-        end
-        
         function writeOnly(obj,string)
             fprintf(obj.comObject,string);
         end
@@ -148,7 +143,11 @@ classdef Yokogawa < Modules.Driver
         end
     end
     
-    methods
+    methods    
+        function check_channel(obj,channel)
+            assert(ischar(channel),'Channel input must be a string!')
+            assert(strcmp(channel,'1'),'Yokogawa only supports channel inputs of ''1''!')
+        end
         
         function setVoltageRange(obj,channel,range)
             obj.check_channel(channel)
