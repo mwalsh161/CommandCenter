@@ -19,4 +19,3 @@ r = node(r,resChannel,'units','us','delta',obj.resPulse2Time_us);
 node(r,APDchannel,'delta',0);
 
 end
-
