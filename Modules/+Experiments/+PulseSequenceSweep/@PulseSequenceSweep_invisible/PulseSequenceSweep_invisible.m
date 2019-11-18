@@ -35,7 +35,7 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         nCounterBins
     end
     properties
-        prefs = {'averages','samples','pbH','NIDAQ_dev'};
+        prefs = {'averages','samples','pbDriver','NIDAQ_dev'};
     end
     properties(SetObservable,AbortSet)
         averages = 2;     % Number of times to perform entire sweep
@@ -44,13 +44,13 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         NIDAQ_dev = 'None Set';
     end
     properties(GetObservable,SetObservable)
-        pbH = Prefs.String('None Set','allow_empty',false);
+        pbDriver = Prefs.String('None Set','allow_empty',false,'set','set_pbDriver');
     end
     properties(SetAccess=protected,Hidden)
         data = [] % subclasses should not set this; it can be manipulated in GetData if necessary
         meta = [] % Store experimental settings
         abort_request = false; % Flag that will be set to true upon abort. Used in run method.
-        %pbH;    % Handle to pulseblaster
+        pbH;    % Handle to pulseblaster
         nidaqH; % Handle to NIDAQ
     end
     
@@ -71,15 +71,17 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
             dat.meta = obj.meta;
         end
         
-        function set.pbH(obj,val)
-            if strcmp(val,'None Set') % Short circuit
-                obj.pbH = [];
-                %obj.pb_IP = val;
-            end
+        
+        function val = set_pbDriver(obj,val,pref)
+           
             try
-                obj.pbH = eval(val); %#ok<*MCSUP> %modified 11/10/19
-                %obj.pbH = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance('192.168.11.4');
-                %obj.pb_IP = val;
+                if strcmp(val,'None Set') % Short circuit
+                    obj.pbH = [];  %obj.pb_IP = val;
+                else
+                    obj.pbH = eval(val); %#ok<*MCSUP> %modified 11/10/19
+                    %obj.pbH = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance('192.168.11.4');
+                    %obj.pb_IP = val;
+                end
             catch err
                 obj.pbH = [];
                 %obj.pb_IP = 'None Set';

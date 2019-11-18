@@ -34,7 +34,7 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
     % loop the pulse sequence indefinitely.
     %
     % The sequence is defined by four fields:
-    % 1. flags: an array of boolean states for the relevant channels.
+    % 1. flags: an array of boolean states for the relevant .
     % 2. duration: the duration of the pulse for the associated states.
     % 3. data: the span of the loop, i.e., the numer of loop interations.
     % 4. instruction: determines the action to be performed.
@@ -82,6 +82,7 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
         % Streamer.
         PS;
         %
+        pulseName;
         builder; %PusleSequenceBuilder object used to build pulse sequences.
         triggerStart; 
         triggerMode;
@@ -217,11 +218,11 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
             % Test if obj.json is a file. If a file name, read 
             % file and replace obj.json with the file contents as a
             % single string
-            if strcmp(obj.json(end-2:end),'.js')
-                obj.json = fileread(obj.json);
-            elseif strcmp(obj.json(end-3:end),'.txt')
-                %write error checking in the future.
-            end
+%             if strcmp(obj.json(end-2:end),'.js')
+%                 obj.json = fileread(obj.json);
+%             elseif strcmp(obj.json(end-3:end),'.txt')
+%                 %write error checking in the future.
+%             end
                 
             % convert obj.json into a list (actually a cell array) of 
             % ordered maps (json_seq) describing the pulse sequence and 
@@ -283,7 +284,11 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
             % Build the digital pattern (a sequence of duration,
             % channel state pairs in that order) for each channel.
             for kk = 1:1:length(obj.seq_meta.channels)
-                ch = kk-1;
+                %ch = kk-1;
+                %digitalPattern = pulse_trains{kk}{1}; 
+                %obj.sequence.setDigital(ch, digitalPattern);
+                
+                ch = obj.seq_meta.channels{kk};
                 digitalPattern = pulse_trains{kk}{1}; 
                 obj.sequence.setDigital(ch, digitalPattern);
             end    
@@ -294,6 +299,23 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
             obj.sequence.plot();     
         end
         
+        function program = reorder_program(obj,program)
+            [m,~] = size(program.sequence);
+            [~,n] = size(program.channels);
+            i = 1;
+            while i <= m
+                program.sequence(i).flags = transpose(program.sequence(i).flags);
+                i=i+1;
+            end
+            i=1;
+            while i <= n
+                program.channels{i}= int8(str2double(program.channels{i}));
+                i=i+1;
+            end
+            program.channels = transpose(program.channels);
+            obj.pulseName = program.name;
+            
+end
         
         function load(obj,program) 
         % The load method converts the sequence object to the properly
@@ -301,8 +323,8 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
         % pulse streamer via an eithernet connection managed by a hardware
         % server.
         
+            program = obj.reorder_program(program);
             obj.build(program);
-            obj.plot;
             start = obj.triggerStart;%initialize the trigger to be software defined
             mode  = obj.triggerMode; % initialize the trigger to be rearmed after each run.
             obj.PS.setTrigger(start, mode); % set triggers
@@ -791,7 +813,7 @@ classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
             json_seq = cell(1,length(json_struct));
             for i=1:1:length(json_struct)
                 cells = struct2cell(json_struct(i));
-                key_labels = {'flag','duration','instruction','data'};
+                key_labels = {'flag','duration','instruction','notes','data'};
                 json_seq{i} = containers.Map(key_labels,cells);         
             end  
 
