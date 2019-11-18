@@ -222,6 +222,9 @@ catch err
     delete(handles.inactivity_timer)
     delete(handles.logger)
     delete(hObject)
+    if exist(fullfile(path,'.lock'),'file')
+        delete(fullfile(path,'.lock'));
+    end
     errordlg(sprintf('%s\n\nDetails in Command Window',err.message),'Error Loading CommandCenter')
     rethrow(err)
 end
