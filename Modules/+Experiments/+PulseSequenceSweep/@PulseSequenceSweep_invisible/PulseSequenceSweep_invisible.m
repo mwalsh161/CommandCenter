@@ -79,7 +79,6 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
                     obj.pbH = [];  %obj.pb_IP = val;
                 else
                     obj.pbH = eval(val); %#ok<*MCSUP> %modified 11/10/19
-                    %obj.pbH = Drivers.PulseStreamerMaster.PulseStreamerMaster.instance('192.168.11.4');
                     %obj.pb_IP = val;
                 end
             catch err
