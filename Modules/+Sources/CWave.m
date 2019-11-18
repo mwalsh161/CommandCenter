@@ -912,7 +912,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               end 
           end
 
-          function abort = centerThickEtalon(obj)
+      function abort = centerThickEtalon(obj)
               dlgs = questdlg('Is Min and Max range of Etalon correctly set? MaxEtalon_wl and MinEtalon_wl must be measured by autotune or manually by adjusting EtalonStep. If tuning manually MaxEtalon_wl and MinEtalon_wl in Cwave Source preferences', ...
                              'Centering Etalon Warning', ...
                              'Yes, Continue Tuning','No, Please Autotune', 'No, Abort','No, Abort');
@@ -936,7 +936,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                  pstep = 25;
                                  nstep = -25;
                                  obj.updateStatus;
-
+ 
                                  PowerMeasureCondition_regopo2 = (obj.ref_temp_lock == true) & (obj.pump_emission == true) & ...
                                      (obj.opo_lock == true) & (obj.thin_etalon_lock == true) & ...
                                      (obj.shg_temp_lock == true) & (obj.shg_stepper_lock == true) & ...
@@ -1036,7 +1036,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      [wm_lambda_i,wmPower_i,wm_exptime_i] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
                                      exiting = obj.EtalonStepper(pstep, obj.EtalonMeasureDelay);
                                      pause(obj.EtalonMeasureDelay)
-
+ 
                                      disp('Enter +eta loop')
                                      fprintf('Control power: %.8f\n',currPower);
                                      fprintf('Initial Power: %.8f\n',powerSHG_i);
@@ -1045,8 +1045,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                      fprintf('current exposure: %.8f\n',wm_exptime_c);
                                      
                                      if (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower)
-                                         
-                                         [wm_lambda_c,wmPower_c,wm_exptime_c,abort, exiting] = reset_hysteresis(currPower);
+                                         pause(1)
+                                         if (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower)
+                                             [wm_lambda_c,wmPower_c,wm_exptime_c,abort, exiting] = obj.reset_hysteresis(currPower);
+                                         end
                                          
                                      else 
                                          [wm_lambda_c,wmPower_c,wm_exptime_c] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
@@ -1116,6 +1118,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                          end
   
           end
+
           
           function set.MaxEtalon_wl(obj,val)
               a = eval(val);
