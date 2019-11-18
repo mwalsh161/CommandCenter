@@ -1128,11 +1128,9 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 %           
           function set.EtalonStep(obj,val)
               obj.EtalonStep = eval(val);
-              %disp(val);
-              %obj.tune_etalon;
-              obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
-              pause(obj.EtalonMeasureDelay);
-              %obj.updateStatus;
+              obj.tune_etalon;
+              pause(0.010);
+              obj.updateStatus;
           end
           
           function set.AllElementStep(obj,val)
