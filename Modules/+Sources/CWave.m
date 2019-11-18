@@ -1137,14 +1137,34 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           
           function set.AllElementStep(obj,val)
               if obj.cwaveHandle.is_ready
-                  return
+                  [~,sSHGpower] = obj.cwaveHandle.get_photodiode_shg;
+                  if obj.sSHG_power
+                      dlg = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
+                      textH = findall(dlg,'tag','MessageBox');
+                      delete(findall(dlg,'tag','OKButton'));
+                      drawnow;
+                      obj.cwaveHandle.optimize_shg();
+                      while obj.cwaveHandle.is_ready
+                          pause(1)
+                          if ~obj.cwaveHandle.is_ready
+                              delete(dlg)
+                              break;
+                          else 
+                              obj.updateStatus;
+                          end
+                      end
+                  else
+                      return
+                  end
               end
-              obj.AllElementStep = floor( eval(val) );
-              obj.cwaveHandle.set_OPOrLambda();
-              obj.is_cwaveReady(obj.EtalonStepperDelay,true);
-          end
               
-          
+              
+              obj.AllElementStep = floor( eval(val) );
+              obj.cwaveHandle.set_OPOrLambda(obj.AllElementStep);
+              obj.is_cwaveReady(0.001,true,false);
+              obj.updateStatus;
+          end
+
           function tune_etalon(obj)
               if obj.cwaveHandle.is_ready == true
                   return
