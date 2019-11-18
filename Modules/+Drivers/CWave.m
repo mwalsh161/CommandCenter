@@ -35,9 +35,12 @@ classdef CWave < Modules.Driver
         %Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x64\';
         %Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\x86\';
         %HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\MatlabControl\';
-        Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\x64\';
-        Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\x86\';
-        HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\';
+        %Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\x64\';
+        %Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\x86\';
+        %HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v22\bin\';
+        Pathx64 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v24\bin\x64\';
+        Pathx86 = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v24\bin\x86\';
+        HPath = 'C:\Program Files (x86)\Hubner\C-WAVE Control\C-WAVE SDK v24\bin\';
         LibraryName = 'CWAVE_DLL';            % alias for library
         LibraryFilePath = 'CWAVE_DLL.dll';     % Path to dll
         LibraryHeader = 'CWAVE_DLL.h';
@@ -45,9 +48,9 @@ classdef CWave < Modules.Driver
         ComputerArch = 'arch';
         ConnectCwave = 'cwave_connect';
         DLL_Version= 'DLL_Version';
-        DLL_identity = 22;  %20;
+        DLL_identity = 24; %22;  %20;
         Admin = 'admin_elevate';
-        OPO_rlambda = 'opo_rlambda';
+        OPO_rLambda = 'opo_rlambda';
         TempRef  = 'tref_is';
         TempOPO = 'topo_is';
         TempSHG1 = 'tshg_is1';
@@ -55,6 +58,8 @@ classdef CWave < Modules.Driver
         TempOPO_sp = 'topo_set';
         TempSHG_sp = 'tshg_set';
         TempRef_sp = 'tref_set';
+        TempFPGA = 'temp_fpga';
+        TempBase = 'temp_base';
         UpdateStatus = 'cwave_updatestatus';
         Get_IntValue = 'get_intvalue';
         Get_floatValue = 'get_floatvalue';
@@ -108,7 +113,7 @@ classdef CWave < Modules.Driver
         OPO_MaxPower = 10000; %dummy value. value needs to be calibrated (testing needed)
         OPO_MinPower = 100; %dummy value. value needs to be calibrated (testing needed)
         SHG_MaxPower = 10000; %dummy value. value needs to be calibrated (testing needed)
-        SHG_MinPower = 100; %was 100%dummy value. value needs to be calibrated (testing needed)
+        SHG_MinPower = 25; %was 100%dummy value. value needs to be calibrated (testing needed)
     end
     %% Signleton Method
     methods(Static)
@@ -201,9 +206,11 @@ classdef CWave < Modules.Driver
                                    obj.Set_FloatValue,obj.SetCommand,obj.LaserStatus, obj.Ext_SetCommand};
             if(ismember(FunctionName, inversion_condition))
                 if(status==-1)
-                    status = 0;
+                    status = boolean(0);
                 end
-                status = ~status;
+                status = boolean(~status);
+            else
+                status = boolean(status);
             end
             switch FunctionName
                 case obj.ConnectCwave
@@ -250,7 +257,27 @@ classdef CWave < Modules.Driver
                     assert(status == 0, 'Opo Piezo was not set to ramp.');
                 case obj.Is_Ready
                     % 0=C-wave is ready, Optimization has completed; 1==C-wave still optimizing
-                     assert(status == 0, ['CWAVE Error: C-Wave not ready. Optimization still in progress']);
+                    if status == 1
+                        if obj.get_regopo == 2
+                            disp('CWAVE Warning: C-Wave not ready. Optimization still in progress.\n')
+                        elseif obj.get_regopo == 4
+                            regOPO4 = ~(obj.opo_stepper_stat & obj.opo_temp_stat & obj.shg_stepper_stat & ...
+                                obj.shg_temp_stat & obj.thin_etalon_stat & obj.etalon_lock_stat & ...
+                                obj.laser_emission_stat & obj.ref_temp_stat);
+                            %obj.opo_lock_stat;
+                            %obj.shg_lock_stat;
+                            [SHGpower, ~] = obj.get_photodiode_shg;
+                            if regOPO4 == true & SHGpower > obj.SHG_MinPower % sSHGpower == false
+                                status = 0;
+                                %disp('CWAVE Warning: C-Wave ready (in RegOPO mode 4).\n');
+                            else
+                                disp('CWAVE Warning: C-Wave not ready. Optimization still in progress.\n')
+                            end
+                        end  
+                    elseif status == 0
+                        disp('Cwave ready!\n');
+                    end
+                        %assert(status == 0, ['CWAVE Error: C-Wave not ready. Optimization still in progress']);
                 case obj.Set_FloatValue
                     switch varargin{1}
                         case obj.WLM_PID_Setpoint
@@ -272,36 +299,48 @@ classdef CWave < Modules.Driver
                     assert(status == 0, ['CWAVE Error: command not executed. Check that set_command input are valid.']);
                 case obj.LaserPower
                     % 0=update succeeded,  1=update failed
-                    if (obj.CurrentLaserPWR > obj.Laser_MaxPower)
+                    if (obj.CurrentLaserPWR > obj.Laser_MaxPower | status ==1)
                         assert(status == 0,'CWAVE Error: Laser power not within standard operating range. Lower Power Immediately!!!');
+                    
+                    %elseif status == 0
+                    %    disp('CWAVE Announcement: Laser power within standard operating range.');
                     end
-                    disp('CWAVE Warning: Laser power not within standard operating range.');
                 case obj.OPO_Power
                     % 0=update succeeded,  1=update failed
-                    disp('CWAVE Warning: OPO power not within standard operating range.');
+                    if status == 1
+                        error('CWAVE Warning: OPO power not within standard operating range.');
+                    %elseif status == 0
+                    %    disp('CWAVE Announcement: OPO power in standard operating range.');
+                    end
                 case obj.SHG_Power
                     % 0=update succeeded,  1=update failed
-                    disp('CWAVE Warning: SHG power not within standard operating range.');
+                    if status == 1
+                        disp('CWAVE Warning: SHG power not within standard operating range.');
+                    %elseif status == 0
+                    %    disp('CWAVE Announcement: SHG power in standard operating range.');
+                    end
                 case obj.StatusReport
                     if (obj.opo_stepper_stat == 1)
-                        disp('Error OPO stepper not locked');
-                        elif (obj.opo_temp_stat == 1)
+                        disp('OPO stepper not locked')
+                    elseif (obj.opo_temp_stat == 1)
                             disp('OPO temperature not locked');
-                        elif (obj.shg_stepper_stat == 1)
+                    elseif (obj.shg_stepper_stat == 1)
                             disp('SHG stepper not locked');
-                        elif (obj.shg_temp_stat == 1)
+                    elseif (obj.shg_temp_stat == 1)
                             disp('SHG temp not locked');
-                        elif (obj.thin_etalon_stat == 1)
+                    elseif (obj.thin_etalon_stat == 1)
                             disp('Thin etalon not locked');
-                        elif (obj.opo_lock_stat == 1 && obj.get_intvalue(RegOPO_On) == 2)
+                    elseif (obj.opo_lock_stat == 1 && obj.get_intvalue(obj.RegOpo_On) == 2)
                             disp('OPO cavity piezo not locked.');
-                        elif (obj.shg_lock_stat == 1)
+                    elseif (obj.shg_lock_stat == 1 && obj.get_intvalue(obj.RegOpo_On) == 2)
                             disp('SHG cavity piezo not locked');
-                        elif (obj.etalon_lock_stat == 1)
+                    %elseif (obj.opo_lock_stat == 1 && obj.shg_lock_stat == 1 && obj.get_intvalue(obj.RegOpo_On) == 4)
+                    %        disp('In RegOPO mode 4. OPO and SHG are not locked.');
+                    elseif (obj.etalon_lock_stat == 1)
                             disp('thick etalon not locked');
-                        elif (obj.laser_emission_stat == 1)
+                    elseif (obj.laser_emission_stat == 1)
                             disp('No Pump emission! Unshutter Millenia Edge!');
-                        elif (obj.ref_temp_stat == 1)
+                    elseif (obj.ref_temp_stat == 1)
                             disp('Reference cavity temperature is not locked!!!');
                     end
                     
@@ -378,16 +417,16 @@ classdef CWave < Modules.Driver
             %Returns: Returns status int value. 0 means update succeeded, 1 means update failed.
             measure_status = LibraryFunction(obj.LibraryName,obj.UpdateStatus);
         end
-
+ 
         function intvalue = get_intvalue(obj, cmd)
             %Description: Reads the value of an integer parameter.
             %Arguments: Parameter as string. See parameter list for valid parameters.
             %Returns: Returns the requested integer value.
             
             %% INT PARAMETER LIST
-            %  Name             Type     Valid range     Read / Write	Description
-            %% topo_set         Int	    20000-170000        RW          Setpoint of the OPO temperature in mK
-            %  topo_is          Int	    20000-170000        R           Current OPO temperature in mK
+            %  Name             Type     Valid range     Read / Write   Description
+            %% topo_set         Int     20000-170000        RW          Setpoint of the OPO temperature in mK
+            %  topo_is          Int     20000-170000        R           Current OPO temperature in mK
             %% tshg_set         Int     20000-170000        RW          Setpoint of the SHG temperature in mK
             %  tshg_is1         Int     20000-170000        R           Current SHG1 temperature in mK
             %% tshg_is2         Int     20000-170000        R           Current SHG2 temperature in mK
@@ -423,18 +462,18 @@ classdef CWave < Modules.Driver
             %                                                            Should not need to be touched.
             %% regeta_set       Int     0-65535             RW          Setpoint of the OPO regulator. Mid-range values  are normal. 
             %%                                                           Should not need to be touched.
-            %  reghsg_threshold	Int     0-4095              RW          SHG power threshold above which SHG regulator is active. 
+            %  reghsg_threshold Int     0-4095              RW          SHG power threshold above which SHG regulator is active. 
             %                                                            Needed to select proper mode. Is set automatically, 
             %                                                            usually no user input required.
             %% opo_lambda       Int     45000-130000        W           Wavelength setpoint of the C-Wave in nm*100.
             %  opo_rlambda      Int     -100-100            W           Execute relative wavelength step (fundamental wavelength!) 
             %                                                            in nm*100. Maximum step is 1 nm. 
-            %% thicketa_rel	    Int     -100-100            W           Execute relative wavelength step of the thick etalon only 
+            %% thicketa_rel     Int     -100-100            W           Execute relative wavelength step of the thick etalon only 
             %%                                                           (fundamental wavelength!) in nm*100. Maximum step is 1 nm. 
-            %  thicketa_rel_hr	Int     -1000...1000        W           Same as thicketa_rel but resolution is 1 pm
+            %  thicketa_rel_hr  Int     -1000...1000        W           Same as thicketa_rel but resolution is 1 pm
             
             %% WAVELENGTH STABILIZATION PARAMETERS
-            % Name               Type	Valid range     Default     Description
+            % Name               Type   Valid range     Default     Description
             %% WLM_pid_p           Int     0-100000        0           Proportional constant of the wavelength regulator. 
             %%                                                         Not needed for many applications
             %  WLM_pid_i           Int     0-100000        500         Integral constant for wavelength regulator
@@ -448,7 +487,7 @@ classdef CWave < Modules.Driver
             %  WLM_piezosteps      Int     0, 1            1           Allow the regulator to move the cavity piezo to reach 
             %                                                           the desired wavelength.
             %% WLM_regout          Int     0-65535         0           Regulator output, good for checking if it works
-
+ 
             %% Read value of integer parameter
             % no error status bit is returned so calllib is used.
             intvalue = calllib(obj.LibraryName,obj.Get_IntValue,cmd);
@@ -458,20 +497,20 @@ classdef CWave < Modules.Driver
             %Description: Reads the value of an floating point parameter.
             %Arguments: Parameter as string. See parameter list for valid parameters.
             %Returns: Returns the requested floating point value.
-
+ 
             %% INT PARAMETER LIST
-            %  Name             Type        Valid range     Read / Write	Description
-            %% laser_pow	    Double      0?1.5               RW          Laser power of internal pump laser in W
-
+            %  Name             Type        Valid range     Read / Write    Description
+            %% laser_pow        Double      0?1.5               RW          Laser power of internal pump laser in W
+ 
             %% WAVELENGTH STABILIZATION PARAMETERS
-            %  Name                Type	    Valid range     Default     Description
-            %% WLM_pid_setpoint    Double	450?1300                    Desired wavelength in nm. 
-            %  WLM_targetdeviation Double	0?1	0.01	                Desired maximum deviation from the setpoint in nm. 
+            %  Name                Type     Valid range     Default     Description
+            %% WLM_pid_setpoint    Double   450?1300                    Desired wavelength in nm. 
+            %  WLM_targetdeviation Double   0?1 0.01                    Desired maximum deviation from the setpoint in nm. 
             %                                                            The minimum value depends on the used wavemeter resolution. 
             %                                                            Smaller values give higher accuracy but may require longer 
             %                                                            time or manual input. Larger values result in faster settling
             %                                                            but a less accurate output wavelength.
-
+ 
             %% Read value of float parameter
             floatvalue = calllib(obj.LibraryName,obj.Get_floatValue,cmd);        
         end
@@ -487,6 +526,14 @@ classdef CWave < Modules.Driver
             status = obj.LibraryFunction(obj.Set_IntValue,cmd, value);
         end
         
+        function tBase = get_tBase(obj)
+            tBase = calllib(obj.LibraryName, obj.Get_IntValue,obj.TempBase);
+            tBase = tBase/1000; %Celcius
+        end
+        function tFPGA = get_tFPGA(obj)
+            tFPGA = calllib(obj.LibraryName, obj.Get_IntValue,obj.TempFPGA);
+            tFPGA = tFPGA/1000; %Celcius
+        end
         function tref = get_tref(obj)
             tref = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempRef);
             tref = tref/1000; % Celcius
@@ -513,7 +560,7 @@ classdef CWave < Modules.Driver
             tshg = calllib(obj.LibraryName,obj.Get_IntValue,obj.TempSHG_sp);
             tshg = tshg/1000; % Celcius
         end
-   
+        
         function optimize_status = is_ready(obj)
             %Description: Checks if all C-Wave routines have finished and the C-Wave produces the desired output
             %Arguments: none
@@ -521,7 +568,7 @@ classdef CWave < Modules.Driver
             %% Check if optimization is complete
             optimize_status = obj.LibraryFunction(obj.Is_Ready); 
         end
-
+ 
         function status = set_floatvalue(obj, cmd,value)
             % Description: Sets the value of an floating point parameter.
             % Arguments: cmd is the Parameter as string. See parameter list 
@@ -532,7 +579,7 @@ classdef CWave < Modules.Driver
             %% Writable Wavelength stabilization parameters are listed above in get_floatvalue function comments
             status = obj.LibraryFunction(obj.Set_FloatValue,cmd, value); 
         end
-
+ 
         function status = set_command(obj, cmd)
             % Description: Executes a command which has no numerical argument.
             % Arguments: cmd is the command as string. See the command list for reference.
@@ -563,7 +610,7 @@ classdef CWave < Modules.Driver
             obj.CurrentLaserPWR = laser_power;
             obj.CheckErrorStatus(status,obj.LaserPower);
         end
-
+ 
         function [opo_power,status] = get_photodiode_opo(obj)
             % Description: Reads the current OPO infrared power
             % Arguments: none
@@ -599,16 +646,16 @@ classdef CWave < Modules.Driver
             % Returns: Returns an 16-bit integer value. Each bit corresponds to the 
             % status of one component. 0 means, the component is ready for operation, 
             % 1 means the component is not yet stable. Current valid bits from LSB to MSB are:
-            %       1	OPO stepper
-            %       2	OPO temperature
-            %       3	SHG stepper
-            %       4	SHG temperature
-            %       5	Thin etalon
-            %       6	OPO lock
-            %       7	SHG lock
-            %       8	Etalon lock
-            %       9	Laser emission (inverted)
-            %       10	Reference temperature
+            %       1   OPO stepper
+            %       2   OPO temperature
+            %       3   SHG stepper
+            %       4   SHG temperature
+            %       5   Thin etalon
+            %       6   OPO lock
+            %       7   SHG lock
+            %       8   Etalon lock
+            %       9   Laser emission (inverted)
+            %       10  Reference temperature
             % Poll cwave status
             cwave_status = calllib(obj.LibraryName, obj.StatusReport); %change to callib
             status_vector = de2bi(cwave_status);
@@ -621,9 +668,9 @@ classdef CWave < Modules.Driver
             obj.shg_lock_stat = boolean(status_vector(7));
             obj.etalon_lock_stat = boolean(status_vector(8));
             obj.laser_emission_stat = ~boolean(status_vector(9));
-            %obj.ref_temp_stat = status_vector(10); %doesnt sense error bit
-            %sometimes 
-            if(all([status_vector(1:8),~status_vector(9)] == 0))
+            obj.ref_temp_stat =  obj.get_status_temp_ref; %doesnt sense error bit
+            %sometimes  obj.Reference_TempStatus
+            if(all([status_vector(1:8),~status_vector(9),obj.ref_temp_stat] == 0))
                 % there is an 11th bit with no documented hw meaning; should be ignored
                 status = 0;
             else 
@@ -733,13 +780,13 @@ classdef CWave < Modules.Driver
         
         function set_OPOrLambda(obj,val)
             %set realtive wavlength shift for shifts 0.1 nm or greater. 
-            obj.set_intvalue(obj.OPO_rLambda, val)
+            obj.set_intvalue(obj.OPO_rLambda, val);
         end
-
+ 
         function set_target_deviation(obj, target_dev)
             obj.set_floatvalue(obj.WLM_targetdeviation, target_dev);
         end
-
+ 
         function fine_tune(obj)
             % fine tune based on wavemeter measurement
             obj.set_intvalue(obj.WLM_PiezoSteps, 1);
@@ -748,7 +795,7 @@ classdef CWave < Modules.Driver
             %turn off big wavelength steps (OPO and SHG remain locked)
             obj.set_intvalue(obj.WLM_BigSteps, 0);
         end
-
+ 
         function coarse_tune(obj)
             % coarse tune based on wavemeter measurement
             % turn on reference cavity steps
@@ -763,7 +810,7 @@ classdef CWave < Modules.Driver
             %Stops optimization of wavelength tuning.
             flag = obj.set_command(obj.StopOptimization);
         end
-
+ 
         function piezo = get_ref_cavity_percent(obj)
             % returns reference cavity piezo percent value
             piezo_voltage = obj.get_intvalue(obj.RefCavity_Piezo);
@@ -884,7 +931,7 @@ classdef CWave < Modules.Driver
             %% Table of allowing integer paramters for high finesse WS8-10 wavemeter
             ext_intvalue = calllib(obj.LibraryName, obj.ExtGet_IntValue,cmd);
         end
-
+ 
         function [ext_floatvalue] = ext_get_floatvalue(cmd)
             % Description: Reads the value of an floating point parameter from the external module.
             % Arguments: Parameter as string. See documentation of external module for valid parameters.
@@ -900,7 +947,7 @@ classdef CWave < Modules.Driver
             %  Returns 1 (0 before inversion) if no or not sufficient laser power is available.
             laser_status = obj.LibraryFunction(obj.LaserStatus);
         end
-
+ 
         function [ref_temp_status] = get_status_temp_ref(obj)
             % Description: Reads the current status of the reference temperature.
             % Arguments: none
@@ -918,7 +965,7 @@ classdef CWave < Modules.Driver
             %% Poll OPO Temperature Status
             opo_temp_status = obj.LibraryFunction(obj.OPO_TempStatus);
         end
-
+ 
         function [shg_temp_status] = get_status_temp_shg(obj)
             % Description: Reads the current status of the SHG temperature.
             % Arguments: none
@@ -927,7 +974,7 @@ classdef CWave < Modules.Driver
             %% Poll SHG temperature Status
             shg_temp_status = obj.LibraryFunction(obj.SHG_TempStatus); 
         end
-
+ 
         function [opo_lock_status] = get_status_lock_opo(obj)
             % Description: Reads the current status of the OPO lock.
             % Arguments: none
@@ -936,7 +983,7 @@ classdef CWave < Modules.Driver
             %% Poll opo_lock_status...What exactly is the OPO lock?
             opo_lock_status = obj.LibraryFunction(obj.OPO_LockStatus);
         end
-
+ 
         function [shg_lock_status] = get_status_lock_shg(obj)
             % Description: Reads the current status of the SHG lock.
             % Arguments: none
@@ -954,4 +1001,5 @@ classdef CWave < Modules.Driver
     end
         
 end
+ 
 
