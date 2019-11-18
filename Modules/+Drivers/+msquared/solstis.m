@@ -19,7 +19,7 @@ classdef solstis < Modules.Driver
     
     properties
         % for calls to HWserver
-        moduleName = 'msquared';
+        moduleName = 'msquared.NW';
         laserName = 'solstis';
     end
     

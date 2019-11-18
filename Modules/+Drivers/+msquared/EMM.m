@@ -10,7 +10,7 @@ classdef EMM < Modules.Driver
     
     properties
         % for calls to HWserver
-        moduleName = 'msquared';
+        moduleName = 'msquared.NW';
         laserName = 'EMM';
         blocking_timeout = 60;  % If call is blocking, adjust wait time
     end
