@@ -675,6 +675,14 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 rethrow(err)
             end
             obj.cwave_ip = ip;
+            
+            while(1)
+                if libisloaded(obj.cwaveHandle.LibraryName)
+                    obj.updateStatus;
+                    break
+                end
+                pause(1);
+            end
         end
 
         function set.pulseStreamer_ip(obj, ip)
@@ -866,7 +874,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                   end
               end
           end
-
           
           function [wm_lambda_c,wmPower_c,wm_exptime_c, abort, exit] = reset_hysteresis(obj,pstep)
               i =1;
@@ -1127,7 +1134,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
   
           end
 
-          
           function set.MaxEtalon_wl(obj,val)
               a = eval(val);
               obj.MaxEtalon_wl = a;
@@ -1181,7 +1187,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
           end
 
-          
           function set_regopo(obj,val)
               obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,val);
           end
@@ -1491,7 +1496,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  I_term(i) = i_term;
                  D_term(i) = d_term;  
             end
-         end
+        end
 
         function [ctrl,prev_error,int_error,p_term,i_term,d_term] = pid_update(obj, curr_error,prev_error, int_error, kp,ki,kd,dt)
  
