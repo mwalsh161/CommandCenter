@@ -605,7 +605,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.updateStatus(); % Get voltage of resonator
         end
         
-       function updateStatus(obj)
+        function updateStatus(obj)
             % Get status report from laser and update a few fields
             tic;
             obj.TempBase = obj.cwaveHandle.get_tBase;
@@ -926,8 +926,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                   %    [wm_lambda_c,wmPower_c,wm_exptime_c,currPower] = obj.powerStatus(obj.wmExposureTolerance, obj.powerStatusDelay);
               end 
           end
-
-      function abort = centerThickEtalon(obj)
+          
+          function abort = centerThickEtalon(obj)
               dlgs = questdlg('Is Min and Max range of Etalon correctly set? MaxEtalon_wl and MinEtalon_wl must be measured by autotune or manually by adjusting EtalonStep. If tuning manually MaxEtalon_wl and MinEtalon_wl in Cwave Source preferences', ...
                              'Centering Etalon Warning', ...
                              'Yes, Continue Tuning','No, Please Autotune', 'No, Abort','No, Abort');
