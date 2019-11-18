@@ -46,6 +46,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         sPump_power;
         ThickEtalonTolerance = 0.005; %nm
         midTuneTolerance = 0.1;
+        maxEtalon_wlSD;
+        minEtalon_wlSD;
     end
     properties(SetAccess=protected)
         range = [Sources.TunableLaser_invisible.c./[450, 650],Sources.TunableLaser_invisible.c./[900, 1300]];
@@ -1156,12 +1158,13 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
  
                                      if i >=counts & step > 0
                                          i = 1;
-                                         obj.maxEtalon = mean(EtalonV);
-                                         obj.maxEtalonSD = std(EtalonV);
+                                         obj.MaxEtalon_wl = mean(EtalonV);
+                                         obj.maxEtalon_wlSD = std(EtalonV);
                                          step = nstep;
+                                         EtalonV = [];
                                      elseif i >=counts & step < 0
-                                         obj.minEtalon = mean(EtalonV);
-                                         obj.minEtalonSD = std(EtalonV);
+                                         obj.MinEtalon_wl = mean(EtalonV);
+                                         obj.minEtalon_wlSD = std(EtalonV);
                                      end
  
                                  end
