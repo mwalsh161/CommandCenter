@@ -10,7 +10,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
     %
     %   The laser tuning is controlled by the methods required by the
     %   TunableLaser_invisible superclass.
-
+ 
     properties(SetObservable,SetAccess=private)
         source_on = false;
     end
@@ -54,22 +54,22 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         prefs = {'tuning','enabled','target_wavelength','wavelength_lock','etalon_lock',...
             'opo_stepper_lock','opo_temp_lock','shg_stepper_lock', 'shg_temp_lock','thin_etalon_lock',...
             'opo_lock','shg_lock','pump_emission','ref_temp_lock','resonator_percent',...
-            'etalon_percent','PSline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
+            'etalon_percent','PBline','pulseStreamer_ip','cwave_ip','wavemeter_ip',...
             'resonator_tune_speed','tunePercentRange','MaxEtalon_wl','MinEtalon_wl',...
             'EtalonStep','MidEtalon_wl','OPO_power','SHG_power','Pump_power','AllElementStep',...
-            'TempRef','TempOPO', 'TempSHG','TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
-         show_prefs = {'target_wavelength','resonator_percent','AllElementStep','EtalonStep','tunePercentRange',...
+            'TempRef','TempOPO', 'TempSHG','TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint','TempBase','TempFPGA'}; %,'TempBase','TempFPGA'
+         show_prefs = {'TempBase','TempFPGA','target_wavelength','resonator_percent','AllElementStep','EtalonStep','tunePercentRange',...
             'resonator_tune_speed','MidEtalon_wl','MaxEtalon_wl','MinEtalon_wl','tuning',...
             'enabled','wavelength_lock','etalon_lock','opo_stepper_lock','opo_temp_lock','shg_stepper_lock',...
             'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock','pump_emission','ref_temp_lock',...
             'etalon_percent','OPO_power','SHG_power','Pump_power','TempOPO','TempOPO_setpoint',...
-            'TempSHG','TempSHG_setpoint','TempRef','TempRef_setpoint','PSline',...
-            'pulseStreamer_ip','cwave_ip','wavemeter_ip'};
+            'TempSHG','TempSHG_setpoint','TempRef','TempRef_setpoint','PBline',...
+            'pulseStreamer_ip','cwave_ip','wavemeter_ip'}; % 'TempBase','TempFPGA',
         readonly_prefs = {'tuning','etalon_lock','opo_stepper_lock','opo_temp_lock',...
             'shg_stepper_lock', 'shg_temp_lock','thin_etalon_lock','opo_lock','shg_lock',...
-            'pump_emission','ref_temp_lock','MidEtalon_wl',...
+            'pump_emission','ref_temp_lock','MidEtalon_wl','resonator_percent', ...
             'OPO_power','SHG_power','Pump_power','TempRef','TempOPO', 'TempSHG',...
-            'TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint'};
+            'TempRef_setpoint','TempOPO_setpoint', 'TempSHG_setpoint','TempBase','TempFPGA'}; % ,'TempBase','TempFPGA'
      end
     properties(SetObservable,GetObservable)
         MidEtalon_wl = '';
@@ -79,7 +79,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 %         cwave_ip = Prefs.String('default',Sources.CWave.no_server,'allow_empty',true,'set','');
 %         pulseStreamer_ip = Prefs.String(Sources.CWave.no_server,'allow_empty',false),'set','';
 %         wavemeter_ip = Prefs.String(Sources.CWave.no_server,'allow_empty',false),'set','';
-        PSline = Prefs.Integer('min',0,'help_text','indexed from 0'); % Index from 0 (Pulsestreamer has 8 digital out channels)
+        PBline = Prefs.Integer('min',0,'help_text','indexed from 0'); % Index from 0 (Pulsestreamer has 8 digital out channels)
         resonator_tune_speed = Prefs.Double(0.5,'units','percent','min',0.001,'max',1); % percent per step
         etalon_lock = Prefs.Boolean('help_text','This is a readonly string.','readonly',true);
         etalon_percent = Prefs.Boolean( 'help_text','This is a readonly string.','readonly',true);
@@ -96,6 +96,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         OPO_power =  Prefs.Double(0.0,'units','mW','min',0,'max',5000);
         SHG_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
         Pump_power = Prefs.Double(0.0,'units','mW','min',0,'max',5000);
+        TempBase =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
+        TempFPGA =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         TempRef =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         TempOPO =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
         TempSHG =  Prefs.Double(20.00,'units','Celcius','min',20,'max',170.00);
@@ -119,6 +121,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         wavemeterHandle
         cwaveHandle
     end
+
     
     methods(Access=private)
         function obj = CWave()
@@ -603,9 +606,17 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.updateStatus(); % Get voltage of resonator
         end
         
-        function updateStatus(obj)
+       function updateStatus(obj)
             % Get status report from laser and update a few fields
-            tic
+            tic;
+            obj.TempBase = obj.cwaveHandle.get_tBase;
+            obj.TempFPGA = obj.cwaveHandle.get_tFPGA;
+            obj.TempRef = obj.cwaveHandle.get_tref;
+            obj.TempOPO = obj.cwaveHandle.get_topo;
+            obj.TempSHG = obj.cwaveHandle.get_tshg;
+            obj.TempRef_setpoint = obj.cwaveHandle.get_tref_sp;
+            obj.TempOPO_setpoint = obj.cwaveHandle.get_topo_sp;
+            obj.TempSHG_setpoint = obj.cwaveHandle.get_tshg_sp;
             obj.locked = ~(obj.cwaveHandle.get_statusbits);
             obj.etalon_lock = ~obj.cwaveHandle.etalon_lock_stat;
             obj.opo_stepper_lock = ~obj.cwaveHandle.opo_stepper_stat;
@@ -616,28 +627,27 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.opo_lock = ~obj.cwaveHandle.opo_lock_stat;
             obj.shg_lock = ~obj.cwaveHandle.shg_lock_stat;
             obj.pump_emission = ~obj.cwaveHandle.laser_emission_stat;
-            obj.ref_temp_lock = ~obj.cwaveHandle.get_status_temp_ref;
+            obj.ref_temp_lock = ~obj.cwaveHandle.ref_temp_stat;
+            %obj.ref_temp_lock = ~obj.cwaveHandle.get_status_temp_ref;
            
             [obj.OPO_power,obj.sOPO_power] = obj.cwaveHandle.get_photodiode_opo;
             [obj.SHG_power,obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
             [obj.Pump_power,obj.sPump_power] = obj.cwaveHandle.get_photodiode_laser;
-            obj.TempRef = obj.cwaveHandle.get_tref;
-            obj.TempOPO = obj.cwaveHandle.get_topo;
-            obj.TempSHG = obj.cwaveHandle.get_tshg;
-            obj.TempRef_setpoint = obj.cwaveHandle.get_tref_sp;
-            obj.TempOPO_setpoint = obj.cwaveHandle.get_topo_sp;
-            obj.TempSHG_setpoint = obj.cwaveHandle.get_tshg_sp;
+            
             
             regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
                 & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
-          
-            if(obj.locked | ((obj.cwaveHandle.get_regopo == 4) & regopo4_locked))
+            
+            if( (obj.locked ) | ( (obj.cwaveHandle.get_regopo == 4 ...
+                    & regopo4_locked & obj.sSHG_power == false)))
                 obj.setpoint = obj.c/obj.getWavelength;  % This sets wavelength_lock
+            else
+                obj.setpoint = NaN;
             end
-
+ 
             obj.tuning = ~(obj.locked);
-            toc
-            fprintf('toc %.8f\n',toc);
+            toc;
+            %fprintf('toc %.8f\n',toc);
             %obj.setpoint = obj.cwaveHandle.WLM_PID_Setpoint;
             % Overwrite getWavelength tuning status with EMM tuning state 
         end
@@ -698,24 +708,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-        %change to set_target_wavlength and make turn this into setmethod
-        %as defined in https://github.com/mwalsh161/CommandCenter/blob/dev/%2BBase/pref.m
-        %example of implementation: https://github.com/mwalsh161/CommandCenter/blob/dev/Modules/%2BImaging/debug.m#L55
-        %f you're wondering where the set property is defined, it is in Base.pref - also worth reading until I get it onto the wiki to better understand what's happening: https://github.com/mwalsh161/CommandCenter/blob/dev/%2BBase/pref.m
-% Matthew Feldman 5:16 PM
-% Yea the latter. Thanks. But just for my own understanding the testSet method sets a value to a preference (even though there is only a print statemet in the body of the method)? Is this behavior explained in the pref.m link you just sent?
-% Michael Walsh 5:25 PM
-% it should be explained
-% unlike MATLAB's set.prop methods, these set methods require you to return the value
-% new messages
-% so while testSet seems to only be doing an fprintf, the input val is returned as well
-%         function set.target_wavelength(obj,val)
-%             %if isnan(val.default); obj.target_wavelength = val; return; end % Short circuit on NaN
-%             if isnan(val.ui); obj.target_wavelength = val; return; end % Short circuit on NaN
-%             if obj.internal_call; obj.target_wavelength = val; return; end
-%             obj.tune(val);
-%         end
-        
           function set.target_wavelength(obj,val)
               %edite 10/30/19 note sure why this is read only???
             %if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
@@ -742,7 +734,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
               end
                                                   
           end
-	      
+          
           function [wm_wl,wm_power,wm_exptime] = powerStatus(obj, tol,delay_val)
                     i = 0;
                     max_interation = 10;
