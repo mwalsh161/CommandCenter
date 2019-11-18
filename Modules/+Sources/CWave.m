@@ -813,35 +813,39 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           
           function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus)
               switch nargin
-                  case 0
+                  case 1
                       delay_val = 1;
                       SHG_tuning = false;
                       allStatus = true;
-                  case 1
+                  case 2
                       SHG_tuning = false;
                       allStatus = true;
-                  case 2
+                  case 3
                       allStatus = true;
               end
                       
               abort = false;
+              time = 0;
               tic;
               
               while(obj.cwaveHandle.is_ready)
                   pause(delay_val); %in seconds
                   if allStatus == true
-                      obj.udpateStatus;
+                      obj.updateStatus;
+                      %[obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
                   else
                       [obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
                   end
-                  time = toc; 
-                  if (time > obj.timeoutSHG & SHG_tuning == true & (obj.shg_lock == false | obj.shg_temp_lock == false) )
+                  time = time + toc; 
+                  if (time > obj.timeoutSHG & SHG_tuning == true & (obj.shg_lock == false | obj.shg_temp_lock == false | obj.sSHG_power == 0 ) )
                       dialog = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
-                      textH = findall(dlg,'tag','MessageBox');
-                      delete(findall(dlg,'tag','OKButton'));
+                      textH = findall(dialog,'tag','MessageBox');
+                      delete(findall(dialog,'tag','OKButton'));
                       drawnow;
                       obj.cwaveHandle.optimize_shg;
-                      pause(5)
+                      while(obj.cwaveHandle.is_ready)
+                          pause(5)
+                      end
                       delete(dialog);
                   elseif time > obj.timeoutAllElements
                      dialog =  questdlg('Tuning Timed out. Continue or abort tuning?', ...
@@ -857,8 +861,21 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                  return;
                          end
                   end
+                  
+                  if (obj.cwaveHandle.get_regopo == 4)
+                      regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
+                                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+                            if regopo4_locked == true & obj.sSHG_power == 0 
+                                break;
+                            end
+                  elseif obj.cwaveHandle.getregopo == 2 & obj.locked == true
+                      break;
+                  else 
+                      continue;
+                  end
               end
           end
+
           
           function [wm_lambda_c,wmPower_c,wm_exptime_c, abort, exit] = reset_hysteresis(obj,pstep)
               i =1;
