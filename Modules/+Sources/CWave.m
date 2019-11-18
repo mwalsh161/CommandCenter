@@ -167,7 +167,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 
         function on(obj)
             assert(~isempty(obj.PulseStreamerHandle), 'No IP set for PulseStreamer!')
-            state = PulseStreamer.OutputState([obj.PSline],0,0);
+            state = PulseStreamer.OutputState([obj.PBline],0,0);
             obj.PulseStreamerHandle.PS.constant(state);
             obj.source_on = true;
             
