@@ -1,5 +1,5 @@
-
-classdef PulseStreamerMaster < Modules.Driver
+ 
+classdef PulseStreamerMaster < Modules.Driver & Drivers.PulseTimer_invisible
     % PulseStreamerMaster is located in in CommandCenter > Modules >
     % +Drivers > +PulseStreamer
     % The PulseStreamerMaster class is a driver module class which 
@@ -21,11 +21,11 @@ classdef PulseStreamerMaster < Modules.Driver
     % "forever":false,
     %  "channels":["channel1","MW Switch","","channel4"],
     % "sequence":[
-	% {"flags":[0,0,0,1],"duration":0,"instruction":"CONTINUE","data":null},
+    % {"flags":[0,0,0,1],"duration":0,"instruction":"CONTINUE","data":null},
     % {"flags":[0,1,1,0],"duration":1,"instruction":"LOOP","data":2},
-	% {"flags":[0,0,0,1],"duration":18,"instruction":"CONTINUE","data":null},
-	% {"flags":[0,1,0,1],"duration":19,"instruction":"END_LOOP","data":null},
-	% {"flags":[0,0,0,1],"duration":20,"instruction":"CONTINUE","data":null},
+    % {"flags":[0,0,0,1],"duration":18,"instruction":"CONTINUE","data":null},
+    % {"flags":[0,1,0,1],"duration":19,"instruction":"END_LOOP","data":null},
+    % {"flags":[0,0,0,1],"duration":20,"instruction":"CONTINUE","data":null},
     % ]
     % }
     %
@@ -34,7 +34,7 @@ classdef PulseStreamerMaster < Modules.Driver
     % loop the pulse sequence indefinitely.
     %
     % The sequence is defined by four fields:
-    % 1. flags: an array of boolean states for the relevant channels.
+    % 1. flags: an array of boolean states for the relevant .
     % 2. duration: the duration of the pulse for the associated states.
     % 3. data: the span of the loop, i.e., the numer of loop interations.
     % 4. instruction: determines the action to be performed.
@@ -69,7 +69,12 @@ classdef PulseStreamerMaster < Modules.Driver
     
     
     % ipAddress='192.168.11.2';
-    
+    properties(Constant)
+        clk = 1000;         % clock sampling rate
+        resolution = 3;  % ns can be s low as 1 nd but output voltage is lower than 3.3V (TTL) so depending on uWave source trigger might be able to go down to 1ns
+        minDuration = 2; % ns (can go down to 1ns but output waveform will be distorted). 
+        maxRepeats = 2^63-1;  % positive integer value
+    end
     properties(SetAccess=private)
         % Object that provides the interface to the
         % Pulse Streamer hardware. this object provides access run, halt
@@ -77,6 +82,7 @@ classdef PulseStreamerMaster < Modules.Driver
         % Streamer.
         PS;
         %
+        pulseName;
         builder; %PusleSequenceBuilder object used to build pulse sequences.
         triggerStart; 
         triggerMode;
@@ -121,7 +127,7 @@ classdef PulseStreamerMaster < Modules.Driver
     end
     
     methods(Access={?Drivers.PulseStreamerMaster.PulseStreamerMaster})
-
+ 
          function obj = PulseStreamerMaster(ip)
          % Constructor for this class.
          % ip:   IP address of hardware
@@ -212,11 +218,11 @@ classdef PulseStreamerMaster < Modules.Driver
             % Test if obj.json is a file. If a file name, read 
             % file and replace obj.json with the file contents as a
             % single string
-            if strcmp(obj.json(end-2:end),'.js')
-                obj.json = fileread(obj.json);
-            elseif strcmp(obj.json(end-3:end),'.txt')
-                %write error checking in the future.
-            end
+%             if strcmp(obj.json(end-2:end),'.js')
+%                 obj.json = fileread(obj.json);
+%             elseif strcmp(obj.json(end-3:end),'.txt')
+%                 %write error checking in the future.
+%             end
                 
             % convert obj.json into a list (actually a cell array) of 
             % ordered maps (json_seq) describing the pulse sequence and 
@@ -242,7 +248,7 @@ classdef PulseStreamerMaster < Modules.Driver
             % the instructions for a pulse sequence step (duration and flag 
             % fields). 
             obj.unroll_tree(obj.cmd,obj.map);
-
+ 
             % -------------------------
             % BUILD PULSE TRAINS
             % A pulse train is a list
@@ -271,14 +277,18 @@ classdef PulseStreamerMaster < Modules.Driver
                     state = flags(jj);
                     pulse_trains{jj}{1}{ii,1} = duration;
                     pulse_trains{jj}{1}{ii,2} = state;
-
+ 
                 end   
             end
             
             % Build the digital pattern (a sequence of duration,
             % channel state pairs in that order) for each channel.
             for kk = 1:1:length(obj.seq_meta.channels)
-                ch = kk-1;
+                %ch = kk-1;
+                %digitalPattern = pulse_trains{kk}{1}; 
+                %obj.sequence.setDigital(ch, digitalPattern);
+                
+                ch = obj.seq_meta.channels{kk};
                 digitalPattern = pulse_trains{kk}{1}; 
                 obj.sequence.setDigital(ch, digitalPattern);
             end    
@@ -289,6 +299,23 @@ classdef PulseStreamerMaster < Modules.Driver
             obj.sequence.plot();     
         end
         
+        function program = reorder_program(obj,program)
+            [m,~] = size(program.sequence);
+            [~,n] = size(program.channels);
+            i = 1;
+            while i <= m
+                program.sequence(i).flags = transpose(program.sequence(i).flags);
+                i=i+1;
+            end
+            i=1;
+            while i <= n
+                program.channels{i}= int8(str2double(program.channels{i}));
+                i=i+1;
+            end
+            program.channels = transpose(program.channels);
+            obj.pulseName = program.name;
+            
+end
         
         function load(obj,program) 
         % The load method converts the sequence object to the properly
@@ -296,6 +323,7 @@ classdef PulseStreamerMaster < Modules.Driver
         % pulse streamer via an eithernet connection managed by a hardware
         % server.
         
+            program = obj.reorder_program(program);
             obj.build(program);
             start = obj.triggerStart;%initialize the trigger to be software defined
             mode  = obj.triggerMode; % initialize the trigger to be rearmed after each run.
@@ -321,7 +349,6 @@ classdef PulseStreamerMaster < Modules.Driver
 %             end
 %             [~,name,~]=fileparts(caller{end});
 %             caller = [prefix name];
-            obj.plot;
             obj.PS.startNow();
 %             obj.running = caller;
         end
@@ -408,14 +435,14 @@ classdef PulseStreamerMaster < Modules.Driver
            elseif depth > 10
                return 
            end
-
-
+ 
+ 
            % if the last element of cmd is a list, then get that list
            % otherwise use the list cmd directly. this takes into
            % account the cases where CONTINUEs may not reside within
            % LOOPs.
            c_cmd = cmd;
-
+ 
            % verify cmd isn not empty, otherwise you will keep nesting lists
            % unwantedly 
            if length(cmd.command) > 0
@@ -424,7 +451,7 @@ classdef PulseStreamerMaster < Modules.Driver
                    c_cmd = cmd.command{end};
                end
            end
-
+ 
            %Debugging: report the length of cmd.command to track its growth
            if DEBUG > 0
                fprintf('CMD length is: %i\n\n',length(cmd.command))
@@ -439,11 +466,11 @@ classdef PulseStreamerMaster < Modules.Driver
            if DEBUG > 0
                fprintf('depth = %5d\tinstruction: %s, %d\n',depth,instruction,index);
            end
-
+ 
            % loop over the instructions in the json list
            while index < length(json_seq)
                index = index + 1; % IMPORTANT: remember to increment index into json list
-
+ 
                % get instruction type
                instruction = json_seq{index}('instruction');
                
@@ -452,7 +479,7 @@ classdef PulseStreamerMaster < Modules.Driver
                if DEBUG > 0
                    fprintf('depth = %5d\tinstruction: %s, %d\n', depth,instruction,index);
                end
-
+ 
                % Decide what to do depending on instruction type
                if strcmp(instruction,'END_LOOP')
                    c_cmd.append(json_seq{index});
@@ -461,39 +488,39 @@ classdef PulseStreamerMaster < Modules.Driver
                    % the next json instruction
                    return % Important, this is a terminating case 
                           % for the recursion
-
+ 
                elseif strcmp(instruction,'LOOP')
                    % since this is a loop, create a new empty list to
                    % receive the instructions for this loop.
                    % IMPORTANT: the value of index can change within
                    % decodeInstructions, so we must return it
                    c_cmd.append(Drivers.PulseStreamerMaster.seqCommand)
-
+ 
                    %Debugging: report current instruction data.
                    if DEBUG > 0
                     fprintf('In loop current command is\n')
                     disp(c_cmd(end))
                    end
                    index = obj.decodeInstructions(json_seq,c_cmd(end),depth,index);
-
+ 
                    %Debugging: report current index.
                    if DEBUG > 0
                        fprintf('index %d\n', index);
                    end
-
+ 
                elseif strcmp(instruction,'CONTINUE')
                    %since this is a continue statement we will simply
                    %append the instruction data to the cmd.(remember c_cmd
                    %is handle for cmd).
                    c_cmd.append(json_seq{index});
-
+ 
                else
                    error('** error decoding JSON file\n')
-
+ 
                end
            end      
         end
-
+ 
         
         function unroll_tree(obj,cmd,map,depth)
             % unroll_tree rolls all the instructions in the instruction
@@ -525,7 +552,7 @@ classdef PulseStreamerMaster < Modules.Driver
                     tab = strcat('...',tab);
                 end
             end
-
+ 
             % loop over top level instructions of abstract syntax tree, 
             % here called cmd
             for c = 1:1:length(cmd.command)
@@ -558,7 +585,7 @@ classdef PulseStreamerMaster < Modules.Driver
                 end
             end
         end
-
+ 
         
         function printTree(obj, cmd, depth)
         %   Print the Tree of instructions
@@ -578,13 +605,13 @@ classdef PulseStreamerMaster < Modules.Driver
                 return
             end
             fprintf('depth: %i\n' , depth);
-
+ 
             tab = '';
             for i=1:depth
-
+ 
                 tab = strcat('...',tab);
             end
-
+ 
             % Loop acrous length of cmd cell array (list). If a list is found then
             % printTree of that list. Please note that the seqCommand is a
             % hadnle class which allows for the concatenation of any item
@@ -609,7 +636,7 @@ classdef PulseStreamerMaster < Modules.Driver
         function map = execute_loop(obj,cmd,map,depth)
  
             DEBUG = 0;
-
+ 
             if DEBUG > 1
                 fprintf('\n\nIn execute_loop\n');
             end
@@ -625,7 +652,7 @@ classdef PulseStreamerMaster < Modules.Driver
             
             %increment recurssion depth and return if depth exceeds 10.
             depth = depth+1;
-
+ 
             if depth > 10
                 return; 
             end
@@ -640,7 +667,7 @@ classdef PulseStreamerMaster < Modules.Driver
             %current loop instruction. By default if this function is
             %executed then the first instruction in the list is LOOP.
             c = cmd.command{1};
-
+ 
             % LOOP instruction
             %Debugging: Report instruction in loop
             if DEBUG > 0 
@@ -650,7 +677,7 @@ classdef PulseStreamerMaster < Modules.Driver
                        c('duration'),                              ...
                        c('flag').',                                 ...
                        c('data'));                                
-
+ 
             end
             
             %error handling
@@ -666,21 +693,21 @@ classdef PulseStreamerMaster < Modules.Driver
             
             %append current map 
             map.append(cmd.command{1});
-
+ 
             %Debugging: Display updated list of instruction maps
             if DEBUG > 1
                 fprintf('Current list of maps: ');
                 disp(map)
             end
-
+ 
             % Implement loop
             loop_cmd = cmd.command;
             span = c('data'); %number of times to increment loop
-
+ 
             for ii = 1:1:span
                 % loop over instructions for current loop
                 % excluding the LOOP and END_LOOP instructions
-
+ 
                 if DEBUG > 1
                     disp(length(loop_cmd))
                 end
@@ -690,7 +717,7 @@ classdef PulseStreamerMaster < Modules.Driver
                 %always ran before and after the curret loop, respectively.
                 %Loop over remainging instructions.
                 for jj = 2:1:(length(loop_cmd)-1)
-
+ 
                     if DEBUG > 1
                         fprintf('current jj: ');
                         disp(jj)
@@ -699,7 +726,7 @@ classdef PulseStreamerMaster < Modules.Driver
                     %if an instruction within this loop is LOOP then
                     %recurse into execute_loop. 
                     if isa(loop_cmd{jj},'Drivers.PulseStreamerMaster.seqCommand')
-
+ 
                         if DEBUG > 1
                             fprintf('current loop instruction: ');
                             disp(loop_cmd{jj})
@@ -714,18 +741,18 @@ classdef PulseStreamerMaster < Modules.Driver
                     
                     %append map of continue instruction.
                     map.append(c);
-
+ 
                     % Debugging: report recursion depth, current instruction and
                     % instruction index.
                     if DEBUG > 0
-
+ 
                         fprintf('%s%s: duration = %i, flags =  %i %i %i %i\n', ...
                             tab,                                 ...
                             c('instruction'),                           ...
                             c('duration'),                              ...
                             c('flag').');  
                     end
-
+ 
                     %If instruction is not CONTINUE then throw error.
                     if ~strcmp(c('instruction'),'CONTINUE')
                         error('Expected CONTINUE instruction, but found %s\n', ...
@@ -733,7 +760,7 @@ classdef PulseStreamerMaster < Modules.Driver
                     end 
                 end       
             end
-
+ 
             % END_LOOP instruction is last instruction in list of loop
             % instructions
             c = cmd.command{end};
@@ -744,7 +771,7 @@ classdef PulseStreamerMaster < Modules.Driver
             % Debugging: report recursion depth, current instruction and
             % instruction index.
             if DEBUG > 0
-
+ 
                 fprintf('%s%s: duration = %i, flags = %i %i %i %i\n', ...
                         tab,                                 ...
                         c('instruction'),                           ...
@@ -786,10 +813,10 @@ classdef PulseStreamerMaster < Modules.Driver
             json_seq = cell(1,length(json_struct));
             for i=1:1:length(json_struct)
                 cells = struct2cell(json_struct(i));
-                key_labels = {'flag','duration','instruction','data'};
+                key_labels = {'flag','duration','instruction','notes','data'};
                 json_seq{i} = containers.Map(key_labels,cells);         
             end  
-
+ 
             %return remaining human readabl fields (channels, units, name,
             %forever) to seq_meta
             seq_metadata.channels = json_total.channels;
@@ -805,7 +832,7 @@ classdef PulseStreamerMaster < Modules.Driver
             end
         end
         
-
+ 
     end
     
     methods
@@ -820,4 +847,5 @@ classdef PulseStreamerMaster < Modules.Driver
          end
     end
 end
+ 
 
