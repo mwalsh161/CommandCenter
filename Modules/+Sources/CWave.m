@@ -1166,14 +1166,12 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           end
 
           function tune_etalon(obj)
-              if obj.cwaveHandle.is_ready == true
-                  return
-              end
+%               if obj.cwaveHandle.is_ready == true
+%                   return
+%               end
               obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
-              %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.ThickEtalon_Piezo_hr,obj.EtalonStep); 
-              % obj.updateStatus;
-              %obj.is_cwaveReady(obj.EtalonStepperDelay,false,false);
           end
+
           
           function set_regopo(obj,val)
               obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,val);
