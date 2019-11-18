@@ -122,7 +122,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         cwaveHandle
     end
 
-    
     methods(Access=private)
         function obj = CWave()
             obj.loadPrefs;
@@ -308,7 +307,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                          & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
                                      regOPO4_cond =  regopo4_locked == true & obj.cwaveHandle.get_regopo == 4 & ...
                                          abs(setpoint-obj.getWavelength) > obj.midTuneTolerance;
-                                     regOPO2_cond =  robj.locked == true & obj.cwaveHandle.get_regopo == 2 & ... 
+                                     regOPO2_cond =  obj.locked == true & obj.cwaveHandle.get_regopo == 2 & ... 
                                          abs(setpoint-obj.getWavelength) > obj.midTuneTolerance;
                                      
                                      obj.updateStatus;
