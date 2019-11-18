@@ -18,6 +18,9 @@ classdef Galvo < Modules.Imaging
         ROI = [-3 3;-3 3];                      % voltage
         continuous = false;
     end
+    properties(Access=private)
+        counter_was_running = false;
+    end
     properties(SetAccess=immutable)
         galvos              % Handle to galvo controller
         counter             % Handle to counter driver
@@ -82,36 +85,65 @@ classdef Galvo < Modules.Imaging
             y = linspace(obj.ROI(2,1),obj.ROI(2,2),yres);
             obj.galvos.SetupScan(x,y,obj.dwell)
             if ~continuous
+                obj.counter_was_running = obj.counter.running;
+                if obj.counter_was_running
+                    % If this is a continuous run, this is handled in startVideo
+                    obj.counter.stop;
+                end
                 % If this is the same name as the modal figure already, it will replace it.
                 h = msgbox('To stop scan, press abort.','ImagingManager','help','modal');
                 h.KeyPressFcn='';  % Prevent esc from closing window
-                h.CloseRequestFcn = @(~,~)obj.galvos.AbortScan;
+                h.CloseRequestFcn = @(~,~)obj.abort;
                 % Repurpose the OKButton
-                button = findall(h,'tag','OKButton');
+                button = findobj(h,'tag','OKButton');
                 % This silently aborts. Autosave will execute. Callback to
                 % function that also throws error to avoid saving.
                 set(button,'tag','AbortButton','string','Abort',...
-                    'callback',@(~,~)obj.galvos.AbortScan)
+                    'callback',@(~,~)obj.abort)
                 drawnow;
             end
             obj.galvos.StartScan;
-            obj.galvos.StreamToImage(im)
+            try
+                obj.galvos.StreamToImage(im);
+            catch err
+            end
             if ~continuous
                 delete(h);
+                if obj.counter_was_running
+                    obj.counter.start;
+                end
+            end
+            if exist('err','var')
+                rethrow(err);
+            end
+        end
+        function abort(obj)
+            % Wrapper to make sure errors don't freeze window on screen
+            try
+                obj.galvos.AbortScan;
+            catch err
+                errordlg(getReport(err,'hyperlinks','off'));
             end
         end
         function startVideo(obj,im)
             obj.continuous = true;
+            obj.counter_was_running = obj.counter.running;
+            if obj.counter_was_running
+                obj.counter.stop;
+            end
             while obj.continuous
                 obj.snap(im,true)
             end
         end
         function stopVideo(obj)
+            obj.continuous = false;
             if isvalid(obj.galvos.taskPulseTrain) && ...
                 strcmp(obj.galvos.taskPulseTrain.status,'Started')
                 obj.galvos.AbortScan;
             end
-            obj.continuous = false;
+            if obj.counter_was_running
+                obj.counter.start;
+            end
         end
         
         % Settings and Callbacks
