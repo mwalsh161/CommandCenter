@@ -1347,7 +1347,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-         function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
+        function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
             
             obj.windupGuardmax = obj.EtaWindupGuardmax; 
             obj.windupGuardmin = obj.EtaWindupGuardmin;
@@ -1355,11 +1355,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             switch nargin
                 case 2
                     tolerance = 0.005;
-                    kp = 200; %was 500 on 11/6/19 noticed it has strong kick back sometimes when near edged of etalon.
+                    kp = 100; %was 500 on 11/6/19 noticed it has strong kick back sometimes when near edged of etalon.
                     ki = 100;
                     kd = 0;
                 case 3
-                    kp = 200; %was 500 on 11/6/19 noticed it has strong kick back sometimes
+                    kp = 100; %was 500 on 11/6/19 noticed it has strong kick back sometimes
                     ki = 100;
                     kd = 0;     
             end
@@ -1383,11 +1383,16 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             exit = false;
             while (abs(curr_error) > tolerance )
                 tic
-                obj.updateStatus;
-                obj.is_cwaveReady(0.1);
+                %obj.updateStatus;
+                obj.is_cwaveReady(0.01,false,false);
                 if obj.SHG_power < obj.cwaveHandle.SHG_MinPower
-                    while ( (exit == false) & (obj.SHG_power < obj.cwaveHandle.SHG_MinPower) )
-                        [wm_lambda_c,wmPower_c,wm_exptime_c, obj.SHG_power, abort, exit] = reset_hysteresis(obj.SHG_power);
+                    while ( ((exit == false) & (obj.SHG_power < obj.cwaveHandle.SHG_MinPower)) | curr_error < 0)
+                        pause(1)
+                        if (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower)
+                            [wm_lambda_c,wmPower_c,wm_exptime_c, obj.SHG_power, abort, exit] = reset_hysteresis(obj.SHG_power);
+                        else
+                            break
+                        end
                     end
                     curr_error = 2*tolerance; %arbitrary condidtion to start PID loop.
                     ctrl = 0;
@@ -1445,7 +1450,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                           Control(i) = obj.LocalMaxEtalon;
                       else
                           obj.cwaveHandle.tune_thick_etalon(ctrl);
-                          Control(i) = ctrl;
+                          Control(i) = round(ctrl);
                       end
                       dt = toc;
                    
@@ -1460,7 +1465,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  D_term(i) = d_term;  
             end
          end
-        
+
         function [ctrl,prev_error,int_error,p_term,i_term,d_term] = pid_update(obj, curr_error,prev_error, int_error, kp,ki,kd,dt)
  
             % integration
