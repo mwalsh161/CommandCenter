@@ -6,7 +6,7 @@ function TuneCoarse(obj,target)
 
 %   target = frequency in THz
 
-Pgain = 0.5; %gain on P for this P-only PID controller
+Pgain = 0.4; %gain on P for this P-only PID controller
 FineThresh = max(obj.wavemeter.resolution,obj.resolution);
 in_bound_flag = true;
 obj.locked = false; % Make sure to adjust if necessary before returning
@@ -63,6 +63,7 @@ try
             end
             rethrow(sub_err);
         end
+        pause(0.2); % Wait for motor to catch up
         freq(2) = obj.getFrequency;
         % "Logical beginning" of PID algorithm loop
         freq(1) = freq(1) + Pgain*(target - freq(2)); %take difference, use to set again
