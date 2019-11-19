@@ -97,6 +97,7 @@ classdef PowerSupply_invisible < Modules.Source
         function setSource_Mode(obj,val)
             obj.queryPowerSupply('setSourceMode', obj.Channel ,val);
             obj.SourceModes{obj.getHWIndex(obj.Channel)} = val;
+            obj.updateValues();
         end
         
         function setCurrent(obj,val)
@@ -188,7 +189,7 @@ classdef PowerSupply_invisible < Modules.Source
                 Current = obj.Currents(obj.getHWIndex(obj.Channel));
                 Voltage = obj.Voltages(obj.getHWIndex(obj.Channel));
             end
-            %% reassign their values
+            % reassign their values
             obj.Source_Mode = sourceMode;
             obj.Current = Current;
             obj.Voltage = Voltage;

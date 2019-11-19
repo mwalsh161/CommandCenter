@@ -8,7 +8,7 @@ classdef Yokogawa < Modules.Driver
         Dual_Polarity = true;
         Number_of_channels = 1;
         dev_id = 'Yokogawa';
-        pauseTime = 0.5; %time in seconds set to allow for power supply to set properties
+        pauseTime = 0.1; %time in seconds set to allow for power supply to set properties
     end
     
     methods(Static)

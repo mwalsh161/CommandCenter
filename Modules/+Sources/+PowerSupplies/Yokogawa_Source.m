@@ -1,5 +1,5 @@
 classdef Yokogawa_Source < Sources.PowerSupplies.PowerSupply_invisible
-    %Hewlett Packard MW source class
+    % Yokogawa power supply source
 
     properties(SetObservable,GetObservable,AbortSet)
         Com_Address = 'NONE'; % COM address prologix connection. Is 'NONE' if no connection is desired.
@@ -98,6 +98,63 @@ classdef Yokogawa_Source < Sources.PowerSupplies.PowerSupply_invisible
             obj.updateValues();
         end
         function arm(obj)
+        end
+        
+        % Overloading superclass methods
+        function setCurrent(obj,val)
+            if obj.Source_Mode == 'Voltage'
+                obj.queryPowerSupply('setCurrentLimit',obj.Channel,val);
+                obj.Currents(obj.getHWIndex(obj.Channel)) = val;
+            elseif obj.Source_Mode == 'Current'
+                obj.queryPowerSupply('setCurrent',obj.Channel,val);
+                obj.Currents(obj.getHWIndex(obj.Channel)) = val;
+            end
+        end
+        
+        function setVoltage(obj,val)
+            if obj.Source_Mode == 'Voltage'
+                obj.queryPowerSupply('setVoltage',obj.Channel,val);
+                obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
+            elseif obj.Source_Mode == 'Current'
+                obj.queryPowerSupply('setVoltageLimit',obj.Channel,val);
+            obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
+            end
+        end
+        
+        function val = getCurrent(obj, measure)
+            if nargin<2
+                measure = true;
+            end
+            if measure && obj.source_on
+                %if on return the actual current being output
+                val = obj.queryPowerSupply('measureCurrent',obj.Channel);
+            else
+                if obj.Source_Mode == 'Voltage'
+                    val = obj.queryPowerSupply('getCurrentLimit',obj.Channel);%if the source isn't on return the programmed values
+                    obj.Currents(obj.getHWIndex(obj.Channel)) = val;
+                elseif obj.Source_Mode == 'Current'
+                    val = obj.queryPowerSupply('getCurrent',obj.Channel);%if the source isn't on return the programmed values
+                    obj.Currents(obj.getHWIndex(obj.Channel)) = val;
+                end
+            end
+        end
+        
+        function val = getVoltage(obj, measure)
+            if nargin<2
+                measure = true;
+            end
+            if measure && obj.source_on
+                %if on return the actual voltage being output
+                val = obj.queryPowerSupply('measureVoltage',obj.Channel);
+            else
+                if obj.Source_Mode == 'Voltage'
+                    val = obj.queryPowerSupply('getVoltage',obj.Channel);%if the source isn't on return the programmed values
+                    obj.Voltages(obj.getHWIndex(obj.Channel)) = val;
+                elseif obj.Source_Mode == 'Current'
+                    val = obj.queryPowerSupply('getVoltageLimit',obj.Channel);%if the source isn't on return the programmed values
+                    obj.Currents(obj.getHWIndex(obj.Channel)) = val;
+                end
+            end
         end
     end
 
