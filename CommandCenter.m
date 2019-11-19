@@ -218,7 +218,7 @@ try
     set(textH,'String','Preparing GUI'); drawnow;
     set(textH,'String','Done.'); drawnow;
 catch err
-    close(loading_fig)
+    delete(loading_fig)
     delete(handles.inactivity_timer)
     delete(handles.logger)
     delete(hObject)
@@ -243,7 +243,7 @@ handles.output = [];
 
 % Update handles structure
 guidata(hObject, handles);
-close(loading_fig)
+delete(loading_fig)
 if strcmp(handles.inactivity_timer.Running,'off')
     % No modules are loaded on startup (otherwise settings called)
     start(handles.inactivity_timer);
