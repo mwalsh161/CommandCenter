@@ -34,9 +34,6 @@ classdef Wavemeter1Ch < Modules.Driver
     end
     methods(Static)
         function obj = instance(ip)
-%             if nargin < 3
-%                 interactive = true;
-%             end
             mlock;
             persistent Objects
             if isempty(Objects)
@@ -93,9 +90,6 @@ classdef Wavemeter1Ch < Modules.Driver
             end
         end
         function response = com(obj,funcname,varargin) %keep this
-%             if length(funcname) >= 2 && strcmpi(funcname(1:3),'set')
-%                 assert(~obj.readonly, 'Instantiated in readonly mode due to another instance using this channel.')
-%             end
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
         end
         function output = measure(obj,cmd)
