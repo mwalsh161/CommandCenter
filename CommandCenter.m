@@ -229,6 +229,17 @@ catch err
     rethrow(err)
 end
 
+% Backup MATLAB prefs file
+MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
+if exist(MATLAB_prefs,'file')
+    [msg,msgID] = copyfile(MATLAB_prefs,fullfile(path,'.matlabprefs.mat.backup'));
+    if ~isempty(msg)
+        warning(msgID,msg);
+    end
+else
+    warning('CC:pref_backup_failed','Unable to locate matlabprefs.mat, no backup was made.');
+end
+
 % Provide some useful pointers to ManagerContainer class
 exists = evalin('base','exist(''managers'')==1&&isa(managers,''Base.ManagerContainer'')&&isvalid(managers)');
 if exists
@@ -327,6 +338,17 @@ delete(hObject)
 if exist(fullfile(path,'dbquit.m'),'file') % Disable override
     delete(fullfile(path,'dbquit.m'));
 end
+% Backup MATLAB prefs file
+MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
+if exist(MATLAB_prefs,'file')
+    [msg,msgID] = copyfile(MATLAB_prefs,fullfile(path,'.matlabprefs.mat.backup'));
+    if ~isempty(msg)
+        warning(msgID,msg);
+    end
+else
+    warning('CC:pref_backup_failed','Unable to locate matlabprefs.mat, no backup was made.');
+end
+
 if exist(fullfile(path,'.lock'),'file')
     delete(fullfile(path,'.lock'));
 end
