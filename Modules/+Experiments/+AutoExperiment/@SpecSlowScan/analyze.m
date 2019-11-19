@@ -51,7 +51,8 @@ addParameter(p,'viewonly',false,@islogical);
 parse(p,varargin{:});
 
 prefs = data.meta.prefs;
-data = data.data;
+FullData = data;
+data = FullData.data;
 im = data.image.image;
 sites = data.sites(p.Results.inds);
 
@@ -60,6 +61,7 @@ fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
 uimenu(file_menu,'Text','Go to Index','callback',@go_to,'separator','on');
 uimenu(file_menu,'Text','Export Data','callback',@export_data);
+uimenu(file_menu,'Text','Diagnostic Plot','callback',@open_diagnostic);
 bg(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
 bg(2) = uipanel(fig,'units','normalized','position',[1/4 0 3/4 1],'BorderType','none');
 splitPan(1) = Base.SplitPanel(bg(1),bg(2),'horizontal');
@@ -136,6 +138,10 @@ update_all(); % Bypass changeSite since we have no previous site
 if nargout
     varargout = {fig};
 end
+
+    function open_diagnostic(varargin)
+        Experiments.AutoExperiment.SpecSlowScan.diagnostic(FullData,analysis);
+    end
 
     function export_data(varargin)
         if nargin < 1 || ~isa(fig,'matlab.ui.Figure')
@@ -357,7 +363,7 @@ end
             color = '';
         else
             hex = sprintf('#%02X%02X%02X',round(rgb*255));
-            color = sprintf('<html><font color="%s">&#11035;</font></html>',hex);
+            color = sprintf('<html><font color="%s">&#9724;</font></html>',hex);
         end
         date = datestr(experiment.tstart);
         if ~isempty(experiment.err)

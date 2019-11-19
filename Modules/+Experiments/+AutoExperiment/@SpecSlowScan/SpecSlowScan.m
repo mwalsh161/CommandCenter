@@ -46,6 +46,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             Objects(end+1) = obj;
         end
         varargout = analyze(data,varargin)
+        fig = diagnostic(data,analysis)
         regions = peakRegionBin(peaks,wids,ppp,scanDevs,maxRange)
         function [dx,dy,dz,metric] = Track(Imaging,Stage,track_thresh) 
             % Imaging = handle to active imaging module
