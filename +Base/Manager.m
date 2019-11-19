@@ -86,6 +86,11 @@ classdef Manager < handle
                 checked = 'off';
                 if fun_in_use([prefix module_str])
                     checked = 'on';
+                    if strcmp(parent_menu.Tag,'module') && ~startswith(parent_menu.Label,'<html>')
+                        % Make bold
+                        parent_menu.Label = sprintf('<html><font style="font-weight:bold">%s</font></html>',...
+                            parent_menu.Label);
+                    end
                 end
                 h = uimenu(parent_menu,'label',module_str,'checked',checked,...
                     'callback',fun_callback,'tag','module');
