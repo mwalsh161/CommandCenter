@@ -31,6 +31,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         PowerSupply = Modules.Source.empty(0,1); % Power supply source object
         keep_bias_on = false; % Boolean whether to keep bias on in between experiments
         VDD_VCO = 1; % Number representing VCO voltage (volts)
+        VDD_VCO_limit = 2.5; % Number representing VCO voltage (volts)
         VDD_Driver = 1; % Double representing river voltage (volts)
         Driver_Bias_1 = 1; % Double representing driver bias 1 (volts)
         Driver_Bias_2 = 1; % Double representing driver bias 2 (volts)
@@ -41,7 +42,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
     end
     properties
         prefs = {'MW_freqs_GHz','freq_multiplication','MW_freq_norm_GHz','MW_Power_dBm','Exposure_ms','averages','Laser',...
-                 'SignalGenerator','PowerSupply','keep_bias_on','VDD_VCO','VDD_Driver','Driver_Bias_1','Driver_Bias_2','APD_line','MW_Control_line','APD_Sync_line','ip','VDD_VCO_Channel','VDD_Driver_Channel','Driver_Bias_1_Channel','Driver_Bias_2_Channel'};
+                 'SignalGenerator','PowerSupply','keep_bias_on','VDD_VCO_limit','VDD_Driver','Driver_Bias_1','Driver_Bias_2','APD_line','MW_Control_line','APD_Sync_line','ip','VDD_VCO_Channel','VDD_Driver_Channel','Driver_Bias_1_Channel','Driver_Bias_2_Channel'};
         listeners
         isRunning
     end
@@ -111,7 +112,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
 
         % Set methods allow validating property/pref set values
         function set.MW_freqs_GHz(obj,val)
-            obj.freq_list = str2num(val)*1e9/obj.freq_multiplication;
+            obj.freq_list = str2num(val)*1e9;
             obj.MW_freqs_GHz = val;
         end
         
@@ -131,6 +132,7 @@ classdef CMOS_CW_ODMR < Modules.Experiment
         end
 
         function set.VDD_VCO(obj,val)
+            assert( val < obj.VDD_VCO_limit, 'Voltage too high!' )
             if ~isempty(obj.PowerSupply.Channel) % if channel is set
                 % Change power supply settings when changing bias voltage
                 obj.PowerSupply.Channel = obj.VDD_VCO_Channel;
