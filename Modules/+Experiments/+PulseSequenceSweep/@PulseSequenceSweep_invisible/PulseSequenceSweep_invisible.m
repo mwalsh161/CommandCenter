@@ -40,7 +40,6 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     properties(SetObservable,AbortSet)
         averages = 2;     % Number of times to perform entire sweep
         samples = 1000;   % Number of samples at each point in sweep
-        %pb_IP = 'None Set';
         NIDAQ_dev = 'None Set';
     end
     properties(GetObservable,SetObservable)
@@ -79,11 +78,9 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
                     obj.pbH = [];  %obj.pb_IP = val;
                 else
                     obj.pbH = eval(val); %#ok<*MCSUP> %modified 11/10/19
-                    %obj.pb_IP = val;
                 end
             catch err
                 obj.pbH = [];
-                %obj.pb_IP = 'None Set';
                 rethrow(err);
             end
         end
