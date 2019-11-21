@@ -140,7 +140,11 @@ if nargout
 end
 
     function open_diagnostic(varargin)
-        Experiments.AutoExperiment.SpecSlowScan.diagnostic(FullData,analysis);
+        try
+            Experiments.AutoExperiment.SpecSlowScan.diagnostic(FullData,analysis);
+        catch err
+            errordlg(getReport(err,'extended','hyperlinks','off'));
+        end
     end
 
     function export_data(varargin)
