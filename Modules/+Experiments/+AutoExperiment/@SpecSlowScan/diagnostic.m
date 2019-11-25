@@ -13,13 +13,11 @@ stops = [];
 n_peaks_found = [];
 median_open_spacing = []; % per "pixel"
 
+missing_spectrum_fits = []; % This is an error, because calculation of n above does not account for it.
 peak_counter = 1; % For per-peak data index
 site_counter = 1;
 for ii = 1:size(analysis,1)
     PL_locs = analysis(ii,1).locations;
-    if length(PL_locs) < 1
-        continue
-    end
     PL_locs_THz = data.meta.nm2THz(PL_locs);
     % Get completed/not skipped open scans
     msk = strcmp({data.data.sites(ii).experiments.name},'Experiments.SlowScan.Open') & ...
@@ -27,6 +25,12 @@ for ii = 1:size(analysis,1)
     exp_inds = find(msk);
     PLE_locs = analysis(ii,2).locations;
     n_peaks = length(PLE_locs);
+    if length(PL_locs) < 1
+        if sum(~isnan(PLE_locs)) > 0
+            missing_spectrum_fits(end+1) = ii;
+        end
+        continue
+    end
     for jj = 1:n_peaks
         if ~isnan(PLE_locs(jj))
             % Add to per-peak data while being careful if multiple PL_locs
@@ -78,6 +82,15 @@ for ii = 1:size(analysis,1)
         site_counter = site_counter + 1;
     end
 end
+if ~isempty(missing_spectrum_fits)
+    if length(missing_spectrum_fits) == 1
+        errordlg(sprintf('You are missing a spectrum fit on site %i.\nFix, and re-run.',missing_spectrum_fits),'Missing Fits')
+    else
+        list = num2str(missing_spectrum_fits,'%i, '); list = list(1:end-1); % Remove trailing ','
+        errordlg(sprintf('You are missing spectrum fits on sites: %s.\nFix, and re-run.',list),'Missing Fits')
+    end
+    return
+end
 percents(percents==0) = NaN;
 
 %% Refit
@@ -86,7 +99,7 @@ fit_type = fittype('a/(x-b)+c');
 options = fitoptions(fit_type);
 options.Start = [c,0,0];
 
-nm2THz = fit(freqs.open',freqs.spec',fit_type,options);
+nm2THz = fit(freqs.spec',freqs.open',fit_type,options);
 
 %% Plot
 fig = UseFigure(mfilename,'name',mfilename,'numbertitle','off','Visible','off',true);

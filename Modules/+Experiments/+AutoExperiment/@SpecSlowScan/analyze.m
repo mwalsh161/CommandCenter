@@ -140,6 +140,7 @@ if nargout
 end
 
     function open_diagnostic(varargin)
+        save_state();
         try
             Experiments.AutoExperiment.SpecSlowScan.diagnostic(FullData,analysis);
         catch err
