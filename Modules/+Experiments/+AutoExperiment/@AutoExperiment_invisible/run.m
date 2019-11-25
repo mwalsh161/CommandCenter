@@ -24,6 +24,10 @@ obj.imaging_source.arm; % Arm imaging source for experiment
 % Initialize with whatever data user chose
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
+    if ~isempty(obj.analysis)
+        status.String = 'Checking analysis file'; drawnow;
+        obj.primary_validate_analysis(); % Run experiment's validation
+    end
     % Tag all this data as not new by incrementing continued flag
     nsites = length(obj.data.sites);
     for i = 1:nsites
@@ -34,6 +38,7 @@ if obj.continue_experiment
         end
     end
 else % Start a new experiment
+    assert(isempty(obj.analysis),'Analysis loaded. Did you mean to continue an experiment?')
     obj.data = [];
     sites = obj.AcquireSites(managers);
     if obj.imaging_source.source_on
@@ -79,11 +84,18 @@ try
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
                 prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
-                if any(prev_mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed] &...
-                                        not([obj.data.sites(site_index).experiments(prev_mask).skipped]) &...
-                                        not([obj.data.sites(site_index).experiments(prev_mask).redo_requested]))
-                    % If there are any from last run, and all of them are
-                    % completed, not skipped, and have not requested a redo,
+                % Check redo flag for this site and this experiment
+                redo = false;
+                if ~isempty(obj.analysis)
+                    redo = obj.analysis(site_index,exp_index).redo;
+                    for j = find(prev_mask) % Update previous run's redo flag
+                        obj.data.sites(site_index).experiments(j).redo_requested = redo;
+                    end
+                end
+                if ~redo && (any(prev_mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed] &...
+                                               not([obj.data.sites(site_index).experiments(prev_mask).skipped])))
+                    % If no redo request and there are any from last run,
+                    % and all of them are completed and not skipped,
                     % then skip running again. Remember, any([]) == false
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue

@@ -1,6 +1,9 @@
-function fig = diagnostic(data,analysis)
+function [nm2THz, gof, fig] = diagnostic(data,sites)
+nm2THz = 0;
+gof = 0;
+fig = 0;
 % Per-peak data
-n = sum(~isnan([analysis(:,2).widths]));
+n = sum(~isnan([sites(:,2).widths]));
 percents = zeros(n,1);  % Second dim is for worse metrics
 freqs.open = NaN(1,n); % Open loop/PLE (THz)
 freqs.spec = NaN(1,n); % Spectrum/PL (nm)
@@ -16,14 +19,14 @@ median_open_spacing = []; % per "pixel"
 missing_spectrum_fits = []; % This is an error, because calculation of n above does not account for it.
 peak_counter = 1; % For per-peak data index
 site_counter = 1;
-for ii = 1:size(analysis,1)
-    PL_locs = analysis(ii,1).locations;
+for ii = 1:size(sites,1)
+    PL_locs = sites(ii,1).locations;
     PL_locs_THz = data.meta.nm2THz(PL_locs);
     % Get completed/not skipped open scans
     msk = strcmp({data.data.sites(ii).experiments.name},'Experiments.SlowScan.Open') & ...
             [data.data.sites(ii).experiments.completed] & ~[data.data.sites(ii).experiments.skipped];
     exp_inds = find(msk);
-    PLE_locs = analysis(ii,2).locations;
+    PLE_locs = sites(ii,2).locations;
     n_peaks = length(PLE_locs);
     if length(PL_locs) < 1
         if sum(~isnan(PLE_locs)) > 0
@@ -99,14 +102,10 @@ fit_type = fittype('a/(x-b)+c');
 options = fitoptions(fit_type);
 options.Start = [c,0,0];
 
-nm2THz = fit(freqs.spec',freqs.open',fit_type,options);
+[nm2THz,gof] = fit(freqs.spec',freqs.open',fit_type,options);
 
 %% Plot
 fig = UseFigure(mfilename,'name',mfilename,'numbertitle','off','Visible','off',true);
-file_menu = findobj(fig,'tag','figMenuFile');
-if ~isempty(file_menu)
-    uimenu(file_menu,'Text','Export Data','callback',@export_data,'separator','on');
-end
 
 ax = subplot(1,3,1,'parent',fig);
 ax(2) = subplot(1,3,2,'parent',fig);
@@ -133,37 +132,13 @@ histogram(ax(2),percents(:,1));
 set(ax(2),'xlim',[0, 100])
 xlabel(ax(2),'Percentage of Peak (%)')
 
-histogram(ax(3),[analysis(:,2).widths]*1000*1000); hold(ax(3),'on');
-histogram(ax(3),[analysis(:,3).widths]*1000*1000);
+histogram(ax(3),[sites(:,2).widths]*1000*1000); hold(ax(3),'on');
+histogram(ax(3),[sites(:,3).widths]*1000*1000);
 plot(ax(3),[0 0]+median(median_open_spacing)*1000*1000,get(ax(3),'ylim'),'--k');
 legend(ax(3),{'Open (coarse)','Closed','Median Step Size in Open'})
 xlabel(ax(3),'Peak Widths (MHz)')
 
 fig.Visible = 'on';
 
-    function export_data(varargin)
-        if ~isempty(nm2THz)
-            var_name = 'nm2THz';
-            i = 1;
-            while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
-                i = i + 1;
-                var_name = sprintf('nm2THz%i',i);
-            end
-            if i > 1
-                answer = questdlg(sprintf('Would you like to export "%s" data to workspace as new variable "%s" or overwrite existing "%s"?',...
-                    'nm2THz',var_name,'nm2THz'),'Export','Overwrite','New Variable','No','Overwrite');
-                if strcmp(answer,'Overwrite')
-                    answer = 'Yes';
-                    var_name = 'nm2THz';
-                end
-            else
-                answer = questdlg(sprintf('Would you like to export "%s" data to workspace as new variable "%s"?','nm2THz',var_name),...
-                    'Export','Yes','No','Yes');
-            end
-            if strcmp(answer,'Yes')
-                assignin('base',var_name,nm2THz)
-            end
-        end
-    end
 end
 
