@@ -186,9 +186,12 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         function PreRun(obj,status,managers,ax)
             %before running, calibrate spectrometer and check resLaser
             status.String = 'Checking spectrometer and resLaser'; drawnow;
+            assert(~isempty(obj.experiments(2).repumpLaser),'SlowScan.Open needs a repump laser defined!');
+            assert(~isempty(obj.experiments(3).repumpLaser),'SlowScan.Closed needs a repump laser defined!');
+            assert(~isempty(obj.experiments(2).resLaser),'SlowScan.Open needs a resonant laser defined!');
+            assert(~isempty(obj.experiments(3).resLaser),'SlowScan.Closed needs a resonant laser defined!');
             specH = obj.experiments(1).WinSpec;
             laserH = obj.experiments(2).resLaser;
-            assert(~isempty(laserH),'No laser selected for SlowScan experiment(s)!');
             assert(isequal(laserH,obj.experiments(3).resLaser),...
                 'Currently, SpecSlowScan only supports using the same resLaser for SlowScan.Open and SlowScan.Closed.');
             laserH.arm; % Go through arming now to make sure things are set at the beginning (e.g. calibration if it exists)
