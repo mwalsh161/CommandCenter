@@ -363,7 +363,7 @@ classdef WinSpec < Modules.Driver
         end
         function set_calibration(obj,cfit_obj,gof)
             assert(isa(cfit_obj,'cfit'),...
-                    sprintf('analysis.nm2THz should be a cfit, not "%s"',class(obj.analysis.nm2THz)));
+                    sprintf('analysis.nm2THz should be a cfit, not "%s"',class(cfit_obj)));
             obj.cal_local.nm2THz = cfit_obj;
             obj.cal_local.gof = gof;
             obj.cal_local.datetime = datetime;

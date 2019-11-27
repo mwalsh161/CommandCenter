@@ -175,7 +175,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             sites = Experiments.AutoExperiment.AutoExperiment_invisible.SiteFinder_Confocal(managers,obj.imaging_source,obj.site_selection);
         end
         function validate_analysis(obj)
-            for i = 1:n_data_sites
+            for i = 1:size(obj.analysis.sites,1)
                 for j = 1:3 % The 3 is for n experiments, which was validated in superclass
                     assert(isnan(obj.analysis.sites(i,j).index) || (obj.analysis.sites(i,j).index == i),...
                         ['At least one analysis index does not reference its position (also corresponding to data position). ',...
