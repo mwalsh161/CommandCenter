@@ -65,6 +65,7 @@ if strcmp(hObject.Visible,'on')
     % Means it already exists, so do nothing
     return
 end
+MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
 [path,~,~] = fileparts(mfilename('fullpath'));
 % Check for lock file
@@ -81,7 +82,31 @@ end
 loading_fig = [];
 handles.logger = [];
 handles.inactivity_timer = [];
-try 
+try
+    % Check integrity of pref file
+    try
+        getpref();
+    catch err
+        if strcmp(err.identifier,'MATLAB:load:notBinaryFile') && exist(fullfile(path,'.matlabprefs.mat.backup'),'file')
+            backup = dir(fullfile(path,'.matlabprefs.mat.backup'));
+            original = dir(MATLAB_prefs);
+            backup_info = sprintf('%s (%i B) %s',backup.date,backup.bytes,fullfile(backup.folder,backup.name));
+            original_info = sprintf('%s (%i B) %s',original.date,original.bytes,fullfile(original.folder,original.name));
+            resp = questdlg(sprintf(['Error loading MATLAB''s pref file. May have been corrupted on a force quit. ' ...
+                'A backup file was found, would you like to restore it?\n\nBackup: %s\n\nOriginal: %s'],...
+                backup_info,original_info),mfilename,'Yes','Cancel','Yes');
+            if strcmp(resp,'Yes')
+                [msg,msgID] = copyfile(fullfile(path,'.matlabprefs.mat.backup'),MATLAB_prefs);
+                if ~isempty(msg)
+                    error(msgID,msg);
+                end
+            else
+                error('COMMANDCENTER:prefs_corrupted','Cannot continue with corrupted pref file.')
+            end
+        else
+            rethrow(err);
+        end
+    end
     % Parse inputs
     assert(all(cellfun(@ischar,varargin)),'All inputs provided to CommandCenter must be strings')
     [debug,varargin] = parseInput(varargin,'debug');
@@ -230,7 +255,6 @@ catch err
 end
 
 % Backup MATLAB prefs file
-MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
 if exist(MATLAB_prefs,'file')
     [msg,msgID] = copyfile(MATLAB_prefs,fullfile(path,'.matlabprefs.mat.backup'));
     if ~isempty(msg)
