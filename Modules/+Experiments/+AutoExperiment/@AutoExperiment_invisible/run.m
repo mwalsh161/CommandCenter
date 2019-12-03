@@ -1,8 +1,9 @@
 function run(obj,status,managers,ax)
 obj.abort_request = false;
 obj.fatal_flag = false;
+nexps = length(obj.experiments);
 assert(all(cellfun(@ischar,obj.patch_functions)),'One or more patch function is not a valid handle.');
-assert(length(obj.patch_functions) == length(obj.experiments),'Number of patch functions does not match number of experiments.')
+assert(length(obj.patch_functions) == nexps,'Number of patch functions does not match number of experiments.')
 assert(~isempty(obj.imaging_source),'No imaging source selected, please select one and re-run.')
 
 if isempty(managers.Imaging.modules) || isempty(managers.Stages.modules)
@@ -56,9 +57,9 @@ end
 nsites = length(obj.data.sites);
 switch obj.run_type
     case obj.SITES_FIRST
-        [Y,X] = meshgrid(1:length(obj.experiments),1:nsites);
+        [Y,X] = meshgrid(1:nexps,1:nsites);
     case obj.EXPERIMENTS_FIRST
-        [X,Y] = meshgrid(1:nsites,1:length(obj.experiments));
+        [X,Y] = meshgrid(1:nsites,1:nexps);
     otherwise
         error('Unknown run_type %s',obj.run_type)
 end
@@ -74,12 +75,12 @@ err = [];
 try
     for repetition = 1:obj.repeat
         for i=1:size(run_queue,1)
-            status.String = 'Searching for next experiment to run...';
             try
-                drawnow limitrate;
-                assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
+                status.String = sprintf('Searching for next experiment to run\nSite: %i/%i\nExperiment: %i/%i)...',site_index,nsites,exp_index,nexps);
+                drawnow limitrate;
+                assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
