@@ -87,7 +87,7 @@ try
                 % Check redo flag for this site and this experiment
                 redo = false;
                 if ~isempty(obj.analysis)
-                    redo = obj.analysis(site_index,exp_index).redo;
+                    redo = obj.analysis.sites(site_index,exp_index).redo;
                     for j = find(prev_mask) % Update previous run's redo flag
                         obj.data.sites(site_index).experiments(j).redo_requested = redo;
                     end
