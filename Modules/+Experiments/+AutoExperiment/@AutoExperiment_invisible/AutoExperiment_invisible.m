@@ -294,7 +294,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 if ~isfield(dat.sites,'redo')
                     error('The struct "sites" should have a "redo" field.');
                 end
-                if ~isstruct(dat.(names{1})) || size(dat.(names{1}),2) ~= length(obj.experiments)
+                if ~isstruct(dat.sites) || size(dat.sites,2) ~= length(obj.experiments)
                     error('Loaded variable from file should be an Nx%i struct.',length(obj.experiments));
                 end
                 obj.analysis = dat;

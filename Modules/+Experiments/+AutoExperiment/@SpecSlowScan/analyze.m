@@ -133,6 +133,15 @@ if isstruct(p.Results.Analysis)
         new_data = true;
         warning('Added redo flag to loaded analysis.')
     end
+    if ~isfield(analysis.sites,'ignore')
+        for isite = 1:size(analysis,1)
+            for jexp = 1:size(analysis,2)
+                analysis.sites(isite,jexp).ignore = [];
+            end
+        end
+        new_data = true;
+        warning('Added ignore flag to loaded analysis.')
+    end
 else
     analysis.nm2THz = [];
     analysis.gof = [];
