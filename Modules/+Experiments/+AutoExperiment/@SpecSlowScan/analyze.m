@@ -24,7 +24,7 @@ function varargout = analyze(data,varargin)
 %       location (and corresponding guess value).
 %       ctl+arrows allow fine control.
 %       [Shift+] Tab changes selected point
-%   Analysis data is stored in figure.UserData.analysis as follows:
+%   Analysis data:
 %     N×3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
 %       amplitudes - Nx1 double
 %       widths - Nx1 double (all FWHM)
@@ -32,16 +32,12 @@ function varargout = analyze(data,varargin)
 %       background - 1x1 double
 %       fit - cfit object or empty if no peaks found
 %       index - index into data.sites. If NaN, this wasn't analyzed
-%   Can export from file menu
+%   Can export/save from file menu
 %   Will be prompted to export analysis data to base workspace upon closing
 %   figure if no export since last analysis data update_all (NOTE this is only
 %   saved when switching sites).
 %       This will not overwrite previously exported data sets unless
 %       specified.
-%
-%   *NOTE*: sites is also (optionally) exported. If you loaded this from a
-%   file, you will need to re-insert the sites field in at the right spot!!
-%       Can be useful for updating the redo_requested flag
 
 p = inputParser();
 addParameter(p,'Analysis',[],@isstruct);
@@ -60,7 +56,8 @@ fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(gcf,'tag','figMenuFile');
 uimenu(file_menu,'Text','Go to Index','callback',@go_to,'separator','on');
-uimenu(file_menu,'Text','Export Data','callback',@export_data);
+uimenu(file_menu,'Text','Save Analysis','callback',@save_data);
+uimenu(file_menu,'Text','Export Analysis','callback',@export_data);
 uimenu(file_menu,'Text','Diagnostic Plot','callback',@open_diagnostic);
 bg(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
 bg(2) = uipanel(fig,'units','normalized','position',[1/4 0 3/4 1],'BorderType','none');
@@ -113,23 +110,42 @@ AmplitudeSensitivity = 1;
 update_exp = {@update_spec, @update_open, @update_closed}; % Easily index by exp_id
 colors = lines;
 
+% Frequently updated and small stuff here
+site_index = 1;
+busy = false;
+new_data = false;
 if isstruct(p.Results.Analysis)
     analysis = p.Results.Analysis;
+    % Backwards compatibility
+    if ~isfield(analysis,'sites')
+        analysis = struct('sites',analysis);
+        analysis.nm2THz = [];
+        analysis.gof = [];
+        warning('Found old format of analysis; updated to new format.')
+        new_data = true;
+    end
+    if ~isfield(analysis.sites,'redo')
+        for isite = 1:size(analysis,1)
+            for jexp = 1:size(analysis,2)
+                analysis.sites(isite,jexp).redo = false;
+            end
+        end
+        new_data = true;
+        warning('Added redo flag to loaded analysis.')
+    end
 else
-    analysis = struct(...
+    analysis.nm2THz = [];
+    analysis.gof = [];
+    analysis.sites = struct(...
         'fit',cell(n,3),...
         'amplitudes',NaN,...
         'widths',NaN,...
         'locations',NaN,...
         'background',NaN,...
         'index',NaN,... % Index into sites
+        'redo',false,...
         'ignore',[]);     % indices of experiments in the fit
 end
-
-% Frequently updated and small stuff here
-site_index = 1;
-busy = false;
-new_data = false;
 
 % Link UI control
 set([fig, selector],'KeyPressFcn',@cycleSite);
@@ -142,7 +158,15 @@ end
     function open_diagnostic(varargin)
         save_state();
         try
-            Experiments.AutoExperiment.SpecSlowScan.diagnostic(FullData,analysis);
+            [nm2THz,gof] = Experiments.AutoExperiment.SpecSlowScan.diagnostic(FullData,analysis.sites);
+            if ~isequal(nm2THz,0)
+                answer = questdlg('New winspec calibration fit using analyzed peaks in data; add to analysis?','WinSpec Calibration Fit','Yes','No','Yes');
+                if strcmp(answer,'Yes')
+                    analysis.nm2THz = nm2THz;
+                    analysis.gof = gof;
+                    new_data = true;
+                end
+            end
         catch err
             errordlg(getReport(err,'extended','hyperlinks','off'));
         end
@@ -153,32 +177,45 @@ end
             [~,fig] = gcbo;
         end
         save_state();
-        to_save = {'analysis','sites'};
-        for j = 1:2
-            if ~isempty(eval(to_save{j}))
-                var_name = to_save{j};
-                i = 1;
-                while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
-                    i = i + 1;
-                    var_name = sprintf('%s%i',to_save{j},i);
+        if ~isempty(analysis)
+            var_name = 'analysis';
+            i = 1;
+            while evalin('base', sprintf('exist(''%s'',''var'') == 1',var_name))
+                i = i + 1;
+                var_name = sprintf('%s%i','analysis',i);
+            end
+            if i > 1
+                answer = questdlg(sprintf('Would you like to export "analysis" data to workspace as new variable "%s" or overwrite existing "analysis"?',...
+                    var_name),'Export','Overwrite','New Variable','No','Overwrite');
+                if strcmp(answer,'Overwrite')
+                    answer = 'Yes';
+                    var_name = 'analysis';
                 end
-                if i > 1
-                    answer = questdlg(sprintf('Would you like to export "%s" data to workspace as new variable "%s" or overwrite existing "%s"?',...
-                        to_save{j},var_name,to_save{j}),'Export','Overwrite','New Variable','No','Overwrite');
-                    if strcmp(answer,'Overwrite')
-                        answer = 'Yes';
-                        var_name = to_save{j};
-                    end
-                else
-                    answer = questdlg(sprintf('Would you like to export "%s" data to workspace as new variable "%s"?',to_save{j},var_name),...
-                        'Export','Yes','No','Yes');
-                end
-                if strcmp(answer,'Yes')
-                    assignin('base',var_name,eval(to_save{j}))
-                end
+            else
+                answer = questdlg(sprintf('Would you like to export "analysis" data to workspace as new variable "%s"?',var_name),...
+                    'Export','Yes','No','Yes');
+            end
+            if strcmp(answer,'Yes')
+                assignin('base',var_name,analysis)
             end
         end
         new_data = false;
+    end
+    function save_data(varargin)
+        pref = [strrep(mfilename('class'),'.','_') '_analyze'];
+        last = '';
+        if ispref(pref,'last_save')
+            last = getpref(pref,'last_save');
+        end
+        [file,path] = uiputfile('*.mat','Save Analysis',last);
+        if ~isequal(file,0)
+            setpref(pref,'last_save',path);
+            [~,~,ext] = fileparts(file);
+            if isempty(ext) % Add extension if not specified
+                file = [file '.mat'];
+            end
+            save(fullfile(path,file),'-struct','analysis');
+        end
     end
 
     function closereq(~,~)
@@ -264,7 +301,7 @@ end
         exp_inds = fliplr(find(strcmp('Experiments.Spectrum',{site.experiments.name})));
         for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data) && ~any(i == analysis(site_index,1).ignore)
+            if ~isempty(experiment.data) && ~any(i == analysis.sites(site_index,1).ignore)
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
                 plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra','color',colors(i,:));
@@ -277,7 +314,7 @@ end
         ax(2).XLabel.String = 'Wavelength (nm)';
         ax(2).YLabel.String = 'Intensity (a.u.)';
         if ~viewonly && ~isempty(findall(ax(2),'type','line'))
-            attach_uifitpeaks(ax(2),analysis(site_index,1),...
+            attach_uifitpeaks(ax(2),analysis.sites(site_index,1),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
         end
         catch err
@@ -287,7 +324,7 @@ end
         busy = false;
     end
     function update_open()
-        % Update PLE open (analysis(:,2), selector(2), ax(3))
+        % Update PLE open (analysis.sites(:,2), selector(2), ax(3))
         if busy; error('Busy!'); end
         busy = true;
         try
@@ -298,7 +335,7 @@ end
         j = 1; % Loop counter (e.g. index into set_points)
         for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data) &&  ~any(i == analysis(site_index,2).ignore)
+            if ~isempty(experiment.data) &&  ~any(i == analysis.sites(site_index,2).ignore)
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
@@ -321,7 +358,7 @@ end
         ax(3).XLabel.String = 'Frequency (THz)';
         ax(3).YLabel.String = 'Counts';
         if ~viewonly && ~isempty(findall(ax(3),'type','line'))
-            attach_uifitpeaks(ax(3),analysis(site_index,2),...
+            attach_uifitpeaks(ax(3),analysis.sites(site_index,2),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
         end
         catch err
@@ -331,7 +368,7 @@ end
         busy = false;
     end
     function update_closed()
-        % Update PLE closed (analysis(:,3), selector(3), ax(4))
+        % Update PLE closed (analysis.sites(:,3), selector(3), ax(4))
         if busy; error('Busy!'); end
         busy = true;
         try
@@ -340,7 +377,7 @@ end
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name})));
         for i = exp_inds
             experiment = site.experiments(i);
-            if ~isempty(experiment.data) &&  ~any(i == analysis(site_index,3).ignore)
+            if ~isempty(experiment.data) &&  ~any(i == analysis.sites(site_index,3).ignore)
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
@@ -354,7 +391,7 @@ end
         ax(4).XLabel.String = 'Frequency (THz)';
         ax(4).YLabel.String = 'Counts';
         if ~viewonly && ~isempty(findall(ax(4),'type','line'))
-            attach_uifitpeaks(ax(4),analysis(site_index,3),...
+            attach_uifitpeaks(ax(4),analysis.sites(site_index,3),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
         end
         catch err
@@ -382,7 +419,7 @@ end
             duration = char(experiment.tstop - experiment.tstart);
         end
         displayed = false;
-        if ~any(i==analysis(site_ind,exp_ind).ignore)
+        if ~any(i==analysis.sites(site_ind,exp_ind).ignore)
             displayed = true;
         end
         selectorH.Data(end+1,:) = {displayed,color, i,...
@@ -430,11 +467,11 @@ end
                 end
                 exp_ind = hObj.Data{eventdata.Indices(1),3};
                 exp_type = hObj.UserData;
-                mask = analysis(site_index,exp_type).ignore==exp_ind;
+                mask = analysis.sites(site_index,exp_type).ignore==exp_ind;
                 if any(mask) % Remove it
-                    analysis(site_index,exp_type).ignore(mask) = [];
+                    analysis.sites(site_index,exp_type).ignore(mask) = [];
                 else % Add it
-                    analysis(site_index,exp_type).ignore(end+1) = exp_ind;
+                    analysis.sites(site_index,exp_type).ignore(end+1) = exp_ind;
                 end
                 update_exp{exp_type}();
             case 6 % Redo Request (no need to update_all)
@@ -445,46 +482,46 @@ end
                     errordlg('You can only toggle the most recent experiment.',mfilename);
                     % Toggle back
                     hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
-                else % Maybe this should go in save_state
-                    exp_ind = hObj.Data{eventdata.Indices(1),3};
-                    sites(site_index).experiments(exp_ind).redo_requested = hObj.Data{eventdata.Indices(1),6};
                 end
         end
     end
 %% UIfitpeaks adaptor
     function save_state()
         for i = 2:4 % Go through each data axis
+            % Get redo flag for most recent
+            most_recent = min([selector(i-1).Data{:,5}]) == [selector(i-1).Data{:,5}];
+            analysis.sites(site_index,i-1).redo = any([selector(i-1).Data{most_recent,6}]);
             if ~isstruct(ax(i).UserData) || ~isfield(ax(i).UserData,'uifitpeaks_enabled')
-                analysis(site_index,i-1).fit = [];
-                analysis(site_index,i-1).amplitudes = NaN;
-                analysis(site_index,i-1).locations = NaN;
-                analysis(site_index,i-1).widths = NaN;
-                analysis(site_index,i-1).background = NaN;
-                analysis(site_index,i-1).index = NaN;
-                % Uses can stay
+                analysis.sites(site_index,i-1).fit = [];
+                analysis.sites(site_index,i-1).amplitudes = NaN;
+                analysis.sites(site_index,i-1).locations = NaN;
+                analysis.sites(site_index,i-1).widths = NaN;
+                analysis.sites(site_index,i-1).background = NaN;
+                analysis.sites(site_index,i-1).index = NaN;
+                % "uses" and "redo" can stay untouched
                 continue
             end
             fit_result = ax(i).UserData.pFit.UserData;
             new_data = true;
-            analysis(site_index,i-1).index = inds(site_index);
+            analysis.sites(site_index,i-1).index = inds(site_index);
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
                 nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
-                analysis(site_index,i-1).fit = fit_result;
-                analysis(site_index,i-1).amplitudes = fitcoeffs(1:nn);
-                analysis(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
+                analysis.sites(site_index,i-1).fit = fit_result;
+                analysis.sites(site_index,i-1).amplitudes = fitcoeffs(1:nn);
+                analysis.sites(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
-                    analysis(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
+                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
                 else
-                    analysis(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
                 end
-                analysis(site_index,i-1).background = fitcoeffs(3*nn+1);
+                analysis.sites(site_index,i-1).background = fitcoeffs(3*nn+1);
             else
-                analysis(site_index,i-1).fit = [];
-                analysis(site_index,i-1).amplitudes = [];
-                analysis(site_index,i-1).locations = [];
-                analysis(site_index,i-1).widths = [];
-                analysis(site_index,i-1).background = [];
+                analysis.sites(site_index,i-1).fit = [];
+                analysis.sites(site_index,i-1).amplitudes = [];
+                analysis.sites(site_index,i-1).locations = [];
+                analysis.sites(site_index,i-1).widths = [];
+                analysis.sites(site_index,i-1).background = [];
             end
         end
     end
