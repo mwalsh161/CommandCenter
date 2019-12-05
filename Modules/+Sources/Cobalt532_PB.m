@@ -34,6 +34,14 @@ classdef Cobalt532_PB < Modules.Source
         end
     end
     methods
+        function task = inactive(obj)
+            try % If PB or line is incorrect, just eat that error
+                obj.off;
+                task = 'Turned PB line off';
+            catch
+                task = 'Attempted to turn PB line off; FAILED';
+            end
+        end
         function arm(obj)
             % Will add control in future
         end
