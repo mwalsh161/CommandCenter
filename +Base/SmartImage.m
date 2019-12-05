@@ -284,7 +284,7 @@ classdef SmartImage < handle
         function popout(obj,varargin)
             % handle saving (need to get DBManager)
             [~,fig] = gcbo;
-            managers = fig.UserData;
+            managers = fig.UserData.Managers;
             % Need to move handles to new object
             newFig = figure('numbertitle','off','HandleVisibility','off');
             set(newFig,'name',sprintf('SmartImage %i',newFig.Number))
