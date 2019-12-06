@@ -25,7 +25,7 @@ function varargout = analyze(data,varargin)
 %       ctl+arrows allow fine control.
 %       [Shift+] Tab changes selected point
 %   Analysis data:
-%     N×3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
+%     Nï¿½3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
 %       amplitudes - Nx1 double
 %       widths - Nx1 double (all FWHM)
 %       locations - Nx1 double
@@ -491,6 +491,17 @@ end
                     errordlg('You can only toggle the most recent experiment.',mfilename);
                     % Toggle back
                     hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
+                elseif hObj.Data{eventdata.Indices(1),8} % skipped
+                    errordlg('No need to redo a skipped experiment; will be redone automatically.',mfilename);
+                    % Toggle back
+                    hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
+                elseif  hObj.Data{eventdata.Indices(1),10} % errored
+                    errordlg('No need to redo an experiment that errored; will be redone automatically.',mfilename);
+                    % Toggle back
+                    hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
+                elseif sum([hObj.Data{[hObj.Data{:,5}] == most_recent,6}]) > 1 && hObj.Data{eventdata.Indices(1),6}
+                    warndlg(['No need to select redo for more than one of this experiment type.' newline newline ...
+                              'The parameters determining how many are necessary to redo are recalculated or taken from the analysis file in the appropriate patch function.'],mfilename);
                 end
         end
     end
