@@ -78,7 +78,7 @@ try
             try
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
-                status.String = sprintf('Searching for next experiment to run\nSite: %i/%i\nExperiment: %i/%i)...',site_index,nsites,exp_index,nexps);
+                status.String = sprintf('Searching for next experiment to run\nSite: %i/%i\nExperiment: %i/%i...',site_index,nsites,exp_index,nexps);
                 drawnow limitrate;
                 assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 experiment = obj.experiments(exp_index); %grab experiment instance
