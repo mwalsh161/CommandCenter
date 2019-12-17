@@ -11,6 +11,7 @@ classdef ModuleInstance < Base.pref
     properties % Settings
         % Superclasses required for these modules as cell array of char vectors
         inherits = {{}, @(a)true};
+        ignore_inherits_on_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % Number of allowed instances simultaneously (n > 0)
         n = {1, @(a)validateattributes(a,{'numeric'},{'scalar','positive'})};
         % Value displayed for empty option
@@ -53,6 +54,9 @@ classdef ModuleInstance < Base.pref
                 sz = num2str(size(val),'%ix'); sz(end) = []; % Remove trailing x
                 error('MODULE:too_many','%s "%s" exceeds the maximum allowed instances of %i.',...
                     sz, class(val), obj.n)
+            end
+            if obj.ignore_inherits_on_empty && isempty(val)
+                return
             end
             supers = [{class(val)}; superclasses(val)];  % class(val) in case of empty placeholder
             if ~all(ismember(obj.inherits, supers))

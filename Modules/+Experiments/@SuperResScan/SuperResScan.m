@@ -5,19 +5,19 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
     %   manager)
 
     properties(SetObservable,GetObservable)
-        resLaser = Prefs.ModuleInstance('inherits',{'Modules.Source.empty','Sources.TunableLaser_invisible'});
-        repumpLaser = Prefs.ModuleInstance('inherits',{'Modules.Source.empty'});
+        resLaser = Prefs.ModuleInstance(Modules.Source.empty,'inherits',{'Sources.TunableLaser_invisible'});
+        repumpLaser = Prefs.ModuleInstance(Modules.Source.empty,'inherits',{'Modules.Source'});
         APD_line = Prefs.Integer(1,'min',1,'help_text','PulseBlaster line that gates APD. Indexed from 1');
         repump_time = Prefs.Double(1,'units','us','help_text','Time spent repumping emitter');
         res_offset = Prefs.Double(0.1,'units','us','help_text','Time spent resonantly addressing and reading out emitter');
         res_time = Prefs.Double(0.1,'units','us','help_text','Time spent resonantly addressing and reading out emitter');
-        x_points = Prefs.String('[]','units','um','help_text','Valid MATLAB expression evaluating to list of x points to scan.','set','set_points');
-        y_points = Prefs.String('[]','units','um','help_text','Valid MATLAB expression evaluating to list of y points to scan.','set','set_points');
+        x_points = Prefs.String('0','units','um','help_text','Valid MATLAB expression evaluating to list of x points to scan.','set','set_points');
+        y_points = Prefs.String('0','units','um','help_text','Valid MATLAB expression evaluating to list of y points to scan.','set','set_points');
         frequency = Prefs.Double(470.5,'units','THz','help_text','Resonant frequency to park resLaser at for scan.')
     end
     properties
-        x = []; % x positions
-        y = []; % y positions
+        x = 0; % x positions
+        y = 0; % y positions
         sequence; %for keeping same sequence from step to step
     end
     properties(Constant)

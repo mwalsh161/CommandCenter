@@ -37,7 +37,7 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     properties
         prefs = {'averages','samples','pb_IP','NIDAQ_dev'};
     end
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,GetObservable)
         averages = Prefs.Integer(1,'min',1,'help_text','Number of times to perform entire sweep');
         samples = Prefs.Integer(1000,'min',1,'help_text','Number of samples at each point in sweep');
         pb_IP = Prefs.String('None Set','set','set_pb_IP','help_text','Hostname for computer running pulseblaster server');
