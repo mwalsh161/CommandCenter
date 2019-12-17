@@ -13,6 +13,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
         res_time = Prefs.Double(0.1,'units','us','help_text','Time spent resonantly addressing and reading out emitter');
         x_points = Prefs.String('[]','units','um','help_text','Valid MATLAB expression evaluating to list of x points to scan.','set','set_points');
         y_points = Prefs.String('[]','units','um','help_text','Valid MATLAB expression evaluating to list of y points to scan.','set','set_points');
+        frequency = Prefs.Double(470.5,'units','THz','help_text','Resonant frequency to park resLaser at for scan.')
     end
     properties
         x = []; % x positions
@@ -35,7 +36,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
     end
     methods(Access=private)
         function obj = SuperResScan()
-            obj.prefs = [{'x_points','y_points'},obj.prefs,{'resLaser','repumpLaser','APD_line','repump_time','res_time','res_offset'}];
+            obj.prefs = [{'frequency','x_points','y_points'},obj.prefs,{'resLaser','repumpLaser','APD_line','repump_time','res_time','res_offset'}];
             obj.path = 'APD1';
             % Constructor (should not be accessible to command line!)
             obj.loadPrefs; % Load prefs specified as obj.prefs
@@ -45,6 +46,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
     methods
         function PreRun(obj,~,managers,ax)
             obj.stageManager = obj.managers.Stages;
+            obj.resLaser.TuneSetpoint(obj.frequency);
         end
         function UpdateRun(obj,~,~,ax,average,xInd,yInd)
             
