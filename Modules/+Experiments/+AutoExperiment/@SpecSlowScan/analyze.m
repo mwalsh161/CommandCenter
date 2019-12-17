@@ -225,6 +225,7 @@ end
             end
             save(fullfile(path,file),'-struct','analysis');
         end
+        new_data = false;
     end
 
     function closereq(~,~)
