@@ -15,6 +15,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help_text','how many points per std for SlowScanClosed');
         StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help_text','how wide of a bin around peaks for SlowScanClosed');
         ROI_Size = Prefs.Double(2,'units','um','allow_nan',false,'help_text','Symmetric box size (width and height) for super res scans around emitter');
+        ROI_points = Prefs.Integer(50,'units','px','allow_nan',false,'help_text','Symmetric pixel count (width and height) for super res scans. Will determine resolution.')
     end
     properties
         patch_functions = {'','Spec2Open','Open2Closed','Closed2SuperRes'};
@@ -201,8 +202,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             end
             pos = obj.data(site).position;
             for i = 1:length(scanfit.locations)
-                params(end+1).x_points = pos(1) + [0 0] + 0.5*obj.ROI_Size;
-                params(end).y_points = pos(2) + [0 0] + 0.5*obj.ROI_Size;
+                params(end+1).x_points = sprintf('%f+linspace(-0.5*%f,0.5*%f,%f)',pos(1),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
+                params(end).y_points = sprintf('%f+linspace(-0.5*%f,0.5*%f,%f)',pos(2),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
                 params(end).frequency = scanfit.locations(i);
             end
         end
