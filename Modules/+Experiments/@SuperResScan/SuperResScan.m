@@ -45,11 +45,19 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
 
     methods
         function PreRun(obj,~,managers,ax)
-            obj.stageManager = obj.managers.Stages;
+            obj.stageManager = managers.Stages;
+            obj.resLaser.arm;
+            obj.repumpLaser.arm;
             obj.resLaser.TuneSetpoint(obj.frequency);
-        end
-        function UpdateRun(obj,~,~,ax,average,xInd,yInd)
             
+            imH = imagesc(ax,obj.x,obj.y,NaN(length(obj.y),length(obj.x)));
+            set(ax,'ydir','normal');
+            axis(ax,'image');
+            ax.UserData = imH;
+        end
+        function UpdateRun(obj,~,~,ax,~,~,~)
+            % UpdateRun(obj,status,managers,ax,average,xInd,yInd)
+            ax.UserData.CData = squeeze(nanmean(obj.data.sumCounts,1))';
         end
         function s = BuildPulseSequence(obj,xInd,yInd)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
@@ -58,7 +66,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
                 s = obj.sequence;
             else
                 s = sequence('SuperResScan'); %#ok<CPROPLC> Calling HelperFunction
-                repumpChannel = channel('Repump','color','g','hardware',obj.repumpLaser.PBline-1);
+                repumpChannel = channel('Repump','color','g','hardware',obj.repumpLaser.PB_line-1);
                 resChannel = channel('Resonant','color','r','hardware',obj.resLaser.PBline-1);
                 APDchannel = channel('APDgate','color','b','hardware',obj.APD_line-1,'counter','APD1');
                 s.channelOrder = [repumpChannel, resChannel, APDchannel];
