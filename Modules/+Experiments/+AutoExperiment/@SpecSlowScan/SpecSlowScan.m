@@ -1,6 +1,6 @@
 classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
-    %SpecSlowScan Automatically performs 1) spectra, 2) open-loop PLE, and
-    %3) closed-loop PLE on identified sites
+    %SpecSlowScan Automatically performs 1) spectra, 2) open-loop PLE,
+    %3) closed-loop PLE 4) and SuperRes on identified sites
     
     % The analysis struct can be extended to include "nm2THz" as well as the
     % corresponding "gof" (both as separate fields).
@@ -11,23 +11,25 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         % Preferences for thresholding in the patch methods
         freq_range = Prefs.DoubleArray(299792./[635,640],'units','THz','min',0,'allow_nan',false);
         SpecCalExposure = Prefs.Double(0.1,'min',0,'units','sec');
-        SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','Number of std above noise proms');
-        PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
-        StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
+        SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help_text','Number of std above noise proms');
+        PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help_text','how many points per std for SlowScanClosed');
+        StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help_text','how wide of a bin around peaks for SlowScanClosed');
+        ROI_Size = Prefs.Double(2,'units','um','allow_nan',false,'help_text','Symmetric box size (width and height) for super res scans around emitter');
     end
     properties
-        patch_functions = {'','Spec2Open','Open2Closed'};
-        prerun_functions = {'PreSpec','PreSlow','PreSlow'};
+        patch_functions = {'','Spec2Open','Open2Closed','Closed2SuperRes'};
+        prerun_functions = {'PreSpec','PreSlow','PreSlow','PreSuperRes'};
         nm2THz = []; %this will be a function pulled from calibrating the spectrometer in the prerun method
         analysis = [];
     end
     methods(Access=private)
         function obj = SpecSlowScan()
             obj.experiments = [Experiments.Spectrum.instance,...
-                                Experiments.SlowScan.Open.instance,...
-                                Experiments.SlowScan.Closed.instance];
-            obj.prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
-            obj.show_prefs = [{'freq_range','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.show_prefs];
+                               Experiments.SlowScan.Open.instance,...
+                               Experiments.SlowScan.Closed.instance,...
+                               Experiments.SuperResScan.instance];
+            obj.prefs = [{'freq_range','ROI_Size','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
+            obj.show_prefs = [{'freq_range','ROI_Size','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.show_prefs];
             obj.loadPrefs;
         end
     end
@@ -103,6 +105,9 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.imaging_source.off;
             slow_experiment.resLaser.arm;
         end
+        function PreSuperRes(obj,superresexp)
+            obj.imaging_source.off;
+        end
         %the below patch functions will be run at the beginning of each
         %(site, experiment) in the run_queue for any experiment that isn't
         %the first one, and will be passed the relevant emitter site 
@@ -171,6 +176,36 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                 end
             end
         end
+        function params = Closed2SuperRes(obj,site,index)
+            params = struct('x_points',[],'y_points',[],'frequency',{}); %structure of params beings assigned
+            composite.freqs = [];
+            composite.counts = [];
+            scanfit = []; % Make sure not a struct here for below if statement
+            if isempty(obj.analysis) || isnan(obj.analysis.sites(index,2).index) % NaN index means it wasn't checked
+                % get all experiments named 'SlowScan_Closed' associated with site
+                scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Closed'));
+                for i=1:length(scans) %compile all scans
+                    if scans(i).completed && ~scans(i).skipped
+                        composite.freqs = [composite.freqs, scans(i).data.data.freqs_measured];
+                        composite.counts = [composite.counts, scans(i).data.data.sumCounts];
+                    end
+                end
+                if ~isempty(composite.counts) %if no data, return empty struct from above
+                    [composite.freqs,I] = sort(composite.freqs); %sort in ascending order
+                    composite.counts = composite.counts(I);
+                    scanfit = fitpeaks(composite.freqs',composite.counts','fittype','gauss','NoiseModel','shot'); % Literally photon counts; shot noise
+                    scanfit.widths = scanfit.widths*2*sqrt(2*log(2)); % sigma to FWHM
+                end
+            else
+                scanfit = obj.analysis.sites(index,3);
+            end
+            pos = obj.data(site).position;
+            for i = 1:length(scanfit.locations)
+                params(end+1).x_points = pos(1) + [0 0] + 0.5*obj.ROI_Size;
+                params(end).y_points = pos(2) + [0 0] + 0.5*obj.ROI_Size;
+                params(end).frequency = scanfit.locations(i);
+            end
+        end
         function sites = AcquireSites(obj,managers)
             sites = Experiments.AutoExperiment.AutoExperiment_invisible.SiteFinder_Confocal(managers,obj.imaging_source,obj.site_selection);
         end
@@ -188,12 +223,22 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             status.String = 'Checking spectrometer and resLaser'; drawnow;
             assert(~isempty(obj.experiments(2).repumpLaser),'SlowScan.Open needs a repump laser defined!');
             assert(~isempty(obj.experiments(3).repumpLaser),'SlowScan.Closed needs a repump laser defined!');
+            assert(~isempty(obj.experiments(4).repumpLaser),'SuperResScan needs a repump laser defined!');
             assert(~isempty(obj.experiments(2).resLaser),'SlowScan.Open needs a resonant laser defined!');
             assert(~isempty(obj.experiments(3).resLaser),'SlowScan.Closed needs a resonant laser defined!');
+            assert(~isempty(obj.experiments(4).resLaser),'SuperResScan needs a resonant laser defined!');
+            % Double check user is cool with SuperResScan using active stage (if more than one loaded)
+            if length(managers.Stages.modules) > 1
+                answer = questdlg(sprintf('Multiple stages loaded: the active stage, "%s", will be used for SuperResScan. Is this ok?',...
+                    class(managers.Stages.active_module)),'SuperResScan Stage','Yes','No','Yes');
+                if ~strcmp(answer,'Yes') % Clicking no or exiting box
+                    error('Choose active stage you would like to use, and restart.')
+                end
+            end
             specH = obj.experiments(1).WinSpec;
             laserH = obj.experiments(2).resLaser;
-            assert(isequal(laserH,obj.experiments(3).resLaser),...
-                'Currently, SpecSlowScan only supports using the same resLaser for SlowScan.Open and SlowScan.Closed.');
+            assert(isequal(laserH,obj.experiments(3).resLaser)&&isequal(laserH,obj.experiments(4).resLaser),...
+                'Currently, SpecSlowScan only supports using the same resLaser for all experiments.');
             laserH.arm; % Go through arming now to make sure things are set at the beginning (e.g. calibration if it exists)
             managers.Path.select_path('spectrometer'); %this may be unnecessary
             if ~isempty(obj.analysis) && isfield(obj.analysis,'nm2THz') && ~isempty(obj.analysis.nm2THz)
