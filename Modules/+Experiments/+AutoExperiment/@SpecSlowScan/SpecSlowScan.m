@@ -29,8 +29,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
                                Experiments.SlowScan.Open.instance,...
                                Experiments.SlowScan.Closed.instance,...
                                Experiments.SuperResScan.instance];
-            obj.prefs = [{'freq_range','ROI_Size','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
-            obj.show_prefs = [{'freq_range','ROI_Size','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.show_prefs];
+            obj.prefs = [{'freq_range','ROI_Size','ROI_points','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.prefs];
+            obj.show_prefs = [{'freq_range','ROI_Size','ROI_points','SpecPeakThresh','PointsPerPeak','StdsPerPeak','SpecCalExposure'},obj.show_prefs];
             obj.loadPrefs;
         end
     end
