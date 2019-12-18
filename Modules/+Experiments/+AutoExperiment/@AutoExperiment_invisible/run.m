@@ -87,8 +87,12 @@ try
                 prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
                 % Check redo flag for this site and this experiment
                 redo = false;
-                if ~isempty(obj.analysis)
-                    redo = obj.analysis.sites(site_index,exp_index).redo;
+                if ~isempty(obj.analysis) && ~isempty(obj.analysis.sites(site_index,exp_index).redo)
+                    try
+                        redo = logical(obj.analysis.sites(site_index,exp_index).redo);
+                    catch redo_err
+                        warning('AUTOEXP:analysis','Site %i, Experiment Index: %i: %s',site_index,exp_index,redo_err.message)
+                    end
                     for j = find(prev_mask) % Update previous run's redo flag
                         obj.data.sites(site_index).experiments(j).redo_requested = redo;
                     end
