@@ -76,7 +76,11 @@ for i_ax = 1:4
                                   'CellEditCallback',@selector_edit_callback);
     selector(i_ax).UserData = i_ax;
 end
-
+% Add some help tooltips
+selector(2).Tooltip = 'Dashed line corresponds to setpoint of scan at 50%.';
+selector(3).Tooltip = 'Arrows on x-axis correpond to super-res set points';
+selector(4).Tooltip = ['Arrows on Closed Loop SlowScan axis correspond to', newline,...
+                       'the setpoints for the scan with the same color box.'];
 ax = axes('parent',bg(1),'tag','SpatialImageAx');
 hold(ax,'on');
 if ~isempty(im)
@@ -321,15 +325,15 @@ end
         site = sites(site_index);
         prepUI(ax(2),selector(1));
         exp_inds = fliplr(find(strcmp('Experiments.Spectrum',{site.experiments.name})));
-        for i = exp_inds
-            experiment = site.experiments(i);
-            if ~isempty(experiment.data) && ~any(i == analysis.sites(site_index,1).ignore)
+        for i = 1:length(exp_inds)
+            experiment = site.experiments(exp_inds(i));
+            if ~isempty(experiment.data) && ~any(exp_inds(i) == analysis.sites(site_index,1).ignore)
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
                 plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra','color',colors(i,:));
-                formatSelector(selector(1),experiment,i,1,site_index,colors(i,:));
+                formatSelector(selector(1),experiment,exp_inds(i),1,site_index,colors(i,:));
             else
-                formatSelector(selector(1),experiment,i,1,site_index);
+                formatSelector(selector(1),experiment,exp_inds(i),1,site_index);
             end
         end
         ax(2).Title.String = 'Spectrum';
@@ -353,29 +357,24 @@ end
         site = sites(site_index);
         prepUI(ax(3),selector(2));
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Open',{site.experiments.name})));
-        set_points = NaN(1,length(exp_inds));
-        j = 1; % Loop counter (e.g. index into set_points)
-        for i = exp_inds
-            experiment = site.experiments(i);
-            if ~isempty(experiment.data) &&  ~any(i == analysis.sites(site_index,2).ignore)
+        setpt_plts = gobjects(1,length(exp_inds));
+        for i = 1:length(exp_inds)
+            experiment = site.experiments(exp_inds(i));
+            if ~isempty(experiment.data) &&  ~any(exp_inds(i) == analysis.sites(site_index,2).ignore)
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
                         'parent',ax(3),'tag','OpenLoop','color',colors(i,:));
-                set_points(j) = experiment.data.meta.prefs.freq_THz;
-                formatSelector(selector(2),experiment,i,2,site_index,colors(i,:));
+                set_point = experiment.prefs.freq_THz;
+                setpt_plts(i) = plot(ax(3),set_point+[0 0], [NaN,NaN], '--', 'Color', colors(i,:),...
+                    'handlevisibility','off','hittest','off');
+                formatSelector(selector(2),experiment,exp_inds(i),2,site_index,colors(i,:));
             else
-                formatSelector(selector(2),experiment,i,2,site_index);
+                formatSelector(selector(2),experiment,exp_inds(i),2,site_index);
             end
-            j = j + 1;
         end
         ylim = get(ax(3),'ylim');
-        for i = 1:length(set_points)
-            if ~isnan(set_points(i))
-                plot(ax(3),set_points(i)+[0 0], ylim, '--', 'Color', colors(exp_inds(i),:),...
-                    'handlevisibility','off','hittest','off');
-            end
-        end
+        set(setpt_plts(isgraphics(setpt_plts)),'YData',ylim);
         ax(3).Title.String = 'Open Loop SlowScan';
         ax(3).XLabel.String = 'Frequency (THz)';
         ax(3).YLabel.String = 'Counts';
@@ -397,16 +396,16 @@ end
         site = sites(site_index);
         prepUI(ax(4),selector(3));
         exp_inds = fliplr(find(strcmp('Experiments.SlowScan.Closed',{site.experiments.name})));
-        for i = exp_inds
-            experiment = site.experiments(i);
-            if ~isempty(experiment.data) &&  ~any(i == analysis.sites(site_index,3).ignore)
+        for i = 1:length(exp_inds)
+            experiment = site.experiments(exp_inds(i));
+            if ~isempty(experiment.data) &&  ~any(exp_inds(i) == analysis.sites(site_index,3).ignore)
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
                         'parent',ax(4),'tag','ClosedLoop','color',colors(i,:));
-                formatSelector(selector(3),experiment,i,3,site_index,colors(i,:));
+                formatSelector(selector(3),experiment,exp_inds(i),3,site_index,colors(i,:));
             else
-                formatSelector(selector(3),experiment,i,3,site_index);
+                formatSelector(selector(3),experiment,exp_inds(i),3,site_index);
             end
         end
         ax(4).Title.String = 'Closed Loop SlowScan';
@@ -430,21 +429,39 @@ end
         site = sites(site_index);
         prepUI(ax(5),selector(4));
         exp_inds = fliplr(find(strcmp('Experiments.SuperResScan',{site.experiments.name})));
+        cs = reshape(lines,[],1,3); % In preparation for RGB image
         if ~isempty(exp_inds)
             % All experiments should be the same and x/y should be same
             sz = length(site.experiments(exp_inds(1)).data.meta.vars(1).vals());
             rm = false(1,length(exp_inds)); % Remove experiments that aren't legit
-            multi = NaN(sz,sz,length(exp_inds));
+            multi = NaN(sz+2,sz+2,3,length(exp_inds));
             for i = 1:length(exp_inds)
-                if ~isempty(site.experiments(exp_inds(i)).data) &&  ~any(exp_inds(i) == analysis.sites(site_index,4).ignore)
-                    multi(:,:,i) = squeeze(mean(site.experiments(exp_inds(i)).data.data.sumCounts,1));
+                experiment = site.experiments(exp_inds(i));
+                freq = experiment.prefs.frequency;
+                % Add marker on closed loop axes
+                plot(ax(4),freq, ax(4).YLim(1),'Color',cs(i,1,:),'MarkerFaceColor',cs(i,1,:),'Marker','v','MarkerSize',5);
+                if ~isempty(experiment.data) &&  ~any(exp_inds(i) == analysis.sites(site_index,4).ignore)
+                    gray = squeeze(mean(experiment.data.data.sumCounts,1));
+                    gray = gray/max(gray(:));
+                    color = cat(3, gray, gray, gray);
+                    bordered = ones(sz+2,sz+2,3).*cs(i,1,:);
+                    bordered(2:end-1,2:end-1,:) = color;
+                    multi(:,:,:,i) = bordered;
                 else
                     rm(i) = true;
                 end
-                formatSelector(selector(4),site.experiments(exp_inds(i)),exp_inds(i),4,site_index);
+                formatSelector(selector(4),experiment,exp_inds(i),4,site_index,cs(i,1,:));
             end
-            multi(:,:,rm) = [];
-            montage(multi,'DisplayRange',[min(multi(:)), max(multi(:))],'parent',ax(5));
+            multi(:,:,:,rm) = [];
+            if size(multi,4) == 1
+                imshow(multi,'parent',ax(5));
+            else
+                panel_sz = getpixelposition(ax(5).Parent);
+                aspect_ratio = panel_sz(3:4)/norm(panel_sz(3:4));
+                ncols = max(1,floor(size(multi,4)*aspect_ratio(1)));
+                montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz]+2);
+            end
+            ax(5).Title.String = 'SuperRes Scan';
         end
         catch err
             busy = false;
