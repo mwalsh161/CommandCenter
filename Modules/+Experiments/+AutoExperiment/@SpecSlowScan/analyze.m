@@ -25,7 +25,7 @@ function varargout = analyze(data,varargin)
 %       ctl+arrows allow fine control.
 %       [Shift+] Tab changes selected point
 %   Analysis data:
-%     N�3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
+%     Nx3 struct array with fields: (N is number of sites, 3 corresponds to experiments)
 %       amplitudes - Nx1 double
 %       widths - Nx1 double (all FWHM)
 %       locations - Nx1 double
@@ -59,20 +59,20 @@ uimenu(file_menu,'Text','Go to Index','callback',@go_to,'separator','on');
 uimenu(file_menu,'Text','Save Analysis','callback',@save_data);
 uimenu(file_menu,'Text','Export Analysis','callback',@export_data);
 uimenu(file_menu,'Text','Diagnostic Plot','callback',@open_diagnostic);
-bg(1) = uipanel(fig,'units','normalized','position',[0   0 1/4 1],'BorderType','none');
-bg(2) = uipanel(fig,'units','normalized','position',[1/4 0 3/4 1],'BorderType','none');
+bg(1) = uipanel(fig,'units','normalized','position',[0   0 1/5 1],'BorderType','none');
+bg(2) = uipanel(fig,'units','normalized','position',[1/5 0 4/5 1],'BorderType','none');
 splitPan(1) = Base.SplitPanel(bg(1),bg(2),'horizontal');
 set(splitPan(1).dividerH,'BorderType','etchedin')
 inner(1) = uipanel(bg(2),'units','normalized','position',[0 1/4 1 3/4],'BorderType','none');
 inner(2) = uipanel(bg(2),'units','normalized','position',[0 0   1 1/4],'BorderType','none');
 splitPan(2) = Base.SplitPanel(inner(1),inner(2),'vertical');
 set(splitPan(2).dividerH,'BorderType','etchedin')
-for i_ax = 1:3
-    pan_ax(i_ax) = uipanel(inner(1),'units','normalized','position',[(i_ax-1)/3 0 1/3 1],'BorderType','none');
+for i_ax = 1:4
+    pan_ax(i_ax) = uipanel(inner(1),'units','normalized','position',[(i_ax-1)/4 0 1/4 1],'BorderType','none');
     selector(i_ax) = uitable(inner(2),'ColumnName',{'','',  'i',  'Datetime','Age','Redo','Duration','Skipped','Completed','Error'},...
                                   'ColumnEditable',[true,false,false,false,     false,true,  false,     false,    false,      false],...
                                   'ColumnWidth',   {15,15,   20,   120,       25,   35,    50,        50,       70,         40},...
-                                  'units','normalized','Position',[(i_ax-1)/3 0 1/3 1],...
+                                  'units','normalized','Position',[(i_ax-1)/4 0 1/4 1],...
                                   'CellEditCallback',@selector_edit_callback);
     selector(i_ax).UserData = i_ax;
 end
@@ -96,6 +96,7 @@ hold(ax,'off');
 ax(2) = axes('parent',pan_ax(1),'tag','SpectraAx'); hold(ax(2),'on');
 ax(3) = axes('parent',pan_ax(2),'tag','OpenLoopAx'); hold(ax(3),'on');
 ax(4) = axes('parent',pan_ax(3),'tag','ClosedLoopAx'); hold(ax(4),'on');
+ax(5) = axes('parent',pan_ax(4),'tag','SuperResAx'); hold(ax(5),'on');
 addlistener(ax(2),'XLim','PostSet',@xlim_changed);
 addlistener(ax(3),'XLim','PostSet',@xlim_changed);
 addlistener(ax(4),'XLim','PostSet',@xlim_changed);
@@ -107,7 +108,7 @@ FitType = p.Results.FitType;
 wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
 AmplitudeSensitivity = 1;
-update_exp = {@update_spec, @update_open, @update_closed}; % Easily index by exp_id
+update_exp = {@update_spec, @update_open, @update_closed, @update_superres}; % Easily index by exp_id
 colors = lines;
 
 % Frequently updated and small stuff here
@@ -142,11 +143,23 @@ if isstruct(p.Results.Analysis)
         new_data = true;
         warning('Added ignore flag to loaded analysis.')
     end
+    if size(analysis.sites,2) == 3
+        for ii = 1:size(sites,1)
+            analysis.sites(ii,4).amplitudes = NaN;
+            analysis.sites(ii,4).widths = NaN;
+            analysis.sites(ii,4).locations = NaN;
+            analysis.sites(ii,4).background = NaN;
+            analysis.sites(ii,4).index = NaN;
+            analysis.sites(ii,4).redo = false;
+        end
+        new_data = true;
+        warning('Added 4th column to analysis.sites')
+    end
 else
     analysis.nm2THz = [];
     analysis.gof = [];
     analysis.sites = struct(...
-        'fit',cell(n,3),...
+        'fit',cell(n,4),...
         'amplitudes',NaN,...
         'widths',NaN,...
         'locations',NaN,...
@@ -292,6 +305,7 @@ end
         update_spec();
         update_open();
         update_closed();
+        update_superres();
     end
     function update_im()
         % Update spectrometer data (ax(1))
@@ -306,8 +320,6 @@ end
         try
         site = sites(site_index);
         prepUI(ax(2),selector(1));
-        set(selector(1),'Data',cell(0,10)); % Reset selector
-        cla(ax(2),'reset'); hold(ax(2),'on');
         exp_inds = fliplr(find(strcmp('Experiments.Spectrum',{site.experiments.name})));
         for i = exp_inds
             experiment = site.experiments(i);
@@ -403,6 +415,36 @@ end
         if ~viewonly && ~isempty(findall(ax(4),'type','line'))
             attach_uifitpeaks(ax(4),analysis.sites(site_index,3),...
                 'AmplitudeSensitivity',AmplitudeSensitivity);
+        end
+        catch err
+            busy = false;
+            rethrow(err);
+        end
+        busy = false;
+    end
+    function update_superres()
+        % Update PLE closed (analysis.sites(:,4), selector(4), ax(5))
+        if busy; error('Busy!'); end
+        busy = true;
+        try
+        site = sites(site_index);
+        prepUI(ax(5),selector(4));
+        exp_inds = fliplr(find(strcmp('Experiments.SuperResScan',{site.experiments.name})));
+        if ~isempty(exp_inds)
+            % All experiments should be the same and x/y should be same
+            sz = length(site.experiments(exp_inds(1)).data.meta.vars(1).vals());
+            rm = false(1,length(exp_inds)); % Remove experiments that aren't legit
+            multi = NaN(sz,sz,length(exp_inds));
+            for i = 1:length(exp_inds)
+                if ~isempty(site.experiments(exp_inds(i)).data) &&  ~any(exp_inds(i) == analysis.sites(site_index,4).ignore)
+                    multi(:,:,i) = squeeze(mean(site.experiments(exp_inds(i)).data.data.sumCounts,1));
+                else
+                    rm(i) = true;
+                end
+                formatSelector(selector(4),site.experiments(exp_inds(i)),exp_inds(i),4,site_index);
+            end
+            multi(:,:,rm) = [];
+            montage(multi,'DisplayRange',[min(multi(:)), max(multi(:))],'parent',ax(5));
         end
         catch err
             busy = false;

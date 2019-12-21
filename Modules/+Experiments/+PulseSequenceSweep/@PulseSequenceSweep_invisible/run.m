@@ -34,8 +34,8 @@ obj.data.stdCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
 
 obj.meta.prefs = obj.prefs2struct;
 for i = 1:length(obj.vars)
-    obj.meta.vars.name = obj.vars{i};
-    obj.meta.vars.vals = obj.(obj.vars{i});
+    obj.meta.vars(i).name = obj.vars{i};
+    obj.meta.vars(i).vals = obj.(obj.vars{i});
 end
 obj.meta.position = managers.Stages.position; % Stage position
 
