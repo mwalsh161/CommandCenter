@@ -73,7 +73,8 @@ for i_ax = 1:4
                                   'ColumnEditable',[true,false,false,false,     false,true,  false,     false,    false,      false],...
                                   'ColumnWidth',   {15,15,   20,   120,       25,   35,    50,        50,       70,         40},...
                                   'units','normalized','Position',[(i_ax-1)/4 0 1/4 1],...
-                                  'CellEditCallback',@selector_edit_callback);
+                                  'CellEditCallback',@selector_edit_callback,...
+                                  'CellSelectionCallback', @selector_click_callback);
     selector(i_ax).UserData = i_ax;
 end
 % Add some help tooltips
@@ -517,14 +518,19 @@ end
         end
     end
     function selector_click_callback(hObj,eventdata)
-        if ~strcmp(eventdata.EventName,'CellSelection') ||...
-                hObj.ColumnEditable(eventdata.Indices(2))
+        if eventdata.Indices(2)~=10
             return
         end
         exp_ind = hObj.Data{eventdata.Indices(1),3};
-        errmsg = sites(sites_index).experiments(exp_ind).err;
-        if ~isempty(errmsg)
-            msgbox(getReport(errmsg),sprintf('Error (site: %i, exp: %i)',sites_index,exp_ind));
+        err = sites(site_index).experiments(exp_ind).err;
+        if ~isempty(err)
+            errmsg = getReport(err,'extended','hyperlinks','off');
+            errmsg = strrep(errmsg,[newline newline],newline);
+            f = figure('name',sprintf('Error (site: %i, exp: %i)',site_index,exp_ind),...
+                'numbertitle','off','menubar','none','toolbar','none');
+            uicontrol(f,'units','normalized','position',[0,0,1,1],'style','edit',...
+                'string',errmsg,'max',Inf,...
+                'HorizontalAlignment','left');
         end
     end
     function selector_edit_callback(hObj,eventdata)
