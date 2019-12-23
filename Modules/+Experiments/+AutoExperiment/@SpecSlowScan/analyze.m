@@ -492,10 +492,16 @@ end
         if ~any(i==analysis.sites(site_ind,exp_ind).ignore)
             displayed = true;
         end
+        % Analysis redo should be flexible
+        exp_redo = experiment.redo_requested;
+        analysis_redo = false;
+        if ~isempty(analysis.sites(site_ind,exp_ind).redo)
+            analysis_redo = analysis.sites(site_ind,exp_ind).redo;
+        end
         selectorH.Data(end+1,:) = {displayed,color, i,...
                                    date,...
                                    experiment.continued,...
-                                   experiment.redo_requested,...
+                                   exp_redo || analysis_redo,...
                                    duration,...
                                    experiment.skipped,...
                                    experiment.completed,...
@@ -518,7 +524,7 @@ end
         end
     end
     function selector_click_callback(hObj,eventdata)
-        if eventdata.Indices(2)~=10
+        if isempty(eventdata.Indices) || eventdata.Indices(2)~=10
             return
         end
         exp_ind = hObj.Data{eventdata.Indices(1),3};
@@ -553,6 +559,7 @@ end
                 % Can only toggle most recent experiment
                 % Find most recent age
                 most_recent = min([hObj.Data{:,5}]);
+                state = hObj.Data{eventdata.Indices(1),6};
                 if hObj.Data{eventdata.Indices(1),5} ~= most_recent
                     errordlg('You can only toggle the most recent experiment.',mfilename);
                     % Toggle back
@@ -565,15 +572,17 @@ end
                     errordlg('No need to redo an experiment that errored; will be redone automatically.',mfilename);
                     % Toggle back
                     hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
-                elseif sum([hObj.Data{[hObj.Data{:,5}] == most_recent,6}]) > 1 && hObj.Data{eventdata.Indices(1),6}
-                    warndlg(['No need to select redo for more than one of this experiment type.' newline newline ...
-                              'The parameters determining how many are necessary to redo are recalculated or taken from the analysis file in the appropriate patch function.'],mfilename);
+                end
+                % Do it for all others in most_recent
+                for i = find([hObj.Data{:,5}]==most_recent)
+                    if i == eventdata.Indices(1); continue; end
+                    hObj.Data{i,6} = state;
                 end
         end
     end
 %% UIfitpeaks adaptor
     function save_state()
-        for i = 2:4 % Go through each data axis
+        for i = 2:5 % Go through each data axis
             % Get redo flag for most recent
             most_recent = min([selector(i-1).Data{:,5}]) == [selector(i-1).Data{:,5}];
             analysis.sites(site_index,i-1).redo = any([selector(i-1).Data{most_recent,6}]);
