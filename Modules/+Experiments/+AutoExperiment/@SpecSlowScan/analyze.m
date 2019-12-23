@@ -454,12 +454,12 @@ end
                 formatSelector(selector(4),experiment,exp_inds(i),4,site_index,cs(i,1,:));
             end
             multi(:,:,:,rm) = [];
-            if size(multi,4) == 1
+            nims = size(multi,4);
+            if nims == 1
                 imshow(multi,'parent',ax(5));
             else
                 panel_sz = getpixelposition(ax(5).Parent);
-                aspect_ratio = panel_sz(3:4)/norm(panel_sz(3:4));
-                ncols = max(1,floor(size(multi,4)*aspect_ratio(1)));
+                ncols = max(1,floor(panel_sz(3)/sqrt(prod(panel_sz(3:4))/nims))); % Assumes square ims
                 montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz]+2);
             end
             ax(5).Title.String = 'SuperRes Scan';
