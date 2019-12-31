@@ -90,7 +90,9 @@ try
                 if ~isempty(obj.analysis) && ~isempty(obj.analysis.sites(site_index,exp_index).redo)
                     try
                         redo = logical(obj.analysis.sites(site_index,exp_index).redo);
+                        assert(all(islogical(redo)) && isscalar(redo),'Redo flag from analysis file must be a logical scalar value if it exists.');
                     catch redo_err
+                        redo = false;
                         warning('AUTOEXP:analysis','Site %i, Experiment Index: %i: %s',site_index,exp_index,redo_err.message)
                     end
                     for j = find(prev_mask) % Update previous run's redo flag
