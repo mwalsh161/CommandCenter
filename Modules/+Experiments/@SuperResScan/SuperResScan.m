@@ -22,7 +22,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
     end
     properties(Constant)
         % Required by PulseSequenceSweep_invisible
-        nCounterBins = 1; %number of APD bins for this pulse sequence
+        nCounterBins = 2; %number of APD bins for this pulse sequence
         vars = {'x','y'}; %names of variables to be swept
     end
     properties(Access=private)
@@ -71,7 +71,9 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
                 APDchannel = channel('APDgate','color','b','hardware',obj.APD_line-1,'counter','APD1');
                 s.channelOrder = [repumpChannel, resChannel, APDchannel];
                 g = node(s.StartNode,repumpChannel,'units','us','delta',0);
+                node(g,APDchannel,'delta',0);
                 g = node(g,repumpChannel,'units','us','delta',obj.repump_time);
+                node(g,APDchannel,'delta',0);
                 r = node(g,resChannel,'units','us','delta',obj.res_offset);
                 node(r,APDchannel,'units','us','delta',0);
                 r = node(r,resChannel,'units','us','delta',obj.res_time);
@@ -80,7 +82,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
                 obj.sequence = s;
             end
             % Update stage position
-            obj.stageManager.move([obj.x(xInd),obj.y(yInd),NaN])
+            %obj.stageManager.move([obj.x(xInd),obj.y(yInd),NaN])
         end
         
         function val = set_points(obj,val,mp)
