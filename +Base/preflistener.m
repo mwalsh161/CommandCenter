@@ -53,8 +53,8 @@ classdef (ConstructOnLoad) preflistener < handle
             delete(obj.proplistener);
         end
         function set.Enabled(obj,val)
-            if obj.wrapper
-                obj.proplistener.Enabled = val;
+            if obj.wrapper %#ok<MCSUP>
+                obj.proplistener.Enabled = val; %#ok<MCSUP>
             end
             obj.Enabled = val;
         end

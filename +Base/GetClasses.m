@@ -6,7 +6,6 @@ files=what(target);
 if any(arrayfun(@(d)strcmpi(fullfile(d.folder,d.name),target),dir))
     files(1) = []; %assume first entry is the present working directory  and is thus redundant
 end
-assert(length(files)==1,sprintf('Did not find a single match for %s - found %i',target,length(files)))
 
 % Determine if we are in a package
 parts = strsplit(files.path,filesep);
@@ -36,11 +35,8 @@ end
 
     function addto(class_str)
         % Ignore classes that have filenames ending with "_invisible"
-        % Ignore classes that have an Constant invisible property set to true
         visible = ~Base.EndsWith(class_str,'_invisible');
-        try %#ok<TRYNC>
-            visible = and(visible,~logical(eval(sprintf('%s%s.invisible',prefix,class_str))));
-        end
+        
         if visible
             classes{end+1} = class_str;
         end
