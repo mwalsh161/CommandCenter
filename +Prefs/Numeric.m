@@ -1,4 +1,4 @@
-classdef Numeric < Base.pref
+classdef Numeric < Base.Pref
     %NUMERIC Any numeric value
     
     properties (Abstract)               % Adds min and max
@@ -8,7 +8,7 @@ classdef Numeric < Base.pref
     
     methods (Static, Hidden)
         function obj = Numeric(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
         end
         function tf = isnumeric(~)      % Overloads isnumeric.
             tf = true;

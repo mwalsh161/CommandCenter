@@ -25,7 +25,7 @@ classdef LabelControlBasic < Base.input
             end
             
             if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)', name, pref.units);
+                labeltext = sprintf('%s [%s]', name, pref.units);
             else
                 labeltext = name;
             end

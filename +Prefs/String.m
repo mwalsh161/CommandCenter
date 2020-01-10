@@ -1,4 +1,4 @@
-classdef String < Base.pref
+classdef String < Base.Pref
     %STRING Allows any character array
     
     properties (Hidden)

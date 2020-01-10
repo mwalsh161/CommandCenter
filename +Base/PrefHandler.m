@@ -1,15 +1,15 @@
-classdef pref_handler < handle
-    %PREF_HANDLER A mixin that enables use of class-based prefs
+classdef PrefHandler < handle
+    %PREFHANDLER A mixin that enables use of class-based prefs
     %   Intercepts pre/post set/get listeners and implements similar behavior.
     %   This should be a drop-in replacement for nearly all use cases.
     %
     %   The bulk of this mixin is responsible for maintaining a more complex "meta"
-    %   property that is stored in memory (see +Prefs and Base.pref). When the user
+    %   property that is stored in memory (see +Prefs and Base.Pref). When the user
     %   attempts to get or set this, the machinery here will make it appear to behave
     %   as the standard MATLAB type that resides in the meta property (named "value").
     %
     %   Any class-based pref cannot define a MATLAB set or get method. Rather, one
-    %   should be supplied to the constructor of the class-based pref (see Base.pref).
+    %   should be supplied to the constructor of the class-based pref (see Base.Pref).
     %
     %   NOTE: This constructor MUST be called before anything modifies a
     %   property that uses a class-based pref!! In the case of multiple
@@ -21,7 +21,7 @@ classdef pref_handler < handle
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
     end
-%     properties(Access = ?Base.pref)
+%     properties(Access = ?Base.Pref)
 %         ls_enabled = struct();
 %     end
     properties(Hidden, SetAccess = private)
@@ -34,7 +34,7 @@ classdef pref_handler < handle
         pref_set_try = false;
     end
     properties(Hidden)
-        pref_handler_indentation = 2;
+        PrefHandler_indentation = 2;
     end
 
     methods
@@ -44,20 +44,20 @@ classdef pref_handler < handle
         % no guarantee this gets called before other listeners. CC GUI uses
         % listeners as well.
         % Cannot use set/get methods in MATLAB!
-        function obj = pref_handler()
+        function obj = PrefHandler()
             mc = metaclass(obj);
             props = mc.PropertyList;
             props = props([props.HasDefault]);
-            external_ls_struct.PreSet = Base.preflistener.empty(1,0);
-            external_ls_struct.PostSet = Base.preflistener.empty(1,0);
-            external_ls_struct.PreGet = Base.preflistener.empty(1,0);
-            external_ls_struct.PostGet = Base.preflistener.empty(1,0);
+            external_ls_struct.PreSet = Base.PrefListener.empty(1,0);
+            external_ls_struct.PostSet = Base.PrefListener.empty(1,0);
+            external_ls_struct.PreGet = Base.PrefListener.empty(1,0);
+            external_ls_struct.PostGet = Base.PrefListener.empty(1,0);
 
-            pl = Base.prefList.instance();
+            pr = Base.PrefRegister.instance();
 
             for i = 1:length(props)
                 prop = props(i);
-                if contains('Base.pref',superclasses(prop.DefaultValue))
+                if contains('Base.Pref',superclasses(prop.DefaultValue))
                     assert(~strcmp(prop.GetAccess,'private')&&~strcmp(prop.SetAccess,'private'),...
                         sprintf('Class-based pref ''%s'' cannot have set/get access private.',prop.Name));
                     obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
@@ -76,9 +76,6 @@ classdef pref_handler < handle
                         sprintf('Class-based pref ''%s'' in class ''%s'' must be defined to be GetObservable and SetObservable.', prop.Name, class(obj)));
                     % Grap meta pref before listeners go active to pass to set_meta_pref
                     pref = obj.(prop.Name);
-%                     pref.prop = prop;
-
-%                     obj.ls_enabled.(prop.Name) = true;
 
                     obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
                     obj.ls.(prop.Name)(2) = addlistener(obj, prop.Name, 'PostSet', @obj.post);
@@ -90,8 +87,7 @@ classdef pref_handler < handle
                     % Done after binding Set/Get listeners since the method call expects them to be set already
                     obj.set_meta_pref(prop.Name, pref);
 
-%                     pl.addPref(mc.Name, pref);
-                    pl.addPref(obj, pref);
+                    pr.addPref(obj, pref);
                 end
             end
         end
@@ -101,12 +97,12 @@ classdef pref_handler < handle
             % el = addlistener(hSource,PropertyName,EventName,callback)
             varargout = {};
             if nargin == 4 && isfield(obj.external_ls,varargin{1}) % externals_ls field names are all pref properties
-                el = Base.preflistener(obj,varargin{:});
+                el = Base.PrefListener(obj,varargin{:});
                 obj.external_ls.(varargin{1}).(varargin{2})(end+1) = el;
                 addlistener(el,'ObjectBeingDestroyed',@obj.preflistener_deleted);
             else
                 el = addlistener@handle(obj,varargin{:});
-                el = Base.preflistener(el); % Wrap it to make array compatible
+                el = Base.PrefListener(el); % Wrap it to make array compatible
             end
             if nargout
                 varargout = {el};
@@ -316,7 +312,7 @@ classdef pref_handler < handle
         end
     end
 
-    methods (Hidden, Access=?Base.pref)         
+    methods (Hidden, Access=?Base.Pref)         
         % These functions have the same functionality as pre() post() called successivly, except with two
         % out of four fewer calls to obj.prop_listener_ctrl(prop,tf), which is the limiting time factor.
         function tf = writProp(obj,prop,val)

@@ -1,8 +1,8 @@
-classdef pref < matlab.mixin.Heterogeneous % value class
-    %PREF Superclass for pref properties.
-    %    pref(default,property1,value1,property2,value2,...);
-    %    pref(property1,value1,...,'default',DEFAULT_VALUE,...);
-    %    pref(property1,value1,property2,value2,...); default will then
+classdef Pref < matlab.mixin.Heterogeneous % value class
+    %PREF Superclass for Pref properties.
+    %    Pref(default,property1,value1,property2,value2,...);
+    %    Pref(property1,value1,...,'default',DEFAULT_VALUE,...);
+    %    Pref(property1,value1,property2,value2,...); default will then
     %       be up to the subclass
     %    NOTE: empty values are ignored unless they are the default value;
     %       e.g. subclass('prop1',[]) is equivalent to subclass()
@@ -11,16 +11,16 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %       default (or as first argument)
     %       name - provide more context
     %       units - provide units if applicable
-    %       help_text - provide longer text to describe what this pref does (think tooltip)
+    %       help_text - provide longer text to describe what this Pref does (think tooltip)
     %       readonly - boolean specifying if GUI control should be editable (e.g. "enabled")
-    %       display_only - boolean specifying if saved as pref when module unloaded
+    %       display_only - boolean specifying if saved as Pref when module unloaded
     %       set* - syntax: val = set(val, pref)
     %       custom_validate* - syntax: custom_validate(val, pref)
     %       custom_clean* - syntax: val = custom_clean(val, pref)
     %       ui - class specifying UI type (value class)
     %   * These properties' values are function handles, or if you want a class
     %   method bound to your instance, specify the string names of the methods.
-    %   (The binding happens in the pref's "bind" method)
+    %   (The binding happens in the Pref's "bind" method)
     %
     % Subclass properties should follow the same syntax when defining
     % settable properties:
@@ -49,10 +49,10 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %
     % Because MATLAB generates default properties only once, this must be a
     %   value class instead of a handle class to avoid persistent memory between
-    %   instantiations, but not between sessions (e.g. we can't replace current pref
+    %   instantiations, but not between sessions (e.g. we can't replace current Pref
     %   architecture with this)
     
-    properties (Hidden, SetAccess={?Base.pref_handler, ?Base.input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
+    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
 %     properties%(SetAccess=private)
@@ -62,24 +62,24 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
     end
-    properties (Hidden, SetAccess = ?Base.pref_handler)
-    	getEvent = false;                   % This is reserved for pref_handler.post to avoid calling set methods on a get event
+    properties (Hidden, SetAccess = ?Base.PrefHandler)
+    	getEvent = false;                   % This is reserved for PrefHandler.post to avoid calling set methods on a get event
     end
     properties (Hidden, Access=private)
-        initialized = false;                % Flag to prevent the pref from being used until it has been fully constructed.
+        initialized = false;                % Flag to prevent the Pref from being used until it has been fully constructed.
     end
     
-    properties (Hidden, Access = private)    % Used by pref and pref_handler so pref can retain access to pref_handler. Set in Base.pref.bind(pref_handler)
-        read_fn     = [];                   % Calls val = pref_handler.readProp(prop), with the appropriate arguments already filled in.
-        writ_fn     = [];                   % Calls tf = pref_handler.writProp(prop, val), with the appropriate arguments already filled in.
+    properties (Hidden, Access = private)    % Used by Pref and PrefHandler so Pref can retain access to PrefHandler. Set in Base.Pref.bind(PrefHandler)
+        read_fn     = [];                   % Calls val = PrefHandler.readProp(prop), with the appropriate arguments already filled in.
+        writ_fn     = [];                   % Calls tf = PrefHandler.writProp(prop, val), with the appropriate arguments already filled in.
         
-        listen_fn   = [];                   % Calls pref_handler.addlistener(prop, event, callback), with the appropriate arguments already filled in.
+        listen_fn   = [];                   % Calls PrefHandler.addlistener(prop, event, callback), with the appropriate arguments already filled in.
     end
     properties (Hidden, SetAccess = private)
-        parent_class = '';                  % Stores the name of the parent pref_handler subclass for reference.
+        parent_class = '';                  % Stores the name of the parent PrefHandler subclass for reference.
     end
-    properties (Hidden, SetAccess = ?Base.pref_handler)
-        property_name = '';                 % Name of the property in pref_handler that this pref fondles.
+    properties (Hidden, SetAccess = ?Base.PrefHandler)
+        property_name = '';                 % Name of the property in PrefHandler that this Pref fondles.
     end
     
     properties % {default, validation function}
@@ -87,13 +87,13 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         units   = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
         
-    properties%(SetAccess = ?Base.pref_handler)
+    properties%(SetAccess = ?Base.PrefHandler)
         help_text = {'', @(a)validateattributes(a,{'char'},{'vector'})};
         % If true, sets GUI control to not be enabled
         readonly = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % If true, this is only used for display, and not saved as a pref   
         display_only = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
-        % Used by Base.pref_handler to handle non class-based prefs
+        % Used by Base.PrefHandler to handle non class-based prefs
         auto_generated = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % optional functions supplied by user (function or char vector; validated in set methods)
         %   Called directly after built-in validation
@@ -105,12 +105,12 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     end
     
     methods % May be overloaded by subclass pref
-        function obj = pref(varargin)
+        function obj = Pref(varargin)
             obj = obj.init(varargin{:});
         end
         function obj = bind(obj,module_instance)
             % This method is called when the meta-pref is set in
-            % pref_handler. It is intended to give the pref an opportunity
+            % PrefHandler. It is intended to give the Pref an opportunity
             % to bind a method of the module_instance.
             % Can also use to check/verify input/output
             obj.parent_class = class(module_instance);
@@ -177,10 +177,10 @@ classdef pref < matlab.mixin.Heterogeneous % value class
                     
                     nout = abs(nout); % we can assume varargout has at least one output
                     assert(nout>=argouts(j),sprintf(...
-                        'prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
+                        'Prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
                         (avail_methods{j}),fnstring,nout))
                     assert(nin==2,sprintf(...
-                        'prefs require %s methods to take in val and pref\n\n  "%s" has %i inputs',...
+                        'Prefs require %s methods to take in val and Pref\n\n  "%s" has %i inputs',...
                         (avail_methods{j}),fnstring,nin))
                 end
             end
@@ -263,7 +263,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     methods(Sealed)
         function val = get_validated_ui_value(obj)
             % Note this is an extra layer primarily for backwards compatibility
-            % such that non class-based prefs will still call validation methods
+            % such that non class-based Prefs will still call validation methods
             % when they are used from the UI.
             val = obj.get_ui_value;
             obj.validate(val);
@@ -326,7 +326,7 @@ classdef pref < matlab.mixin.Heterogeneous % value class
         function summary = validationSummary(obj,indent,varargin)
             % Used to construct more helpful error messages when validation fails
             % Displays all properties that aren't hidden or defined in
-            % Base.pref or a superclass thereof. It will also ignore the
+            % Base.Pref or a superclass thereof. It will also ignore the
             % "ui" abstract property.
             % The varargin inputs are useful if you want to use a different
             % property value for a particular property. For example, if
@@ -335,8 +335,8 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             % If prop1 doesn't exist or wouldn't normally be shown, that
             % input does nothing.
             mc = metaclass(obj);
-            ignore_classes = superclasses('Base.pref');
-            ignore_classes = [ignore_classes ,{'Base.pref'}];
+            ignore_classes = superclasses('Base.Pref');
+            ignore_classes = [ignore_classes ,{'Base.Pref'}];
             public_props = properties(obj);
             mask = ~arrayfun(@(a)ismember(a.DefiningClass.Name,ignore_classes), mc.PropertyList) &...
                     ismember({mc.PropertyList.Name},public_props)';

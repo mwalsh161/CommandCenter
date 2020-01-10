@@ -1,4 +1,4 @@
-classdef File < Base.pref
+classdef File < Base.Pref
     %File allows selection of a file location on the system.
     % Note, if relative_to is specified (and not empty) all values will be
     % set relative to the path specified unless they are not relative.
@@ -34,7 +34,7 @@ classdef File < Base.pref
     end
     methods
         function obj = File(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
             obj.ui.empty_string = 'Select File';
         end
         function val = clean(obj,val)

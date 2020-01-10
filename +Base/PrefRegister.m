@@ -1,6 +1,6 @@
-classdef prefList < handle
+classdef PrefRegister < handle
     properties (Hidden, Access = private)
-        prefStruct = struct();
+        register = struct();
     end
     
     properties (Hidden, Constant)
@@ -19,7 +19,7 @@ classdef prefList < handle
     end
     
     methods (Access = protected)
-        function obj = prefList
+        function obj = PrefRegister
             
         end
     end
@@ -30,7 +30,7 @@ classdef prefList < handle
             
             assert(mod(numel(varargin), 2) == 0);   % Must be an even number of 'Name', Value pairs.
             
-            modules = sort(fields(obj.prefStruct));
+            modules = sort(fields(obj.register));
             
             if isempty(parentObject)
                 parentObject = figure;
@@ -43,7 +43,7 @@ classdef prefList < handle
                 case {'uicontextmenu', 'menu'}
                     menu = parentObject;
                 otherwise
-                    error([parentObject.Type ' is an unrecognized object for Base.prefList.getMenu.');
+                    error([parentObject.Type ' is an unrecognized object for Base.PrefRegister.getMenu.');
             end
             
             if isempty(modules)
@@ -54,17 +54,17 @@ classdef prefList < handle
             preffound = false;
             
             for ii = 1:length(modules)
-                if isempty(obj.prefStruct.(modules{ii}).(obj.parent_storage)) || ~isvalid(obj.prefStruct.(modules{ii}).(obj.parent_storage))
-                    obj.prefStruct = rmfield(obj.prefStruct, modules{ii});      % Remove the field if the module has been deleted
+                if isempty(obj.register.(modules{ii}).(obj.parent_storage)) || ~isvalid(obj.register.(modules{ii}).(obj.parent_storage))
+                    obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
                 else
-                    prefs = fields(obj.prefStruct.(modules{ii}));
+                    prefs = fields(obj.register.(modules{ii}));
                     
                     folder = uimenu(menu, 'Text', strrep(modules{ii}, '_', '.'));
                     
                     localpreffound = false;
                     
                     for jj = 2:length(prefs)    % First field will always be .(parent_storage)
-                        pref = obj.prefStruct.(modules{ii}).(prefs{jj});
+                        pref = obj.register.(modules{ii}).(prefs{jj});
 
                         shouldAdd = true;
 
@@ -125,16 +125,16 @@ classdef prefList < handle
             mc = metaclass(parent);
             parent_name = strrep(mc.Name, '.', '_');
             
-            if ~isfield(obj.prefStruct, parent_name)
-                obj.prefStruct.(parent_name) = struct(obj.parent_storage, parent);
+            if ~isfield(obj.register, parent_name)
+                obj.register.(parent_name) = struct(obj.parent_storage, parent);
             end
             
             assert(~strcmp(obj.parent_storage, pref.property_name), ['Invalid Base.Pref property name ' obj.parent_storage]);
             
-            obj.prefStruct.(parent_name).(pref.property_name) = pref;
+            obj.register.(parent_name).(pref.property_name) = pref;
         end
         function delete(obj)
-            obj.prefStruct = [];    % Prevent objects from being deleted by getting rid of reference to the struct beforehand. Note that record of these objects will be erased.
+            obj.register = [];    % Prevent objects from being deleted by getting rid of reference to the struct beforehand. Note that record of these objects will be erased.
         end
     end
 end

@@ -1,4 +1,4 @@
-classdef (ConstructOnLoad) preflistener < handle
+classdef (ConstructOnLoad) Preflistener < handle
     % PREFLISTENER is designed to be a drop in for event.proplistener
     % preflistener(event.proplistener)
     % preflistener(hSource,PropertyName,EventName,callback)
@@ -27,7 +27,7 @@ classdef (ConstructOnLoad) preflistener < handle
     end
 
     methods
-        function obj = preflistener(varargin)
+        function obj = Preflistener(varargin)
             % preflistener(proplistener)
             % preflistener(hSource,PropertyName,EventName,callback)
             if nargin == 1

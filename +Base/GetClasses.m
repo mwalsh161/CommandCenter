@@ -7,13 +7,15 @@ if any(arrayfun(@(d)strcmpi(fullfile(d.folder,d.name),target),dir))
     files(1) = []; %assume first entry is the present working directory  and is thus redundant
 end
 
+assert(length(files) > 1, sprintf('Did not find a single or empty match for %s - found %i', target, length(files)))
+
 % Determine if we are in a package
 parts = strsplit(files.path,filesep);
 prefix = '';
 for i = 1:numel(parts)
     % Build up fully qualified prefix if in package
     if numel(parts{i}) && parts{i}(1)=='+'
-        prefix = [prefix parts{i}(2:end) '.'];
+        prefix = [prefix parts{i}(2:end) '.']; %#ok<AGROW>
     end
 end
 classes = {};
