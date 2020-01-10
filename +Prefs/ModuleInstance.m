@@ -4,7 +4,7 @@ classdef ModuleInstance < Base.pref
     %   If remove_on_delete is set to true, then the actual data value will 
     %   get reshaped so single entries can be removed.
     
-    properties(Hidden) % Satisfy abstract
+    properties (Hidden) % Satisfy abstract
         default = Base.Module.empty(0);
         ui = Prefs.Inputs.ModuleSelectionField;
     end

@@ -6,7 +6,7 @@ classdef DoubleArray < Base.pref
     %set to NaN. Obviously if allow_nan is false, this will error and not
     %set a new value.
     
-    properties(Hidden)
+    properties (Hidden)
         default = 0;
         ui = Prefs.Inputs.TableField;
         callback = [];

@@ -12,7 +12,7 @@ classdef Integer < Prefs.Double
         function validate(obj,val)
             validate@Prefs.Double(obj,val);
             % Only further check is integer (allow Inf/NaN as integer)
-            if ~isinf(val) || ~isnan(val)
+            if ~isinf(val) && ~isnan(val)
                 validateattributes(val,{'numeric'},{'integer'})
             end
         end

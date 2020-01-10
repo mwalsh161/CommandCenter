@@ -9,8 +9,8 @@ classdef File < Base.pref
     % This will remember last folder accessed while the UI exists (resets when refreshed)
     %
     % To remove a file, you must hit cancel and proceed with the questdlg as desired.
-    
-    properties(Hidden)
+
+    properties (Hidden)
         default = '';
         ui = Prefs.Inputs.ButtonField;
         user_callback;
@@ -22,12 +22,12 @@ classdef File < Base.pref
         relative_to = {'', @(a)validateattributes(a,{'char'},{})};
         filter_spec = {'*.*', @(a)validateattributes(a,{'char'},{'vector'})};
     end
-    
-    methods(Static)
+
+    methods (Static)
         function tf = relative(path)
             if ispc % All full paths are specified with a single drive letter followed by ':'
                 tf = ~(length(path)>1 && path(2) == ':');
-            else % All full paths are 
+            else % All full paths are
                 tf = ~(~isempty(path) && path(1) == '/');
             end
         end
@@ -62,7 +62,7 @@ classdef File < Base.pref
         end
     end
 
-    methods(Hidden) % Callback
+    methods (Hidden) % Callback
         function select_file(obj,hObj,eventdata,~)
             if ~isfield(hObj.UserData,'last_choice')
                 hObj.UserData.last_choice = obj.value;
@@ -98,5 +98,5 @@ classdef File < Base.pref
             end
         end
     end
-    
+
 end

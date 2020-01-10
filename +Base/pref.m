@@ -52,44 +52,39 @@ classdef pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current pref
     %   architecture with this)
     
-    properties(Hidden, Access={?Base.pref_handler, ?Base.input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
+    properties (Hidden, SetAccess={?Base.pref_handler, ?Base.input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
 %     properties%(SetAccess=private)
 %         value_ = {[], @(a)true};
 %     end
-    properties(Abstract,Hidden)
+    properties (Abstract,Hidden)
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
     end
-    properties(Hidden, SetAccess = ?Base.pref_handler)
+    properties (Hidden, SetAccess = ?Base.pref_handler)
     	getEvent = false;                   % This is reserved for pref_handler.post to avoid calling set methods on a get event
     end
-    properties(Hidden, Access=private)
+    properties (Hidden, Access=private)
         initialized = false;                % Flag to prevent the pref from being used until it has been fully constructed.
     end
     
-    properties(Hidden, Access = private)    % Used by pref and pref_handler so pref can retain access to pref_handler. Set in Base.pref.bind(pref_handler)
+    properties (Hidden, Access = private)    % Used by pref and pref_handler so pref can retain access to pref_handler. Set in Base.pref.bind(pref_handler)
         read_fn     = [];                   % Calls val = pref_handler.readProp(prop), with the appropriate arguments already filled in.
         writ_fn     = [];                   % Calls tf = pref_handler.writProp(prop, val), with the appropriate arguments already filled in.
         
         listen_fn   = [];                   % Calls pref_handler.addlistener(prop, event, callback), with the appropriate arguments already filled in.
     end
-    properties(Hidden, SetAccess = private)
+    properties (Hidden, SetAccess = private)
         parent_class = '';                  % Stores the name of the parent pref_handler subclass for reference.
     end
-    properties(Hidden, SetAccess = ?Base.pref_handler)
+    properties (Hidden, SetAccess = ?Base.pref_handler)
         property_name = '';                 % Name of the property in pref_handler that this pref fondles.
     end
     
     properties % {default, validation function}
         name    = {'', @(a)validateattributes(a,{'char'},{'vector'})};
         units   = {'', @(a)validateattributes(a,{'char'},{'vector'})};
-    end
-    properties (Abstract)                   % Maybe a better way to do this is to make a subclass of Base.Pref called Pref.Numeric which has max and min.
-        numeric;                            % Used to classify certain types of prefs (i.e. which ones are compatible with scanning.
-        min;                                % Minimum of value
-        max;                                % Maximum of value
     end
         
     properties%(SetAccess = ?Base.pref_handler)
@@ -259,6 +254,9 @@ classdef pref < matlab.mixin.Heterogeneous % value class
             else
                 label = str;
             end
+        end
+        function tf = isnumeric(~)
+            tf = false;
         end
     end
 

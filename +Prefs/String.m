@@ -1,7 +1,7 @@
 classdef String < Base.pref
     %STRING Allows any character array
     
-    properties(Hidden)
+    properties (Hidden)
         default = '';
         ui = Prefs.Inputs.CharField;
     end
