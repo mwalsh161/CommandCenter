@@ -58,7 +58,7 @@ classdef File < Base.Pref
 
         function obj = link_callback(obj,callback)
             obj.user_callback = callback;
-            obj = link_callback@Base.pref(obj,@obj.select_file);
+            obj = link_callback@Base.Pref(obj,@obj.select_file);
         end
     end
 

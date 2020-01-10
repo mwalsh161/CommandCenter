@@ -1,4 +1,4 @@
-classdef LabelControlBasic < Base.input
+classdef LabelControlBasic < Base.Input
     % LABELCONTROLBASIC provides functionality for preparing a common input type
     %   of a right justified label (text) and a left justified input uicontrol element
     %   It stores the label uicontrol element in "label" and the input element

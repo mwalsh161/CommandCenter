@@ -12,7 +12,7 @@ classdef String < Base.Pref
     
     methods
         function obj = String(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
         end
         function validate(obj,val)
             validateattributes(val,{'char','string'},{'scalartext'})

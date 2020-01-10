@@ -141,7 +141,7 @@ classdef MultipleChoice < Prefs.Numeric
         end
         function summary = validation_summary(obj,indent)
             % Swap choices to the UI values briefly for the user to see
-            summary = validation_summary@Base.pref(obj,indent,'choices:choices_strings');
+            summary = validation_summary@Base.Pref(obj,indent,'choices:choices_strings');
         end
     end
     methods (Static)

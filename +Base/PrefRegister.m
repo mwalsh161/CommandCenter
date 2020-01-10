@@ -1,4 +1,7 @@
 classdef PrefRegister < handle
+    %
+    
+    
     properties (Hidden, Access = private)
         register = struct();
     end
@@ -12,7 +15,7 @@ classdef PrefRegister < handle
             mlock
             persistent local
             if isempty(local) || ~isvalid(local)
-                local = Base.prefList;
+                local = Base.PrefList;
             end
             singleton = local;
         end

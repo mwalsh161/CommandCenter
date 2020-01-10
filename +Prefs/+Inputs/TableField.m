@@ -1,4 +1,4 @@
-classdef TableField < Base.input
+classdef TableField < Base.Input
     %TABLEFIELD provides interface to MATLAB uitable
     %   The property "props" is passed directuly to uitable. There will be an
     %   error if you attempt to pass some reserved properties. For example,

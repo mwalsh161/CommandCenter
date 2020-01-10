@@ -1,4 +1,4 @@
-classdef ModuleSelectionField < Base.input
+classdef ModuleSelectionField < Base.Input
     %MODULESELECTIONFIELD provides UI to choose modules and access their settings
     %   If a module gets deleted, it will turn red in the dropdown but will not
     %   be removed.
@@ -191,7 +191,7 @@ classdef ModuleSelectionField < Base.input
                     obj.selection.Value = nval;
                 end
                 % Add deleted listeners
-                lsh = Base.preflistener.empty;
+                lsh = Base.PrefListener.empty;
                 for i = 1:nval
                     lsh(end+1) = addlistener(val(i),'ObjectBeingDestroyed',@obj.module_deleted);
                 end

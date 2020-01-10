@@ -1,4 +1,4 @@
-classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneous
+classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties.
     %
@@ -180,7 +180,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                             end
                             val = temp;
                         end
-                        if ismember('Base.pref',superclasses(val))
+                        if ismember('Base.Pref',superclasses(val))
                             % THIS SHOULD NOT HAPPEN, bug haven't figured
                             % out why it does sometimes yet
                             val = val.value;
@@ -394,7 +394,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             if isempty(suggested_label_width)
                 suggested_label_width = max_label_width;
             end
-            lsh = Base.preflistener.empty;
+            lsh = Base.PrefListener.empty;
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
