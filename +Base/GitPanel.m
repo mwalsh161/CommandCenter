@@ -42,7 +42,7 @@ classdef GitPanel
             
             obj.panel.UIContextMenu = obj.menu;
             
-            obj.text = uicontrol(obj.panel, 'Style', 'radiobutton', 'UIContextMenu', obj.menu, 'Units', 'characters');
+            obj.text = uicontrol(obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters');
             obj.text.Position(1:2) = [-2.75 0];
             obj.text.Position(3) = 200;
             
@@ -53,16 +53,17 @@ classdef GitPanel
             
             obj.update();
         end
-        
         function update(obj)
             obj.panel.HighlightColor = [.5 0 .5];   % Purple
             obj.panel.Title = 'git fetch';
-            drawnow;
             try
                 git('fetch -q --all');
                 
-                obj.text.String = obj.info();
+                obj.text.String = 'Fetching...';
+                drawnow;
+                
                 obj.text.Tooltip = obj.tooltip();
+                obj.text.String = obj.info();
                 obj.panel.HighlightColor = 'w';
                 obj.panel.Title = 'git branch';
                 drawnow;
@@ -75,10 +76,13 @@ classdef GitPanel
         end
         function thisbranch = thisbranch(obj) %#ok<MANU> It wasn't fetching properly when it was static.
             thisbranch = split(git('branch', '-v'), '* ');
+            thisbranch
             thisbranch = split(thisbranch{end}, newline);
             thisbranch = thisbranch{1};
+            thisbranch
         end
         function str = info(obj)
+            'info'
             thisbranch = makeHTML(obj.thisbranch());
             
             words_ = split(thisbranch, ' ');
@@ -141,6 +145,7 @@ classdef GitPanel
             str = {['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'], 'Untracked'};
         end
         function str = tooltip(obj)
+            'tooltip'
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
             str__ = split(str_, newline);
             
