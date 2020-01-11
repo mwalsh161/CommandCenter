@@ -28,7 +28,6 @@ classdef GitPanel
             obj.panel.Units = 'characters';
             obj.panel.Position(4) = 2;
             
-%             '<sup>--author **you**</sup> <sub>--message **decription**</sub>'
             filedetails = ' &lt;file(s)&gt; (--all)';
             commitdetails = ' --author &lt;you&gt; --message &lt;description&gt;';
             
@@ -57,13 +56,15 @@ classdef GitPanel
         
         function update(obj)
             obj.panel.HighlightColor = [.5 0 .5];   % Purple
+            obj.panel.Title = 'git fetch';
             drawnow;
             try
                 git('fetch -q --all');
-            
+                
                 obj.text.String = obj.info();
                 obj.text.Tooltip = obj.tooltip();
                 obj.panel.HighlightColor = 'w';
+                obj.panel.Title = 'git branch';
                 drawnow;
             catch err
                 obj.text.String = '<html>Could not <font color="purple">git</font> fetch.';
@@ -72,20 +73,13 @@ classdef GitPanel
                 rethrow(err);
             end
         end
-    end
-    methods (Static)
-        function outofdate()
-            
-        end
-        function thisbranch = thisbranch()
+        function thisbranch = thisbranch(obj) %#ok<MANU> It wasn't fetching properly when it was static.
             thisbranch = split(git('branch', '-v'), '* ');
             thisbranch = split(thisbranch{end}, newline);
             thisbranch = thisbranch{1};
-            
-%             thisbranch = 'measurement aa2a21d [ahead 6] Finished rename of files. More commenting and cleanup.';
         end
-        function str = info()
-            thisbranch = makeHTML(Base.GitPanel.thisbranch());
+        function str = info(obj)
+            thisbranch = makeHTML(obj.thisbranch());
             
             words_ = split(thisbranch, ' ');
             words = {};
@@ -133,23 +127,26 @@ classdef GitPanel
             
             status = git('status');
             
-            if contains(status,'Changes not staged for commit:') || contains(status,'Changes to be committed:')
-                message = [message '&nbsp;&nbsp;<font color=orange><I>Modified Files</I></font>'];
-            end
+            modified = contains(status,'Changes not staged for commit:') || contains(status,'Changes to be committed:');
+            untracked = contains(status,'Untracked files:');
             
-            if contains(status,'Untracked files:')
+            if modified && untracked
+                message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked</font> Files</font></I>'];
+            elseif modified
+                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><I>Modified Files</I></font>'];
+            elseif untracked
                 message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I></font>'];
             end
             
             str = {['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'], 'Untracked'};
         end
-        function str = tooltip()
+        function str = tooltip(obj)
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
             str__ = split(str_, newline);
             
             assert(~isempty(str__));
             
-            str = ['On branch ' Base.GitPanel.thisbranch() newline str_((numel(str__{1})+1):end)];
+            str = ['On branch ' obj.thisbranch() newline str_((numel(str__{1})+1):end)];
         end
     
     end
