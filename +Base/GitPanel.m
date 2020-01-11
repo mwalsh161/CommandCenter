@@ -1,9 +1,9 @@
 classdef GitPanel
     
     properties
-        panel = [];
-        text = [];
-        menu = [];
+        panel;
+        text;
+        menu;
     end
     
     properties (Constant)
@@ -40,9 +40,9 @@ classdef GitPanel
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
                                              '<font color="purple">git</font> pull</html>'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
             
-            obj.panel.UIContextMenu = obj.menu;
+            obj.panel.UIContextMenu = obj.menu; 
             
-            obj.text = uicontrol(obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters');
+            obj.text = uicontrol(obj.panel, 'Style', 'radiobutton', 'UIContextMenu', obj.menu, 'Units', 'characters');     % Text does not display HTML :(
             obj.text.Position(1:2) = [-2.75 0];
             obj.text.Position(3) = 200;
             
@@ -76,13 +76,10 @@ classdef GitPanel
         end
         function thisbranch = thisbranch(obj) %#ok<MANU> It wasn't fetching properly when it was static.
             thisbranch = split(git('branch', '-v'), '* ');
-            thisbranch
             thisbranch = split(thisbranch{end}, newline);
             thisbranch = thisbranch{1};
-            thisbranch
         end
         function str = info(obj)
-            'info'
             thisbranch = makeHTML(obj.thisbranch());
             
             words_ = split(thisbranch, ' ');
@@ -145,7 +142,6 @@ classdef GitPanel
             str = {['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'], 'Untracked'};
         end
         function str = tooltip(obj)
-            'tooltip'
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
             str__ = split(str_, newline);
             
