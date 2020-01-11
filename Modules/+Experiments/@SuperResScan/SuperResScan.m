@@ -49,15 +49,21 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
             obj.resLaser.arm;
             obj.repumpLaser.arm;
             obj.resLaser.TuneSetpoint(obj.frequency);
-            
-            imH = imagesc(ax,obj.x,obj.y,NaN(length(obj.y),length(obj.x)));
+            subplot(1,2,1,ax);
+            ax(2) = subplot(1,2,2,'parent',ax.Parent);
+            imH(1) = imagesc(ax(1),obj.x,obj.y,NaN(length(obj.y),length(obj.x)));
+            title(ax(1),'Repump Bin');
+            imH(2) = imagesc(ax(2),obj.x,obj.y,NaN(length(obj.y),length(obj.x)));
+            title(ax(2),'Resonant Bin');
             set(ax,'ydir','normal');
-            axis(ax,'image');
-            ax.UserData = imH;
+            axis(ax(1),'image');
+            axis(ax(2),'image');
+            ax(1).UserData = imH;
         end
         function UpdateRun(obj,~,~,ax,~,~,~)
             % UpdateRun(obj,status,managers,ax,average,xInd,yInd)
-            ax.UserData.CData = squeeze(nanmean(obj.data.sumCounts,1))';
+            ax.UserData(1).CData = squeeze(nanmean(obj.data.sumCounts(:,:,:,1),1))';
+            ax.UserData(2).CData = squeeze(nanmean(obj.data.sumCounts(:,:,:,2),1))';
         end
         function s = BuildPulseSequence(obj,xInd,yInd)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
@@ -82,7 +88,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
                 obj.sequence = s;
             end
             % Update stage position
-            %obj.stageManager.move([obj.x(xInd),obj.y(yInd),NaN])
+            obj.stageManager.move([obj.x(xInd),obj.y(yInd),NaN])
         end
         
         function val = set_points(obj,val,mp)
