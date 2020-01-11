@@ -1,6 +1,6 @@
 classdef Measurement < matlab.mixin.Heterogeneous
     % MEASUREMENT Superclass for Measurements.
-    % Base.Measurement intends to
+    % Base.Measurement intends to:
     %
     %       1) Standardize data structure format, while maintaining backwards compatibility.
     %       2) Provide formatted and checked numeric data that is easy for other programs to use.
@@ -39,26 +39,27 @@ classdef Measurement < matlab.mixin.Heterogeneous
     %    + prefs (empty OR struct of cell arrays of Base.Prefs)
     %    + scans (empty OR struct of cell arrays of 1D numeric arrays)
     %
-    % A cleaned version of these properties is provided in the metadata, 
-    %
     % If these are structs, they should have the same fields as the subdata fields. This is strict
-    % for names and units, but Base.Measurement will autogenerate unused fields for prefs and scans.
-    % If names is a string, Base.Measurement will fill a struct with struct(subdata{1}, [names ' '
-    % subdata{1}], subdata{2}, [names ' ' subdata{2}], ... to differentiate the different subdatas to the user. If units is a string, then all
-    % of the subdata are assumed to have the same units. Better understanding can be gained by playing
-    % with the static function Base.Measurement.tests() to see what validate will spit out for various
-    % inputs and settings.
+    % for names and units, but Base.Measurement will compensate for unused fields for prefs and scans. A
+    % cleaned version of these properties is provided in the metadata, which contains:
     %
-    %   metadata.version : Base.Measurement.version;
-    %   metadata.subdata : obj.subdata();               % Returns
+    %   metadata.version : Base.Measurement.version;    % Constant; not used right now.
+    %   metadata.subdata : obj.subdata();       % Returns a cell array the subdata names.
+    %                                           % fieldnames(d) == [obj.subdata()  {'meta', 'metadata'}]
     % 
-    %   metadata.sizes : obj.getSizes;
-    %   metadata.names : obj.getNames;
-    %   metadata.units : obj.getUnits;
-    %   metadata.prefs : obj.getPrefs;
-    %   metadata.scans = obj.getScans;
-    %   
+    %   metadata.sizes   : obj.getSizes;        % If obj.sizes isn't a struct, returns struct('data', obj.sizes)
+    %   metadata.names   : obj.getNames;        % If names is a string, Base.Measurement will fill a
+    %                                           %   struct with struct(subdata{1}, [names ' ' subdata{1}],
+    %                                           %   subdata{2}, [names ' ' subdata{2}], ... to
+    %                                           %   differentiate the different subdatas to the user.  
+    %   metadata.units   : obj.getUnits;        % If units is a string, then all of the subdata are assumed to have the same units
+    %   metadata.prefs   : obj.getPrefs;        % Autogenerates Base.Pref with units 'pixels' and name
+    %                                           %   'X', 'Y', ... according to direction of dimension.
+    %   metadata.scans   : obj.getScans;        % Autogenerates integer 1:N
     %
+    % Better understanding can be gained by playing with the static function Base.Measurement.tests() to
+    % see what validate will spit out for various inputs and settings.
+    % 
     % Lastly, this superclass integrates with existing modules by providing the function .measure() to be
     % overwritten by subclasses. The main function .snap() calls .measure() with validation (future work:
     % adding support for custom function handles to be called instead of the .measure() function).
@@ -178,11 +179,12 @@ classdef Measurement < matlab.mixin.Heterogeneous
         function obj = set.sizes(obj, sizes_)
             assert(isstruct(sizes_) || (isnumeric(sizes_) && ~isempty(sizes_)), 'Base.Measurement.sizes must be a struct or numeric.')
             
-            if isstruct(obj.names) || isstruct(obj.units) || isstruct(obj.prefs) || isstruct(obj.scans)
+            new = {'data'};
+            old = {'data'};
+                
+            if isstruct(obj.names) || isstruct(obj.units) || isstruct(obj.prefs) || isstruct(obj.scans) %#ok<MCSUP>
                 % If one of our other vars has already been set to a struct with fields, then sizes needs to
-                % maintain its own fields.
-                new = {'data'};
-                old = {'data'};
+                % maintain its own fields to avoid confusion.
 
                 if isstruct(sizes_)
                     new = fieldnames(sizes_);
@@ -315,7 +317,7 @@ classdef Measurement < matlab.mixin.Heterogeneous
     end
     
     methods (Hidden, Static)
-        function tests()    % Make better.
+        function tests()    % Helps with debugging .validation(). Needs more tests.
             obj = Base.Measurement();
             
 %             test = {NaN,...
@@ -379,28 +381,6 @@ classdef Measurement < matlab.mixin.Heterogeneous
                 end
             end
         end
-        function tf = isValidDataName(str)
-            if ~ischar(str)
-                tf = false;
-                return;
-            end
-
-            a = struct();
-            tf = true;
-
-            try
-                a.(str) = [];   % Not sure if this is the best way to test if a struct name is valid.
-            catch
-                tf = false;
-            end
-
-            switch str
-                case {'dat', 'std', 'data', 'meta', 'metadata'}
-                    tf = false;
-                otherwise
-                    %
-            end
-        end
     end
     methods (Sealed)
         function md = metadata(obj)
@@ -440,8 +420,8 @@ classdef Measurement < matlab.mixin.Heterogeneous
                 if isstruct(obj.sizes)
                     %%%%% If this Measurement has an expected structure...
                     
-%                     assert(~isfieldfast(raw_fields, 'dat'), 'dat may not be a field of d');
-%                     assert(~isfieldfast(raw_fields, 'std'), 'std may not be a field of d');
+                    assert(~isfieldfast(raw_fields, 'dat'), 'dat may not be a field of d when obj.sizes is a struct. Please put the data in the fields specified by obj.sizes.');
+                    assert(~isfieldfast(raw_fields, 'std'), 'std may not be a field of d when obj.sizes is a struct. Please put the data in the fields specified by obj.sizes.');
                     
                     size_fields = fieldnames(obj.sizes);
                     
@@ -715,7 +695,7 @@ classdef Measurement < matlab.mixin.Heterogeneous
     end
 
     methods %(Abstract)
-        function data = measure(obj)
+        function data = measure(obj) %#ok<STOUT,MANU>
             error('Base.Measurement.measure() NotImplemented.');
 		end
     end

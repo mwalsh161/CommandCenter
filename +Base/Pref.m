@@ -52,7 +52,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current Pref
     %   architecture with this)
     
-    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
+    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.Input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
 %     properties%(SetAccess=private)
