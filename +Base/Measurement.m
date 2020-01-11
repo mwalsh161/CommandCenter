@@ -23,34 +23,46 @@ classdef Measurement < matlab.mixin.Heterogeneous
     %   data_clean = Base.Measurement.validate(data_raw)
     %
     % This function uses the required property Base.Measurement.sizes to determine how many fields the
-    % output should have, along with error checking and imposing size restrictions. Other unnrecognized
-    % fields not recognized are passed via data_raw are shoved into d.meta. sizes can be in one of two formats:
+    % output should have, along with error checking and imposing size restrictions. Other unrecognized
+    % fields passed via data_raw are shoved into d.meta. sizes can be in one of two formats:
     %
     %    + A struct with one field for each subdata, containing the expected numeric dimension [sz1, sz2, ...] of the subdata (i.e. the output of size(dat)).
-    %    + A single numeric dimension, for which the subdata field is set to be .data
+    %    + A single numeric dimension, for which the subdata field is autoset to be .data
     %
     % Note that validate errors if the size restrictions are not followed. A use case would be imposing
     % the restriction of [1 512] data from a spectrometer.
     %
     % Other properties are optional to set, but provide useful information to the user:
     % 
-    %    + names (empty OR single string OR struct of strings) 
-    %    + units (empty OR single string OR struct of strings) 
-    %    + prefs (empty OR struct of cell arrays of Base.Prefs) 
+    %    + names (empty OR single string OR struct of strings)
+    %    + units (empty OR single string OR struct of strings)
+    %    + prefs (empty OR struct of cell arrays of Base.Prefs)
     %    + scans (empty OR struct of cell arrays of 1D numeric arrays)
     %
-    % If these are structs, they must should have the same fields as the subdata fields. This is strict
-    % for names and units, but Base.Measurement will autogenerate unfilled fields for prefs and scans.
-    % If names is a string, Base.Measurement will fill a struct with [names ' ' subdata{1}], [names ' '
-    % subdata{1}], ... to diffentiate the different subdatas to the user. If units is a string, then all
+    % A cleaned version of these properties is provided in the metadata, 
+    %
+    % If these are structs, they should have the same fields as the subdata fields. This is strict
+    % for names and units, but Base.Measurement will autogenerate unused fields for prefs and scans.
+    % If names is a string, Base.Measurement will fill a struct with struct(subdata{1}, [names ' '
+    % subdata{1}], subdata{2}, [names ' ' subdata{2}], ... to differentiate the different subdatas to the user. If units is a string, then all
     % of the subdata are assumed to have the same units. Better understanding can be gained by playing
     % with the static function Base.Measurement.tests() to see what validate will spit out for various
     % inputs and settings.
     %
-    % Lastly, this superclass integrates with existing by providing the function .measure() to be
-    % overwritten subclasses. The main function .snap() calls .measure() with validation (future work:
-    % adding support for custom function handles to be called instead of the .measure() function).
+    %   metadata.version : Base.Measurement.version;
+    %   metadata.subdata : obj.subdata();               % Returns
+    % 
+    %   metadata.sizes : obj.getSizes;
+    %   metadata.names : obj.getNames;
+    %   metadata.units : obj.getUnits;
+    %   metadata.prefs : obj.getPrefs;
+    %   metadata.scans = obj.getScans;
     %   
+    %
+    % Lastly, this superclass integrates with existing modules by providing the function .measure() to be
+    % overwritten by subclasses. The main function .snap() calls .measure() with validation (future work:
+    % adding support for custom function handles to be called instead of the .measure() function).
+    %
     %%% OUTPUT FORMAT EXAMPLES %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %
     % When subdata are not provided by sizes, defaults to single subdata called .data:

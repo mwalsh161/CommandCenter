@@ -21,9 +21,6 @@ classdef PrefHandler < handle
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
     end
-%     properties(Access = ?Base.Pref)
-%         ls_enabled = struct();
-%     end
     properties(Hidden, SetAccess = private)
         last_pref_set_err = [];
     end
@@ -202,16 +199,8 @@ classdef PrefHandler < handle
             % name: string name of property
             % enabled: true/false
 
-            % Asserts were taking a while...
-%             assert(isprop(obj,name),sprintf('No appropriate method, property, or field ''%s'' for class ''%s''.',name,class(obj)))
-%             assert(isfield(obj.ls,name),sprintf('''%s'' is not a class-based pref.',name))
-%             for i = 1:4 % Disable this prop's listeners
-%                 obj.ls.(name)(i).Enabled = enabled;
-%             end
-
             listeners = obj.ls.(name);
             for i = 1:4 % Disable this prop's listeners
-%                 listeners(i).Enabled = enabled;
                 if numel(listeners(i)) == 1
                     if listeners(i).wrapper
                         listeners(i).proplistener.Enabled = enabled;    % This isn't super kosher, but will work except for super fringe cases. Helps with speed a lot.
@@ -222,11 +211,6 @@ classdef PrefHandler < handle
                     listeners(i).Enabled = enabled;
                 end
             end
-
-%             [obj.ls.(name).Enabled]
-%             [enabled enabled enabled enabled]
-%             [obj.ls.(name).Enabled] = [enabled enabled enabled enabled];
-%             obj.ls_enabled.(name) = enabled;
         end
     end
 
