@@ -164,7 +164,7 @@ try
                         if ~isempty(obj.prerun_functions{exp_index})
                             obj.(obj.prerun_functions{exp_index})(experiment);
                         end
-                        RunExperiment(obj,managers,experiment,site_index,ax)
+                        RunExperiment(obj,managers,experiment,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
                         obj.data.sites(site_index).experiments(local_exp_index).tstop = datetime('now');
                         obj.data.sites(site_index).experiments(local_exp_index).dP = dP;
@@ -238,7 +238,7 @@ imaging_source.on;
 imaging_source.off;
 end
 
-function RunExperiment(obj,managers,experiment,site_index,ax)
+function RunExperiment(obj,managers,experiment,ax)
 [abortBox,abortH] = ExperimentManager.abortBox(class(experiment),@(~,~)obj.abort);
 try
     drawnow; assert(~obj.abort_request,'User aborted');
@@ -250,7 +250,6 @@ try
     experiment.run(abortBox,managers,ax);
     obj.current_experiment = [];
 catch exp_err
-    obj.data.sites(site_index).experiments(end).err = exp_err;
     delete(abortH);
     rethrow(exp_err)
 end
