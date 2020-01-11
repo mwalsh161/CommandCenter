@@ -16,8 +16,9 @@ classdef GitPanel
             obj.panel.Position(4) = 2;
             
             obj.menu = uicontextmenu();
-            uimenu(obj.menu, 'Label', '<html><font color="purple">git</font> add .<br><font color="purple">git</font> commit</html>')
-            uimenu(obj.menu, 'Label', '<html><font color="purple">git</font> push')
+            uimenu(obj.menu, 'Label', '<html><font color="purple">git</font> fetch</html>', 'Callback', @(s,e)obj.update)
+            uimenu(obj.menu, 'Label', '<html><font color="purple">git</font> add .<br><font color="purple">git</font> commit<br><html><font color="purple">git</font> push</html>')
+%             uimenu(obj.menu, 'Label', '<html><font color="purple">git</font> push')
             uimenu(obj.menu, 'Label', '<html><font color="purple">git</font> pull')
             obj.text = uicontrol(obj.panel, 'Style', 'radiobutton', 'UIContextMenu', obj.menu, 'Units', 'characters', 'Callback', @(s,e)obj.update);
             obj.text.Position(1:2) = [-2.75 0];
@@ -31,8 +32,14 @@ classdef GitPanel
         end
         
         function update(obj)
-            [obj.text.String, message] = obj.info();
-            obj.text.Tooltip = obj.tooltip(message);
+            try
+                git('fetch -q --all');
+            catch
+                
+            end
+            
+            obj.text.String = obj.info();
+            obj.text.Tooltip = obj.tooltip();
         end
     end
     methods (Static)
@@ -46,7 +53,7 @@ classdef GitPanel
             
 %             thisbranch = 'measurement aa2a21d [ahead 6] Finished rename of files. More commenting and cleanup.';
         end
-        function [str, messageraw] = info()
+        function str = info()
             thisbranch = Base.GitPanel.thisbranch();
             
             words_ = split(thisbranch, ' ');
@@ -83,13 +90,13 @@ classdef GitPanel
                     commas = split(brackets{1}, {', '});
                     
                     if numel(commas) == 2
-                        message = ['&nbsp;&nbsp;[<font color="orange">' commas{1} '</font>, <font color="red">' commas{2} '</font>]'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} '</font>, <font color="red">' commas{2} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                     
                     else
-                        message = ['&nbsp;&nbsp;[<font color="orange">' brackets{1} '</font>]'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                     end
                 case '[behin'
-                    message = ['&nbsp;&nbsp;[<font color="red">' brackets{1} '</font>]'];% messageraw((numel(brackets{1})+3):end)];
+                    message = ['&nbsp;&nbsp;<font color="red">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                 otherwise
             end
             
@@ -105,8 +112,8 @@ classdef GitPanel
             
             str = {['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'], 'Untracked'};
         end
-        function str = tooltip(message)
-            str_ = strrep(git('status'), '/', ' / ');
+        function str = tooltip()
+            str_ = strrep(git('status --ahead-behind'), '/', ' / ');
             str__ = split(str_, newline);
             
             assert(~isempty(str__));
