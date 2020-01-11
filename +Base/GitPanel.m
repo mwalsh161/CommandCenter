@@ -33,13 +33,13 @@ classdef GitPanel
             commitdetails = ' --author &lt;you&gt; --message &lt;description&gt;';
             
             obj.menu = uicontextmenu(f);
-            uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch', 'Callback', @(s,e)obj.update)
-            uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
-                                             '<font color="purple">git</font> ad&d' filedetails '<br>'...
-                                             '<font color="purple">git</font> commit' commitdetails '<br>'...
-                                             '<font color="purple">git</font> push'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
-            uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                             '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
+            uimenu(obj.menu, 'Label',  '<html><font color="purple">git fetch', 'Callback', @(s,e)obj.update)
+            uimenu(obj.menu, 'Label', ['<html><font color="purple">git status<br>'...
+                                             '<font color="purple">git ad&d' filedetails '<br>'...
+                                             '<font color="purple">git commit' commitdetails '<br>'...
+                                             '<font color="purple">git push'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
+            uimenu(obj.menu, 'Label', ['<html><font color="purple">git status<br>',...
+                                             '<font color="purple">git pull'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
             
             obj.panel.UIContextMenu = obj.menu; 
             
@@ -54,7 +54,7 @@ classdef GitPanel
             
             obj.update();
             
-            obj.panel.Visible = 'on';
+            obj.panel.Visible = 'on'; 
         end
         function update(obj)
             obj.panel.HighlightColor = [.5 0 .5];   % Purple
@@ -71,7 +71,7 @@ classdef GitPanel
                 obj.panel.Title = 'git branch';
                 drawnow;
             catch err
-                obj.text.String = '<html>Could not <font color="purple">git</font> fetch.';
+                obj.text.String = '<html>Could not <font color="purple">git fetch.';
                 obj.text.Tooltip = 'Something terrible happened.';
                 
                 rethrow(err);
@@ -119,13 +119,13 @@ classdef GitPanel
                     commas = split(brackets{1}, {', '});
                     
                     if numel(commas) == 2
-                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} '</font>, <font color="red">' commas{2} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} ', <font color="red">' commas{2} ']'];% messageraw((numel(brackets{1})+3):end)];
                     
                     else
-                        message = ['&nbsp;&nbsp;<font color="orange">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' brackets{1} ']'];% messageraw((numel(brackets{1})+3):end)];
                     end
                 case '[behin'
-                    message = ['&nbsp;&nbsp;<font color="red">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
+                    message = ['&nbsp;&nbsp;<font color="red">[' brackets{1} ']'];% messageraw((numel(brackets{1})+3):end)];
                 otherwise
             end
             
@@ -135,14 +135,14 @@ classdef GitPanel
             untracked = contains(status,'Untracked files:');
             
             if modified && untracked
-                message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked</font> Files</font></I>'];
+                message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked Files</I>'];
             elseif modified
-                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><I>Modified Files</I></font>'];
+                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><I>Modified Files</I>'];
             elseif untracked
-                message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I></font>'];
+                message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I>'];
             end
             
-            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message];
+            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I>' message];
         end
         function str = tooltip(obj)
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
