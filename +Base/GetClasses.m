@@ -7,7 +7,7 @@ if any(arrayfun(@(d)strcmpi(fullfile(d.folder,d.name),target),dir))
     files(1) = []; %assume first entry is the present working directory  and is thus redundant
 end
 
-assert(length(files) > 1, sprintf('Did not find a single or empty match for %s - found %i', target, length(files)))
+assert(length(files) >= 1, sprintf('Did not find a single or empty match for %s - found %i', target, length(files)))
 
 % Determine if we are in a package
 parts = strsplit(files.path,filesep);
