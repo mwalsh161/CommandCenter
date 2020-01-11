@@ -27,18 +27,19 @@ classdef GitPanel
             obj.panel.Title = 'git branch';
             obj.panel.Units = 'characters';
             obj.panel.Position(4) = 2;
+            obj.panel.Visible = 'off';
             
             filedetails = ' &lt;file(s)&gt; (--all)';
             commitdetails = ' --author &lt;you&gt; --message &lt;description&gt;';
             
             obj.menu = uicontextmenu(f);
-            uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch</html>', 'Callback', @(s,e)obj.update)
+            uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch', 'Callback', @(s,e)obj.update)
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
                                              '<font color="purple">git</font> ad&d' filedetails '<br>'...
                                              '<font color="purple">git</font> commit' commitdetails '<br>'...
-                                             '<font color="purple">git</font> push</html>'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
+                                             '<font color="purple">git</font> push'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                             '<font color="purple">git</font> pull</html>'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
+                                             '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
             
             obj.panel.UIContextMenu = obj.menu; 
             
@@ -52,6 +53,8 @@ classdef GitPanel
             end
             
             obj.update();
+            
+            obj.panel.Visible = 'on';
         end
         function update(obj)
             obj.panel.HighlightColor = [.5 0 .5];   % Purple
@@ -139,7 +142,7 @@ classdef GitPanel
                 message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I></font>'];
             end
             
-            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'];
+            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message];
         end
         function str = tooltip(obj)
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
