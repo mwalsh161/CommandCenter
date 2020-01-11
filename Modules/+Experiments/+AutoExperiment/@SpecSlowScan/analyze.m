@@ -114,7 +114,7 @@ wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
 AmplitudeSensitivity = 1;
 update_exp = {@update_spec, @update_open, @update_closed, @update_superres}; % Easily index by exp_id
-colors = lines;
+colors = lines(7);
 
 % Frequently updated and small stuff here
 site_index = 1;
@@ -332,7 +332,7 @@ end
                 wavelength = experiment.data.wavelength;
                 mask = and(wavelength>=min(wavenm_range),wavelength<=max(wavenm_range));
                 plot(ax(2),wavelength(mask),experiment.data.intensity(mask),'tag','Spectra','color',colors(i,:));
-                formatSelector(selector(1),experiment,exp_inds(i),1,site_index,colors(i,:));
+                formatSelector(selector(1),experiment,exp_inds(i),1,site_index,colors(mod(i-1,size(colors,1))+1,:));
             else
                 formatSelector(selector(1),experiment,exp_inds(i),1,site_index);
             end
@@ -365,11 +365,11 @@ end
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                        'parent',ax(3),'tag','OpenLoop','color',colors(i,:));
+                        'parent',ax(3),'tag','OpenLoop','color',colors(mod(i-1,size(colors,1))+1,:));
                 set_point = experiment.prefs.freq_THz;
-                setpt_plts(i) = plot(ax(3),set_point+[0 0], [NaN,NaN], '--', 'Color', colors(i,:),...
+                setpt_plts(i) = plot(ax(3),set_point+[0 0], [NaN,NaN], '--', 'Color', colors(mod(i-1,size(colors,1))+1,:),...
                     'handlevisibility','off','hittest','off');
-                formatSelector(selector(2),experiment,exp_inds(i),2,site_index,colors(i,:));
+                formatSelector(selector(2),experiment,exp_inds(i),2,site_index,colors(mod(i-1,size(colors,1))+1,:));
             else
                 formatSelector(selector(2),experiment,exp_inds(i),2,site_index);
             end
@@ -403,8 +403,8 @@ end
                 errorfill(experiment.data.data.freqs_measured,...
                         experiment.data.data.sumCounts,...
                         experiment.data.data.stdCounts*sqrt(experiment.prefs.samples),...
-                        'parent',ax(4),'tag','ClosedLoop','color',colors(i,:));
-                formatSelector(selector(3),experiment,exp_inds(i),3,site_index,colors(i,:));
+                        'parent',ax(4),'tag','ClosedLoop','color',colors(mod(i-1,size(colors,1))+1,:));
+                formatSelector(selector(3),experiment,exp_inds(i),3,site_index,colors(mod(i-1,size(colors,1))+1,:));
             else
                 formatSelector(selector(3),experiment,exp_inds(i),3,site_index);
             end
@@ -435,17 +435,20 @@ end
             % All experiments should be the same and x/y should be same
             sz = length(site.experiments(exp_inds(1)).data.meta.vars(1).vals());
             rm = false(1,length(exp_inds)); % Remove experiments that aren't legit
-            multi = NaN(sz+2,sz+2,3,length(exp_inds));
+            multi = NaN(sz+2,sz*2+2,3,length(exp_inds)); % 2*sz in x to drop repump and res images
             for i = 1:length(exp_inds)
                 experiment = site.experiments(exp_inds(i));
                 freq = experiment.prefs.frequency;
                 % Add marker on closed loop axes
                 plot(ax(4),freq, ax(4).YLim(1),'Color',cs(i,1,:),'MarkerFaceColor',cs(i,1,:),'Marker','v','MarkerSize',5);
                 if ~isempty(experiment.data) &&  ~any(exp_inds(i) == analysis.sites(site_index,4).ignore)
-                    gray = squeeze(mean(experiment.data.data.sumCounts,1));
-                    gray = gray/max(gray(:));
+                    repumpGray = squeeze(nanmean(experiment.data.data.sumCounts(:,:,:,1),1))';
+                    repumpGray = repumpGray/max(repumpGray(:));
+                    resGray = squeeze(nanmean(experiment.data.data.sumCounts(:,:,:,2),1))';
+                    resGray = resGray/max(resGray(:));
+                    gray = cat(2,repumpGray, resGray);
                     color = cat(3, gray, gray, gray);
-                    bordered = ones(sz+2,sz+2,3).*cs(i,1,:);
+                    bordered = ones(sz+2,sz*2+2,3).*cs(i,1,:);
                     bordered(2:end-1,2:end-1,:) = color;
                     multi(:,:,:,i) = bordered;
                 else
@@ -459,8 +462,8 @@ end
                 imshow(multi,'parent',ax(5));
             else
                 panel_sz = getpixelposition(ax(5).Parent);
-                ncols = max(1,floor(panel_sz(3)/sqrt(prod(panel_sz(3:4))/nims))); % Assumes square ims
-                montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz]+2);
+                ncols = max(1,floor(panel_sz(3)/sqrt(2*prod(panel_sz(3:4))/nims))); % Assumes square ims
+                montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz*2]+2);
             end
             ax(5).Title.String = 'SuperRes Scan';
         end
