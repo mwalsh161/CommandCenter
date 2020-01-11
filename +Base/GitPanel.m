@@ -42,7 +42,7 @@ classdef GitPanel
             
             obj.panel.UIContextMenu = obj.menu; 
             
-            obj.text = uicontrol(obj.panel, 'Style', 'radiobutton', 'UIContextMenu', obj.menu, 'Units', 'characters');     % Text does not display HTML :(
+            obj.text = uicontrol(obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters');     % Text does not display HTML :(
             obj.text.Position(1:2) = [-2.75 0];
             obj.text.Position(3) = 200;
             
