@@ -42,7 +42,7 @@ classdef GitPanel
             
             obj.panel.UIContextMenu = obj.menu; 
             
-            obj.text = uicontrol(obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters');     % Text does not display HTML :(
+            obj.text = uicontrol(obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters', 'String', '...');     % Text does not display HTML :(
             obj.text.Position(1:2) = [-2.75 0];
             obj.text.Position(3) = 200;
             
@@ -139,7 +139,7 @@ classdef GitPanel
                 message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I></font>'];
             end
             
-            str = {['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'], 'Untracked'};
+            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message '</html>'];
         end
         function str = tooltip(obj)
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
