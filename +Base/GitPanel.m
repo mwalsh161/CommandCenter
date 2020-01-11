@@ -1,9 +1,9 @@
 classdef GitPanel
     
     properties
-        panel;
-        text;
-        menu;
+        panel;      % uipanel
+        control;    % uicontrol that displays the current branch info. % For some reason, this property is empty from inside the object, but not from outside. Using panel.Children to access this uicontrol.
+        menu;       % uicontextmenu to show useful git options.
     end
     
     properties (Constant)
@@ -27,52 +27,53 @@ classdef GitPanel
             obj.panel.Title = 'git branch';
             obj.panel.Units = 'characters';
             obj.panel.Position(4) = 2;
-            obj.panel.Visible = 'off';
             
             filedetails = ' &lt;file(s)&gt; (--all)';
             commitdetails = ' --author &lt;you&gt; --message &lt;description&gt;';
             
             obj.menu = uicontextmenu(f);
-            uimenu(obj.menu, 'Label',  '<html><font color="purple">git fetch', 'Callback', @(s,e)obj.update)
-            uimenu(obj.menu, 'Label', ['<html><font color="purple">git status<br>'...
-                                             '<font color="purple">git ad&d' filedetails '<br>'...
-                                             '<font color="purple">git commit' commitdetails '<br>'...
-                                             '<font color="purple">git push'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
-            uimenu(obj.menu, 'Label', ['<html><font color="purple">git status<br>',...
-                                             '<font color="purple">git pull'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
+            uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch', 'Callback', @(s,e)obj.update)
+            uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
+                                             '<font color="purple">git</font> ad&d' filedetails '<br>'...
+                                             '<font color="purple">git</font> commit' commitdetails '<br>'...
+                                             '<font color="purple">git</font> push'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
+            uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
+                                             '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
             
             obj.panel.UIContextMenu = obj.menu; 
             
-            obj.text = uicontrol(obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters', 'String', '...');     % Text does not display HTML :(
-            obj.text.Position(1:2) = [-2.75 0];
-            obj.text.Position(3) = 200;
+            obj.control = uicontrol('Parent', obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters', 'String', '', 'Tag', 'gitpanelcontrol');     % Text does not display HTML :(
+            obj.control.Position(1:2) = [-2.75 0];
+            obj.control.Position(3) = 200;
             
             if (obj.enableLeftClick)
                 obj.panel.ButtonDownFcn = @(s,e)(obj.update);
-                obj.text.Callback = @(s,e)obj.update;
+                obj.control.Callback = @(s,e)obj.update;
             end
             
             obj.update();
-            
-            obj.panel.Visible = 'on'; 
         end
         function update(obj)
+            obj.panel.Children.Enable = 'off';
             obj.panel.HighlightColor = [.5 0 .5];   % Purple
             obj.panel.Title = 'git fetch';
+            drawnow;
+            
             try
                 git('fetch -q --all');
                 
-                obj.text.String = 'Fetching...';
-                drawnow;
+                obj.panel.Children.Tooltip = obj.tooltip();
+                obj.panel.Children.String = obj.info();
                 
-                obj.text.Tooltip = obj.tooltip();
-                obj.text.String = obj.info();
+                obj.panel.Children.Enable = 'on';
                 obj.panel.HighlightColor = 'w';
                 obj.panel.Title = 'git branch';
                 drawnow;
             catch err
-                obj.text.String = '<html>Could not <font color="purple">git fetch.';
-                obj.text.Tooltip = 'Something terrible happened.';
+                obj.panel.Children.Enable = 'on';
+                obj.panel.Children.String = '<html>Could not <font color="purple">git</font> fetch.';
+                obj.panel.Children.Tooltip = 'Something terrible happened.';
+                drawnow;
                 
                 rethrow(err);
             end
@@ -119,13 +120,13 @@ classdef GitPanel
                     commas = split(brackets{1}, {', '});
                     
                     if numel(commas) == 2
-                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} ', <font color="red">' commas{2} ']'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} '</font>, <font color="red">' commas{2} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                     
                     else
-                        message = ['&nbsp;&nbsp;<font color="orange">[' brackets{1} ']'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                     end
                 case '[behin'
-                    message = ['&nbsp;&nbsp;<font color="red">[' brackets{1} ']'];% messageraw((numel(brackets{1})+3):end)];
+                    message = ['&nbsp;&nbsp;<font color="red">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                 otherwise
             end
             
@@ -135,14 +136,14 @@ classdef GitPanel
             untracked = contains(status,'Untracked files:');
             
             if modified && untracked
-                message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked Files</I>'];
+                message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked</font> Files</font></I>'];
             elseif modified
-                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><I>Modified Files</I>'];
+                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><I>Modified Files</I></font>'];
             elseif untracked
-                message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I>'];
+                message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I></font>'];
             end
             
-            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I>' message];
+            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message];
         end
         function str = tooltip(obj)
             str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
