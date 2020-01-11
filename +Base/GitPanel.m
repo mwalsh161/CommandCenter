@@ -16,6 +16,7 @@ classdef GitPanel
                 assert(isprop(varargin{1}, 'Type') && strcmp(varargin{1}.Type, 'uipanel'), 'Base.GitPanel(panel, figure) expects a uipanel.')
                 assert(isprop(varargin{2}, 'Type') && strcmp(varargin{2}.Type, 'figure'), 'Base.GitPanel(panel, figure) expects a figure.')
                 obj.panel = varargin{1};
+                delete(obj.panel.Children);
                 f = varargin{2};
             else    % Ignore arguments otherwise
                 f = figure;
