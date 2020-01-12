@@ -1,6 +1,6 @@
-classdef Scan < handle
-    % SCAN Abstract Class for Scans.
-    % Simply enforces required properties. For future use.
+classdef Sweep < handle
+    % Sweep is a general class for N-dimensional scanning over Base.Pref objects and measuring
+    % Base.Measurement objects at each point.
 
     properties (SetAccess=private)   % Identity vars.
         % Axis Info
@@ -90,10 +90,6 @@ classdef Scan < handle
 % 				assert(any((contains(superclasses(obj.inputs{ii}), 'Base.Input'))) || strcmp(class(obj.inputs{ii}), 'Base.Input'));
 % 			end
         end
-        
-        function sanityCheck(obj)
-%             el = obj.
-        end
 
         function L = lengths(obj)
             % Returns the length of each `Base.Pref` dimension in the scan.
@@ -139,14 +135,16 @@ classdef Scan < handle
 			obj.isNIDAQ = false;
         end
         
-        function vec = currentPoint(obj)
+        function [vec, ind] = currentPoint(obj)
 			[sub{1:length(L)}] = ind2sub(L, obj.index);
             sub = cell2mat(sub);
 			A = 1:obj.dimension();
             
+            ind = NaN*A;
             vec = NaN*A;
 
 			for aa = A
+                ind(aa) = sub(aa);
                 vec(aa) = obj.scans{aa}(sub(aa));
             end
         end
@@ -167,8 +165,6 @@ classdef Scan < handle
 			A = 1:obj.dimension();
 
 			for aa = A
-% 				obj.axes{aa}.goto(obj.scans{aa}(sub(aa)));
-% 				obj.axes{aa}.value = obj.scans{aa}(sub(aa));
 				obj.axes{aa}.writ(obj.scans{aa}(sub(aa)));
             end
 
@@ -183,8 +179,6 @@ classdef Scan < handle
 					differences = sub ~= sub2;	% Find the axes that need to change...
 
 					for aa = A(differences)
-% 						obj.axes{aa}.goto(obj.scans{aa}(sub(aa)));
-% 						obj.axes{aa}.value = obj.scans{aa}(sub(aa));
                         obj.axes{aa}.writ(obj.scans{aa}(sub2(aa)));
 					end
 

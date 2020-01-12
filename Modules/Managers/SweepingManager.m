@@ -1,4 +1,4 @@
-classdef ScanningManager < Base.Manager
+classdef SweepingManager < Base.Manager
     
     properties(SetAccess=private)
         aborted = false;
@@ -10,11 +10,9 @@ classdef ScanningManager < Base.Manager
     end
     
     methods
-        function obj = ScanningManager(handles)
+        function obj = SweepingManager(handles)
             obj = obj@Base.Manager(Modules.Scanning.modules_package,handles,handles.panelScanning);
             obj.blockOnLoad = handles.menu_scanning;
-            
-%             handles
             
             if ~isempty(handles.axImage) && isvalid(handles.axImage)
                 cla(handles.axImage,'reset')
@@ -28,14 +26,10 @@ classdef ScanningManager < Base.Manager
             
             obj.scan.reset;
             drawnow;
-%             s.snap()
-            
-            
-%             set(handles.experiment_run,'callback',@obj.run)
         end
         
         function getAvail(obj,parent_menu)
-            % Override. Show stages in order. Edit option at bottom.
+            % Override. 
             module_strs = obj.get_modules_str;
             delete(allchild(parent_menu));
             if isempty(module_strs)
@@ -46,8 +40,8 @@ classdef ScanningManager < Base.Manager
                 uimenu(parent_menu,'label',module_str,'enable','off');
             end
             
-            uimenu(parent_menu, 'Text', 'New Scan', 'Callback', @obj.newScan_Callback, 'Separator', 'on');
-            uimenu(parent_menu, 'Text', 'Start Scan', 'Callback', @(s,e)(obj.scan.snap));
+            uimenu(parent_menu, 'Text', 'New Scan', 'Callback', @obj.newScan_Callback);
+            uimenu(parent_menu, 'Text', 'Start Scan', 'Callback', @(s,e)(obj.scan.snap), 'Separator', 'on');
             uimenu(parent_menu, 'Text', 'Reset Scan', 'Callback', @(s,e)(obj.scan.reset));
         end
         
