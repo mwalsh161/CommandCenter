@@ -26,7 +26,7 @@ classdef PrefRegister < handle
             mlock
             persistent local
             if isempty(local) || ~isvalid(local)
-                local = Base.PrefList;
+                local = Base.PrefRegister;
             end
             singleton = local;
         end
@@ -55,7 +55,7 @@ classdef PrefRegister < handle
                 case {'uicontextmenu', 'menu'}
                     menu = parentObject;
                 otherwise
-                    error([parentObject.Type ' is an unrecognized object for Base.PrefRegister.getMenu.');
+                    error([parentObject.Type ' is an unrecognized object for Base.PrefRegister.getMenu.']);
             end
             
             if isempty(modules)
