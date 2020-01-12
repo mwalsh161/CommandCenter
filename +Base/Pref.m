@@ -133,8 +133,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             argouts = [1,0,1];
             
             for j = 1:length(avail_methods)
-                if j == 1 && isempty(obj.(avail_methods{j}))
-                    fnstring = [avail_methods{j} '_' obj.property_name];
+                if j == 1 && isempty(obj.(avail_methods{j}))                % If no function is given for 'set'...
+                    fnstring = [avail_methods{j} '_' obj.property_name];    % Look for `set_prop` functions which were converted from `set.prop`.
                     mmethod = methods(strcmp(fnstring,{methods.Name}));
                     
                     if ~isempty(mmethod)
