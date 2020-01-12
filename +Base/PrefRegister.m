@@ -21,6 +21,12 @@ classdef PrefRegister < handle
         parent_storage = 'parent____';
     end
     
+    methods (Access = private)
+        function obj = PrefRegister()
+            
+        end
+    end
+    
     methods (Static)
         function singleton = instance
             mlock
