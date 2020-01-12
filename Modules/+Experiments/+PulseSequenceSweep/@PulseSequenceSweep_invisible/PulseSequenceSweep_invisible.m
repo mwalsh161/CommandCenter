@@ -35,13 +35,15 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         nCounterBins
     end
     properties
-        prefs = {'averages','samples','pb_IP','NIDAQ_dev'};
+        prefs = {'averages','samples','pbDriver','NIDAQ_dev'};
     end
     properties(SetObservable,AbortSet)
         averages = 2;     % Number of times to perform entire sweep
         samples = 1000;   % Number of samples at each point in sweep
-        pb_IP = 'None Set';
         NIDAQ_dev = 'None Set';
+    end
+    properties(GetObservable,SetObservable)
+        pbDriver = Prefs.String('None Set','allow_empty',false,'set','set_pbDriver');
     end
     properties(SetAccess=protected,Hidden)
         data = [] % subclasses should not set this; it can be manipulated in GetData if necessary
@@ -68,17 +70,17 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
             dat.meta = obj.meta;
         end
         
-        function set.pb_IP(obj,val)
-            if strcmp(val,'None Set') % Short circuit
-                obj.pbH = [];
-                obj.pb_IP = val;
-            end
+        
+        function val = set_pbDriver(obj,val,pref)
+           
             try
-                obj.pbH = Drivers.PulseBlaster.Remote.instance(val); %#ok<*MCSUP>
-                obj.pb_IP = val;
+                if strcmp(val,'None Set') % Short circuit
+                    obj.pbH = [];  %obj.pb_IP = val;
+                else
+                    obj.pbH = eval(val); %#ok<*MCSUP> %modified 11/10/19
+                end
             catch err
                 obj.pbH = [];
-                obj.pb_IP = 'None Set';
                 rethrow(err);
             end
         end
