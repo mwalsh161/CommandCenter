@@ -1,17 +1,22 @@
 classdef GitPanel
+    % GITPANEL parses and colorfully displays info from git (git status, git branch, ...). Most
+    % importantly, it displays things in red or orange (being behind or having untracked changes;
+    % uncommitted modified files) to encourage users to fix these things. This is useful to avoid copies
+    % of CommandCenter which are year(s) behind. It also includes a menu (right click) which reminds the
+    % user of useful git sequences, and the tooltip displays raw output from git status.
     
     properties
-        panel;      % uipanel
+        panel;      % uipanel that is the parent.
         control;    % uicontrol that displays the current branch info. % For some reason, this property is empty from inside the object, but not from outside. Using panel.Children to access this uicontrol.
         menu;       % uicontextmenu to show useful git options.
     end
     
-    properties (Constant)
-        enableLeftClick = false
+    properties
+        enableLeftClick = false;
     end
     
     methods
-        function obj = GitPanel(varargin)
+        function obj = GitPanel(varargin)       % Expects GitPanel(figure, panel), but autogenerates these if nothing is given.
             if numel(varargin) == 2
                 assert(isprop(varargin{1}, 'Type') && strcmp(varargin{1}.Type, 'uipanel'), 'Base.GitPanel(panel, figure) expects a uipanel.')
                 assert(isprop(varargin{2}, 'Type') && strcmp(varargin{2}.Type, 'figure'), 'Base.GitPanel(panel, figure) expects a figure.')
@@ -37,9 +42,11 @@ classdef GitPanel
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
                                              '<font color="purple">git</font> ad&d' filedetails '<br>'...
                                              '<font color="purple">git</font> commit' commitdetails '<br>'...
-                                             '<font color="purple">git</font> push origin <branch>'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes.')));
+                                             '<font color="purple">git</font> push origin &lt;branch&gt;'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes. Check status first.')));
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                             '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date')))
+                                             '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
+            uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
+                                            '<font color="purple">git</font> checkou&t &lt;branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
             
             obj.panel.UIContextMenu = obj.menu; 
             
@@ -47,21 +54,24 @@ classdef GitPanel
             obj.control.Position(1:2) = [-2.75 0];
             obj.control.Position(3) = 200;
             
-            if (obj.enableLeftClick)
-                obj.panel.ButtonDownFcn = @(s,e)(obj.update);
-                obj.control.Callback = @(s,e)obj.update;
-            end
-            
+            obj.panel.ButtonDownFcn = @obj.updateFromLeftClick;
+            obj.control.Callback    = @obj.updateFromLeftClick;
+                
             obj.update();
         end
-        function update(obj)
+        function updateFromLeftClick(obj, ~, ~)
+            if obj.enableLeftClick
+                obj.update();
+            end
+        end
+        function update(obj)                    % git fetch
             obj.panel.Children.Enable = 'off';
             obj.panel.HighlightColor = [.5 0 .5];   % Purple
             obj.panel.Title = 'git fetch';
             drawnow;
             
             try
-                git('fetch -q --all');
+                gitSafe('fetch -q --all');
                 
                 obj.panel.Children.Tooltip = obj.tooltip();
                 obj.panel.Children.String = obj.info();
@@ -79,12 +89,12 @@ classdef GitPanel
                 rethrow(err);
             end
         end
-        function thisbranch = thisbranch(obj) %#ok<MANU> It wasn't fetching properly when it was static.
-            thisbranch = split(git('branch', '-v'), '* ');
+        function thisbranch = thisbranch(~)     % Gets the branch that is currently checked out from the list of many provided by git branch.
+            thisbranch = split(gitSafe('branch -v'), '* ');
             thisbranch = split(thisbranch{end}, newline);
             thisbranch = thisbranch{1};
         end
-        function str = info(obj)
+        function str = info(obj)                % Fills the uicontrol
             thisbranch = makeHTML(obj.thisbranch());
             
             words_ = split(thisbranch, ' ');
@@ -131,7 +141,7 @@ classdef GitPanel
                 otherwise
             end
             
-            status = git('status');
+            status = gitSafe('status');
             
             modified = contains(status,'Changes not staged for commit:') || contains(status,'Changes to be committed:');
             untracked = contains(status,'Untracked files:');
@@ -146,8 +156,8 @@ classdef GitPanel
             
             str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message];
         end
-        function str = tooltip(obj)
-            str_ = strrep(git('status --ahead-behind --show-stash'), '/', ' / ');
+        function str = tooltip(obj)             % Fills the tooltip with git status + etc
+            str_ = strrep(gitSafe('status --ahead-behind --show-stash'), '/', ' / ');
             str__ = split(str_, newline);
             
             assert(~isempty(str__));
@@ -161,4 +171,14 @@ end
 function str = makeHTML(str)    % Not rigorous
     str = strrep(str, '>', '&gt;');
     str = strrep(str, '<', '&lt;');
+end
+
+function out = gitSafe(str)
+    [path,~,~] = fileparts(fileparts(mfilename('fullpath')));    % Two up from GitPanel; One up from +Base.
+    
+    oldPath = cd(path);
+    
+    out = git(str);
+    
+    cd(oldPath);
 end
