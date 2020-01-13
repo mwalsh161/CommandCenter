@@ -10,7 +10,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %
     %   Power to the laser can be controlled through the serial object
     %   - obj.serial.on()/off() - however, time consuming calls!
-    %   
+    %
     %   The laser tuning is controlled by the methods required by the
     %   TunableLaser_invisible superclass. In particular, the TuneCoarse
     %   method of this source class is recommended over directly calling
@@ -43,7 +43,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     properties(SetObservable,GetObservable)
         tuning = Prefs.Boolean(false,'readonly',true);
         debug = Prefs.Boolean(false);
-        TuningTimeout = Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
+        TuningTimeout = Prefs.Double(60,'unit','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
         pb_ip = Prefs.String('No Server','set','set_pb_ip','help','IP/hostname of computer with PB server');
         PBline = Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
         velocity_ip = Prefs.String('No Server','set','set_velocity_ip','help','IP/hostname of computer with hwserver for velocity laser');
@@ -51,7 +51,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_channel = Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
         diode_on = Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
         wavemeter_active = Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
-        percent_setpoint = Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
+        percent_setpoint = Prefs.Double(NaN,'unit','%','help','local memory of tuning percent as applied by the wavemeter');
         TuneSetpointAttempts = Prefs.Integer(3,'min',1,'allow_nan',false);
         TuneSetpointNPoints = Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
     end
@@ -280,8 +280,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
         end
-        function calibrate(obj,ax) 
-            %calibrates the frequency as read by the wavemeter to the 
+        function calibrate(obj,ax)
+            %calibrates the frequency as read by the wavemeter to the
             %wavelength as set by the diode motor
             if ~obj.diode_on || ~obj.wavemeter_active
                 answer = questdlg('Unarmed; Arm laser on for calibration?','Unarmed', 'Yes','No','No');
@@ -292,7 +292,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                         obj.activate;
                 end
             end
-            set_range = findprop(obj,'range'); 
+            set_range = findprop(obj,'range');
             set_range = obj.c./set_range.DefaultValue; %get the actual settable range in nm, which is the default value of range
             obj.serial.TrackMode = 'on'; % Keep trackmode on through calibration
             f = [];  % Placeholder if axes is supplied
@@ -301,7 +301,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 ax = axes('parent',f);
             end
             try
-                % First set cal_local to x = y 
+                % First set cal_local to x = y
                 obj.cal_local.THz2nm = cfit(fittype('a/x'),obj.c);
                 obj.cal_local.datetime = datetime;
                 % Continue with calibration

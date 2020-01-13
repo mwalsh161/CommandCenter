@@ -19,13 +19,13 @@ classdef LabelControlBasic < Base.Input
         %   when generating the label uicontrol for "label_width_px"
         function labeltext = get_label(~,pref)
             name = pref.name;
-            
+
             if isempty(name)
                 name = strrep(pref.property_name, '_', ' ');
             end
-            
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s [%s]', name, pref.units);
+
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', name, pref.unit);
             else
                 labeltext = name;
             end
@@ -41,11 +41,11 @@ classdef LabelControlBasic < Base.Input
             % Here, widths will all be taken care of in adjust_UI
             tag = strrep(pref.name,' ','_');
             labeltext = obj.get_label(pref);
-            
-            if strcmp(obj.uistyle, 'checkbox') && strcmp(pref.units, '0/1')
+
+            if strcmp(obj.uistyle, 'checkbox') && strcmp(pref.unit, '0/1')
                 labeltext = labeltext(1:end-6);
             end
-            
+
             enabled = 'on';
             if pref.readonly
                 enabled = 'off';

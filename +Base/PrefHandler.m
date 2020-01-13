@@ -82,6 +82,7 @@ classdef PrefHandler < handle
                     obj.external_ls.(prop.Name) = external_ls_struct;
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
                     % Done after binding Set/Get listeners since the method call expects them to be set already
+
                     obj.set_meta_pref(prop.Name, pref);
 
                     pr.addPref(obj, pref);
@@ -296,12 +297,12 @@ classdef PrefHandler < handle
         end
     end
 
-    methods (Hidden, Access=?Base.Pref)         
+    methods (Hidden, Access=?Base.Pref)
         % These functions have the same functionality as pre() post() called successivly, except with two
         % out of four fewer calls to obj.prop_listener_ctrl(prop,tf), which is the limiting time factor.
         function tf = writProp(obj,prop,val)
             tf = true;
-            
+
             event.EventName = 'PreSet'; % pre() =====
 
             % Disable other listeners on this since we will be both getting
@@ -354,7 +355,7 @@ classdef PrefHandler < handle
             obj.last_pref_set_err = [];
         end
         function val = readProp(obj,prop)
-            
+
             event.EventName = 'PreSet'; % pre() =====
 
             event.EventName = 'PreGet';
@@ -368,7 +369,7 @@ classdef PrefHandler < handle
 %             obj.prop_listener_ctrl(prop.Name,true); **********
 
             event.EventName = 'PostSet'; % post() =====
-            
+
             % Disable other listeners on this since we will be both getting
             % and setting this prop in this method
 %             obj.prop_listener_ctrl(prop.Name,false); **********
@@ -388,7 +389,7 @@ classdef PrefHandler < handle
                 end
             catch err
             end
-            
+
             val = new_val.value;    % The line that returns the value;
 
             % Update the class-pref and re-engage listeners

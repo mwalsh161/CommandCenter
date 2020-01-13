@@ -137,7 +137,7 @@ classdef Measurement < matlab.mixin.Heterogeneous
         sizes = [1 1];      % struct of 1D numeric arrays       % Expected size of the Measurement (e.g. a 512x512 image).
     end
     
-    properties
+    properties (Hidden)
         names = '';         % struct of strings 				% A name to display to the user. Should be short and succinct.
                                                                 %       Can also be a single string, in which case the names are [names ' ' subdata]
         units = '';         % struct of strings      			% Units of the Measurement signal (e.g. 'cts/sec' or 'V').
@@ -215,6 +215,60 @@ classdef Measurement < matlab.mixin.Heterogeneous
             
             obj.sizes = sizes_;
         end
+        function obj = set.names(obj, names_)
+            if isstruct(obj.names)
+                assert(arefieldssame(fieldnames(obj.names), subdata), 'If sizes is already set as a struct, then names must have the same fields as sizes.')
+            elseif ischar(obj.names)
+                % Good.
+            else
+                error('names must be either a struct or a string');
+            end
+            
+            obj.names = names_;
+        end
+        function obj = set.units(obj, units_)
+            if isstruct(obj.units)
+                assert(arefieldssame(fieldnames(obj.units), subdata), 'If sizes is already set as a struct, then units must have the same fields as sizes.')
+            elseif ischar(obj.units)
+                % Good.
+            else
+                error('units must be either a struct or a string');
+            end
+            
+            obj.units = units_;
+        end
+        function obj = set.prefs(obj, prefs_)
+            if isempty(prefs_)
+                % Good.
+            elseif isstruct(prefs_)
+                prefs_fields = fieldnames(prefs_);
+                subdata = obj.subdata();
+
+                for ii = 1:length(prefs_fields)
+                    if ~isfieldfast(subdata, prefs_fields{ii})
+                        error(['Field ' prefs_fields{ii} ' not recognized as a valid subdata.']);
+                    end
+                end
+            else
+                error('prefs must be either empty or a struct.');
+            end
+        end
+        function obj = set.scans(obj, scans_)
+            if isempty(scans_)
+                % Good.
+            elseif isstruct(scans_)
+                scans_fields = fieldnames(scans_);
+                subdata = obj.subdata();
+
+                for ii = 1:length(scans_fields)
+                    if ~isfieldfast(subdata, scans_fields{ii})
+                        error(['Field ' scans_fields{ii} ' not recognized as a valid subdata.']);
+                    end
+                end
+            else
+                error('prefs must be either empty or a struct.');
+            end
+        end
     end
     methods (Hidden)
         function sizes = getSizes(obj)
@@ -246,7 +300,7 @@ classdef Measurement < matlab.mixin.Heterogeneous
         function units = getUnits(obj)
             if isstruct(obj.units)
                 units = obj.units;
-            elseif ischar(obj.units) || isempty(obj.names)
+            elseif ischar(obj.units) || isempty(obj.units)
                 subdata = obj.subdata();
                 
                 for ii = 1:length(subdata)
@@ -614,8 +668,6 @@ classdef Measurement < matlab.mixin.Heterogeneous
                 if isstruct(obj.sizes)
                     size_fields = fieldnames(obj.sizes);
                     
-                    assert(~isempty(size_fields), 'obj.sizes must not be an empty struct.');
-                    
                     assert(length(size_fields) == 1, ['Non-struct data can only go into one field, but we received ' num2str(length(size_fields))]);
                     
                     d.(size_fields{1}).dat = raw;
@@ -663,7 +715,7 @@ classdef Measurement < matlab.mixin.Heterogeneous
         end
     end
 
-    methods
+    methods 
         function blank = blank(obj)
             subdata = obj.subdata;
             sizes_ = obj.getSizes();
@@ -694,7 +746,7 @@ classdef Measurement < matlab.mixin.Heterogeneous
         end
     end
 
-    methods %(Abstract)
+    methods (Hidden) %(Abstract)
         function data = measure(obj) %#ok<STOUT,MANU>
             error('Base.Measurement.measure() NotImplemented.');
 		end

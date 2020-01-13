@@ -5,11 +5,11 @@ classdef ScanViewer < handle
 
 		ax = [];	% MATLAB Axes object where the data will be plotted.
 		panel = [];	% Struct containing panel where viewer info will be displayed.
-        
+
         menus = [];
 
 		sp = {};	% Child processed scans of type `Base.ScanProcessed`.
-        
+
         listeners = struct('data', [], 'x', [], 'y', []);
 	end
 
@@ -43,7 +43,7 @@ classdef ScanViewer < handle
 % 		fullAxes;		% cell arrays				% 1xM array containing 1x(N+D) arrays of `Axis` classes, where D is the dimension of the ith input.
 % 		fullScans;		% cell arrays				% 1xM array containing 1x(N+D) numeric arrays of the sweep points, where D is the dimension of the ith input.
 % 	end
-    
+
 	properties (Hidden, Access=private)
         drawnowLast = 0;
         timerposted = false;
@@ -83,7 +83,7 @@ classdef ScanViewer < handle
 				obj.displayAxesScans =      [obj.displayAxesScans   obj.s.inputs{ii}.inputScans];
 				obj.displayAxesInputs =     [obj.displayAxesInputs  ii*ones(1, length(obj.s.inputs{ii}.inputScans))];
             end
-            
+
 %             obj.displayAxesScans
 
 			A = length(obj.axesDisplayedNames);
@@ -93,13 +93,13 @@ classdef ScanViewer < handle
 
             obj.ax.Visible = 'off';
 			obj.makeDisplay();
-            
+
 %             'here'
 
 			% First, setup the panel.
 			if ~isempty(varargin)
 				obj.panel.panel = varargin{1};
-                
+
 				obj.panel.tabgroup = [];
 
 % 				if strcmp(obj.panel.panel.Visible, 'on')
@@ -113,27 +113,27 @@ classdef ScanViewer < handle
 				obj.sp{ii} = Base.ScanProcessed(obj.s, obj, ii);
             end
             obj.panel.tabgroup.SelectedTab = obj.sp{1}.tab.tab;
-            
+
             obj.setAxis(1, obj.axesDisplayed(1))
-            
+
             prop = findprop(obj.s, 'data');
             obj.listeners.data = event.proplistener(obj.s, prop, 'PostSet', @obj.datachanged_Callback);
-%             obj.listeners.prefs = 
-            
-            
+%             obj.listeners.prefs =
+
+
             obj.ax.Visible = 'on';
             obj.panel.panel.Visible = 'on';
 		end
 
 		function makeDisplay(obj)
 			N = length(obj.colors);
-            
+
             f = obj.ax.Parent;
-            
+
             while ~isa(f,'matlab.ui.Figure')
                 f = f.Parent;
             end
-            
+
             menu = uicontextmenu('Parent', f);  % Menu needs a figure as parent.
             obj.menus.menu = menu;
 
@@ -152,8 +152,8 @@ classdef ScanViewer < handle
 %             obj.ax.Toolbar.Visible = 'off';
 %             obj.ax.XMinorTick = 'on';
 %             obj.ax.YMinorTick = 'on';
-            
-            
+
+
             if true % darkmode
                 obj.ax.Color = [.1 .15 .1];
                 obj.ax.GridColor = [.9 .95 .9];
@@ -163,17 +163,17 @@ classdef ScanViewer < handle
 %                 gui.df.Color = 'black';
 %                 gui.cbar.Color = 'white';
             end
-            
+
             if true % thickness
                 obj.ax.LineWidth = 1;
                 obj.ax.FontSize = 12;
-                
+
 %                 gui.cbar.LineWidth = 1;
 %                 gui.cbar.FontSize = 15;
-%                 
+%
 %                 gui.cbar.Label.LineWidth = 1;
 %                 gui.cbar.Label.FontSize = 15;
-%                 
+%
 %                 for ii = 1:3
 %                     gui.p(ii).LineWidth = 2;
 %                     gui.h(ii).LineWidth = 2;
@@ -182,10 +182,10 @@ classdef ScanViewer < handle
 
 
 			defaultvis = 'off';
-            
+
             % Make image
 %             obj.img = image(obj.ax, 'YDir', 'normal', 'Visible', defaultvis);
-        
+
 
             obj.img = image(obj.ax, 'CData', NaN,...
                                     'Visible', defaultvis,...
@@ -209,7 +209,7 @@ classdef ScanViewer < handle
 				obj.plt{ii} = plot(obj.ax, [0 ii], [0 1], 	'Color', obj.colors{ii},... % 'MarkerEdgeWidth', 0,... % 'MarkerEdgeColor', obj.colors{ii},...
 														    'MarkerFaceColor', obj.colors{ii},...
 															'LineWidth', obj.linewidth,...
-															'Visible', defaultvis,... 
+															'Visible', defaultvis,...
                                                             'PickableParts', 'none');
             end
 
@@ -243,12 +243,12 @@ classdef ScanViewer < handle
 									'LineWidth', obj.plinewidth(ii),...
 									'Visible', 'on',...
                                     'PickableParts', 'none');
-                                
-                                
+
+
 % 									[-1, 1, NaN, 0, 0],...
 % 									[0, 0, NaN, -1, 1],...
 
-														
+
             end
 
 %             obj.ptr
@@ -257,23 +257,23 @@ classdef ScanViewer < handle
             obj.menus.ctsMenu(1) = uimenu(menu, 'Label', 'R: ~~~~ --',                  'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{1});
             obj.menus.ctsMenu(2) = uimenu(menu, 'Label', 'G: ~~~~ --',                  'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{2});
             obj.menus.ctsMenu(3) = uimenu(menu, 'Label', 'B: ~~~~ --',                  'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{3}); %, 'Enable', 'off');
-            
+
             obj.menus.pixMenu = uimenu(menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard, 'Separator', 'on'); %, 'Enable', 'off');
             obj.menus.indMenu = uimenu(menu, 'Label', 'Index: [ ~~~~, ~~~~ ]',          'Callback', @copyLabelToClipboard); %, 'Enable', 'off');
             obj.menus.posMenu = uimenu(menu, 'Label', 'Position: [ ~~~~ --, ~~~~ -- ]', 'Callback', @copyLabelToClipboard); %, 'Enable', 'off');
-            
+
             mGoto = uimenu(menu,                'Label', 'Goto', 'Separator', 'on'); %,     'Callback', {@obj.gotoPostion_Callback, 0, 0});
                 mgPos = uimenu(mGoto,           'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 0, 0}); %#ok<*NASGU>
                 mgPix = uimenu(mGoto,           'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 1, 0});
                 mgPosL= uimenu(mGoto,           'Label', 'Selected Position And Layer', 'Callback', {@obj.gotoPostion_Callback, 0, 1});
                 mgPixL= uimenu(mGoto,           'Label', 'Selected Pixel And Layer',    'Callback', {@obj.gotoPostion_Callback, 1, 1});
-                
+
             mNorm = uimenu(menu,                'Label', 'Normalization'); %,               'Callback',  @obj.normalize_Callback); %, 'Enable', 'off');
                 mnMin = uimenu(mNorm,           'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
                 mnMax = uimenu(mNorm,           'Label', 'Set as Maximum',              'Callback', {@obj.minmax_Callback, 1});
-                mnNorm= uimenu(mNorm,           'Label', 'Normalize All Layers',        'Callback', {@obj.normalizeSlice_Callback, 0}); 
+                mnNorm= uimenu(mNorm,           'Label', 'Normalize All Layers',        'Callback', {@obj.normalizeSlice_Callback, 0});
                 mnNormT=uimenu(mNorm,           'Label', 'Normalize This Layer',        'Callback', {@obj.normalizeSlice_Callback, 1});
-                
+
             mCount = uimenu(menu,               'Label', 'Counter'); %, 'Enable', 'off');
                 mcOpen =    uimenu(mCount,      'Label', 'Open',                        'Callback',  @obj.openCounter_Callback);
                 mcOpenAt =  uimenu(mCount,      'Label', 'Open at...');
@@ -281,19 +281,19 @@ classdef ScanViewer < handle
                     mcoaPix = uimenu(mcOpenAt,  'Label', 'Selected Pixel',              'Callback', {@obj.openCounterAtPoint_Callback, 0, 0});
                     mcoaPosL= uimenu(mcOpenAt,  'Label', 'Selected Position And Layer', 'Callback', {@obj.openCounterAtPoint_Callback, 1, 1});
                     mcoaPixL= uimenu(mcOpenAt,  'Label', 'Selected Pixel And Layer',    'Callback', {@obj.openCounterAtPoint_Callback, 0, 1});
-            
+
 
 		end
 
 		function makePanel(obj)
 			obj.panel.panel.Visible = 'off';
 			obj.panel.panel.Units = 'characters';
-            
+
             if obj.panel.panel.Position(4) < 50
                 obj.panel.panel.Position(4) = 50;
                 obj.panel.panel.Position(3) = obj.panel.panel.Position(3)*.75;
             end
-            
+
 			width = obj.panel.panel.InnerPosition(3);
 			height = obj.panel.panel.InnerPosition(4);
 			padding = .5;
@@ -315,7 +315,7 @@ classdef ScanViewer < handle
 %                 obj.displayAxesObjects{ii}.get_label()
 				aNames{end+1} = obj.displayAxesObjects{ii}.get_label(); %#ok<AGROW>
             end
-            
+
 % 			aNames{end+1} = 'None';
 
 			for ii = 1:numaxes
@@ -354,9 +354,9 @@ classdef ScanViewer < handle
             if evt.Button == 3  % Right click
                 x = evt.IntersectionPoint(1);
                 y = evt.IntersectionPoint(2);
-                
+
                 [isNone, enabled] = obj.isNoneEnabled();
-                
+
                 switch sum(~isNone)
                     case 0  % histogram
                         % Do nothing.
@@ -364,11 +364,11 @@ classdef ScanViewer < handle
                         xlist = (obj.plt{1}.XData - x) .* (obj.plt{1}.XData - x);
                         xi = find(xlist == min(xlist), 1);
                         xp = obj.plt{1}.XData(xi);
-                        
+
 %                         unitsX = obj.data.r.l.unit{obj.data.r.l.layer == 1};
 %                         unitsX = obj.data.r.l.unit{obj.data.r.l.layer == 1};
-                        unitsX = obj.displayAxesObjects{obj.axesDisplayed(~isNone)}.units;
-                        
+                        unitsX = obj.displayAxesObjects{obj.axesDisplayed(~isNone)}.unit;
+
 %                         obj.posL.sel.XData = [x x];
 %                         obj.posL.pix.XData = [xp xp];
                         obj.setPtr(1, [xp, xp]);
@@ -376,13 +376,13 @@ classdef ScanViewer < handle
 
                         for ii = 1:length(obj.names)
                             valr = NaN;
-                            
+
                             if enabled(ii)
                                 valr = obj.plt{1}.YData(xi);
                             end
 
                             obj.ptrData(1) = valr;
-                            
+
                             unitsC = 'cts/sec';
 
                             if isnan(valr)
@@ -391,7 +391,7 @@ classdef ScanViewer < handle
                                 obj.menus.ctsMenu(ii).Label = [obj.names{ii}  ': ' num2str(valr, 4) ' ' unitsC];
                             end
                         end
-                        
+
                         obj.menus.posMenu.Label = ['Position: ' num2str(x, 4)  ' ' unitsX];
                         obj.menus.indMenu.Label = ['Index: '    num2str(xi)];
                         obj.menus.pixMenu.Label = ['Pixel: '    num2str(xp, 4) ' ' unitsX];
@@ -402,7 +402,7 @@ classdef ScanViewer < handle
                         yi = find(ylist == min(ylist), 1);
                         xp = obj.img.XData(xi);
                         yp = obj.img.YData(yi);
-                        
+
 %                         obj.pos.sel.XData = x;
 %                         obj.pos.sel.YData = y;
 %                         obj.pos.pix.XData = xp;
@@ -410,28 +410,28 @@ classdef ScanViewer < handle
 
                         obj.setPtr(1, [xp, yp]);
                         obj.setPtr(2, [x, y]);
-                        
+
 %                         unitsX = obj.data.r.l.unit{obj.data.r.l.layer == 1};
 %                         unitsY = obj.data.r.l.unit{obj.data.r.l.layer == 2};
-                        
+
                         unitsX = obj.displayAxesObjects{obj.axesDisplayed(1)}.units;
                         unitsY = obj.displayAxesObjects{obj.axesDisplayed(2)}.units;
 
                         if size(obj.img.CData, 3) == 1
                             obj.ptrData(1:3) = NaN;
-                            
+
                             x = 1:3;
                             ii = x(enabled);
-                            
+
                             val = obj.img.CData(yi, xi) * (obj.sp{ii}.M - obj.sp{ii}.m) + obj.sp{ii}.m;
-                            
+
                             obj.ptrData(ii) = val;
-                            
+
                             for jj = 1:length(obj.names)
                                 unitsC = 'cts/sec';
-                                
-                                '±';
-                                
+
+                                'ï¿½';
+
                                 if ii ~= jj
                                     obj.menus.ctsMenu(jj).Label = [obj.names{jj} ': ~~~~ ' unitsC];
                                 else
@@ -441,7 +441,7 @@ classdef ScanViewer < handle
                         else
                             for ii = 1:length(obj.names)
                                 val = NaN;
-                                
+
                                 if enabled(ii)
                                     val = obj.img.CData(yi, xi, ii) * (obj.sp{ii}.M - obj.sp{ii}.m) + obj.sp{ii}.m;
                                 end
@@ -458,15 +458,15 @@ classdef ScanViewer < handle
                                 end
                             end
                         end
-                        
+
                         obj.menus.posMenu.Label = ['Position: [ ' num2str(x, 4)  ' ' unitsX ', ' num2str(y, 4)  ' ' unitsY ' ]'];
                         obj.menus.indMenu.Label = ['Index: [ '    num2str(xi)               ', ' num2str(yi) ' ]'];
                         obj.menus.pixMenu.Label = ['Pixel: [ '    num2str(xp, 4) ' ' unitsX ', ' num2str(yp, 4) ' ' unitsY ' ]'];
                 end
             end
         end
-        
-        
+
+
         % uimenu callbacks (when right-clicking on the graph)
         function gotoPostion_Callback(obj, ~, ~, isPix, shouldGotoLayer)    % Menu option to goto a position. See below for function of isSel and shouldGotoLayer.
 %             if obj.data.r.plotMode == 1 || obj.data.r.plotMode == 2
@@ -474,7 +474,7 @@ classdef ScanViewer < handle
 %                     warning('Cannot goto an input axis...');
 %                 else
 %                     axisX = obj.data.r.a.a{obj.data.r.l.layer == 1};
-% 
+%
 %                     if isSel        % If the user wants to go to the selected position
 %                         if obj.data.r.plotMode == 1
 %                             axisX.goto(obj.posL.sel.XData(1));
@@ -490,13 +490,13 @@ classdef ScanViewer < handle
 %                     end
 %                 end
 %             end
-%             
+%
 %             if obj.data.r.plotMode == 2
 %                 if obj.data.r.l.type(obj.data.r.l.layer == 2)
 %                     warning('Cannot goto an input axis...');
 %                 else
 %                     axisY = obj.data.r.a.a{obj.data.r.l.layer == 2};
-% 
+%
 %                     if isSel        % If the user wants to go to the selected position
 %                         axisY.goto(obj.pos.sel.YData(1));
 %                     else            % If the user wants to go to the selected pixel
@@ -514,7 +514,7 @@ classdef ScanViewer < handle
             if ~isnan(y)
                 obj.displayAxesObjects{obj.axesDisplayed(2)}.writ(y);
             end
-            
+
             if shouldGotoLayer  % If the use wants to goto the current layer also...
                 error('NotImplemented');
 %                 for ii = 1:length(obj.displayAxesObjects)
@@ -561,14 +561,14 @@ classdef ScanViewer < handle
 % %             gui.openCounter_Callback(0, 0);
 %         end
     end
-    
+
 	methods
         function datachanged_Callback(obj, src, evt)
             if ~isempty(evt) && isstruct(evt) && strcmp(evt.Type, 'TimerFcn')
                 stop(src)
                 delete(src)
             end
-            
+
 %             obj.ax
             if ~isempty(obj.ax) && isvalid(obj.ax)  % Remove this eventually?
                 if (now - obj.drawnowLast) < 1/24/60/60/obj.fpsTarget
@@ -587,15 +587,15 @@ classdef ScanViewer < handle
         end
         function [isNone, enabled] = isNoneEnabled(obj)
             isNone = obj.axesDisplayed == 1;
-            
+
             N = length(obj.sp);
-            
+
             enabled = false(1,N);
-            
+
             for ii = 1:N
                 enabled(ii) = obj.sp{ii}.enabled;
             end
-            
+
 %             if all(~enabled)            % If nothing is enabled, construct isNone such that everything is invisible.
 %                 isNone(:) = 	false;
 %                 isNone(end+1) = false;
@@ -603,11 +603,11 @@ classdef ScanViewer < handle
         end
         function process(obj)
             [isNone, enabled] = obj.isNoneEnabled();
-            
+
             N = length(obj.sp);
-            
+
             titledata = '';
-            
+
             for ii = 1:N
                 if enabled(ii)
                     obj.sp{ii}.process();
@@ -623,12 +623,12 @@ classdef ScanViewer < handle
             else
                 title('');
             end
-            
+
             index = 1:N;
             enabledIndex = index(enabled);
-            
+
             textduring1D = false;
-            
+
             if sum(~isNone) == 0 && any(enabled)    % 0D
                 for ii = enabledIndex
                     obj.txt{ii}.String = obj.sp{ii}.processed;
@@ -644,7 +644,7 @@ classdef ScanViewer < handle
                     end
                 end
             end
-            
+
             if sum(~isNone) == 1 && any(enabled)    % 1D
                 for ii = index
                     if enabled(ii)
@@ -676,31 +676,31 @@ classdef ScanViewer < handle
                     end
                 end
             end
-            
+
             if sum(~isNone) == 2 && any(enabled)    % 2D
-                
+
 %                 empty = NaN(expectedDimensions);
-                
+
                 alpha = ~isnan(obj.sp{enabledIndex(1)}.processed);
-                
+
 %                 sum(enabled)
-                
+
                 if sum(enabled) == 1 && true  % If grayscale
 %                     obj
 %                     obj.sp{enabledIndex(1)}
-                    
-                    
+
+
                     data = repmat( (obj.sp{enabledIndex(1)}.processed - obj.sp{enabledIndex(1)}.m) / (obj.sp{enabledIndex(1)}.M - obj.sp{enabledIndex(1)}.m), [1 1 3]);
-                    
+
 %                     size(data)
 %                     size(alpha)
-                    
+
                     obj.img.CData = data;
                     obj.img.AlphaData = alpha;
 %                     obj.img.CLim = [0 1];
                 else
                     partialpixels = true;
-                    
+
                     for ii = enabledIndex(2:end)
                         if partialpixels
                             alpha = alpha | ~isnan(obj.sp{ii}.processed);
@@ -708,30 +708,30 @@ classdef ScanViewer < handle
                             alpha = alpha & ~isnan(obj.sp{ii}.processed);%#ok
                         end
                     end
-                    
+
                     expectedDimensions = [length(obj.displayAxesScans{obj.axesDisplayed(2)}), length(obj.displayAxesScans{obj.axesDisplayed(1)})];
-                
+
                     data = NaN([expectedDimensions 3]);
-                    
+
 %                     enabledIndex
-                    
+
                     for ii = enabledIndex(enabledIndex <= 3)
 %                         ii
                         data(:,:,ii) = (obj.sp{ii}.processed - obj.sp{ii}.m) / (obj.sp{ii}.M - obj.sp{ii}.m);
                     end
-                    
+
                     obj.img.CData = data;
                     obj.img.AlphaData = alpha;
                 end
-                
+
                 realAxes = obj.axesDisplayed(~isNone);
-                
+
                 obj.img.XData = obj.displayAxesScans{realAxes(1)};
                 obj.img.YData = obj.displayAxesScans{realAxes(2)};
-                
+
 %                 for ii = enabledIndex
 %                     size(obj.sp{ii}.processed)
-%                     
+%
 %                     if isNone(2)
 %                         obj.plt{ii}.XData = obj.displayAxesScans{obj.axesDisplayed(1)};
 %                         obj.plt{ii}.YData = obj.sp{ii}.processed;
@@ -739,7 +739,7 @@ classdef ScanViewer < handle
 %                         obj.plt{ii}.XData = obj.sp{ii}.processed;
 %                         obj.plt{ii}.YData = obj.displayAxesScans{obj.axesDisplayed(~isNone)};
 %                     end
-                    
+
                 obj.img.Visible = 'on';
 %                 end
             else
@@ -749,17 +749,17 @@ classdef ScanViewer < handle
                     obj.img.Visible = 'off';    % Make more efficient
                 end
             end
-            
-            
+
+
             obj.setPtr(3, [NaN, NaN]);
-                
+
 %             if (now - obj.drawnowLast) > 1/24/60/60/obj.fpsTarget
 %                 drawnow;
                 pause(0.001)
 %                 obj.drawnowLast = now;
 %             end
         end
-        
+
 		function axeschanged_Callback(obj, src, ~)
             obj.setAxis(src.UserData, src.Value)
 		end
@@ -791,32 +791,32 @@ classdef ScanViewer < handle
                 for ii = 1:N
 %                     ii
                     scan = obj.displayAxesScans{axesNew(ii)};
-                    
+
 %                     obj.listeners.(obj.axesDisplayedNames{ii})
-                    
+
                     if ~isempty(obj.listeners.(obj.axesDisplayedNames{ii}))
                         delete(obj.listeners.(obj.axesDisplayedNames{ii}));
                     end
-                    
+
 %                     obj.listeners.(obj.axesDisplayedNames{ii}) = obj.displayAxesObjects{axesNew(ii)}.addlistener('PostSet', @(s,e)(obj.setPtr(3, [NaN, NaN])));
-                    
-                    
+
+
 %                     obj.listeners.(obj.axesDisplayedNames{ii})
-                    
+
 %                     axesNew(ii)
 %                     scan
 
                     range = [min(scan), max(scan)];
 %                     label = obj.displayAxesObjects{axesNew(ii)}.nameUnits();
                     label = obj.displayAxesObjects{axesNew(ii)}.get_label();
-                    
+
                     label = strrep(label, '[um]', '[\mum]');
 
                     if all(isnan(range))
 %                        range = [0 1];
 %                        label = 'Input Axis TODO'
 
-                       
+
                         range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
                         label = obj.s.inputs{obj.sp{1}.I}.get_label();
                     end
@@ -837,12 +837,12 @@ classdef ScanViewer < handle
 
             axesOld = obj.axesDisplayed;
             obj.axesDisplayed = axesNew;
-            
+
             if ~isempty(obj.ax)
                 if N == 2
-                    ux = obj.displayAxesObjects{obj.axesDisplayed(1)}.units; % Fix this for 3D...
-                    uy = obj.displayAxesObjects{obj.axesDisplayed(2)}.units;
-                    
+                    ux = obj.displayAxesObjects{obj.axesDisplayed(1)}.unit; % Fix this for 3D...
+                    uy = obj.displayAxesObjects{obj.axesDisplayed(2)}.unit;
+
                     if strcmp(ux, uy)
                         obj.ax.DataAspectRatioMode = 'manual';
                         obj.ax.DataAspectRatio = [1 1 1];
@@ -858,11 +858,11 @@ classdef ScanViewer < handle
                 for ii = 1:length(obj.plinewidth)
                     obj.setPtr(ii, [NaN, NaN]); % Fix this to save ptr if switch
                 end
-            
+
                 for ii = 1:length(obj.names)
                     obj.sp{ii}.I = obj.sp{ii}.I;
                 end
-                
+
                 obj.datachanged_Callback(0, 0);
             end
         end
@@ -901,7 +901,7 @@ classdef ScanViewer < handle
 						if ptr == 3
 %                             if isempty(obj.listeners.x) && isempty(obj.listeners.y) % If we're scanning. Change this!
 %                                 vec = obj.s.currentPoint();
-%                                 to(ii) = 
+%                                 to(ii) =
 %                             else
                             if ~dao{ii}.display_only
                                 to(ii) = dao{ii}.read();
@@ -927,12 +927,12 @@ classdef ScanViewer < handle
 
 			obj.ptr{ptr}.XData = [range(1) range(2) NaN to(1) to(1)];
 			obj.ptr{ptr}.YData = [to(2) to(2) NaN range(3) range(4)];
-            
+
 %             drawnow;%?
-            
+
 %             obj.datachanged_Callback(0, 0);
         end
-        
+
         function ct = currentTab(obj)
             ct = obj.panel.tabgroup.SelectedTab.UserData;
 %             ct = obj.panel.tabgroup
@@ -946,7 +946,7 @@ classdef ScanViewer < handle
         end
     end
 end
-    
+
 function copyLabelToClipboard(src, ~)
     split = strsplit(src.Label, ': ');
     clipboard('copy', split{end});
