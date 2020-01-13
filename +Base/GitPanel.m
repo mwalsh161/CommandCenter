@@ -46,7 +46,7 @@ classdef GitPanel
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
                                              '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                            '<font color="purple">git</font> checkou&t &lt;branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
+                                             '<font color="purple">git</font> checkou&t &lt;branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
             
             obj.panel.UIContextMenu = obj.menu; 
             
