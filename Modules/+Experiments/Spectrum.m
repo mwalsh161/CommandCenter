@@ -1,12 +1,21 @@
 classdef Spectrum < Modules.Experiment
     %Spectrum Experimental wrapper for Drivers.WinSpec
     
+    properties(SetObservable,GetObservable)
+        ip = Prefs.String('No Server', 'help', 'IP/hostname of computer with the WinSpec server');
+        grating = 	Prefs.MultipleChoice('choices', @Experiments.Spectrum.set_grating_values, 'allow_empty', false);    % Grating number (index into gratings_avail)
+        position = 	Prefs.Double(NaN,   'unit', 'nm');     % Grating position
+        exposure =  Prefs.Double(NaN,   'unit', 'sec');     % Exposure time
+    end
+    
     properties(SetObservable,AbortSet)
         data
-        ip = 'No Server';
-        grating = @Experiments.Spectrum.set_grating_values;
-        position = NaN;       % Grating position
-        exposure = NaN;         % Seconds
+        
+%         ip = 'No Server';
+%         grating = @Experiments.Spectrum.set_grating_values;
+%         position = NaN;       % Grating position
+%         exposure = NaN;         % Seconds
+        
         over_exposed_override = false; % override over_exposed error from server and return data regardless
         prefs = {'over_exposed_override','ip'}; % Not including winspec stuff because it can take a long time!
         show_prefs = {'exposure','position','grating','over_exposed_override','ip'};
@@ -45,7 +54,7 @@ classdef Spectrum < Modules.Experiment
             if isempty(obj.WinSpec)
                 gratings = {'Connect to WinSpec first (ip)'};
             else
-                gratings = arrayfun(@(a)sprintf('%i %s',a.grooves,a.name),obj.WinSpec.gratings_avail,'uniformoutput',false);
+                gratings = arrayfun(@(a)sprintf('%i %s', a.grooves, a.name), obj.WinSpec.gratings_avail, 'uniformoutput', false);
             end
         end
         sp = spectrumload(filename)
@@ -59,7 +68,8 @@ classdef Spectrum < Modules.Experiment
             obj.data = [];
             drawnow;
             obj.data = obj.WinSpec.acquire(@(t)set(status,'string',sprintf('Elapsed Time: %0.2f',t)),obj.over_exposed_override); %user can cause abort error during this call
-            if ~isempty(obj.data)
+            
+            if ~isempty(obj.data) && ~isempty(ax)
                 plot(ax,obj.data.x,obj.data.y)
                 xlabel(ax,'Wavelength (nm)')
                 ylabel(ax,'Intensity (AU)')
@@ -67,7 +77,11 @@ classdef Spectrum < Modules.Experiment
             else
                 set(status,'string','Unknown error. WinSpec did not return anything.')
             end
-            obj.data.position = managers.Stages.position;
+            
+            if ~isempty(managers)
+                obj.data.position = managers.Stages.position;
+            end
+            
             try
                 obj.data.WinSpec_calibration = obj.WinSpec.calibration;
             catch
@@ -75,7 +89,7 @@ classdef Spectrum < Modules.Experiment
             end
         end
         
-        function set.ip(obj,val)
+        function val = set_ip(obj,val, ~)
             delete(obj.listeners);
             obj.WinSpec = []; obj.listeners = [];
             wrappers = {'grating','position','exposure'};
@@ -111,6 +125,8 @@ classdef Spectrum < Modules.Experiment
                     rethrow(err)
                 end
             end
+            
+            val = obj.ip;
         end
         function delete(obj)
             delete(obj.listeners)
@@ -143,7 +159,7 @@ classdef Spectrum < Modules.Experiment
             if ismember([mfilename '.' mfilename],{d.name}); return; end
             obj.WinSpec.(sprintf('set%s',param))(varargin{:});
         end
-        function set.grating(obj,val)
+        function val = set_grating(obj, val, ~)
             obj.grating = val;
             if isempty(obj.WinSpec); return; end
             d = dbstack;
@@ -155,7 +171,7 @@ classdef Spectrum < Modules.Experiment
             delete(findall(h,'tag','OKButton')); drawnow;
             err = [];
             try
-            obj.setWrapper('Grating',val,[]);
+            obj.setWrapper('Grating', val, []);
             catch err
             end
             delete(h)
@@ -163,13 +179,13 @@ classdef Spectrum < Modules.Experiment
                 rethrow(err)
             end
         end
-        function set.position(obj,val)
+        function val = set_position(obj, val, ~)
             obj.position = val;
-            obj.setWrapper('Grating',[],val);
+            obj.setWrapper('Grating', [], val);
         end
-        function set.exposure(obj,val)
+        function val = set_exposure(obj, val, ~)
             obj.exposure = val;
-            obj.setWrapper('Exposure',val);
+            obj.setWrapper('Exposure', val);
         end
     end
     

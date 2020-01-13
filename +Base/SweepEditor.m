@@ -4,13 +4,13 @@ classdef SweepEditor < handle
     properties (Constant, Hidden)
         pheaders =  {'#',       'Parent',  'Pref',     'Units',    'Min',      'Max',      'X0',       'dX',       'X1',       'N',        'Sweep'};
         peditable = [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,       true];
-        pwidths =   {20,        150,       150,        40,         40,         40,         40,         40,         40,         40,         150};
+        pwidths =   {25,        160,       160,        40,         40,         40,         40,         40,         40,         40,         80};
         pformat =   {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric'};
 %         pformat =   {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'char'};
 
         mheaders =  {'#',       'Measurement', 'Subdata',   'Units',    'Time'};
         meditable = [false,     false,         false,       false,      true];
-        mwidths =   {20,        150,           150,         50,        50};
+        mwidths =   {25,        160,           160,         50,        50};
         mformat =   {'char',    'char',        'char',     'char',     'numeric'};
     end
 
@@ -41,8 +41,10 @@ classdef SweepEditor < handle
             y = apt.get_meta_pref('y');
             bool = apt.get_meta_pref('bool');
 
-            obj.pdata = [ centerChars(obj.makePrefRow(x)) ; centerChars(obj.makePrefRow(y)) ; centerChars(obj.makePrefRow(bool)) ; centerChars(obj.makePrefRow([])) ];
-            obj.mdata = [ centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow([])) ];
+%             obj.pdata = [ centerChars(obj.makePrefRow(x)) ; centerChars(obj.makePrefRow(y)) ; centerChars(obj.makePrefRow(bool)) ; centerChars(obj.makePrefRow([])) ];
+%             obj.mdata = [ centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow([])) ];
+            obj.pdata = [ centerChars(obj.makePrefRow([])) ];
+            obj.mdata = [ centerChars(obj.makeMeasurementRow([])) ];
 
 
 %             size(obj.pdata, 2)
@@ -67,23 +69,27 @@ classdef SweepEditor < handle
             f.Position(3) = w;
             f.Position(4) = h + padding;
 
+            % Pref Menu
             obj.pmenu = uicontextmenu(f);
-            obj.mmenu = uicontextmenu(f);
 
             uimenu(obj.pmenu, 'label', 'Pref 0', 'Enable', 'off');
-            uimenu(obj.pmenu, 'label', [char(8679) ' Move Up'], 'Callback', @(s,e)obj.move);
-            uimenu(obj.pmenu, 'label', [char(8681) ' Move Down'], 'Callback', @obj.rightclick_Callback);
+            
+            uimenu(obj.pmenu, 'label', [char(8679) ' Move Up'],     'Callback', @(s,e)obj.moveRow(-1, true));
+            uimenu(obj.pmenu, 'label', [char(8681) ' Move Down'],   'Callback', @(s,e)obj.moveRow(+1, true));
+            
+            uimenu(obj.pmenu, 'label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(true));
 
-            uimenu(obj.pmenu, 'label', 'Time', 'Separator', 'on', 'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1))));
+            uimenu(obj.pmenu, 'label', 'Time', 'Separator', 'on',   'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1), true)));
 
             pr = Base.PrefRegister.instance();
-            pr.getMenu(obj.pmenu, @(x)(obj.setRow(x)), 'readonly', false);
-
-            ptPosition = [0, 0, obj.totalWidth(true), h];
-            mtPosition = [obj.totalWidth(true), 0, obj.totalWidth(false), h];
-
+            pr.getMenu(obj.pmenu, @(x)(obj.setRow(x, true)), 'readonly', false);
+            
+            % Measurement Menu
+            obj.mmenu = uicontextmenu(f);
+            
+            % Pref Table
+            ptPosition = [obj.totalWidth(false), 0, obj.totalWidth(true), h];
             apt = axes('Visible', 'off', 'Units', 'pixels', 'Position', ptPosition);
-            amt = axes('Visible', 'off', 'Units', 'pixels', 'Position', mtPosition);
 
             obj.pt =    uitable('Data', obj.pdata,...
                                 'ColumnEditable',   obj.peditable, ...
@@ -105,6 +111,10 @@ classdef SweepEditor < handle
             ylim(apt, [0, ptPosition(4)/rh]);
             apt.YDir = 'reverse';
 
+            % Measurement Table
+            mtPosition = [0, 0, obj.totalWidth(false), h];
+            amt = axes('Visible', 'off', 'Units', 'pixels', 'Position', mtPosition);
+            
             obj.mt =    uitable('Data', obj.mdata,...
                                 'ColumnEditable',   obj.meditable, ...
                                 'ColumnName',       obj.processHeaders(false),...
@@ -124,9 +134,36 @@ classdef SweepEditor < handle
         function sweep = generate(obj)
 
         end
-        function setRow(obj, pref)
-            pref
-
+        function setRow(obj, instrument, isPref)
+            if isPref
+                if obj.pselected == 0
+                    obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
+                    obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
+                    obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
+                else
+                    obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
+                    obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
+                end
+            end
+            
+            obj.update();
+        end
+        function moveRow(obj, direction, isPrefs)
+            if isPrefs
+                swap(obj, obj.pselected, obj.pselected+direction, isPrefs);
+            else
+                
+            end
+        end
+        function deleteRow(obj, isPref)
+            if isPref
+                if obj.pselected ~= 0
+                    obj.pdata(obj.pselected, :) = [];
+                end
+            else
+                
+            end
+            
             obj.update();
         end
         function update(obj)
@@ -135,7 +172,7 @@ classdef SweepEditor < handle
         end
         function d = makePrefRow(obj, p)  % Make a uitable row
             if isempty(p)
-                d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</fonnt>', '...', '...', '...', '...', '...', '...', '...', '...' };
+                d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [] };
             else
                 str = p.name;
 
@@ -196,6 +233,13 @@ classdef SweepEditor < handle
 % %             evt.Source
 %             evt.EventName
         end
+        function N = num(obj, isPrefs)
+            if isPrefs
+                N = size(obj.pdata, 1)-1;
+            else
+                N = size(obj.mdata, 1)-1;
+            end
+        end
         function buttondown_Callback(obj, src, evt)
             cp = src.UserData.CurrentPoint(1,:);
             yi = floor(cp(2));
@@ -227,9 +271,14 @@ classdef SweepEditor < handle
             drawnow;
         end
         function swap(obj, r1, r2, isPrefs)
-            tmp = obj.pdata{r1, :};
-            obj.pdata{r1, :} = obj.pdata{r2, :};
-            obj.pdata{r2, :} = tmp;
+            r1
+            r2
+            assert(r1 > 0 && r1 <= obj.num(isPrefs));
+            assert(r2 > 0 && r2 <= obj.num(isPrefs));
+            
+            tmp = obj.pdata(r1, :);
+            obj.pdata(r1, :) = obj.pdata(r2, :);
+            obj.pdata(r2, :) = tmp;
 
             obj.update;
         end

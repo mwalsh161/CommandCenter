@@ -107,7 +107,7 @@ classdef PrefRegister < handle
                             localpreffound = true;
                             
                             parent_classFull = makeParentString(obj.register.(modules{ii}).(obj.parent_storage), pref, true);
-                            pref.parent_class = folder.Text;
+                            pref.parent_class = parent_classFull;
 
                             folder.Text = ['<html>' parent_classFull];
                             
@@ -159,7 +159,7 @@ classdef PrefRegister < handle
             
             if ~isfield(obj.register, parent_name)
                 obj.register.(parent_name) = struct(obj.parent_storage, parent);
-            else
+            elseif isvalid(obj.register.(parent_name).(obj.parent_storage))
                 if ~isequal(obj.register.(parent_name).(obj.parent_storage), parent)    % If this class isn't the same class...
                     pref.parent_class = [pref.parent_class '_'];    % ...then add an underscore and recurse.
                     obj.addPref(parent, pref)

@@ -84,8 +84,8 @@ classdef PrefHandler < handle
                     % Done after binding Set/Get listeners since the method call expects them to be set already
 
                     obj.set_meta_pref(prop.Name, pref);
-
-                    pr.addPref(obj, pref);
+                    
+                    pr.addPref(obj, obj.get_meta_pref(prop.Name));
                 end
             end
         end

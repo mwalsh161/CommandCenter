@@ -1,5 +1,5 @@
 classdef Sweep < handle
-    % Sweep is a general class for N-dimensional scanning over Base.Pref objects and measuring
+    % SWEEP is a general class for N-dimensional scanning over Base.Pref objects and measuring
     % Base.Measurement objects at each point.
 
     properties (SetAccess=private)   % Identity vars.

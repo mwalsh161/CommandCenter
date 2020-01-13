@@ -117,10 +117,16 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             % PrefHandler. It is intended to give the Pref an opportunity
             % to bind a method of the module_instance.
             % Can also use to check/verify input/output
-
             obj.parent_class = class(module_instance);
             
-
+            if isa(obj, 'Base.Measurement') % This needs to be after pref is initialized and filled with property_name, but before it is fully bound.
+                obj.sizes = struct(obj.property_name, [1 1]);
+                obj.names = struct(obj.property_name, obj.name);
+                obj.units = struct(obj.property_name, obj.unit);
+                obj.scans = struct();   % 1 x 1 data doesn't need scans or prefs.
+                obj.prefs = struct();
+            end
+            
             mc = metaclass(module_instance);
 
             props = mc.PropertyList;
@@ -193,10 +199,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         end
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
-        function validate(obj,val)
+        function validate(obj,val) %#ok<INUSD>
             % May throw an error if not valid
         end
-        function val = clean(obj,val)
+        function val = clean(obj,val) %#ok<INUSL>
             % May throw an error if not valid
         end
         % This provides on opportunity to format or add to help_text
@@ -298,7 +304,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 nprops = length(mps);
                 for ii = 1:nprops % Need to bypass get methods using the metaprop
                     mp = mps(ii);
-                    if ~mp.Hidden && ~mp.Abstract
+                    if ~mp.Hidden && ~mp.Abstract && ~mp.Constant
                         assert(mp.HasDefault && iscell(mp.DefaultValue) && length(mp.DefaultValue)==2,...
                             'Default value of "%s" should be cell array: {default, validation_function}',mp.Name);
                         addParameter(p,mp.Name,mp.DefaultValue{1},mp.DefaultValue{2});
@@ -312,7 +318,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 % Assign props
                 for ii = 1:nprops
                     mp = mps(ii);
-                    if ~mp.Hidden && ~mp.Abstract
+                    if ~mp.Hidden && ~mp.Abstract && ~mp.Constant
                         obj.(mp.Name) = p.Results.(mp.Name);
                     end
                 end
@@ -356,7 +362,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 summary = '';
                 return
             end
-            longest_name = max(cellfun(@length,{props.Name}))+indent; %#ok<CPROPLC>
+            longest_name = max(cellfun(@length,{props.Name}))+indent; 
             summary = pad({props.Name},longest_name,'left');
             n = length(varargin);
             swap.names = arrayfun(@(~)'',1:n,'uniformoutput',false);
