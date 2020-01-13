@@ -1,5 +1,5 @@
-function [fig, t] = loadingImageFigure(image_file, figName, varargin)
-    %LOADIM Creates loading figure with text handle at the bottom.
+function [fig, t] = loadingFigure(image_file, figName, varargin)
+    %LOADINGFIGURE Creates loading figure with text handle at the bottom.
     im = imread(image_file);
     xlim = size(im,2);
     ymax = size(im,1);

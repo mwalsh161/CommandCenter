@@ -69,11 +69,10 @@ MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
 [path,~,~] = fileparts(mfilename('fullpath'));
 % Check for lock file
-if exist(fullfile(path,'.lock'),'file')     % Is this nnecessary with the hObject.Visible check?
+if exist(fullfile(path,'.lock'),'file')
     lock = fullfile(path,'.lock');
     
-    answer = questdlg(sprintf(['Found a lock file, are you sure there is no other CommandCenter instance running?\n',...
-                                'If not, you may remove this file and retry launching:\n%s'], lock),...
+    answer = questdlg(sprintf('Found a lock file, are you sure there is no other CommandCenter instance running?\n%s', lock),...
                                 '.lock File Found', 'Continue With This Instance', 'Oops, An Instance Exists', 'Oops, An Instance Exists');
                             
     switch answer
@@ -143,7 +142,7 @@ try
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
     end
-    [loading_fig, textH] = Base.loadingImageFigure(fullfile(path, 'static', 'load.png'),...
+    [loading_fig, textH] = Base.loadingFigure(fullfile(path, 'static', 'load.png'),...
         'CommandCenter Loading');
     set(textH,'String','Adding Paths'); drawnow;
     addpath(path)
@@ -189,7 +188,6 @@ try
     handles.panelSource = Base.UIscrollPanel(handles.panelSource);
     handles.panelExperiment = Base.UIscrollPanel(handles.panelExperiment);
     handles.panelSave = Base.UIscrollPanel(handles.panelSave);
-%     handles.panelGit = Base.UIscrollPanel(handles.panelGit, false);
     controls = {handles.panelStage, handles.panelImage, handles.panelSource,...
         handles.panelExperiment, handles.panelSave, handles.panelGit};
     Base.UIScrollPanelContainer(handles.LeftPanel,controls,5);
@@ -198,7 +196,6 @@ try
     Base.Resizable(handles.panelSource);
     Base.Resizable(handles.panelExperiment);
     Base.Resizable(handles.panelSave);
-    % Don't make gitPanel resizable or clickable.
     
     % Convert Axes panels to Split panels
     handles.AxesPanels = Base.SplitPanel(handles.panel_im,handles.panel_exp,'horizontal');
