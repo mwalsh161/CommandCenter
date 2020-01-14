@@ -229,6 +229,7 @@ end
         new_data = false;
     end
     function save_data(varargin)
+        save_state();
         pref = [strrep(mfilename('class'),'.','_') '_analyze'];
         last = '';
         if ispref(pref,'last_save')
@@ -433,11 +434,17 @@ end
         cs = reshape(lines,[],1,3); % In preparation for RGB image
         if ~isempty(exp_inds)
             % All experiments should be the same and x/y should be same
-            sz = length(site.experiments(exp_inds(1)).data.meta.vars(1).vals());
+            % First experiment may fail, but the prefs field will always exist
+            sz = length(str2num(site.experiments(exp_inds(1)).prefs.x_points)); %#ok<ST2NM> (need str2num to perfrom eval)
             rm = false(1,length(exp_inds)); % Remove experiments that aren't legit
             multi = NaN(sz+2,sz*2+2,3,length(exp_inds)); % 2*sz in x to drop repump and res images
             for i = 1:length(exp_inds)
                 experiment = site.experiments(exp_inds(i));
+                formatSelector(selector(4),experiment,exp_inds(i),4,site_index,cs(i,1,:));
+                if experiment.skipped
+                    rm(i) = true;
+                    continue
+                end
                 freq = experiment.prefs.frequency;
                 % Add marker on closed loop axes
                 plot(ax(4),freq, ax(4).YLim(1),'Color',cs(i,1,:),'MarkerFaceColor',cs(i,1,:),'Marker','v','MarkerSize',5);
@@ -454,7 +461,6 @@ end
                 else
                     rm(i) = true;
                 end
-                formatSelector(selector(4),experiment,exp_inds(i),4,site_index,cs(i,1,:));
             end
             multi(:,:,:,rm) = [];
             nims = size(multi,4);
@@ -466,6 +472,7 @@ end
                 montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz*2]+2);
             end
             ax(5).Title.String = 'SuperRes Scan';
+            set(ax(5),'ydir','normal');
         end
         catch err
             busy = false;

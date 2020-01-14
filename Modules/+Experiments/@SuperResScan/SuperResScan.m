@@ -13,7 +13,7 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
         res_time = Prefs.Double(0.1,'units','us','help_text','Time spent resonantly addressing and reading out emitter');
         x_points = Prefs.String('0','units','um','help_text','Valid MATLAB expression evaluating to list of x points to scan.','set','set_points');
         y_points = Prefs.String('0','units','um','help_text','Valid MATLAB expression evaluating to list of y points to scan.','set','set_points');
-        frequency = Prefs.Double(470.5,'units','THz','help_text','Resonant frequency to park resLaser at for scan.')
+        frequency = Prefs.Double(470.5,'allow_nan',false,'units','THz','help_text','Resonant frequency to park resLaser at for scan.')
     end
     properties
         x = 0; % x positions

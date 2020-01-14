@@ -182,7 +182,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             composite.freqs = [];
             composite.counts = [];
             scanfit = []; % Make sure not a struct here for below if statement
-            if isempty(obj.analysis) || isnan(obj.analysis.sites(index,2).index) % NaN index means it wasn't checked
+            if isempty(obj.analysis) || isnan(obj.analysis.sites(index,3).index) % NaN index means it wasn't checked
                 % get all experiments named 'SlowScan_Closed' associated with site
                 scans = site.experiments(strcmpi({site.experiments.name},'Experiments.SlowScan.Closed'));
                 for i=1:length(scans) %compile all scans
