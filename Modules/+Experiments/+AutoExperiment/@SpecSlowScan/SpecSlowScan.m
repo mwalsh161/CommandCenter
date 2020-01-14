@@ -200,7 +200,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             else
                 scanfit = obj.analysis.sites(index,3);
             end
-            pos = obj.data(site).position;
+            pos = site.position;
             for i = 1:length(scanfit.locations)
                 params(end+1).x_points = sprintf('%f+linspace(-0.5*%f,0.5*%f,%f)',pos(1),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
                 params(end).y_points = sprintf('%f+linspace(-0.5*%f,0.5*%f,%f)',pos(2),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
