@@ -6,7 +6,7 @@ classdef SweepEditor < handle
         pheadersOpt =   {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'Guess',    'X1',       'N',         'Sweep'};
         peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true];
         peditableOpt =  [false,     false,     false,      false,      false,      false,      true,       true,       true,       false,       false];
-        pwidths =       {25,        160,       160,        40,         40,         40,         40,         40,         40,         40,          0};
+        pwidths =       {25,        160,       160,        40,         40,         40,         40,         40,         40,         40,          80};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
 %         pformatOpt =    {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
 %         pformat =   {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'char'};
@@ -40,22 +40,23 @@ classdef SweepEditor < handle
 
     properties
         pselected
+        mselected
 
         maxelements
     end
 
     methods
 		function obj = SweepEditor()
-            apt = Drivers.AxisTest.instance('Test');
+            apt = Drivers.AxisTest.instance('Test')
 
-%             x = apt.get_meta_pref('x');
-%             y = apt.get_meta_pref('y');
-%             bool = apt.get_meta_pref('bool');
+            x = apt.get_meta_pref('x');
+            y = apt.get_meta_pref('y');
+            bool = apt.get_meta_pref('bool');
 
 %             obj.pdata = [ centerChars(obj.makePrefRow(x)) ; centerChars(obj.makePrefRow(y)) ; centerChars(obj.makePrefRow(bool)) ; centerChars(obj.makePrefRow([])) ];
 %             obj.mdata = [ centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow([])) ];
-            obj.pdata = centerChars(obj.makePrefRow([]));
-            obj.mdata = centerChars(obj.makeMeasurementRow([]));
+            obj.pdata = centerCharsPrefs(obj.makePrefRow([]));
+            obj.mdata = centerCharsMeasurements(obj.makeMeasurementRow([]));
 
 
 %             size(obj.pdata, 2)
@@ -105,10 +106,8 @@ classdef SweepEditor < handle
             
             uimenu(obj.mmenu, 'label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
 
-            uimenu(obj.mmenu, 'label', 'Time', 'Separator', 'on',   'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1), true)));
-
             mr = Base.MeasurementRegister.instance();
-            mr.getMenu(obj.pmenu, @(x)(obj.setRow(x, false)));
+            mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
             
             % Pref Table
             ptPosition = [obj.totalWidth(false), 0, obj.totalWidth(true), h];
@@ -165,22 +164,22 @@ classdef SweepEditor < handle
         function setRow(obj, instrument, isPref)
             if isPref
                 if obj.pselected == 0
-                    obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
+                    obj.pdata(end, :) = centerCharsPrefs(obj.makePrefRow(instrument));
                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
-                    obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
+                    obj.pdata(end+1, :) = centerCharsPrefs(obj.makePrefRow([]));
                 else
-                    obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
+                    obj.pdata(obj.pselected, :) = centerCharsPrefs(obj.makePrefRow(instrument));
                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
                 end
             else
-                if obj.mselected == 0
-                    obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
-                    obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
-                    obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
-                else
-                    obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
-                    obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
-                end
+%                 if obj.mselected == 0
+%                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
+%                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
+%                     obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
+%                 else
+%                     obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
+%                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
+%                 end
 %                 if obj.pselected == 1
 %                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
 %                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
