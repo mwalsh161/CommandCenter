@@ -503,7 +503,6 @@ end
             displayed = true;
         end
         % Analysis redo should be flexible
-        exp_redo = experiment.redo_requested;
         analysis_redo = false;
         if ~isempty(analysis.sites(site_ind,exp_ind).redo)
             analysis_redo = analysis.sites(site_ind,exp_ind).redo;
@@ -511,7 +510,7 @@ end
         selectorH.Data(end+1,:) = {displayed,color, i,...
                                    date,...
                                    experiment.continued,...
-                                   exp_redo || analysis_redo,...
+                                   analysis_redo,...
                                    duration,...
                                    experiment.skipped,...
                                    experiment.completed,...
@@ -565,26 +564,10 @@ end
                     analysis.sites(site_index,exp_type).ignore(end+1) = exp_ind;
                 end
                 update_exp{exp_type}();
-            case 6 % Redo Request (no need to update_all)
-                % Can only toggle most recent experiment
-                % Find most recent age
-                most_recent = min([hObj.Data{:,5}]);
+            case 6 % Redo Request
                 state = hObj.Data{eventdata.Indices(1),6};
-                if hObj.Data{eventdata.Indices(1),5} ~= most_recent
-                    errordlg('You can only toggle the most recent experiment.',mfilename);
-                    % Toggle back
-                    hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
-                elseif hObj.Data{eventdata.Indices(1),8} % skipped
-                    errordlg('No need to redo a skipped experiment; will be redone automatically.',mfilename);
-                    % Toggle back
-                    hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
-                elseif  hObj.Data{eventdata.Indices(1),10} % errored
-                    errordlg('No need to redo an experiment that errored; will be redone automatically.',mfilename);
-                    % Toggle back
-                    hObj.Data{eventdata.Indices(1),6} = ~hObj.Data{eventdata.Indices(1),6};
-                end
-                % Do it for all others in most_recent
-                for i = find([hObj.Data{:,5}]==most_recent)
+                % Do it for all others
+                for i = 1:length([hObj.Data{:,5}])
                     if i == eventdata.Indices(1); continue; end
                     hObj.Data{i,6} = state;
                 end
