@@ -64,7 +64,25 @@ classdef MeasurementRegister < handle
                     if isempty(obj.register.(modules{ii})) || ~isvalid(obj.register.(modules{ii}))
                         obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
                     else
+                        m = obj.register.(modules{ii});
+                        sd = m.subdata;
+                        l = obj.getLabels;
+                        s = m.getSizes;
+                        str = makeParentString(m, true);
                         
+                        if numel(sd) == 1
+                            label = ['<html>' str '; ' l.(sd{1}) ' (<font face="Courier" color="green">.' sd{1} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{1})) ']</font>)</html>'];
+
+                            uimenu(folder, 'Text', label, 'UserData', [], 'Callback', @(s,e)(callback(pref)));  % Set UserData = m?
+                        else
+                            label = ['<html>' str ';'];
+                                
+                            for ii = 1:length(sd)
+                                label = [label '<br> &nbsp; ' l.(sd{ii}) ' (<font face="Courier" color="green">.' sd{ii} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{ii})) ']</font>)</html>'];
+                            end
+                                
+                            uimenu(folder, 'Text', label, 'UserData', [], 'Callback', @(s,e)(callback(pref)));  % Set UserData = m?
+                        end
                     end
                 end
             end
@@ -104,8 +122,8 @@ classdef MeasurementRegister < handle
     end
 end
 
-function str = makeParentString(parent, pref, isHTML)
-    str = strrep(strip(pref.parent_class, '_'), '_', '.');
+function str = makeParentString(parent, isHTML)
+    str = strrep(strip(class(parent), '_'), '_', '.');
     if ~isempty(parent.singleton_id) && ischar(parent.singleton_id)
         if isHTML
             str = [str '(<font face="Courier New" color="purple">''' parent.singleton_id '''</font>)'];
