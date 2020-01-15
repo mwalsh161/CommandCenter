@@ -9,16 +9,6 @@ classdef Numeric < Base.Pref & Base.Measurement
     methods (Static, Hidden)
         function obj = Numeric(varargin)
             obj = obj@Base.Pref(varargin{:});
-
-%             obj
-%             obj.property_name
-%             struct(obj.property_name, [1 1])
-%             
-%             obj.sizes = struct(obj.property_name, [1 1]);
-%             obj.names = struct(obj.property_name, obj.name);
-%             obj.units = struct(obj.property_name, obj.unit);
-%             obj.scans = struct();   % 1 x 1 data doesn't need scans or prefs.
-%             obj.prefs = struct();
         end
         function tf = isnumeric(~)      % Overloads isnumeric.
             tf = true;

@@ -1,4 +1,4 @@
-classdef ScanViewer < handle
+classdef SweepViewer < handle
 
 	properties (SetAccess=private)
 		s = [];		% Parent scan of type `Base.Scan`

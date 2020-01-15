@@ -144,7 +144,7 @@ try
     end
     [loading_fig, textH] = Base.loadingFigure(fullfile(path, 'static', 'load.png'),...
         'CommandCenter Loading');
-    set(textH,'String','Adding Paths'); drawnow;
+    set(textH,'String', 'Adding Paths'); drawnow;
     addpath(path)
     addpath(genpath(fullfile(path,'overload_builtin')))
     addpath(genpath(fullfile(path,'HelperFunctions')))
@@ -154,11 +154,11 @@ try
     addpath(fullfile(path,'Modules','Managers'))
     
     % Check Git
-    set(textH,'String','Checking Git'); drawnow;
+    set(textH,'String', 'Checking Git'); drawnow;
     handles.GitPanel = Base.GitPanel(handles.panelGit, handles.figure1);
     
     % Prepare Key
-    set(textH,'String','Checking Key'); drawnow;
+    set(textH,'String', 'Checking Key'); drawnow;
     if exist(fullfile(path,'.unique_key.mat'),'file')
         unique_key = load(fullfile(path,'.unique_key.mat'));
         unique_key = unique_key.unique_key;
@@ -171,7 +171,7 @@ try
     end
     
     % Setup Logging
-    set(textH,'String','Setting Up Logger'); drawnow;
+    set(textH,'String', 'Setting Up Logger'); drawnow;
     handles.logger = Base.Logger(mfilename,loggerStartState);
     handles.logger.logLevel = [debugLevel, debugLevel]; % [listbox,textfile]
     handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
@@ -180,7 +180,7 @@ try
     set(handles.file_logger,'checked',handles.logger.visible)
     
     % Convert panels to scrollPanels
-    set(textH,'String','Making Panels'); drawnow;
+    set(textH,'String', 'Making Panels'); drawnow;
     loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
     handles.reload_CData = loaded_vars.im;
     handles.panelStage = Base.UIscrollPanel(handles.panelStage);
@@ -204,7 +204,7 @@ try
     handles.AxesPanelsH = pos(4);  % Necessary to allow GlobalPosition to hang out up there.
     axes_im_only_Callback(hObject,[],handles)  % Set default to just image
     
-    set(textH,'String','Loading Managers'); drawnow;
+    set(textH,'String', 'Loading Managers'); drawnow;
     handles.Managers = Base.ManagerContainer;   % So every Manager has same access to other managers
     handles.Managers.Logger = handles.logger;   % Make more accessible
     handles.Managers.handles = handles;         % Give the manager container a handle to figure handles
@@ -217,29 +217,29 @@ try
     handles.inactivity_timer.UserData = handles.Managers;
     
     % Init managers
-    set(textH,'String','Loading StageManager'); drawnow;
+    set(textH,'String', 'Loading StageManager'); drawnow;
     handles.Managers.Stages = StageManager(handles);
     
-    set(textH,'String','Loading Experiment Modules');
+    set(textH,'String', 'Loading Experiment Modules');
     handles.Managers.Experiment = ExperimentManager(handles);
     
-    set(textH,'String','Loading Imaging Modules'); drawnow;
+    set(textH,'String', 'Loading Imaging Modules'); drawnow;
     handles.Managers.Imaging = ImagingManager(handles);
     set(handles.(handles.Managers.Imaging.set_colormap),'checked','on') % Tags correspond to colormaps
     set(allchild(handles.menu_colormap),'callback',...
         @(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
     
-    set(textH,'String','Loading Database Modules'); drawnow;
+    set(textH,'String', 'Loading Database Modules'); drawnow;
     handles.Managers.DB = DBManager(handles);
     
-    set(textH,'String','Loading Source Modules'); drawnow;
+    set(textH,'String', 'Loading Source Modules'); drawnow;
     handles.Managers.Sources = SourcesManager(handles);
     
-    set(textH,'String','Loading Paths'); drawnow;
+    set(textH,'String', 'Loading Paths'); drawnow;
     handles.Managers.Path = PathManager(handles); % Generates its own menu item
     
-    set(textH,'String','Preparing GUI'); drawnow;
-    set(textH,'String','Done.'); drawnow;
+    set(textH,'String', 'Preparing GUI'); drawnow;
+    set(textH,'String', 'Done'); drawnow;
 catch err
     delete(loading_fig)
     delete(handles.inactivity_timer)

@@ -123,8 +123,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 obj.sizes = struct(obj.property_name, [1 1]);
                 obj.names = struct(obj.property_name, obj.name);
                 obj.units = struct(obj.property_name, obj.unit);
-                obj.scans = struct();   % 1 x 1 data doesn't need scans or prefs.
-                obj.prefs = struct();
+                obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
+                obj.dims =  struct();
             end
             
             mc = metaclass(module_instance);

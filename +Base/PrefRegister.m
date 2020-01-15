@@ -68,7 +68,7 @@ classdef PrefRegister < handle
             end
             
             if isempty(modules)
-                uimenu(menu,'label','<html>No Modules found','enable','off','tag','module');
+                uimenu(menu, 'Label', '<html>No Modules found', 'Enable', 'off', 'Tag', 'module');
                 return
             end
             
@@ -146,7 +146,7 @@ classdef PrefRegister < handle
                 catch
                 end
                     
-                uimenu(menu,'label', noprefmessage, 'Enable', 'off', 'Tag', 'module');
+                uimenu(menu, 'Label', noprefmessage, 'Enable', 'off', 'Tag', 'module');
             end
         end
     end
@@ -181,7 +181,7 @@ function str = makeParentString(parent, pref, isHTML)
     str = strrep(strip(pref.parent_class, '_'), '_', '.');
     if ~isempty(parent.singleton_id) && ischar(parent.singleton_id)
         if isHTML
-            str = [str '(<font face="Courier New" color="red">''' parent.singleton_id '''</font>)'];
+            str = [str '(<font face="Courier New" color="purple">''' parent.singleton_id '''</font>)'];
         else
             str = [str '(''' parent.singleton_id ''')'];
         end

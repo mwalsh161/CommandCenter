@@ -1,4 +1,4 @@
-classdef Measurement %< matlab.mixin.Heterogeneous
+classdef (HandleCompatible) Measurement %< matlab.mixin.Heterogeneous
     % MEASUREMENT Superclass for Measurements.
     % Base.Measurement intends to:
     %
@@ -36,11 +36,11 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     % 
     %    + names (empty OR single string OR struct of strings)
     %    + units (empty OR single string OR struct of strings)
-    %    + prefs (empty OR struct of cell arrays of Base.Prefs)
+    %    + dims  (empty OR struct of cell arrays of Base.Prefs)
     %    + scans (empty OR struct of cell arrays of 1D numeric arrays)
     %
     % If these are structs, they should have the same fields as the subdata fields. This is strict
-    % for names and units, but Base.Measurement will compensate for unused fields for prefs and scans. A
+    % for names and units, but Base.Measurement will compensate for unused fields in dims and scans. A
     % cleaned version of these properties is provided in the metadata, which contains:
     %
     %   metadata.version : Base.Measurement.version;    % Constant; not used right now.
@@ -53,7 +53,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     %                                           %   subdata{2}, [names ' ' subdata{2}], ... to
     %                                           %   differentiate the different subdatas to the user.  
     %   metadata.units   : obj.getUnits;        % If units is a string, then all of the subdata are assumed to have the same units
-    %   metadata.prefs   : obj.getPrefs;        % Autogenerates Base.Pref with units 'pixels' and name
+    %   metadata.dims    : obj.getDims;         % Autogenerates Base.Pref with units 'pixels' and name
     %                                           %   'X', 'Y', ... according to direction of dimension.
     %   metadata.scans   : obj.getScans;        % Autogenerates integer 1:N
     %
@@ -68,12 +68,11 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     %
     % When subdata are not provided by sizes, defaults to single subdata called .data:
     %
-    %   d.metadata.version     : Base.Measurement.version
-    %    .metadata.subdata     : {'data'}
+    %   d.metadata.subdata     : {'data'}
     %    .metadata.sizes.data  : size(d.data.dat)
     %    .metadata.names.data  : 'Astounding Data'
     %    .metadata.units.data  : 'dataunits'
-    %    .metadata.prefs.data  : {Base.Pref     for every nonsinular dimension of size(d.data.dat)}
+    %    .metadata. dims .data  : {Base.Pref     for every nonsinular dimension of size(d.data.dat)}
     %    .metadata.scans.data  : {numeric array for every nonsinular dimension of size(d.data.dat), with length equaling dimension}
     %
     %    .data.dat             : numeric array of data!
@@ -84,8 +83,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     %
     % When subdata are provided by sizes, uses the subdata field names (.data1, .data2 in the below case):
     %
-    %   d.metadata.version     : Base.Measurement.version
-    %    .metadata.subdata     : {'data1', 'data2', ...}
+    %   d.metadata.subdata     : {'data1', 'data2', ...}
     %
     %    .metadata.sizes.data1 : size(d.data1.dat)
     %    .metadata.sizes.data2 : size(d.data2.dat)
@@ -99,13 +97,13 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     %    .metadata.units.data2 : 'data2units'
     %    .metadata.units...
     %
-    %    .metadata.prefs.data1 : {Base.Pref     for every nonsinular dimension of size(d.data1.dat)}
-    %    .metadata.prefs.data2 : {Base.Pref     for every nonsinular dimension of size(d.data2.dat)}
-    %    .metadata.prefs...
-    %
     %    .metadata.scans.data1 : {numeric array for every nonsinular dimension of size(d.data1.dat), with length equaling dimension}
     %    .metadata.scans.data2 : {numeric array for every nonsinular dimension of size(d.data2.dat), with length equaling dimension}
     %    .metadata.scans...
+    %
+    %    .metadata.dims .data1 : {Base.Pref     for every nonsinular dimension of size(d.data1.dat)}
+    %    .metadata.dims .data2 : {Base.Pref     for every nonsinular dimension of size(d.data2.dat)}
+    %    .metadata.dims ...
     %
     %    .data1.dat            : numeric array of data!
     %    .data1.std            : Either 1) empty or 2) a numeric array with the same size as size(d.data1.dat)
@@ -118,13 +116,12 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     %
     % Example:
     %
-    %   d.metadata.version     : Base.Measurement.version
-    %    .metadata.subdata     : {'noise'}
+    %   d.metadata.subdata     : {'noise'}
     %    .metadata.names.noise : 'Random Yet Extraordinary Data'
     %    .metadata.units.noise : 'arb'
     %    .metadata.sizes.noise : [5, 6]
-    %    .metadata.prefs.noise : { Prefs.Empty('name', 'X', ...), Prefs.Empty('name', 'Y', ...) }
     %    .metadata.scans.noise : { 1:5, 1:6 }
+    %    .metadata.dims .noise : { Prefs.Empty('name', 'X', ...), Prefs.Empty('name', 'Y', ...) }
     %
     %    .noise.dat            : normrnd(0, 42, 5, 6)       % normrnd(mu, sigma, sz1, sz2)
     %    .noise.std            : 42*ones(5, 6)
@@ -145,12 +142,12 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     end
 
     properties (Hidden) %(SetAccess = private)
-		prefs = struct();   % struct of cell arrays of Base.Prefs       % Can be empty, in which case returned prefs will be autogenerated with units pixels
-        scans = struct();   % struct of cell arrays of numeric arrays   % Can be empty, in which case returned prefs will be autogenerated 1:N
+		dims  = struct();   % struct of cell arrays of Base.Prefs       % Can be empty, in which case returned Base.Prefs will be autogenerated with units pixels
+        scans = struct();   % struct of cell arrays of numeric arrays   % Can be empty, in which case returned scans will be autogenerated 1:N
     end
     
-    properties (Hidden, Constant)
-        metadataDefault = [];
+    properties (Hidden)
+        self_class = '';
     end
     
     methods (Hidden)
@@ -174,8 +171,11 @@ classdef Measurement %< matlab.mixin.Heterogeneous
 %                     tf = true;
 %             end
         end
+        function N = getN(obj)
+            N = numel(obj.subdata());
+        end
     end
-    methods
+    methods             % Set main vars.
         function obj = set.sizes(obj, sizes_)
             assert(isstruct(sizes_) || (isnumeric(sizes_) && ~isempty(sizes_)), 'Base.Measurement.sizes must be a struct or numeric.')
             
@@ -183,7 +183,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
             old = {'data'};
                 
             if isstruct(obj.names) || isstruct(obj.units) || ...
-                    (isstruct(obj.prefs) && numel(fieldnames(obj.prefs)) > 0) || ...
+                    (isstruct(obj.dims) && numel(fieldnames(obj.dims)) > 0) || ...
                     (isstruct(obj.scans) && numel(fieldnames(obj.scans)) > 0) %#ok<MCSUP>
                 % If one of our other vars has already been set to a struct with fields, then sizes needs to
                 % maintain its own fields to avoid confusion.
@@ -230,7 +230,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
         end
         function obj = set.units(obj, units_)
             if isstruct(obj.units)
-                assert(arefieldssame(fieldnames(obj.units), subdata), 'If sizes is already set as a struct, then units must have the same fields as sizes.')
+                assert(arefieldssame(fieldnames(obj.units), obj.subdata), 'If sizes is already set as a struct, then units must have the same fields as sizes.')
             elseif ischar(obj.units)
                 % Good.
             else
@@ -239,20 +239,20 @@ classdef Measurement %< matlab.mixin.Heterogeneous
             
             obj.units = units_;
         end
-        function obj = set.prefs(obj, prefs_)
-            if isempty(prefs_)
+        function obj = set.dims(obj, dims_)
+            if isempty(dims_)
                 % Good.
-            elseif isstruct(prefs_)
-                prefs_fields = fieldnames(prefs_);
+            elseif isstruct(dims_)
+                dims_fields = fieldnames(dims_);
                 subdata = obj.subdata();
 
-                for ii = 1:length(prefs_fields)
-                    if ~isfieldfast(subdata, prefs_fields{ii})
-                        error(['Field ' prefs_fields{ii} ' not recognized as a valid subdata.']);
+                for ii = 1:length(dims_fields)
+                    if ~isfieldfast(subdata, dims_fields{ii})
+                        error(['Field ' dims_fields{ii} ' not recognized as a valid subdata.']);
                     end
                 end
             else
-                error('prefs must be either empty or a struct.');
+                error('dims must be either empty or a struct.');
             end
         end
         function obj = set.scans(obj, scans_)
@@ -268,11 +268,11 @@ classdef Measurement %< matlab.mixin.Heterogeneous
                     end
                 end
             else
-                error('prefs must be either empty or a struct.');
+                error('scans must be either empty or a struct.');
             end
         end
     end
-    methods (Hidden)
+    methods (Hidden)    % Get main vars
         function sizes = getSizes(obj)
             if isstruct(obj.sizes)
                 sizes = obj.sizes;
@@ -312,11 +312,11 @@ classdef Measurement %< matlab.mixin.Heterogeneous
                 error()
             end
         end
-        function prefs = getPrefs(obj)
-            if isstruct(obj.prefs)
-                prefs = obj.prefs;
-            elseif isempty(obj.prefs)
-                prefs = struct();
+        function dims =  getDims(obj)
+            if isstruct(obj.dims)
+                dims = obj.dims;
+            elseif isempty(obj.dims)
+                dims = struct();
             else
                 error()
             end
@@ -325,13 +325,13 @@ classdef Measurement %< matlab.mixin.Heterogeneous
             names_ = obj.getNames;
             sizes_ = obj.getSizes;
 
-            prefs_fields = fieldnames(prefs);
+            dims_fields = fieldnames(dims);
 
             for ii = 1:length(subdata)
-                if isfieldfast(prefs_fields, subdata{ii})
+                if isfieldfast(dims_fields, subdata{ii})
                     % Error check?
                 else
-                    [prefs.(subdata{ii}), ~] = Base.Measurement.makeAutogeneratedPrefsScans(sizes_.(subdata{ii}), names_.(subdata{ii}), 'prefs');
+                    [dims.(subdata{ii}), ~] = Base.Measurement.makeAutogeneratedDimsScans(sizes_.(subdata{ii}), names_.(subdata{ii}), 'dims');
                 end
             end
         end
@@ -354,7 +354,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
                 if isfieldfast(scans_fields, subdata{ii})
                     % Error check?
                 else
-                    [~, scans.(subdata{ii})] = Base.Measurement.makeAutogeneratedPrefsScans(sizes_.(subdata{ii}), names_.(subdata{ii}), 'prefs');
+                    [~, scans.(subdata{ii})] = Base.Measurement.makeAutogeneratedDimsScans(sizes_.(subdata{ii}), names_.(subdata{ii}), 'scans');
                 end
             end
         end
@@ -362,14 +362,15 @@ classdef Measurement %< matlab.mixin.Heterogeneous
 
 	methods
 		function obj = Measurement()
+            if ~isa(obj, 'Base.Pref')
+                mr = Base.MeasurementRegister.instance();
+                mr.addMeasurement(obj);
+            end
+            
 %             obj.names = 'aquatic sea mammals';
 %             obj.units = 'mammals';
 %             obj.sizes = struct('whale', [2 2], 'orca', [1 4], 'walrus', [1 1], 'seal', [5 1], 'seaotter', [2 2 2 2 2 2 2 2 2 2]);
 		end
-    end
-    
-    properties (Hidden, Constant)
-        version = 0.0;
     end
     
     methods (Hidden, Static)
@@ -440,14 +441,13 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     end
     methods (Sealed)
         function md = metadata(obj)
-            md.version = Base.Measurement.version;
             md.subdata = obj.subdata();
             
             md.sizes = obj.getSizes;
             md.names = obj.getNames;
             md.units = obj.getUnits;
-            md.prefs = obj.getPrefs;
             md.scans = obj.getScans;
+            md.dims  = obj.getDims;
         end
         function d = validateData(obj, raw, varargin)
             raw_but_structured =    validateStructure(obj, raw);
@@ -465,7 +465,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
                 
                 assert(~isempty(raw_fields), 'Empty data cannot be validated.');     % Or return blank?
                 
-                metadata = Base.Measurement.metadataDefault;
+                metadata = [];
                 
                 if isfieldfast(raw_fields, 'metadata')  % Metadata takes a while to generate sometimes, so if it exists, we store it and put it back afterward.
                     metadata = raw.metadata;
@@ -652,7 +652,7 @@ classdef Measurement %< matlab.mixin.Heterogeneous
                             assert(~isfieldfast(data_fields, 'meta'), 'd.data.meta must not exist.')
                             
                             % Push the rest of the fields in .data to .meta
-                            meta = mergestructures(raw.meta, rmfield(raw.data, {'dat', 'std'}));
+                            meta = rmfield(raw.data, {'dat', 'std'});
                         else
                             d.data.dat = raw.data;  % Leave it for validateDimension to check numeric.
                             d.data.std = [];
@@ -675,12 +675,12 @@ classdef Measurement %< matlab.mixin.Heterogeneous
                     d.(size_fields{1}).dat = raw;
                     d.(size_fields{1}).std = [];
                     d.meta = struct();
-                    d.metadata = Base.Measurement.metadataDefault;
+                    d.metadata = [];
                 elseif ~isempty(raw)
                     d.data.dat = raw;
                     d.data.std = [];
                     d.meta = struct();
-                    d.metadata = Base.Measurement.metadataDefault;
+                    d.metadata = [];
                 else
                     error('Empty data cannot be validated.')
                 end
@@ -760,13 +760,13 @@ classdef Measurement %< matlab.mixin.Heterogeneous
     end
     
     methods (Hidden, Static)
-        function [prefs, scans] = makeAutogeneratedPrefsScans(size_, name, varargin)
+        function [dims, scans] = makeAutogeneratedDimsScans(size_, name, varargin)
             X = 1:length(size_);
             nonsingular = X(size_ > 1);
             
             N = sum(size_ > 1);
             
-            prefs = cell(1, N);
+            dims  = cell(1, N);
             scans = cell(1, N);
             
             if N == 0
@@ -782,8 +782,8 @@ classdef Measurement %< matlab.mixin.Heterogeneous
             assert(numel(varargin) <= 1);
             
             for ii = 1:N
-                if isempty(varargin) || strcmp(varargin{1}, 'prefs')
-                    prefs{ii} = Prefs.Empty([name ' ' dimchar(ii)], size_(nonsingular(ii)));
+                if isempty(varargin) || strcmp(varargin{1}, 'dims')
+                    dims{ii} = Prefs.Empty([name ' ' dimchar(ii)], size_(nonsingular(ii)));
                 end
                 if isempty(varargin) || strcmp(varargin{1}, 'scans')
                     scans{ii} = 1:size_(nonsingular(ii));

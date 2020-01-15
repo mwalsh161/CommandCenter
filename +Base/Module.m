@@ -181,7 +181,7 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                             val = temp;
                         end
                         if ismember('Base.Pref',superclasses(val))
-                            % THIS SHOULD NOT HAPPEN, bug haven't figured
+                            % THIS SHOULD NOT HAPPEN, but haven't figured
                             % out why it does sometimes yet
                             val = val.value;
                             warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});

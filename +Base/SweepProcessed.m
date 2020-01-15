@@ -1,4 +1,4 @@
-classdef ScanProcessed < handle
+classdef SweepProcessed < handle
 
 	properties (SetAccess=private)
 		s = [];		% Parent scan of type `Base.Scan`

@@ -117,11 +117,5 @@ classdef Experiment < Base.Module & Base.Measurement
             end
         end
     end
-    methods
-        function data = measure(obj)
-            obj.run();
-            data = obj.GetData();
-        end
-    end
 end
 

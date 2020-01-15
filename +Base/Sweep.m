@@ -10,7 +10,10 @@ classdef Sweep < handle
         axes;           % cell array                % Contains 1xN `Base.pref` classes that are being swept over.
         scans;          % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
         inputs;         % cell array                % Contains 1xM `Base.Data` classes that are being measured at each point.
-
+    end
+    
+    properties
+        sub;            % 
 		index;			% integer
     end
 
@@ -23,7 +26,7 @@ classdef Sweep < handle
 	end
 
     methods
-		function obj = Scan()
+		function obj = Sweep()
 			a = Drivers.AxisTest.instance();
 % 			a1 = a.x;
 % 			a2 = a.y;
@@ -136,16 +139,16 @@ classdef Sweep < handle
         end
         
         function [vec, ind] = currentPoint(obj)
-			[sub{1:length(L)}] = ind2sub(L, obj.index);
-            sub = cell2mat(sub);
+% 			[sub{1:length(L)}] = ind2sub(L, obj.index);
+%             sub = cell2mat(sub);
 			A = 1:obj.dimension();
             
             ind = NaN*A;
             vec = NaN*A;
 
 			for aa = A
-                ind(aa) = sub(aa);
-                vec(aa) = obj.scans{aa}(sub(aa));
+                ind(aa) = obj.sub(aa);
+                vec(aa) = obj.scans{aa}(obj.sub(aa));
             end
         end
 
@@ -159,57 +162,60 @@ classdef Sweep < handle
                 warning('Already done')
                 return
             end
-
-			[sub{1:length(L)}] = ind2sub(L, obj.index);
-            sub = cell2mat(sub);
+            
+			[obj.sub{1:length(L)}] = ind2sub(L, obj.index);
+            obj.sub = cell2mat(obj.sub);
 			A = 1:obj.dimension();
 
 			for aa = A
-				obj.axes{aa}.writ(obj.scans{aa}(sub(aa)));
+				obj.axes{aa}.writ(obj.scans{aa}(obj.sub(aa)));
             end
 
 			% Slow aquisition
 			if ~obj.isNIDAQ
 				while obj.index <= N
-					% First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
-					sub2 = {};
-                    [sub2{1:length(L)}] = ind2sub(L, obj.index);
-                    sub2 = cell2mat(sub2);
-
-					differences = sub ~= sub2;	% Find the axes that need to change...
-
-					for aa = A(differences)
-                        obj.axes{aa}.writ(obj.scans{aa}(sub2(aa)));
-					end
-
-					sub = sub2;
-
-					% Second, wait for our axes to arrive within tolerance. In most cases, this is an empty check, but it is important for things like tuning frequency or slow motion.
-% 					for aa = A
-% 						obj.axes{aa}.wait();
-% 					end
-
-					% Then, setup for assigning the data, and measure.
-					SUB = num2cell(sub);
-
-                    S.type = '()';
-
-					for ii = 1:M
-						C    = cell(1, sum(obj.inputs{ii}.size > 1));
-						C(:) = {':'};
-
-                        S.subs = [SUB C];
-
-						obj.data{ii} = subsasgn(obj.data{ii}, S, obj.inputs{ii}.snap());
-					end
-
-					% Lastly, incriment the index.
-					obj.index = obj.index + 1;
+					obj.tick();
 				end
 			else
 				% Not Implemented.
 				error()
 			end
-		end
+        end
+        
+        function tick(obj)
+            % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
+            [sub2{1:length(L)}] = ind2sub(L, obj.index);
+            sub2 = cell2mat(sub2);
+
+            differences = obj.sub ~= sub2;	% Find the axes that need to change...
+
+            for aa = A(differences)
+                obj.axes{aa}.writ(obj.scans{aa}(sub2(aa)));
+            end
+
+            obj.sub = sub2;
+
+            % Second, wait for our axes to arrive within tolerance. In most cases, this is an empty check, but it is important for things like tuning frequency or slow motion.
+% 					for aa = A
+% 						obj.axes{aa}.wait();
+% 					end
+
+            % Then, setup for assigning the data, and measure.
+            SUB = num2cell(obj.sub);
+
+            S.type = '()';
+
+            for ii = 1:M
+                C    = cell(1, sum(obj.inputs{ii}.size > 1));
+                C(:) = {':'};
+
+                S.subs = [SUB C];
+
+                obj.data{ii} = subsasgn(obj.data{ii}, S, obj.inputs{ii}.snap());
+            end
+
+            % Lastly, incriment the index.
+            obj.index = obj.index + 1;
+        end
     end
 end

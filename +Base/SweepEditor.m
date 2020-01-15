@@ -2,26 +2,37 @@ classdef SweepEditor < handle
     % SweepEditor is a UI to help the user make a sweep.
 
     properties (Constant, Hidden)
-        pheaders =  {'#',       'Parent',  'Pref',     'Units',    'Min',      'Max',      'X0',       'dX',       'X1',       'N',        'Sweep'};
-        peditable = [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,       true];
-        pwidths =   {25,        160,       160,        40,         40,         40,         40,         40,         40,         40,         80};
-        pformat =   {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric'};
+        pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'dX',       'X1',       'N',         'Sweep'};
+        pheadersOpt =   {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'Guess',    'X1',       'N',         'Sweep'};
+        peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true];
+        peditableOpt =  [false,     false,     false,      false,      false,      false,      true,       true,       true,       false,       false];
+        pwidths =       {25,        160,       160,        40,         40,         40,         40,         40,         40,         40,          0};
+        pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
+%         pformatOpt =    {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
 %         pformat =   {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'char'};
 
-        mheaders =  {'#',       'Measurement', 'Subdata',   'Units',    'Time'};
-        meditable = [false,     false,         false,       false,      true];
-        mwidths =   {25,        160,           160,         50,        50};
-        mformat =   {'char',    'char',        'char',     'char',     'numeric'};
+        mheaders =  {'#',       'Measurement', 'Subdata',   'Size',    'Unit',     'Time'};
+        meditable = [false,     false,         false,       false,      false,      true];
+        mwidths =   {25,        160,           160,         50,         50,         50};
+        mformat =   {'char',    'char',        'char',      'char',     'char',     'numeric'};
     end
 
     properties
         pdata;
         mdata;
+        
+        prefs;
+        measurements;
     end
 
     properties
         pt;
         mt;
+        
+        optimize;
+        optimizeAfterSweep;
+        numpoints;
+        timeperpoint;
 
         pmenu;
         mmenu;
@@ -37,14 +48,14 @@ classdef SweepEditor < handle
 		function obj = SweepEditor()
             apt = Drivers.AxisTest.instance('Test');
 
-            x = apt.get_meta_pref('x');
-            y = apt.get_meta_pref('y');
-            bool = apt.get_meta_pref('bool');
+%             x = apt.get_meta_pref('x');
+%             y = apt.get_meta_pref('y');
+%             bool = apt.get_meta_pref('bool');
 
 %             obj.pdata = [ centerChars(obj.makePrefRow(x)) ; centerChars(obj.makePrefRow(y)) ; centerChars(obj.makePrefRow(bool)) ; centerChars(obj.makePrefRow([])) ];
 %             obj.mdata = [ centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow([])) ];
-            obj.pdata = [ centerChars(obj.makePrefRow([])) ];
-            obj.mdata = [ centerChars(obj.makeMeasurementRow([])) ];
+            obj.pdata = centerChars(obj.makePrefRow([]));
+            obj.mdata = centerChars(obj.makeMeasurementRow([]));
 
 
 %             size(obj.pdata, 2)
@@ -58,7 +69,7 @@ classdef SweepEditor < handle
 
             padding = 30;
 
-            w = obj.totalWidth(true) + obj.totalWidth(false)
+            w = obj.totalWidth(true) + obj.totalWidth(false);
             h = 400;
             rh = 17;
             obj.maxelements = floor(h/rh)-1;
@@ -82,14 +93,26 @@ classdef SweepEditor < handle
             uimenu(obj.pmenu, 'label', 'Time', 'Separator', 'on',   'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1), true)));
 
             pr = Base.PrefRegister.instance();
-            pr.getMenu(obj.pmenu, @(x)(obj.setRow(x, true)), 'readonly', false);
+            pr.getMenu(obj.pmenu, @(x)(obj.setRow(x, true)), 'readonly', false, 'isnumeric', true);
             
             % Measurement Menu
             obj.mmenu = uicontextmenu(f);
+
+            uimenu(obj.mmenu, 'label', 'Measurement 0', 'Enable', 'off');
+            
+            uimenu(obj.mmenu, 'label', [char(8679) ' Move Up'],     'Callback', @(s,e)obj.moveRow(-1, false));
+            uimenu(obj.mmenu, 'label', [char(8681) ' Move Down'],   'Callback', @(s,e)obj.moveRow(+1, false));
+            
+            uimenu(obj.mmenu, 'label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
+
+            uimenu(obj.mmenu, 'label', 'Time', 'Separator', 'on',   'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1), true)));
+
+            mr = Base.MeasurementRegister.instance();
+            mr.getMenu(obj.pmenu, @(x)(obj.setRow(x, false)));
             
             % Pref Table
             ptPosition = [obj.totalWidth(false), 0, obj.totalWidth(true), h];
-            apt = axes('Visible', 'off', 'Units', 'pixels', 'Position', ptPosition);
+            apt = axes('Visible', 'off', 'Units', 'pixels', 'Position', ptPosition, 'UserData', true);
 
             obj.pt =    uitable('Data', obj.pdata,...
                                 'ColumnEditable',   obj.peditable, ...
@@ -113,7 +136,7 @@ classdef SweepEditor < handle
 
             % Measurement Table
             mtPosition = [0, 0, obj.totalWidth(false), h];
-            amt = axes('Visible', 'off', 'Units', 'pixels', 'Position', mtPosition);
+            amt = axes('Visible', 'off', 'Units', 'pixels', 'Position', mtPosition, 'UserData', false);
             
             obj.mt =    uitable('Data', obj.mdata,...
                                 'ColumnEditable',   obj.meditable, ...
@@ -122,7 +145,7 @@ classdef SweepEditor < handle
                                 'ColumnWidth',      obj.mwidths, ...
                                 'RowName',          [],...
                                 'Units', 'pixels', 'Position', mtPosition,...
-                                'CellSelectionCallback', @obj.selection_Callback,...
+                                'CellEditCallback', @obj.edit_Callback,...
                                 'UIContextMenu', obj.mmenu,...
                                 'ButtonDownFcn', @obj.buttondown_Callback,...
                                 'UserData', amt);
@@ -134,6 +157,11 @@ classdef SweepEditor < handle
         function sweep = generate(obj)
 
         end
+        function update(obj)
+            obj.pt.Data = obj.pdata;
+            obj.mt.Data = obj.mdata;
+        end
+        
         function setRow(obj, instrument, isPref)
             if isPref
                 if obj.pselected == 0
@@ -144,13 +172,30 @@ classdef SweepEditor < handle
                     obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
                 end
+            else
+                if obj.mselected == 0
+                    obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
+                    obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
+                    obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
+                else
+                    obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
+                    obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
+                end
+%                 if obj.pselected == 1
+%                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
+%                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
+%                     obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
+%                 else
+%                     obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
+%                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
+%                 end
             end
             
             obj.update();
         end
         function moveRow(obj, direction, isPrefs)
             if isPrefs
-                swap(obj, obj.pselected, obj.pselected+direction, isPrefs);
+                obj.swapRows(obj.pselected, obj.pselected+direction, isPrefs);
             else
                 
             end
@@ -166,11 +211,22 @@ classdef SweepEditor < handle
             
             obj.update();
         end
-        function update(obj)
-            obj.pt.Data = obj.pdata;
-            obj.mt.Data = obj.mdata;
+        function swapRows(obj, r1, r2, isPrefs)
+            assert(r1 > 0 && r1 <= obj.num(isPrefs));
+            assert(r2 > 0 && r2 <= obj.num(isPrefs));
+            
+            if isPrefs
+                tmp = obj.pdata(r1, :);
+                obj.pdata(r1, :) = obj.pdata(r2, :);
+                obj.pdata(r2, :) = tmp;
+            else
+                
+            end
+
+            obj.update;
         end
-        function d = makePrefRow(obj, p)  % Make a uitable row
+        
+        function d = makePrefRow(~, p)          % Make a uitable row for a pref.
             if isempty(p)
                 d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [] };
             else
@@ -180,75 +236,77 @@ classdef SweepEditor < handle
                     str = strrep(p.property_name, '_', ' ');
                 end
 
-                d = {'<html><font color=red><b>',     ['<i>' p.parent_class], ['<b>' str ' (<font face="Courier" color="green">.' p.property_name '</font>)'], p.unit, p.min, p.max, p.min,    .1,    p.max,   11,  '0:.1:1' };
+                d = {'<html><font color=red><b>',     ['<i>' p.parent_class], formatMainName(str, p.property_name), p.unit, p.min, p.max, p.min,    .1,    p.max,   11,  '0:.1:1' };
 %                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ', '<b>Piezo Z (ao3)', 'V', 0, 10, 0,    .1,    1,   11,  '0:.1:1' };
             end
         end
-        function d = makeMeasurementRow(obj, m)  % Make a uitable row
+        function d = makeMeasurementRow(~, m)   % Make a uitable row for a measurement
             if isempty(m)
-%                 mheaders =  {'#',       'Parent', 'Subdata',   'Units',    'Integration'};
-                d = {'<html><font color=blue><b>+',   '<i>...', '<b>...', '...', 0 };
+%                 mheaders =  {'#',                 'Parent', 'Subdata', 'Size', 'Unit', 'Integration'};
+                d = {'<html><font color=blue><b>+', '<i>...', '<b>...', '...', '...', 0 };
             else
-                d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', 'cts/sec', 0 };
+                subdata = m.subdata;
+                sizes = m.getSizes;
+                units = m.getUnits;
+                names = m.getNames;
+                
+                d = [];
+                
+                for ii = 1:length(subdata)
+                    sd = subdata{ii};
+                    d = [d ; {'<html><font color=red><b>',   '<i>Parent', formatMainName(names.(sd), sd), sizes.(sd), units.(sd), 0 }];
+                end
+                
+%                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', [1 1024], 'cts/sec', 0 };
+                
             end
         end
-        function setRowNames(obj, isPrefs, N)
-            if isPrefs
-                t = obj.pt;
-            else
-                t = obj.mt;
-            end
-
-            t.RowName = obj.rowNamesHTML(N);
-
-%             jscroll=findjobj(t);
-%             rh = jscroll.getRowHeader
-% %             methods(jscroll)
-% %             properties(jscroll)
-% %             rowHeaderViewport=jscroll.getComponent(6);
-% %             rowHeader=rowHeaderViewport.getComponent(0);
-%             h=rh.getSize
-% %             properties(h)
-% %             methods(h)
-% %             h.getHeight
-%             rh.setSize(80,h.getHeight)
-        end
-        function selection_Callback(obj, src, evt)
-            selected_cells = evt.Indices
-        end
-        function rightclick_Callback(obj, src, evt)
-% %             selected_cells = event.Indices
-%             properties(src)
-%             properties(evt)
-%
-%             src.Clipping
-%             src.Position
-%             src.Parent.Position
-%             src.Parent
-%             properties(src.Parent)
-%             src.Parent.Parent
-%
-% %             properties(evt.Source)
-% %             src
-% %             evt.Source
-%             evt.EventName
-        end
+        
         function N = num(obj, isPrefs)
             if isPrefs
-                N = size(obj.pdata, 1)-1;
+                N = length(obj.prefs);  % size(obj.pdata, 1)-1;   % Minus one for the row with ...
             else
-                N = size(obj.mdata, 1)-1;
+                N = length(obj.measurements);
             end
+        end
+        function N = numRows(obj, isPrefs)
+            if isPrefs
+                N = size(obj.pdata, 1) - 1;   % Minus one for the row with ...
+            else
+                N = size(obj.mdata, 1) - 1;
+            end
+        end
+        
+        function edit_Callback(obj, src, evt)
+            isPref = src.UserData.UserData;
+            
+            if isPref
+                pheaders{evt.Indices(2)}
+                switch pheaders{evt.Indices(2)}
+                    case 'X0'
+                end
+            else
+                
+            end
+%             selected_cells = evt.Indices;
         end
         function buttondown_Callback(obj, src, evt)
             cp = src.UserData.CurrentPoint(1,:);
             yi = floor(cp(2));
 
             N = size(src.Data, 1);
+            
+            isPref = src.UserData.UserData;
 
             if yi < N && yi > 0
-                obj.pselected = yi;
-                src.UIContextMenu.Children(end).Label = ['Pref ' num2str(yi)];
+                if isPref
+                    obj.pselected = yi;
+                    src.UIContextMenu.Children(end).Label = ['Pref ' num2str(yi)];
+                else
+                    mi = obj.getMeasurementIndex(yi);
+                    obj.mselected = mi;
+                    src.UIContextMenu.Children(end).Label = ['Measurement ' num2str(mi)];
+                end
 
                 if yi ~= 1
                     src.UIContextMenu.Children(end-1).Enable = 'on';
@@ -260,28 +318,25 @@ classdef SweepEditor < handle
                 else
                     src.UIContextMenu.Children(end-2).Enable = 'off';
                 end
+                
+                src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
             else
-                obj.pselected = 0;
-                src.UIContextMenu.Children(end).Label = 'New Pref';
+                if isPref
+                    obj.pselected = 0;
+                    src.UIContextMenu.Children(end).Label = 'New Pref';
+                else
+                    obj.mselected = 0;
+                    src.UIContextMenu.Children(end).Label = 'New Measurement';
+                end
 
-                src.UIContextMenu.Children(end-1).Enable = 'off';
-                src.UIContextMenu.Children(end-2).Enable = 'off';
+                src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
+                src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
+                src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
             end
 
             drawnow;
         end
-        function swap(obj, r1, r2, isPrefs)
-            r1
-            r2
-            assert(r1 > 0 && r1 <= obj.num(isPrefs));
-            assert(r2 > 0 && r2 <= obj.num(isPrefs));
-            
-            tmp = obj.pdata(r1, :);
-            obj.pdata(r1, :) = obj.pdata(r2, :);
-            obj.pdata(r2, :) = tmp;
 
-            obj.update;
-        end
         function xi = getXIndex(obj, x)
             if true
                 widths = obj.pwidths;
@@ -330,12 +385,31 @@ classdef SweepEditor < handle
                 end
             end
         end
+        function mask = getMeasurementMask(obj)
+            mask = [];
+            for ii = 1:length(obj.measurements)
+                mask = [mask ii*ones(1, obj.measurements{ii}.getN())]; %#ok<AGROW>
+            end
+        end
+        function mi = getMeasurementIndex(obj, yi)
+            mask = obj.getMeasurementMask();
+            mi = mask(yi);
+        end
     end
 end
 
-
-function ca = centerChars(ca)
+function str = formatMainName(name, property_name)
+    str = ['<b>' name ' (<font face="Courier" color="green">.' property_name '</font>)']
+end
+function ca = centerCharsPrefs(ca)
     for ii = 1:(numel(ca)-1)
+        if ischar(ca{ii})
+            ca{ii} = sprintf('<html><tr align=center><td width=%d>%s', Base.SweepEditor.pwidths{ii}, ca{ii});
+        end
+    end
+end
+function ca = centerCharsMeasurements(ca)
+    for ii = 1:(size(ca, 2)-1)
         if ischar(ca{ii})
             ca{ii} = sprintf('<html><tr align=center><td width=%d>%s', Base.SweepEditor.pwidths{ii}, ca{ii});
         end
