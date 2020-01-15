@@ -61,7 +61,7 @@ classdef PrefRegister < handle
                 case 'figure'
                     menu = uicontextmenu; %('Parent', parent);
                     parentObject.UIContextMenu = menu;
-                case {'uicontextmenu', 'menu'}
+                case {'uicontextmenu', 'uimenu'}
                     menu = parentObject;
                 otherwise
                     error([parentObject.Type ' is an unrecognized object for Base.PrefRegister.getMenu.']);
@@ -95,12 +95,20 @@ classdef PrefRegister < handle
                             
                             assert(ischar(name), 'Base.PrefRegister.getMenu requires that Names in Name, Value pairs be strings')
 
-                            if isprop(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref.
+                            name
+                            isprop(pref, name)
+                            
+                            if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref.
                                 shouldAdd = shouldAdd && isequal(pref.(name), value);
+                                pref.(name)
+                                value
                             else                 
                                 shouldAdd = false;
                             end
                         end
+                        
+                        pref
+                        shouldAdd
 
                         if shouldAdd
                             preffound = true;
