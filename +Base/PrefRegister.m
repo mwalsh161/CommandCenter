@@ -4,7 +4,7 @@ classdef PrefRegister < handle
     % recorded, and Base.PrefRegister checks if this object is deleted before reporting Base.Prefs to the
     % user. Note that memory is session-based.
     
-    properties (Hidden, SetAccess = private)
+    properties (SetAccess = private)
         % Format:
         %
         %   register.PrefHandler1_name.parent____    : Base.PrefHandler
@@ -94,21 +94,13 @@ classdef PrefRegister < handle
                             value = varargin{kk+1};
                             
                             assert(ischar(name), 'Base.PrefRegister.getMenu requires that Names in Name, Value pairs be strings')
-
-                            name
-                            isprop(pref, name)
                             
-                            if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref.
+                            if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref. Change this to include hidden properties?
                                 shouldAdd = shouldAdd && isequal(pref.(name), value);
-                                pref.(name)
-                                value
                             else                 
                                 shouldAdd = false;
                             end
                         end
-                        
-                        pref
-                        shouldAdd
 
                         if shouldAdd
                             preffound = true;

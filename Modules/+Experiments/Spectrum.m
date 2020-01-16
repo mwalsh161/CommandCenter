@@ -44,6 +44,7 @@ classdef Spectrum < Modules.Experiment
             persistent Object
             if isempty(Object) || ~isvalid(Object)
                 Object = Experiments.Spectrum();
+                Object.ip = Object.ip;
             end
             obj = Object;
         end

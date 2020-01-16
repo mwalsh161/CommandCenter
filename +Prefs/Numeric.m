@@ -6,7 +6,7 @@ classdef Numeric < Base.Pref & Base.Measurement
         max;
     end
 
-    methods (Static, Hidden)
+    methods (Static)
         function obj = Numeric(varargin)
             obj = obj@Base.Pref(varargin{:});
         end

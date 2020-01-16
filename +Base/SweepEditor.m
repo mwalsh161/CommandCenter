@@ -84,14 +84,15 @@ classdef SweepEditor < handle
             % Pref Menu
             obj.pmenu = uicontextmenu(f);
 
-            uimenu(obj.pmenu, 'label', 'Pref 0', 'Enable', 'off');
+            uimenu(obj.pmenu, 'Label', 'Pref 0', 'Enable', 'off');
             
-            uimenu(obj.pmenu, 'label', [char(8679) ' Move Up'],     'Callback', @(s,e)obj.moveRow(-1, true));
-            uimenu(obj.pmenu, 'label', [char(8681) ' Move Down'],   'Callback', @(s,e)obj.moveRow(+1, true));
+            uimenu(obj.pmenu, 'Label', [char(8679) ' Move Up'],     'Callback', @(s,e)obj.moveRow(-1, true));
+            uimenu(obj.pmenu, 'Label', [char(8681) ' Move Down'],   'Callback', @(s,e)obj.moveRow(+1, true));
             
-            uimenu(obj.pmenu, 'label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(true));
+            uimenu(obj.pmenu, 'Label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(true));
 
-            uimenu(obj.pmenu, 'label', 'Time', 'Separator', 'on',   'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1), true)));
+%             uimenu(obj.pmenu, 'Label', '<html>Time [ave] (<font face="Courier" color="green">.time</font>)', 'Separator', 'on',   'Callback', @(s,e)(obj.setRow(Prefs.Empty('Time', 1), true)));
+            uimenu(obj.pmenu, 'Label', '<html>Time [ave] (<font face="Courier" color="green">.time</font>)', 'Separator', 'on', 'Callback', @(s,e)(obj.setRow(Prefs.Time, true)));
 
             pr = Base.PrefRegister.instance();
             pr.getMenu(obj.pmenu, @(x)(obj.setRow(x, true)), 'readonly', false, 'isnumeric', true);
@@ -99,15 +100,17 @@ classdef SweepEditor < handle
             % Measurement Menu
             obj.mmenu = uicontextmenu(f);
 
-            uimenu(obj.mmenu, 'label', 'Measurement 0', 'Enable', 'off');
+            uimenu(obj.mmenu, 'Label', 'Measurement 0', 'Enable', 'off');
             
-            uimenu(obj.mmenu, 'label', [char(8679) ' Move Up'],     'Callback', @(s,e)obj.moveRow(-1, false));
-            uimenu(obj.mmenu, 'label', [char(8681) ' Move Down'],   'Callback', @(s,e)obj.moveRow(+1, false));
+            uimenu(obj.mmenu, 'Label', [char(8679) ' Move Up'],     'Callback', @(s,e)obj.moveRow(-1, false));
+            uimenu(obj.mmenu, 'Label', [char(8681) ' Move Down'],   'Callback', @(s,e)obj.moveRow(+1, false));
             
-            uimenu(obj.mmenu, 'label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
+            uimenu(obj.mmenu, 'Label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
 
             mr = Base.MeasurementRegister.instance();
             mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
+            
+            obj.mmenu.Children(end-4).Separator = 'on';
             
             % Pref Table
             ptPosition = [obj.totalWidth(false), 0, obj.totalWidth(true), h];
@@ -120,7 +123,7 @@ classdef SweepEditor < handle
                                 'ColumnWidth',      obj.pwidths, ...
                                 'RowName',          [],...
                                 'Units', 'pixels', 'Position', ptPosition,...
-                                'CellSelectionCallback', @obj.selection_Callback,...
+                                'CellEditCallback', @obj.edit_Callback,...
                                 'UIContextMenu', obj.pmenu,...
                                 'ButtonDownFcn', @obj.buttondown_Callback,...
                                 'UserData', apt);
@@ -167,9 +170,11 @@ classdef SweepEditor < handle
                     obj.pdata(end, :) = centerCharsPrefs(obj.makePrefRow(instrument));
                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
                     obj.pdata(end+1, :) = centerCharsPrefs(obj.makePrefRow([]));
+                    obj.prefs{end+1} = instrument;
                 else
                     obj.pdata(obj.pselected, :) = centerCharsPrefs(obj.makePrefRow(instrument));
                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
+                    obj.prefs{obj.pselected} = instrument;
                 end
             else
 %                 if obj.mselected == 0
@@ -211,6 +216,9 @@ classdef SweepEditor < handle
             obj.update();
         end
         function swapRows(obj, r1, r2, isPrefs)
+            r1
+            r2
+            obj.num(isPrefs)
             assert(r1 > 0 && r1 <= obj.num(isPrefs));
             assert(r2 > 0 && r2 <= obj.num(isPrefs));
             
@@ -263,14 +271,14 @@ classdef SweepEditor < handle
         
         function N = num(obj, isPrefs)
             if isPrefs
-                N = length(obj.prefs);  % size(obj.pdata, 1)-1;   % Minus one for the row with ...
+                N = length(obj.prefs);
             else
                 N = length(obj.measurements);
             end
         end
         function N = numRows(obj, isPrefs)
             if isPrefs
-                N = size(obj.pdata, 1) - 1;   % Minus one for the row with ...
+                N = size(obj.pdata, 1) - 1;   % Minus one for the row with "..."
             else
                 N = size(obj.mdata, 1) - 1;
             end
@@ -280,8 +288,8 @@ classdef SweepEditor < handle
             isPref = src.UserData.UserData;
             
             if isPref
-                pheaders{evt.Indices(2)}
-                switch pheaders{evt.Indices(2)}
+                obj.pheaders{evt.Indices(2)}
+                switch obj.pheaders{evt.Indices(2)}
                     case 'X0'
                 end
             else
@@ -318,7 +326,7 @@ classdef SweepEditor < handle
                     src.UIContextMenu.Children(end-2).Enable = 'off';
                 end
                 
-                src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
+                src.UIContextMenu.Children(end-3).Enable = 'on';   % Delete
             else
                 if isPref
                     obj.pselected = 0;
@@ -398,7 +406,7 @@ classdef SweepEditor < handle
 end
 
 function str = formatMainName(name, property_name)
-    str = ['<b>' name ' (<font face="Courier" color="green">.' property_name '</font>)']
+    str = ['<b>' name ' (<font face="Courier" color="green">.' property_name '</font>)'];
 end
 function ca = centerCharsPrefs(ca)
     for ii = 1:(numel(ca)-1)

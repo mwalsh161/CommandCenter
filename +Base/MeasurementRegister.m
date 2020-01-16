@@ -4,7 +4,7 @@ classdef MeasurementRegister < handle
     % recorded, and Base.PrefRegister checks if this object is deleted before reporting Base.Prefs to the
     % user. Note that memory is session-based.
     
-    properties (Hidden, SetAccess = private)
+    properties (SetAccess = private)
         % Format:
         %
         %   register.Measurement1_name  : Base.Measurement
@@ -58,7 +58,7 @@ classdef MeasurementRegister < handle
             end
             
             if isempty(modules)
-                uimenu(menu, 'Label', '<html>No Modules found', 'Enable', 'off', 'Tag', 'module');
+                uimenu(menu, 'Label', '<html>No Measurements found', 'Enable', 'off', 'Tag', 'module');
             else
                 for ii = 1:length(modules)
                     if isempty(obj.register.(modules{ii})) || ~isvalid(obj.register.(modules{ii}))
@@ -66,23 +66,23 @@ classdef MeasurementRegister < handle
                     else
                         m = obj.register.(modules{ii});
                         sd = m.subdata;
-                        l = obj.getLabels;
+                        l = m.getLabels;
                         s = m.getSizes;
                         str = makeParentString(m, true);
                         
-                        if numel(sd) == 1
-                            label = ['<html>' str '; ' l.(sd{1}) ' (<font face="Courier" color="green">.' sd{1} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{1})) ']</font>)</html>'];
-
-                            uimenu(folder, 'Text', label, 'UserData', [], 'Callback', @(s,e)(callback(pref)));  % Set UserData = m?
-                        else
-                            label = ['<html>' str ';'];
+%                         if numel(sd) == 1
+%                             label = ['<html>' str '; ' l.(sd{1}) ' (<font face="Courier" color="green">.' sd{1} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{1})) ']</font>)</html>'];
+% 
+%                             uimenu(menu, 'Text', label, 'UserData', [], 'Callback', @(s,e)(callback(pref)));  % Set UserData = m?
+%                         else
+                            label = ['<html>' str ':'];
                                 
                             for ii = 1:length(sd)
-                                label = [label '<br> &nbsp; ' l.(sd{ii}) ' (<font face="Courier" color="green">.' sd{ii} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{ii})) ']</font>)</html>'];
+                                label = [label '<br>' char(8594) ' ' l.(sd{ii}) ' (<font face="Courier" color="green">.' sd{ii} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{ii})) ']</font>)'];
                             end
-                                
-                            uimenu(folder, 'Text', label, 'UserData', [], 'Callback', @(s,e)(callback(pref)));  % Set UserData = m?
-                        end
+                            
+                            uimenu(menu, 'Text', [label '</html>'], 'UserData', [], 'Callback', @(s,e)(callback(m)));  % Set UserData = m?
+%                         end
                     end
                 end
             end

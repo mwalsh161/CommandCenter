@@ -218,9 +218,9 @@ classdef (HandleCompatible) Measurement %< matlab.mixin.Heterogeneous
             obj.sizes = sizes_;
         end
         function obj = set.names(obj, names_)
-            if isstruct(obj.names)
-                assert(arefieldssame(fieldnames(obj.names), subdata), 'If sizes is already set as a struct, then names must have the same fields as sizes.')
-            elseif ischar(obj.names)
+            if isstruct(names_)
+                assert(arefieldssame(fieldnames(names_), obj.subdata), 'If sizes is already set as a struct, then names must have the same fields as sizes.')
+            elseif ischar(names_)
                 % Good.
             else
                 error('names must be either a struct or a string');
@@ -229,9 +229,9 @@ classdef (HandleCompatible) Measurement %< matlab.mixin.Heterogeneous
             obj.names = names_;
         end
         function obj = set.units(obj, units_)
-            if isstruct(obj.units)
-                assert(arefieldssame(fieldnames(obj.units), obj.subdata), 'If sizes is already set as a struct, then units must have the same fields as sizes.')
-            elseif ischar(obj.units)
+            if isstruct(units_)
+                assert(arefieldssame(fieldnames(units_), obj.subdata), 'If sizes is already set as a struct, then units must have the same fields as sizes.')
+            elseif ischar(units_)
                 % Good.
             else
                 error('units must be either a struct or a string');
@@ -365,7 +365,11 @@ classdef (HandleCompatible) Measurement %< matlab.mixin.Heterogeneous
             sd = obj.subdata();
 
             for ii = 1:length(sd)
-                l.(sd{ii}) = [n.(sd{ii}) ' [' u.(sd{ii}) ']'];
+                if isempty(u.(sd{ii}))
+                    l.(sd{ii}) = n.(sd{ii});
+                else
+                    l.(sd{ii}) = [n.(sd{ii}) ' [' u.(sd{ii}) ']'];
+                end
             end
         end
     end
