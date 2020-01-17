@@ -143,8 +143,14 @@ classdef GitPanel
             
             status = gitSafe('status');
             
+            notinstalled = contains(status, 'git is not installed');
             modified = contains(status,'Changes not staged for commit:') || contains(status,'Changes to be committed:');
             untracked = contains(status,'Untracked files:');
+            
+            if notinstalled
+                str = '<html>git is not installed';
+                return;
+            end
             
             if modified && untracked
                 message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked</font> Files</font></I>'];
@@ -164,7 +170,6 @@ classdef GitPanel
             
             str = ['On branch ' obj.thisbranch() newline str_((numel(str__{1})+1):end)];
         end
-    
     end
 end
 
