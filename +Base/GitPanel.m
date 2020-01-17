@@ -38,8 +38,8 @@ classdef GitPanel
                 obj.panel.Position(4) = 2.4;
             end
             
-            filedetails = ' &lt;file(s)&gt; (--all)';
-            commitdetails = ' --author &lt;you&gt; --message &lt;description&gt;';
+            filedetails = ' &lt;file(s)&gt; <font color="gray">(--all)</font>';
+            commitdetails = ' --author "&lt;you&gt;" --message "&lt;description&gt;"';
             
             obj.menu = uicontextmenu(f);
             uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch', 'Callback', @(s,e)obj.update)
@@ -49,13 +49,18 @@ classdef GitPanel
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
                                              '<font color="purple">git</font> ad&d' filedetails '<br>'...
                                              '<font color="purple">git</font> commit' commitdetails '<br>'...
-                                             '<font color="purple">git</font> push origin &lt;branch&gt;'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes. Check status first.')));
+                                             '<font color="purple">git</font> push origin &lt;current_branch&gt;'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes. Check status first.')));
             uimenu(obj.menu, 'Label',  '<html> + Pull from origin:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                             '<font color="purple">git</font> pull origi&n &lt;branch&gt;'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
+                                             '<font color="purple">git</font> pull origi&n &lt;current_branch&gt;'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
             uimenu(obj.menu, 'Label',  '<html> + Checkout a different branch:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                             '<font color="purple">git</font> checkou&t &lt;branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
+                                             '<font color="purple">git</font> checkou&t &lt;existing_branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
+            uimenu(obj.menu, 'Label',  '<html> + Make a new branch:', 'Enable', 'off')
+            uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
+                                             '<font color="purple">git</font> branc&h &lt;new_branch&gt;<br>',...
+                                             '<font color="purple">git</font> branch --set-upstream-to=origin/dev &lt;new_branch&gt;<br>',...
+                                             '<font color="purple">git</font> checkout &lt;new_branch&gt;<br>'], 'Callback', @(s,e)(disp('Make a new branch. Check status first.')))
             
             obj.panel.UIContextMenu = obj.menu; 
             
