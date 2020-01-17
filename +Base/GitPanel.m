@@ -39,7 +39,7 @@ classdef GitPanel
             
             obj.menu = uicontextmenu(f);
             uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch', 'Callback', @(s,e)obj.update)
-            uimenu(obj.menu, 'Label',  '<html>Copy hash', 'Callback', @(s,e)obj.copy)
+            uimenu(obj.menu, 'Label',  '<html>Copy hash', 'Separator', 'on', 'Callback', @(s,e)obj.copy)
             uimenu(obj.menu, 'Label',  '<html><b>Git Syntax Cheat Sheet:', 'Separator', 'on', 'Enable', 'off')
             uimenu(obj.menu, 'Label',  '<html> + Push a commit:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
