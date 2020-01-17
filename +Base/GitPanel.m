@@ -39,12 +39,17 @@ classdef GitPanel
             
             obj.menu = uicontextmenu(f);
             uimenu(obj.menu, 'Label',  '<html><font color="purple">git</font> fetch', 'Callback', @(s,e)obj.update)
+            uimenu(obj.menu, 'Label',  '<html>Copy hash', 'Callback', @(s,e)obj.copy)
+            uimenu(obj.menu, 'Label',  '<html><b>Git Syntax Cheat Sheet:', 'Separator', 'on', 'Enable', 'off')
+            uimenu(obj.menu, 'Label',  '<html> + Push a commit:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>'...
                                              '<font color="purple">git</font> ad&d' filedetails '<br>'...
                                              '<font color="purple">git</font> commit' commitdetails '<br>'...
                                              '<font color="purple">git</font> push origin &lt;branch&gt;'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes. Check status first.')));
+            uimenu(obj.menu, 'Label',  '<html> + Pull from origin:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
                                              '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
+            uimenu(obj.menu, 'Label',  '<html> + Checkout a different branch:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
                                              '<font color="purple">git</font> checkou&t &lt;branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
             
@@ -73,8 +78,8 @@ classdef GitPanel
             try
                 gitSafe('fetch -q --all');
                 
+                [obj.panel.Children.String, obj.menu.UserData] = obj.info();
                 obj.panel.Children.Tooltip = obj.tooltip();
-                obj.panel.Children.String = obj.info();
                 
                 obj.panel.Children.Enable = 'on';
                 obj.panel.HighlightColor = 'w';
@@ -82,6 +87,7 @@ classdef GitPanel
                 drawnow;
             catch err
                 obj.panel.Children.Enable = 'on';
+                obj.menu.UserData = 'Could not find hash.';
                 obj.panel.Children.String = '<html>Could not <font color="purple">git</font> fetch.';
                 obj.panel.Children.Tooltip = 'Something terrible happened.';
                 drawnow;
@@ -94,7 +100,11 @@ classdef GitPanel
             thisbranch = split(thisbranch{end}, newline);
             thisbranch = thisbranch{1};
         end
-        function str = info(obj)                % Fills the uicontrol
+        function copy(obj, ~, ~)
+            clipboard('copy', obj.menu.UserData);
+            disp(['Hash ' obj.menu.UserData ' copied to clipboard.']);
+        end
+        function [str, hash] = info(obj)                % Fills the uicontrol
             thisbranch = makeHTML(obj.thisbranch());
             
             words_ = split(thisbranch, ' ');
@@ -118,8 +128,11 @@ classdef GitPanel
             end
             
             message = '';
-
-            third = words{3};
+            
+            name = words{1};
+            hash = words{2};
+            
+            third = words{3};   % We're now going to check if our third word in the branch description begins with [, in which case, we are ahead or behind.
             
             test = '';
             if numel(third) >= 6
@@ -143,18 +156,24 @@ classdef GitPanel
             
             status = gitSafe('status');
             
+            notinstalled = contains(status, 'git is not installed');
             modified = contains(status,'Changes not staged for commit:') || contains(status,'Changes to be committed:');
             untracked = contains(status,'Untracked files:');
             
-            if modified && untracked
-                message = [message '&nbsp;&nbsp;<I><font color=rgb(255,69,0)>Modified and <font color="red">Untracked</font> Files</font></I>'];
-            elseif modified
-                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><I>Modified Files</I></font>'];
-            elseif untracked
-                message = [message '&nbsp;&nbsp;<font color="red"><I>Untracked Files</I></font>'];
+            if notinstalled
+                str = '<html>git is not installed';
+                return;
             end
             
-            str = ['<html><font color="blue"><B>' words{1} '</B>&nbsp;&nbsp;<I>' words{2} '</I></font>' message];
+            if modified && untracked
+                message = [message '&nbsp;&nbsp;<i><font color=rgb(255,69,0)>Modified and <font color="red">Untracked</font> Files</font></i>'];
+            elseif modified
+                message = [message '&nbsp;&nbsp;<font color=rgb(255,69,0)><i>Modified Files</i></font>'];
+            elseif untracked
+                message = [message '&nbsp;&nbsp;<font color="red"><i>Untracked Files</i></font>'];
+            end
+            
+            str = ['<html><font color="blue"><b>' name '</b>&nbsp;&nbsp;<i>' hash '</i></font>' message];
         end
         function str = tooltip(obj)             % Fills the tooltip with git status + etc
             str_ = strrep(gitSafe('status --ahead-behind --show-stash'), '/', ' / ');
@@ -162,9 +181,8 @@ classdef GitPanel
             
             assert(~isempty(str__));
             
-            str = ['On branch ' obj.thisbranch() newline str_((numel(str__{1})+1):end)];
+            str = ['On branch ' strrep(obj.thisbranch(), '/', ' / ') newline str_((numel(str__{1})+1):end)];
         end
-    
     end
 end
 
