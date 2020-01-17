@@ -202,8 +202,8 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             end
             pos = site.position;
             for i = 1:length(scanfit.locations)
-                params(end+1).x_points = sprintf('%f+linspace(-0.5*%f,0.5*%f,%f)',pos(1),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
-                params(end).y_points = sprintf('%f+linspace(-0.5*%f,0.5*%f,%f)',pos(2),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
+                params(end+1).x_points = sprintf('%g+linspace(-0.5*%g,0.5*%g,%g)',pos(1),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
+                params(end).y_points = sprintf('%g+linspace(-0.5*%g,0.5*%g,%g)',pos(2),obj.ROI_Size,obj.ROI_Size,obj.ROI_points);
                 params(end).frequency = scanfit.locations(i);
             end
         end
