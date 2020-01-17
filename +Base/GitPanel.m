@@ -32,7 +32,11 @@ classdef GitPanel
             
             obj.panel.Title = 'git branch';
             obj.panel.Units = 'characters';
-            obj.panel.Position(4) = 2;
+            if ismac
+                obj.panel.Position(4) = 2;
+            else
+                obj.panel.Position(4) = 2.4;
+            end
             
             filedetails = ' &lt;file(s)&gt; (--all)';
             commitdetails = ' --author &lt;you&gt; --message &lt;description&gt;';
@@ -55,9 +59,14 @@ classdef GitPanel
             
             obj.panel.UIContextMenu = obj.menu; 
             
-            obj.control = uicontrol('Parent', obj.panel, 'Style', 'checkbox', 'UIContextMenu', obj.menu, 'Units', 'characters', 'String', '', 'Tag', 'gitpanelcontrol');     % Text does not display HTML :(
-            obj.control.Position(1:2) = [-2.75 0];
-            obj.control.Position(3) = 200;
+            obj.control = uicontrol('Parent', obj.panel, 'Style', 'radiobutton', 'UIContextMenu', obj.menu, 'Units', 'characters', 'String', '', 'Tag', 'gitpanelcontrol');     % Text does not display HTML :(
+            if ismac
+                obj.control.Position(1:2) = [-2.75 0];
+                obj.control.Position(3) = 200;
+            else
+                obj.control.Position(1:2) = [-3 0];
+                obj.control.Position(3) = 200;
+            end
             
             obj.panel.ButtonDownFcn = @obj.updateFromLeftClick;
             obj.control.Callback    = @obj.updateFromLeftClick;
@@ -144,7 +153,7 @@ classdef GitPanel
                     commas = split(brackets{1}, {', '});
                     
                     if numel(commas) == 2
-                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} '</font>, <font color="red">' commas{2} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
+                        message = ['&nbsp;&nbsp;<font color="orange">[' commas{1} ',</font> <font color="red">' commas{2} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
                     
                     else
                         message = ['&nbsp;&nbsp;<font color="orange">[' brackets{1} ']</font>'];% messageraw((numel(brackets{1})+3):end)];
