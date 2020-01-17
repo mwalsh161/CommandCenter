@@ -29,19 +29,27 @@ classdef UIScrollPanelContainer < handle
         end
     end
     methods
-        function obj = UIScrollPanelContainer(panel,SplitPanels,spacing)
+        function obj = UIScrollPanelContainer(panel, SplitPanels, spacing)
             % SplitPanels is an array, not cell array!
             % Spacing is in pixels
             obj.listeners = addlistener(panel,'ObjectBeingDestroyed',@(~,~)obj.delete);
             obj.listeners(2) = addlistener(panel,'SizeChanged',@obj.sizeChanged);
+            obj.children = gobjects(0);
             for i = 1:numel(SplitPanels)
-                assert(isequal(SplitPanels(i).base.Parent,panel),'SplitPanels must be children of panel.')
-                obj.listeners(end+1) = addlistener(SplitPanels(i).base,'SizeChanged',@obj.arrange);
-                obj.listeners(end+1) = addlistener(SplitPanels(i).base,'LocationChanged',@obj.arrange);
+                if isprop(SplitPanels{i}, 'Type') && strcmp(SplitPanels{i}.Type, 'uipanel')
+                    base = SplitPanels{i};
+                else
+                    base = SplitPanels{i}.base;
+                end
+                
+                assert(isequal(base.Parent,panel),'SplitPanels must be children of panel.')
+                obj.listeners(end+1) = addlistener(base,'SizeChanged',@obj.arrange);
+                obj.listeners(end+1) = addlistener(base,'LocationChanged',@obj.arrange);
+                obj.children(end+1) = base;
             end
+            
             obj.container = panel;
             obj.spacing = spacing;
-            obj.children = [SplitPanels.base];
             obj.order_panels;    % Order panels in increasing xposition
             obj.arrange;         % Spatially arrange panels
             obj.sizeChanged;
