@@ -52,7 +52,7 @@ classdef GitPanel
                                              '<font color="purple">git</font> push origin &lt;branch&gt;'], 'Callback', @(s,e)(disp('Add files to a commit, then commit, and push to save changes. Check status first.')));
             uimenu(obj.menu, 'Label',  '<html> + Pull from origin:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
-                                             '<font color="purple">git</font> pull'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
+                                             '<font color="purple">git</font> pull origi&n &lt;branch&gt;'], 'Callback', @(s,e)(disp('Pull to stay up to date. Check status first.')))
             uimenu(obj.menu, 'Label',  '<html> + Checkout a different branch:', 'Enable', 'off')
             uimenu(obj.menu, 'Label', ['<html><font color="purple">git</font> status<br>',...
                                              '<font color="purple">git</font> checkou&t &lt;branch&gt;<br>'], 'Callback', @(s,e)(disp('Checkout to go to a different branch. Check status first.')))
