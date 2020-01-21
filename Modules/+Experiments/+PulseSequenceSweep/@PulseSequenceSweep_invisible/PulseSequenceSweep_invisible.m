@@ -37,11 +37,11 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     properties
         prefs = {'averages','samples','pb_IP','NIDAQ_dev'};
     end
-    properties(SetObservable,AbortSet)
-        averages = 2;     % Number of times to perform entire sweep
-        samples = 1000;   % Number of samples at each point in sweep
-        pb_IP = 'None Set';
-        NIDAQ_dev = 'None Set';
+    properties(SetObservable,GetObservable)
+        averages = Prefs.Integer(1,'min',1,'help_text','Number of times to perform entire sweep');
+        samples = Prefs.Integer(1000,'min',1,'help_text','Number of samples at each point in sweep');
+        pb_IP = Prefs.String('None Set','set','set_pb_IP','help_text','Hostname for computer running pulseblaster server');
+        NIDAQ_dev = Prefs.String('None Set','set','set_NIDAQ_dev','help_text','Device name for NIDAQ (found/set in NI-MAX)');
     end
     properties(SetAccess=protected,Hidden)
         data = [] % subclasses should not set this; it can be manipulated in GetData if necessary
@@ -68,28 +68,24 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
             dat.meta = obj.meta;
         end
         
-        function set.pb_IP(obj,val)
+        function val = set_pb_IP(obj,val,~)
             if strcmp(val,'None Set') % Short circuit
                 obj.pbH = [];
-                obj.pb_IP = val;
             end
             try
-                obj.pbH = Drivers.PulseBlaster.Remote.instance(val); %#ok<*MCSUP>
-                obj.pb_IP = val;
+                obj.pbH = Drivers.PulseBlaster.Remote.instance(val);
             catch err
                 obj.pbH = [];
                 obj.pb_IP = 'None Set';
                 rethrow(err);
             end
         end
-        function set.NIDAQ_dev(obj,val)
+        function val = set_NIDAQ_dev(obj,val,~)
             if strcmp(val,'None Set') % Short circuit
                 obj.nidaqH = [];
-                obj.NIDAQ_dev = val;
             end
             try
                 obj.nidaqH = Drivers.NIDAQ.dev.instance(val);
-                obj.NIDAQ_dev = val;
             catch err
                 obj.nidaqH = [];
                 obj.NIDAQ_dev = 'None Set';
