@@ -74,7 +74,7 @@ classdef hwserver < handle
                     obj.receive; % Error handling in method
                 catch handshake_err
                     if strcmp(handshake_err.identifier, 'HWSERVER:empty')
-                        error('HWSERVER:failed_handshake', handshake_err.message)
+                        error('HWSERVER:failed_handshake', ['Failed handshake: ' handshake_err.message])
                     else
                         rethrow(handshake_err)
                     end
