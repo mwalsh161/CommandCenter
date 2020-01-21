@@ -440,13 +440,21 @@ end
         try
         site = sites(site_index);
         prepUI(ax(5),selector(4));
+        delete(findobj(ax(4),'tag','superres')); % Clean up locators on closed-loop ax
         exp_inds = fliplr(find(strcmp('Experiments.SuperResScan',{site.experiments.name})));
         cs = reshape(lines,[],1,3); % In preparation for RGB image
         if ~isempty(exp_inds)
             % All experiments should be the same and x/y should be same
             % First experiment may fail, but the prefs field will always exist
-            sz = length(str2num(site.experiments(exp_inds(1)).prefs.x_points)); %#ok<ST2NM> (need str2num to perfrom eval)
-            rm = false(1,length(exp_inds)); % Remove experiments that aren't legit
+            sz = 0;
+            % A bit awkward, because we can't filter yet since even failed exps
+            % need to go through formatSelector; so just hang on to this
+            successful_ind = exp_inds([site.experiments(exp_inds).completed] & ~[site.experiments(exp_inds).skipped]);
+            successful_ind = find(successful_ind,1);
+            if any(successful_ind)
+                sz = length(str2num(site.experiments(exp_inds(successful_ind)).prefs.x_points)); %#ok<ST2NM> (need str2num to perfrom eval)
+            end
+            rm = true(1,length(exp_inds)); % Remove experiments that aren't legit
             if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
                 multi = NaN(sz+2,sz*2+2,3,length(exp_inds)); % 2*sz in x to drop repump and res images
             elseif ax(5).UIContextMenu.UserData.id == 2 % Color overlay
@@ -456,13 +464,12 @@ end
                 experiment = site.experiments(exp_inds(i));
                 formatSelector(selector(4),experiment,exp_inds(i),4,site_index,cs(i,1,:));
                 if experiment.skipped
-                    rm(i) = true;
                     continue
                 end
                 freq = experiment.prefs.frequency;
-                % Add marker on closed loop axes
-                plot(ax(4),freq, ax(4).YLim(1),'Color',cs(i,1,:),'MarkerFaceColor',cs(i,1,:),'Marker','v','MarkerSize',5);
                 if ~isempty(experiment.data) &&  ~any(exp_inds(i) == analysis.sites(site_index,4).ignore)
+                    % Add marker on closed loop axes
+                    plot(ax(4),freq, ax(4).YLim(1),'Color',cs(i,1,:),'MarkerFaceColor',cs(i,1,:),'Marker','v','MarkerSize',5,'tag','superres');
                     repumpGray = squeeze(nanmean(experiment.data.data.sumCounts(:,:,:,1),1))';
                     resGray = squeeze(nanmean(experiment.data.data.sumCounts(:,:,:,2),1))';
                     if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
@@ -477,6 +484,7 @@ end
                     end
                     bordered(2:end-1,2:end-1,:) = color;
                     multi(:,:,:,i) = bordered;
+                    rm(i) = false;
                 else
                     rm(i) = true;
                 end
@@ -485,7 +493,8 @@ end
             nims = size(multi,4);
             if nims == 1
                 imH = imshow(multi,'parent',ax(5));
-            else
+                imH.UIContextMenu = ax(5).UIContextMenu;
+            elseif nims > 1
                 panel_sz = getpixelposition(ax(5).Parent);
                 if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
                     ncols = max(1,floor(panel_sz(3)/sqrt(2*prod(panel_sz(3:4))/nims))); % Assumes square ims
@@ -494,8 +503,8 @@ end
                     ncols = max(1,floor(panel_sz(3)/sqrt(prod(panel_sz(3:4))/nims))); % Assumes square ims
                     imH = montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz]+2);
                 end
+                imH.UIContextMenu = ax(5).UIContextMenu;
             end
-            imH.UIContextMenu = ax(5).UIContextMenu;
             ax(5).Title.String = 'SuperRes Scan';
             set(ax(5),'ydir','normal');
         end
