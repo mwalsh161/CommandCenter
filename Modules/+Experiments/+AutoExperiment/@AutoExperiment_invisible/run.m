@@ -247,6 +247,7 @@ try
     end
     obj.current_experiment = experiment;
     cla(ax,'reset');
+    subplot(1,1,1,ax); % Re-center
     experiment.run(abortBox,managers,ax);
     obj.current_experiment = [];
 catch exp_err
