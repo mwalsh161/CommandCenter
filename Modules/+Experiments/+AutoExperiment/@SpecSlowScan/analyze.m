@@ -106,6 +106,16 @@ addlistener(ax(2),'XLim','PostSet',@xlim_changed);
 addlistener(ax(3),'XLim','PostSet',@xlim_changed);
 addlistener(ax(4),'XLim','PostSet',@xlim_changed);
 
+% Axes-specific menus
+c = uicontextmenu();
+m(1) = uimenu(c,'label','Grah side-by-side','callback',@swap_superres_display,'Checked','on','UserData',struct('id',1));
+m(2) = uimenu(c,'label','Separate color channel overlay','callback',@swap_superres_display,'UserData',struct('id',2));
+% Makes it easy to swap in callback:
+c.UserData.id = 1;
+m(1).UserData.other = m(2);
+m(2).UserData.other = m(1);
+ax(5).UIContextMenu = c;
+
 % Constants and large structures go here
 n = length(sites);
 viewonly = p.Results.viewonly;
@@ -437,7 +447,11 @@ end
             % First experiment may fail, but the prefs field will always exist
             sz = length(str2num(site.experiments(exp_inds(1)).prefs.x_points)); %#ok<ST2NM> (need str2num to perfrom eval)
             rm = false(1,length(exp_inds)); % Remove experiments that aren't legit
-            multi = NaN(sz+2,sz*2+2,3,length(exp_inds)); % 2*sz in x to drop repump and res images
+            if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
+                multi = NaN(sz+2,sz*2+2,3,length(exp_inds)); % 2*sz in x to drop repump and res images
+            elseif ax(5).UIContextMenu.UserData.id == 2 % Color overlay
+                multi = NaN(sz+2,sz+2,3,length(exp_inds));
+            end
             for i = 1:length(exp_inds)
                 experiment = site.experiments(exp_inds(i));
                 formatSelector(selector(4),experiment,exp_inds(i),4,site_index,cs(i,1,:));
@@ -450,12 +464,17 @@ end
                 plot(ax(4),freq, ax(4).YLim(1),'Color',cs(i,1,:),'MarkerFaceColor',cs(i,1,:),'Marker','v','MarkerSize',5);
                 if ~isempty(experiment.data) &&  ~any(exp_inds(i) == analysis.sites(site_index,4).ignore)
                     repumpGray = squeeze(nanmean(experiment.data.data.sumCounts(:,:,:,1),1))';
-                    repumpGray = repumpGray/max(repumpGray(:));
                     resGray = squeeze(nanmean(experiment.data.data.sumCounts(:,:,:,2),1))';
-                    resGray = resGray/max(resGray(:));
-                    gray = cat(2,repumpGray, resGray);
-                    color = cat(3, gray, gray, gray);
-                    bordered = ones(sz+2,sz*2+2,3).*cs(i,1,:);
+                    if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
+                        gray = cat(2,repumpGray/max(repumpGray(:)), resGray/max(resGray(:)));
+                        color = cat(3, gray, gray, gray);
+                        bordered = ones(sz+2,sz*2+2,3).*cs(i,1,:);
+                    elseif ax(5).UIContextMenu.UserData.id == 2 % Color overlay
+                        color = zeros(sz,sz,3);
+                        color(:,:,1) = resGray/median(repumpGray(:))/4;
+                        color(:,:,2) = repumpGray/median(repumpGray(:))/4;
+                        bordered = ones(sz+2,sz+2,3).*cs(i,1,:);
+                    end
                     bordered(2:end-1,2:end-1,:) = color;
                     multi(:,:,:,i) = bordered;
                 else
@@ -465,12 +484,18 @@ end
             multi(:,:,:,rm) = [];
             nims = size(multi,4);
             if nims == 1
-                imshow(multi,'parent',ax(5));
+                imH = imshow(multi,'parent',ax(5));
             else
                 panel_sz = getpixelposition(ax(5).Parent);
-                ncols = max(1,floor(panel_sz(3)/sqrt(2*prod(panel_sz(3:4))/nims))); % Assumes square ims
-                montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz*2]+2);
+                if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
+                    ncols = max(1,floor(panel_sz(3)/sqrt(2*prod(panel_sz(3:4))/nims))); % Assumes square ims
+                    imH = montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz*2]+2);
+                elseif ax(5).UIContextMenu.UserData.id == 2 % Color overlay
+                    ncols = max(1,floor(panel_sz(3)/sqrt(prod(panel_sz(3:4))/nims))); % Assumes square ims
+                    imH = montage(multi,'parent',ax(5),'Size',[NaN,ncols],'ThumbnailSize',[sz sz]+2);
+                end
             end
+            imH.UIContextMenu = ax(5).UIContextMenu;
             ax(5).Title.String = 'SuperRes Scan';
             set(ax(5),'ydir','normal');
         end
@@ -517,6 +542,13 @@ end
                                    ~isempty(experiment.err)};
     end
 %% Callbacks
+    function swap_superres_display(hObj,~)
+        if hObj.UserData.id == hObj.Parent.UserData.id; return; end  % Nothing to do
+        hObj.Checked = 'on'; % Select this one
+        hObj.UserData.other.Checked = 'off'; % Unselect the other one
+        hObj.Parent.UserData.id = hObj.UserData.id;
+        update_superres();
+    end
     function xlim_changed(~,eventdata)
         % Find fit line and redraw with more points
         ax_changed = eventdata.AffectedObject;
