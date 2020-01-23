@@ -21,10 +21,15 @@ classdef Sweep < handle & Base.Measurement
 %       % dims
 %       % scans
 %   end
+
+    properties
+        controller = [];    % Base.SweepController. If this isn't empty, it will look to this for start/stop.
+    end
     
-    properties (SetAccess=private)  % Index vars.
+    properties (SetAccess={?Base.Sweep, ?Base.SweepController})  % Index vars.
         sub;            % 
 		index;			% integer
+        ticking = false;
     end
 
     properties (SetObservable, SetAccess=private)   % Runtime vars.
@@ -184,50 +189,59 @@ classdef Sweep < handle & Base.Measurement
         end
 
 		function data = measure(obj)
-			% First, make sure that we are at the correct starting position.
-			L = obj.lengths();
-			N = prod(L);
-            
+            % First, make sure that we are at the correct starting position.
+            L = obj.lengths();
+            N = prod(L);
+
             if obj.index > N
                 warning('Already done')
                 data = obj.data;
                 return
             end
-            
+
             obj.sub = [];
-            
-			[obj.sub{1:length(L)}] = ind2sub(L, obj.index);
+
+            [obj.sub{1:length(L)}] = ind2sub(L, obj.index);
             obj.sub = cell2mat(obj.sub);
-			A = 1:obj.length();
-            
+            A = 1:obj.length();
+
             for aa = A
                 obj.sdims{aa}.writ(obj.sscans{aa}(obj.sub(aa)));
             end
 
             % Slow aquisition
             if ~obj.flags.isNIDAQ
-                while obj.index <= N
+                while obj.index <= N && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
                     obj.tick();
                 end
             else
                 % Not Implemented.
                 error()
             end
-            
+
+            if obj.controller.running
+                obj.controller.running = false;
+            end
+
             data = obj.data;
         end
-        
         function tick(obj)
             L = obj.lengths();
-            
+            N = prod(L);
+
+            if obj.index > N
+                warning('Already done')
+                return
+            end
+
             % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
             [sub2{1:length(L)}] = ind2sub(L, obj.index);
             SUB = sub2;
             sub2 = [sub2{:}];
 
             differences = obj.sub ~= sub2;	% Find the axes that need to change...
-			A = 1:obj.length();
-            
+            A = 1:obj.length();
+
             for aa = A(differences)
                 obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
             end
@@ -235,22 +249,22 @@ classdef Sweep < handle & Base.Measurement
             obj.sub = sub2;
 
             % Second, wait for our axes to arrive within tolerance. In most cases, this is an empty check, but it is important for things like tuning frequency or slow motion.
-% 					for aa = A
-% 						obj.axes{aa}.wait();
-% 					end
+            % 					for aa = A
+            % 						obj.axes{aa}.wait();
+            % 					end
 
             % Then, setup for assigning the data, and measure.
             S.type = '()';
-            
-			M = obj.measurementLength;
-            
+
+            M = obj.measurementLength;
+
             sd = obj.subdata;
             kk = 1;
 
             for ii = 1:M
-                d =         obj.measurements{ii}.snap(false);   % Don't pass metadata...
                 msd =       obj.measurements{ii}.subdata;
-                
+                d =         obj.measurements{ii}.snap(false);   % Don't pass metadata...
+
                 for jj = 1:length(msd)
                     C    = cell(1, sum(size(d.(msd{jj}).dat) > 1));
                     C(:) = {':'};
@@ -258,17 +272,25 @@ classdef Sweep < handle & Base.Measurement
                     S.subs = [SUB C];
 
                     obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
-                    
+
 %                     if ~isempty(d.(msd{jj}).std)
 %                         obj.data.(sd{kk}).std = subsasgn(obj.data.(sd{kk}), S, d.(msd{jj}).std);
 %                     end
-                    
+
                     kk = kk + 1;
                 end
             end
 
             % Lastly, incriment the index.
             obj.index = obj.index + 1;
+
+            if ~isempty(obj.controller) && isvalid(obj.controller)
+                if obj.index > N
+                    obj.controller.gui.index.String = 'Done';
+                else
+                    obj.controller.gui.index.String = obj.index;
+                end
+            end
         end
     end
 end

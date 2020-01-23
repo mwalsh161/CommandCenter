@@ -21,7 +21,8 @@ classdef SweepViewer < handle
 
 	properties (Constant, Hidden)
 		pnames = 		{'selpix', 'selpnt', 'value'};  % Pointer settings
-		pcolors = 		{[0.949, 0.250, 0.505], [0.839, 0.478, 0.611], [0.952, 0.466, 0.105]};
+% 		pcolors = 		{[0.949, 0.250, 0.505], [0.839, 0.478, 0.611], [0.952, 0.466, 0.105]};
+		pcolors = 		{[1, 1, 0, .6], [1, 1, 0, .8], [1, 0, 1, .8]};
 		plinewidth = 	[3 2 2];
 		plinetype = 	{'o-', 'o--', 'o-'};
 	end
@@ -37,9 +38,10 @@ classdef SweepViewer < handle
 	properties (Hidden, Access=private)
         drawnowLast = 0;
         timerposted = false;
+        rendering = false;
     end
 	properties (Constant, Hidden)
-        fpsTarget = 5;
+        fpsTarget = 4;
     end
 
 	properties (SetObservable, SetAccess=private)
@@ -266,16 +268,21 @@ classdef SweepViewer < handle
 			obj.panel.panel.Visible = 'off';
 			obj.panel.panel.Units = 'characters';
 
-%             if obj.panel.panel.Position(4) < 50
-%                 obj.panel.panel.Position(4) = 50;
-%                 obj.panel.panel.Position(3) = obj.panel.panel.Position(3)*.75;
-%             end
+            if obj.panel.panel.Position(4) < 30
+                obj.panel.panel.Position(4) = 30;
+                obj.panel.panel.Position(3) = obj.panel.panel.Position(3)*.75;
+            end
 
 			width = obj.panel.panel.InnerPosition(3);
 			height = obj.panel.panel.InnerPosition(4);
 			padding = .4;
 			ch = 1.4;
             lw = 4;
+            
+            if isempty(obj.s.controller) || isvalid(obj.s.controller)
+                obj.s.controller = Base.SweepController(obj.s, obj.panel.panel);
+                height = height - 2;
+            end
 
 			numaxes = length(obj.axesDisplayedNames);
 
@@ -323,6 +330,11 @@ classdef SweepViewer < handle
 
     methods
         function figureClickCallback(obj, ~, evt)
+            if evt.Button == 1  % Left click
+                obj.setPtr(1, [NaN, NaN]);
+                obj.setPtr(2, [NaN, NaN]);
+            end
+            
             if evt.Button == 3  % Right click
                 x = evt.IntersectionPoint(1);
                 y = evt.IntersectionPoint(2);
@@ -515,20 +527,24 @@ classdef SweepViewer < handle
                 stop(src)
                 delete(src)
             end
-
-%             obj.ax
-            if ~isempty(obj.ax) && isvalid(obj.ax)  % Remove this eventually?
-                if (now - obj.drawnowLast) < 1/24/60/60/obj.fpsTarget
-                    if ~obj.timerposted         % If a timer has not been sent off to remind us to update...
-                        t = timer('TimerFcn', @obj.datachanged_Callback, 'ExecutionMode', 'singleShot', 'StartDelay', 2/obj.fpsTarget);
-                        obj.timerposted = true; % And prevent new timers from being made until this one has been received or enough time has elapsed.
-                        start(t)
-%                         delete(t)
+            
+            if ~obj.rendering
+                obj.rendering = true;
+            
+                if ~isempty(obj.ax) && isvalid(obj.ax)
+                    if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget
+                        if ~obj.timerposted         % If a timer has not been sent off to remind us to update...
+                            t = timer('TimerFcn', @obj.datachanged_Callback, 'ExecutionMode', 'singleShot', 'StartDelay', ceil(2000/obj.fpsTarget)/1000);
+                            obj.timerposted = true; % And prevent new timers from being made until this one has been received or enough time has elapsed.
+                            start(t)
+                        end
+                        obj.rendering = false;
+                    else
+                        obj.drawnowLast = now;
+                        obj.timerposted = false;
+                        obj.rendering = false;
+                        obj.process();
                     end
-                else
-                    obj.drawnowLast = now;
-                    obj.timerposted = false;
-                    obj.process();
                 end
             end
         end
@@ -555,7 +571,7 @@ classdef SweepViewer < handle
                     obj.sp{ii}.process();
 %                     label = obj.s.inputs{obj.sp{ii}.I}.get_label();
 %                     titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii} ) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
-                    label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1}
+                    label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1};
 
                     titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii}) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
                 end
@@ -777,7 +793,7 @@ classdef SweepViewer < handle
             for ii = 1:length(dao)
                 if dao{ii}.display_only
                     range(2*ii + (-1:0)) = [-1e9 1e9];
-                    to(ii) = NaN;
+%                     to(ii) = NaN;
                 else
                     range(2*ii + (-1:0)) = [dao{ii}.min dao{ii}.max];
 
@@ -798,7 +814,6 @@ classdef SweepViewer < handle
         end
 
         function ct = currentTab(obj)
-            obj.panel.tabgroup
             ct = obj.panel.tabgroup.SelectedTab.UserData;
         end
         function tabchanged_Callback(obj, src, ~)
@@ -814,4 +829,5 @@ end
 function copyLabelToClipboard(src, ~)
     split = strsplit(src.Label, ': ');
     clipboard('copy', split{end});
+    disp(['"' split{end} '" copied to clipboard.']);
 end

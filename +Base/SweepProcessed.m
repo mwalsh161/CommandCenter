@@ -92,13 +92,11 @@ classdef SweepProcessed < handle
 
 			for ii = 1:MM
                 labels = obj.s.measurements{ii}.getLabels();
-                sd = obj.s.measurements{ii}.subdata()
+                sd = obj.s.measurements{ii}.subdata();
                 for jj = 1:length(sd)
                     iNames{end+1} = labels.(sd{jj});%#ok
                 end
             end
-            
-            iNames
 
             lw = 6.5;
             ew = 15;
@@ -320,7 +318,7 @@ classdef SweepProcessed < handle
             end
             
 % 			s_ = size(obj.s.data{obj.I});
-            sd = obj.s.subdata
+            sd = obj.s.subdata;
 			s_ = size(obj.s.data.(sd{obj.I}).dat);
 
 			N = length(s_);
@@ -742,7 +740,7 @@ classdef SweepProcessed < handle
             obj.normalize(false);
         end
 		function normalize(obj, shouldForce)
-            sd = obj.s.subdata
+            sd = obj.s.subdata;
             
             if obj.normAll
                 m_ = nanmin(obj.s.data.(sd{obj.I}), [], 'all');
