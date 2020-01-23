@@ -2,22 +2,23 @@ classdef SweepEditor < handle
     % SweepEditor is a UI to help the user make a sweep.
 
     properties (Constant, Hidden)
-        pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'dX',       'X1',       'N',         'Sweep'};
-        pheadersOpt =   {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'Guess',    'X1',       'N',         'Sweep'};
-        peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        false];
-        peditableOpt =  [false,     false,     false,      false,      false,      false,      true,       true,       true,       false,       false];
-        pwidths =       {25,        160,       160,        40,         40,         40,         40,         40,         40,         40,          80};
+        pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'Pair',      'X0',       'dX',       'X1',       'N',         'Sweep'};
+        peditable =     [false,     false,     false,      false,      false,      false,      false,       true,       true,       true,       true,         false]; 
+        pwidths =       {25,        160,       160,        40,         40,         40,         0,           40,         40,         40,         40,          80};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
+        
+%         pheadersOpt =   {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'Guess',    'X1',       'N',         'Sweep'};
+%         peditableOpt =  [false,     false,     false,      false,      false,      false,      true,       true,       true,       false,       false];
 %         pformatOpt =    {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
 %         pformat =   {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'char'};
 
         mheaders =  {'#',       'Measurement', 'Subdata',   'Size',    'Unit',     'Time'};
         meditable = [false,     false,         false,       false,      false,      true];
-        mwidths =   {25,        160,           160,         50,         50,         50};
+        mwidths =   {25,        160,           160,         50,         50,         0};
         mformat =   {'char',    'char',        'char',      'char',     'char',     'numeric'};
     end
 
-    properties
+    properties (Access=private)
         pdata;
         mdata;
         
@@ -25,7 +26,7 @@ classdef SweepEditor < handle
         measurements;
     end
 
-    properties
+    properties (Access=private)
         f;                          % Figure
         
         pt;                         % Prefs table
@@ -37,7 +38,7 @@ classdef SweepEditor < handle
         mmenu;
     end
 
-    properties
+    properties (Access=private)
         pselected
         mselected
 
@@ -76,30 +77,45 @@ classdef SweepEditor < handle
             obj.f.Position(4) = h + padding;
             
             % uicontrols
-            dp = 110;
-            p = [10, h + 6, dp, 17];
+            dp = 115;
+            p = [10, h + 6, dp-5, 17];
             
-            obj.gui.continuous          = uicontrol('String', 'Continuous',...
+            obj.gui.create              = uicontrol('String', 'Generate Sweep',...
                                                     'Tooltip', '',...
+                                                    'Style', 'pushbutton',...
+                                                    'Units', 'pixels',...
+                                                    'Position', p);    p(1) = p(1) + dp;
+            obj.gui.continuous          = uicontrol('String', 'Continuous',...
+                                                    'Tooltip', ['(NotImplemented) Whether to continue repeating the measurement(s)'...
+                                                                'continuously after the sweep is finished. Data is'...
+                                                                ' circshifted. Behaves like a Counter if Time is the only axis.'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
-                                                    'Enable', 'off',...
+                                                    'Enable', 'on',...
                                                     'Position', p);    p(1) = p(1) + dp;
             obj.gui.optimize            = uicontrol('String', 'Optimize',...
-                                                    'Tooltip', '',...
+                                                    'Tooltip', ['(NotImplemented) Instead of scanning across every point'...
+                                                                ' in an N-dimensional grid, Optimize uses fminsearch() to'...
+                                                                ' find the *maximum* of the *first measurement* in the N-dimensional space'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
+                                                    'Enable', 'on',...
                                                     'Position', p);    p(1) = p(1) + dp;
             obj.gui.returnToInitial     = uicontrol('String', 'Return to Initial',...
-                                                    'Tooltip', '',...
+                                                    'Tooltip', ['(NotImplemented) Returns the N-dimensional space to its initial state after the'...
+                                                                ' sweep is finished. Incompatible with Optimize and Optimize Afterward'],...
                                                     'Style', 'checkbox',...
                                                     'Value', true,...
                                                     'Units', 'pixels',...
+                                                    'Enable', 'on',...
                                                     'Position', p);    p(1) = p(1) + dp;
             obj.gui.optimizeAfterSweep  = uicontrol('String', 'Optimize Afterward',...
-                                                    'Tooltip', '',...
+                                                    'Tooltip', ['(NotImplemented) Unlike Optimize, Optimize Afterward sweeps over the full'...
+                                                                ' N-dimensional space and then finds the *maximum* of the *first measurement*.'...
+                                                                ' NotImplemented for N > 1.'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
+                                                    'Enable', 'on',...
                                                     'Position', p);    p(1) = p(1) + dp;
                                                 
 %             obj.gui.timePointText       = uicontrol('String', 'Measurement Time:',...
@@ -223,7 +239,13 @@ classdef SweepEditor < handle
         end
     end
     
-    methods     % Menus
+    methods     % Sweep
+        function sweep = generate(obj)
+            
+        end
+    end
+    
+    methods     % Tables
         function update(obj)
             obj.setNumbers(true)
             obj.setNumbers(false)
@@ -252,6 +274,7 @@ classdef SweepEditor < handle
             
         end
         
+        % ROW FUNCTIONS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function setRow(obj, instrument, isPrefs)
             if isPrefs
                 if obj.pselected == 0
@@ -315,7 +338,7 @@ classdef SweepEditor < handle
             if isPrefs
                 if obj.pselected ~= 0
                     obj.pdata(obj.pselected, :) = [];
-                    obj.prefs{obj.pselected} = [];
+                    obj.prefs(obj.pselected) = [];
                 end
             else
                 if obj.mselected ~= 0
@@ -361,15 +384,43 @@ classdef SweepEditor < handle
         
         function d = makePrefRow(~, p)          % Make a uitable row for a pref.
             if isempty(p)
-                d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [] };
+                d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [], [] };
             else
                 str = p.name;
 
                 if isempty(str)
                     str = strrep(p.property_name, '_', ' ');
                 end
+                
+                N = 11;
+                m = p.min;
+                M = p.max;
+%                 dx = .1;
+                
+                if m == -Inf && M == Inf
+                    m =  -100;
+                    M =  100;
+                end
+                
+                if m == -Inf
+                    m = min(-100, M-1);
+                end
+                if M ==  Inf
+                    M = max(100, m+1);
+                end
+                
+                dx = (M - m)/(N-1);
+                
+                if isPrefInteger(p)
+                    N = M - m + 1;
+                    dx = 1;
+                end
+                
+                if N == 0
+                    N = 1;
+                end
 
-                d = {'<html><font color=red><b>',     ['<i>' p.parent_class], formatMainName(str, p.property_name), p.unit, p.min, p.max, p.min,    .1,    p.max,   11,  '0:.1:1' };
+                d = {'<html><font color=red><b>',     ['<i>' p.parent_class], formatMainName(str, p.property_name), p.unit, p.min, p.max, false, m, dx, M, N, makeSweepStr(m, M, dx) };
 %                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ', '<b>Piezo Z (ao3)', 'V', 0, 10, 0,    .1,    1,   11,  '0:.1:1' };
             end
         end
@@ -395,6 +446,7 @@ classdef SweepEditor < handle
             end
         end
         
+        % HELPER FUNCTIONS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function N = num(obj, isPrefs)
             if isPrefs
                 N = length(obj.prefs);
@@ -410,67 +462,136 @@ classdef SweepEditor < handle
             end
         end
         function N = numPoints(obj)
-            N = prod(cell2mat(obj.pdata(1:obj.numRows(true), 10)));
+            N = prod(cell2mat(obj.pdata(1:obj.numRows(true), 11)));
         end
         
+        % CALLBACKS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function edit_Callback(obj, src, evt)
             isPrefs = src.UserData.UserData;
-            
-%             src
-            evt
-%             
-%             src.Data{evt.Indices(1), evt.Indices(2)}
 
             good = true;
+            
+            evt
             
             if isPrefs
 %                 obj.pheaders{evt.Indices(2)}
                 ind = evt.Indices;
-                m = obj.pdata{ind(1), 5};
-                M = obj.pdata{ind(1), 6};
-                switch obj.pheaders{evt.Indices(2)}
-                    case 'X0'   % 7
-                        X0 = max(m, min(M, evt.NewData));
-                        X0
-                        obj.pdata{ind(1), 7} = X0;
-                        obj.updatedX(ind(1));
-                        obj.update();
-                    case 'dX'   % 8
-                    case 'X1'   % 9
-                        X1 = max(m, min(M, evt.NewData));
-                        X1
-                        obj.pdata{ind(1), 9} = X1;
-                        obj.updatedX(ind(1));
-                        obj.update();
-                    case 'N'   % 10
-                        N = round(evt.NewData);
-                        if N == 1
-                            obj.pdata{ind(1), 10} = N;
-                            obj.pdata{ind(1), 8} = 0;
-                            obj.pdata{ind(1), 9} = obj.pdata{ind(1), 7};
-                        elseif N > 0 && obj.pdata{ind(1), 8} > 0
-                            obj.pdata{ind(1), 10} = N;
-                            obj.pdata{ind(1), 8} = (obj.pdata{ind(1), 9} - obj.pdata{ind(1), 7}) / (obj.pdata{ind(1), 10} - 1);
-                        else
-                            good = false;
-                        end
+                
+                if ind(1) > obj.numRows(isPrefs)    % We are in the ... row.
+                    obj.pdata{ind(1), ind(2)} = evt.PreviousData;
+                    obj.update();
+                    return;
                 end
                 
+                m = obj.pdata{ind(1), 5};
+                M = obj.pdata{ind(1), 6};
+                
+                p = obj.prefs{ind(1)};
+                isInteger = isPrefInteger(p);
+                
+                if isa(p, 'Prefs.Time')
+                    true
+                    switch obj.pheaders{evt.Indices(2)}
+                        case {'X0', 'dX'}
+                            good = false;
+                        case {'X1', 'N'}
+                            obj.pdata{ind(1), 8}  = 1;
+                            obj.pdata{ind(1), 9}  = 1;
+                            obj.pdata{ind(1), 10} = evt.NewData;
+                            obj.pdata{ind(1), 11} = evt.NewData;
+                    end
+                else
+                    switch obj.pheaders{evt.Indices(2)}
+                        case 'X0'   % 8
+                            X0 = max(m, min(M, evt.NewData));
+                            if isInteger, X0 = round(X0); end
+                            obj.pdata{ind(1), 8} = X0;
+
+                            obj.updatedX(ind(1));
+                        case 'dX'   % 9
+                            dX = evt.NewData;
+
+                            if obj.pdata{ind(1), 9} > 0 && dX > 0 || obj.pdata{ind(1), 9} < 0 && dX < 0
+                                obj.pdata{ind(1), 9} = dX;
+
+                                N = floor((obj.pdata{ind(1), 10} - obj.pdata{ind(1), 8} + dX) / dX);
+                                N = max(2, N);
+                                obj.pdata{ind(1), 11} = N;
+                            else
+                                good = false;
+                            end
+                        case 'X1'   % 10
+                            X1 = max(m, min(M, evt.NewData));
+                            if isInteger, X1 = round(X1); end
+                            obj.pdata{ind(1), 10} = X1;
+
+                            obj.updatedX(ind(1));
+                        case 'N'   % 11
+                            N = round(evt.NewData);
+                            if N < 2
+                                good = false;
+    %                             obj.pdata{ind(1), 11} = N;
+    %                             obj.pdata{ind(1), 9} = 0;
+    %                             obj.pdata{ind(1), 10} = obj.pdata{ind(1), 8};
+                            elseif N > 0 && obj.pdata{ind(1), 9} ~= 0
+                                obj.pdata{ind(1), 11} = N;
+                                obj.pdata{ind(1), 9} = (obj.pdata{ind(1), 10} - obj.pdata{ind(1), 8}) / (N - 1);
+                            else
+                                good = false;
+                            end
+                    end
+                end
+                
+                dX = obj.pdata{ind(1), 9};
+                
+                if isInteger && good
+                    if abs(dX) < 1 && dX ~= 0
+                        dX = dX/abs(dX);
+                    else
+                        dX = round(dX);
+                    end
+                    
+                    N = (obj.pdata{ind(1), 10} - obj.pdata{ind(1), 8} + dX) / dX;
+                    
+                    if N ~= floor(N)
+                        N = floor(N);
+                        
+                        obj.pdata{ind(1), 9} = dX;
+                        obj.pdata{ind(1), 10} = obj.pdata{ind(1), 8} + (N-1)*dX;
+                        obj.pdata{ind(1), 11} = N;
+                    else
+                        obj.pdata{ind(1), 9} = dX;
+                        obj.pdata{ind(1), 11} = N;
+                    end
+                end
+
                 if ~good
                     obj.pdata{ind(1), ind(2)} = evt.PreviousData;
+                else
+                    obj.pdata{ind(1), 12} = makeSweepStr(obj.pdata{ind(1), 8}, obj.pdata{ind(1), 10}, obj.pdata{ind(1), 9});
                 end
+                
                 
                 obj.update();
             else
                 
             end
-%             selected_cells = evt.Indices;
+        end
+        function updateN(obj, ind)
+            
         end
         function updatedX(obj, ind)
-            dX = (obj.pdata{ind, 9} - obj.pdata{ind, 7}) / (obj.pdata{ind, 10} - 1);
+            N = obj.pdata{ind, 11};
+            if N == 1
+                N = 2;
+            end
+            dX = (obj.pdata{ind, 10} - obj.pdata{ind, 8}) / (N - 1);
+            
+            {dX}
             
             if dX ~= 0
-                obj.pdata{ind(1), 8} = dX;
+                obj.pdata{ind(1), 9} = dX;
+                obj.pdata{ind(1), 11} = N;
             end
         end
         
@@ -490,7 +611,7 @@ classdef SweepEditor < handle
                     yi = obj.getMeasurementIndex(yi);
                     obj.mselected = yi;
                     src.UIContextMenu.Children(end).Label = ['Measurement ' num2str(yi)];
-                    N = num(obj, false)
+                    N = num(obj, false);
                 end
 
                 if yi ~= 1
@@ -505,6 +626,13 @@ classdef SweepEditor < handle
                 end
                 
                 src.UIContextMenu.Children(end-3).Enable = 'on';   % Delete
+                
+                if ~isPrefs
+                    disp('Up/Down/Delete disabled.')
+                    src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
+                    src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
+                    src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
+                end
             else
                 if isPrefs
                     obj.pselected = 0;
@@ -602,3 +730,18 @@ function ca = centerCharsMeasurements(ca)
         end
     end
 end
+function str = makeSweepStr(m, M, dx)
+    if dx == 0
+        str = ['[' num2str(m) ']'];
+    elseif dx == 1
+        str = [num2str(m) ':' num2str(M)];
+    elseif dx == M - m
+        str = ['[' num2str(m) ', ' num2str(M) ']'];
+    else
+        str = [num2str(m) ':' num2str(dx) ':' num2str(M)];
+    end
+end
+function tf = isPrefInteger(p)
+    tf = isa(p, 'Prefs.Integer') || isa(p, 'Prefs.Boolean') || isa(p, 'Prefs.MultipleChoice');
+end
+

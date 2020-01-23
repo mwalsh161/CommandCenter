@@ -7,9 +7,9 @@ classdef Sweep < handle
         name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
         
         % Core
-        axes;           % cell array                % Contains 1xN `Base.pref` classes that are being swept over.
+        axes;           % cell array                % Contains 1xN `Base.Pref` classes that are being swept over.
         scans;          % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
-        inputs;         % cell array                % Contains 1xM `Base.Data` classes that are being measured at each point.
+        inputs;         % cell array                % Contains 1xM `Base.Measurement` classes that are being measured at each point.
     end
     
     properties

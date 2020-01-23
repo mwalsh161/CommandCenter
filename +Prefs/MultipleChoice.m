@@ -77,6 +77,8 @@ classdef MultipleChoice < Prefs.Numeric
                         obj.value = val{1};
                     end
                 end
+            else
+                obj.choices = val;
             end
         end
         function val = get.choices_strings(obj)
