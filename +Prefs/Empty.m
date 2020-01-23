@@ -20,8 +20,8 @@ classdef Empty < Prefs.Numeric
                 obj.min = 1;
                 obj.max = varargin{2};
             else
-                obj.name = '';
-                obj.unit = '';
+                obj.name = 'None';
+                obj.unit = 'none';
             end
 
             obj.readonly = true;

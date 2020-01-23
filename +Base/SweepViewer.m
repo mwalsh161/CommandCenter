@@ -1,12 +1,12 @@
 classdef SweepViewer < handle
 
 	properties (SetAccess=private)
-		s = [];		% Parent scan of type `Base.Scan`
+		s = [];		% Parent sweep of type `Base.Sweep`
 
 		ax = [];	% MATLAB Axes object where the data will be plotted.
 		panel = [];	% Struct containing panel where viewer info will be displayed.
 
-        menus = [];
+        menus = []; 
 
 		sp = {};	% Child processed scans of type `Base.ScanProcessed`.
 
@@ -24,11 +24,6 @@ classdef SweepViewer < handle
 		pcolors = 		{[0.949, 0.250, 0.505], [0.839, 0.478, 0.611], [0.952, 0.466, 0.105]};
 		plinewidth = 	[3 2 2];
 		plinetype = 	{'o-', 'o--', 'o-'};
-
-% 		pnames = 		{'selpix', 'selpnt', 'target', 'current'};  % Pointer settings
-% 		pcolors = 		{[0.949, 0.250, 0.505], [0.839, 0.478, 0.611], [0.952, 0.729, 0.568], [0.952, 0.466, 0.105]};
-% 		plinewidth = 	[3 2 3 2];
-% 		plinetype = 	{'o-', 'o--', 'o-', 'o-'};
 	end
 
 	properties (SetAccess=private)
@@ -37,12 +32,7 @@ classdef SweepViewer < handle
 		img = [];	% 2D image `imagesc()` for data
 		ptr = {};	% Cursor location `+` plots
         ptrData = [];
-	end
-
-% 	properties (SetAccess=private)
-% 		fullAxes;		% cell arrays				% 1xM array containing 1x(N+D) arrays of `Axis` classes, where D is the dimension of the ith input.
-% 		fullScans;		% cell arrays				% 1xM array containing 1x(N+D) numeric arrays of the sweep points, where D is the dimension of the ith input.
-% 	end
+    end
 
 	properties (Hidden, Access=private)
         drawnowLast = 0;
@@ -56,61 +46,76 @@ classdef SweepViewer < handle
 		axesDisplayed = []                          % Which dimensions are selected to be displayed (e.g. which as x, which as y). Integers according to the corresponding index in displayAxesObjects.
     end
 	properties (SetAccess=private)
-		displayAxesObjects = {}
+		displayAxesObjects = {}                     %
 		displayAxesScans = {}
-		displayAxesInputs = [];
-	end
+		displayAxesMeasNum = [];
+		displayAxesSubdata = {};
+    end
 	properties (Hidden, Constant)
 		axesDisplayedNames = {'x', 'y'};            % Names of the dimensions that can be displayed by the `ScanViewer`
 	end
 
 	methods
-		function obj = ScanViewer(s_, ax_, varargin)
+		function obj = SweepViewer(s_, ax_, varargin)
 			obj.ax = ax_;
             obj.ax.Toolbar = [];
 			obj.s = s_;
 
-			obj.displayAxesObjects =    obj.s.axes;
-			obj.displayAxesScans =      obj.s.scans;
+			obj.displayAxesObjects =    [{Prefs.Empty}      obj.s.sdims];
+			obj.displayAxesScans =      [{NaN} 				obj.s.sscans];
+			obj.displayAxesMeasNum = 	[-1                 zeros(1, length(obj.s.sscans))];
+            
+			obj.displayAxesSubdata(1:(length(obj.s.scans)+1)) = {''};
 
-% 			obj.displayAxesObjects =    [{Base.AxisEmpty()} obj.s.axes];
-			obj.displayAxesObjects =    [{Prefs.Empty}      obj.s.axes];
-			obj.displayAxesScans =      [{NaN} 				obj.s.scans];
-			obj.displayAxesInputs = 	[-1                 zeros(1, length(obj.s.scans))];
+            kk = 1;
+            
+            for ii = 1:length(obj.s.measurements)
+                m = obj.s.measurements{ii};
 
-			for ii = 1:length(obj.s.inputs) %#ok<*ALIGN>
-				obj.displayAxesObjects =    [obj.displayAxesObjects obj.s.inputs{ii}.inputAxes];
-				obj.displayAxesScans =      [obj.displayAxesScans   obj.s.inputs{ii}.inputScans];
-				obj.displayAxesInputs =     [obj.displayAxesInputs  ii*ones(1, length(obj.s.inputs{ii}.inputScans))];
+                sd = m.subdata;
+                dims_ =  m.getDims;
+                scans_ = m.getScans;
+                
+                for jj = 1:length(sd)
+                    obj.displayAxesMeasNum =        [obj.displayAxesMeasNum         kk];
+                    obj.displayAxesObjects =        [obj.displayAxesObjects         dims_.(sd{jj})];
+                    obj.displayAxesScans =          [obj.displayAxesScans           scans_.(sd{jj})];
+                    
+                    kk = kk + 1;
+                end
             end
-
-%             obj.displayAxesScans
+            
+            sd = obj.s.subdata;
+            
+            if size(sd,1) > 1
+                sd = sd';
+            end
+            
+            obj.displayAxesSubdata = [obj.displayAxesSubdata sd];
 
 			A = length(obj.axesDisplayedNames);
 			obj.axesDisplayed = (1:A)+1;
 			obj.axesDisplayed(obj.axesDisplayed > length(obj.displayAxesObjects)) = 1;
-            % obj.axesDisplayed(obj.axesDisplayed == length(obj.displayAxesObjects)+1) = 1;
 
             obj.ax.Visible = 'off';
-			obj.makeDisplay();
-
-%             'here'
+			obj.makePlots();
 
 			% First, setup the panel.
 			if ~isempty(varargin)
-				obj.panel.panel = varargin{1};
-
-				obj.panel.tabgroup = [];
-
-% 				if strcmp(obj.panel.panel.Visible, 'on')
-                    obj.panel.panel.Visible = 'off';
-					obj.makePanel();
-% 				end
-			end
+                p = varargin{1};
+            else
+                f = figure('units', 'pixels', 'Position', [100,100,350,500], 'numbertitle', 'off', 'MenuBar', 'None');
+                p = uipanel(f);
+            end
+            
+            obj.panel.panel = p;
+            obj.panel.tabgroup = [];
+            obj.panel.panel.Visible = 'off';
+            obj.makePanel();
 
 			N = length(obj.colors);
-			for ii = 1:N
-				obj.sp{ii} = Base.ScanProcessed(obj.s, obj, ii);
+            for ii = 1:N
+                obj.sp{ii} = Base.SweepProcessed(obj.s, obj, ii);
             end
             obj.panel.tabgroup.SelectedTab = obj.sp{1}.tab.tab;
 
@@ -118,24 +123,54 @@ classdef SweepViewer < handle
 
             prop = findprop(obj.s, 'data');
             obj.listeners.data = event.proplistener(obj.s, prop, 'PostSet', @obj.datachanged_Callback);
-%             obj.listeners.prefs =
 
-
+            obj.process();
+            
             obj.ax.Visible = 'on';
             obj.panel.panel.Visible = 'on';
-		end
+        end
 
-		function makeDisplay(obj)
+        function makeMenu(obj)
+            obj.menus.ctsMenu(1) = uimenu(obj.menus.menu, 'Label', ['R: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{1});
+            obj.menus.ctsMenu(2) = uimenu(obj.menus.menu, 'Label', ['G: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{2});
+            obj.menus.ctsMenu(3) = uimenu(obj.menus.menu, 'Label', ['B: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{3});
+
+            obj.menus.pixMenu = uimenu(obj.menus.menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard, 'Separator', 'on');
+            obj.menus.indMenu = uimenu(obj.menus.menu, 'Label', 'Index: [ ~~~~, ~~~~ ]',          'Callback', @copyLabelToClipboard);
+            obj.menus.posMenu = uimenu(obj.menus.menu, 'Label', 'Position: [ ~~~~ --, ~~~~ -- ]', 'Callback', @copyLabelToClipboard);
+
+            mGoto = uimenu(obj.menus.menu,  'Label', 'Goto', 'Separator', 'on'); %,     'Callback', {@obj.gotoPostion_Callback, 0, 0});
+                uimenu(mGoto,               'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 0, 0}); %#ok<*NASGU>
+                uimenu(mGoto,               'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 1, 0});
+                uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotoPostion_Callback, 0, 1});
+                uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotoPostion_Callback, 1, 1});
+
+            mNorm = uimenu(obj.menus.menu,  'Label', 'Normalization'); %,               'Callback',  @obj.normalize_Callback); %, 'Enable', 'off');
+                uimenu(mNorm,               'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
+                uimenu(mNorm,               'Label', 'Set as Maximum',              'Callback', {@obj.minmax_Callback, 1});
+                uimenu(mNorm,               'Label', 'Normalize All Slices',        'Callback', {@obj.normalizeSlice_Callback, 0});
+                uimenu(mNorm,               'Label', 'Normalize This Slice',        'Callback', {@obj.normalizeSlice_Callback, 1});
+
+%             mCount = uimenu(menu,               'Label', 'Counter'); %, 'Enable', 'off');
+%                 mcOpen =    uimenu(mCount,      'Label', 'Open',                        'Callback',  @obj.openCounter_Callback);
+%                 mcOpenAt =  uimenu(mCount,      'Label', 'Open at...');
+%                     uimenu(mcOpenAt,    'Label', 'Selected Position',           'Callback', {@obj.openCounterAtPoint_Callback, 1, 0});
+%                     uimenu(mcOpenAt,    'Label', 'Selected Pixel',              'Callback', {@obj.openCounterAtPoint_Callback, 0, 0});
+%                     uimenu(mcOpenAt,    'Label', 'Selected Position And Layer', 'Callback', {@obj.openCounterAtPoint_Callback, 1, 1});
+%                     uimenu(mcOpenAt,    'Label', 'Selected Pixel And Layer',    'Callback', {@obj.openCounterAtPoint_Callback, 0, 1});
+        end
+		function makePlots(obj)
 			N = length(obj.colors);
 
             f = obj.ax.Parent;
 
-            while ~isa(f,'matlab.ui.Figure')
+            while ~isa(f, 'matlab.ui.Figure')
                 f = f.Parent;
             end
 
             menu = uicontextmenu('Parent', f);  % Menu needs a figure as parent.
             obj.menus.menu = menu;
+            obj.makeMenu
 
 			hold(obj.ax, 'on');
             obj.ax.ButtonDownFcn = @obj.figureClickCallback;
@@ -164,7 +199,7 @@ classdef SweepViewer < handle
 %                 gui.cbar.Color = 'white';
             end
 
-            if true % thickness
+            if true % axis thickness
                 obj.ax.LineWidth = 1;
                 obj.ax.FontSize = 12;
 
@@ -184,9 +219,6 @@ classdef SweepViewer < handle
 			defaultvis = 'off';
 
             % Make image
-%             obj.img = image(obj.ax, 'YDir', 'normal', 'Visible', defaultvis);
-
-
             obj.img = image(obj.ax, 'CData', NaN,...
                                     'Visible', defaultvis,...
                                     'XDataMode', 'manual',...
@@ -194,47 +226,32 @@ classdef SweepViewer < handle
                                     'ButtonDownFcn', @obj.figureClickCallback,...
                                     'UIContextMenu', menu);
 
-			for ii = 1:N
-				% Make texts
-				obj.txt{ii} = text(.5, .5 - .15*(ii-(N+1)/2.), 'NaN',...
-                                                                'Parent', obj.ax,...
-																'HorizontalAlignment', 'center',...
-																'Units', 'normalized',....
-																'Color', obj.colors{ii}/1.5,...
-																'FontSize', 64,...
-																'Visible', defaultvis,...
-                                                                'PickableParts', 'none');
-
-				% Make plots
-				obj.plt{ii} = plot(obj.ax, [0 ii], [0 1], 	'Color', obj.colors{ii},... % 'MarkerEdgeWidth', 0,... % 'MarkerEdgeColor', obj.colors{ii},...
-														    'MarkerFaceColor', obj.colors{ii},...
-															'LineWidth', obj.linewidth,...
-															'Visible', defaultvis,...
+            for ii = 1:N
+                % Make texts
+                obj.txt{ii} = text(.5, .5 - .15*(ii-(N+1)/2.), 'NaN',...
+                                                            'Parent', obj.ax,...
+                                                            'HorizontalAlignment', 'center',...
+                                                            'Units', 'normalized',....
+                                                            'Color', obj.colors{ii}/1.5,...
+                                                            'FontSize', 64,...
+                                                            'Visible', defaultvis,...
                                                             'PickableParts', 'none');
-            end
 
-%             obj.txt
-%             obj.plt
+                % Make plots
+                obj.plt{ii} = plot(obj.ax, [0 ii], [0 1], 	'Color', obj.colors{ii},... % 'MarkerEdgeWidth', 0,... % 'MarkerEdgeColor', obj.colors{ii},...
+                                                        'MarkerFaceColor', obj.colors{ii},...
+                                                        'LineWidth', obj.linewidth,...
+                                                        'Visible', defaultvis,...
+                                                        'PickableParts', 'none');
+            end
 
 			assert(length(obj.pnames) == 3)
 			assert(length(obj.pnames) == length(obj.pcolors))
 			assert(length(obj.pnames) == length(obj.plinewidth))
 			assert(length(obj.pnames) == length(obj.plinetype))
 
-%             obj.ptr
-
-			for ii = 1:length(obj.plinewidth)
-				% Make pointer `+`s
-% 				p = plot(obj.ax,...
-% 									[-1, 1, NaN, 0, 0],...
-% 									[0, 0, NaN, -1, 1],...
-%                                     obj.plinetype{ii},...
-% 									'Color', obj.pcolors{ii},...
-% 									'LineWidth', obj.plinewidth(ii),...
-% 									'Visible', defaultvis);
-%
-%                 p
-
+            for ii = 1:length(obj.plinewidth)
+                % Make pointer `+`s
 				obj.ptr{ii} = plot(obj.ax,...
                                     [NaN, NaN, NaN, NaN, NaN],...
                                     [NaN, NaN, NaN, NaN, NaN],...
@@ -243,56 +260,16 @@ classdef SweepViewer < handle
 									'LineWidth', obj.plinewidth(ii),...
 									'Visible', 'on',...
                                     'PickableParts', 'none');
-
-
-% 									[-1, 1, NaN, 0, 0],...
-% 									[0, 0, NaN, -1, 1],...
-
-
             end
-
-%             obj.ptr
-
-            % Menu Setup --------------------------------------------------------------------------------------------------------------
-            obj.menus.ctsMenu(1) = uimenu(menu, 'Label', 'R: ~~~~ --',                  'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{1});
-            obj.menus.ctsMenu(2) = uimenu(menu, 'Label', 'G: ~~~~ --',                  'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{2});
-            obj.menus.ctsMenu(3) = uimenu(menu, 'Label', 'B: ~~~~ --',                  'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{3}); %, 'Enable', 'off');
-
-            obj.menus.pixMenu = uimenu(menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard, 'Separator', 'on'); %, 'Enable', 'off');
-            obj.menus.indMenu = uimenu(menu, 'Label', 'Index: [ ~~~~, ~~~~ ]',          'Callback', @copyLabelToClipboard); %, 'Enable', 'off');
-            obj.menus.posMenu = uimenu(menu, 'Label', 'Position: [ ~~~~ --, ~~~~ -- ]', 'Callback', @copyLabelToClipboard); %, 'Enable', 'off');
-
-            mGoto = uimenu(menu,                'Label', 'Goto', 'Separator', 'on'); %,     'Callback', {@obj.gotoPostion_Callback, 0, 0});
-                mgPos = uimenu(mGoto,           'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 0, 0}); %#ok<*NASGU>
-                mgPix = uimenu(mGoto,           'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 1, 0});
-                mgPosL= uimenu(mGoto,           'Label', 'Selected Position And Layer', 'Callback', {@obj.gotoPostion_Callback, 0, 1});
-                mgPixL= uimenu(mGoto,           'Label', 'Selected Pixel And Layer',    'Callback', {@obj.gotoPostion_Callback, 1, 1});
-
-            mNorm = uimenu(menu,                'Label', 'Normalization'); %,               'Callback',  @obj.normalize_Callback); %, 'Enable', 'off');
-                mnMin = uimenu(mNorm,           'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
-                mnMax = uimenu(mNorm,           'Label', 'Set as Maximum',              'Callback', {@obj.minmax_Callback, 1});
-                mnNorm= uimenu(mNorm,           'Label', 'Normalize All Layers',        'Callback', {@obj.normalizeSlice_Callback, 0});
-                mnNormT=uimenu(mNorm,           'Label', 'Normalize This Layer',        'Callback', {@obj.normalizeSlice_Callback, 1});
-
-            mCount = uimenu(menu,               'Label', 'Counter'); %, 'Enable', 'off');
-                mcOpen =    uimenu(mCount,      'Label', 'Open',                        'Callback',  @obj.openCounter_Callback);
-                mcOpenAt =  uimenu(mCount,      'Label', 'Open at...');
-                    mcoaPos = uimenu(mcOpenAt,  'Label', 'Selected Position',           'Callback', {@obj.openCounterAtPoint_Callback, 1, 0});
-                    mcoaPix = uimenu(mcOpenAt,  'Label', 'Selected Pixel',              'Callback', {@obj.openCounterAtPoint_Callback, 0, 0});
-                    mcoaPosL= uimenu(mcOpenAt,  'Label', 'Selected Position And Layer', 'Callback', {@obj.openCounterAtPoint_Callback, 1, 1});
-                    mcoaPixL= uimenu(mcOpenAt,  'Label', 'Selected Pixel And Layer',    'Callback', {@obj.openCounterAtPoint_Callback, 0, 1});
-
-
-		end
-
+        end
 		function makePanel(obj)
 			obj.panel.panel.Visible = 'off';
 			obj.panel.panel.Units = 'characters';
 
-            if obj.panel.panel.Position(4) < 50
-                obj.panel.panel.Position(4) = 50;
-                obj.panel.panel.Position(3) = obj.panel.panel.Position(3)*.75;
-            end
+%             if obj.panel.panel.Position(4) < 50
+%                 obj.panel.panel.Position(4) = 50;
+%                 obj.panel.panel.Position(3) = obj.panel.panel.Position(3)*.75;
+%             end
 
 			width = obj.panel.panel.InnerPosition(3);
 			height = obj.panel.panel.InnerPosition(4);
@@ -309,11 +286,11 @@ classdef SweepViewer < handle
 			N = length(obj.displayAxesObjects);
 			aNames = {};
 
-			for ii = 1:N
+            for ii = 1:N
 % 				aNames{end+1} = obj.displayAxesObjects{ii}.nameUnits();
 %                 obj.displayAxesObjects{ii}
 %                 obj.displayAxesObjects{ii}.get_label()
-				aNames{end+1} = obj.displayAxesObjects{ii}.get_label(); %#ok<AGROW>
+                aNames{end+1} = obj.displayAxesObjects{ii}.get_label(); %#ok<AGROW>
             end
 
 % 			aNames{end+1} = 'None';
@@ -349,28 +326,21 @@ classdef SweepViewer < handle
 
     methods
         function figureClickCallback(obj, ~, evt)
-%             evt.Button
-%             evt
+            evt
             if evt.Button == 3  % Right click
                 x = evt.IntersectionPoint(1);
                 y = evt.IntersectionPoint(2);
 
                 [isNone, enabled] = obj.isNoneEnabled();
-
+                
                 switch sum(~isNone)
-                    case 0  % histogram
-                        % Do nothing.
                     case 1  % 1D
                         xlist = (obj.plt{1}.XData - x) .* (obj.plt{1}.XData - x);
                         xi = find(xlist == min(xlist), 1);
                         xp = obj.plt{1}.XData(xi);
 
-%                         unitsX = obj.data.r.l.unit{obj.data.r.l.layer == 1};
-%                         unitsX = obj.data.r.l.unit{obj.data.r.l.layer == 1};
                         unitsX = obj.displayAxesObjects{obj.axesDisplayed(~isNone)}.unit;
 
-%                         obj.posL.sel.XData = [x x];
-%                         obj.posL.pix.XData = [xp xp];
                         obj.setPtr(1, [xp, xp]);
                         obj.setPtr(2, [x, x]);
 
@@ -396,6 +366,7 @@ classdef SweepViewer < handle
                         obj.menus.indMenu.Label = ['Index: '    num2str(xi)];
                         obj.menus.pixMenu.Label = ['Pixel: '    num2str(xp, 4) ' ' unitsX];
                     case 2  % 2D
+                        '2D'
                         xlist = (obj.img.XData - x) .* (obj.img.XData - x);
                         ylist = (obj.img.YData - y) .* (obj.img.YData - y);
                         xi = find(xlist == min(xlist), 1);
@@ -403,19 +374,11 @@ classdef SweepViewer < handle
                         xp = obj.img.XData(xi);
                         yp = obj.img.YData(yi);
 
-%                         obj.pos.sel.XData = x;
-%                         obj.pos.sel.YData = y;
-%                         obj.pos.pix.XData = xp;
-%                         obj.pos.pix.YData = yp;
-
                         obj.setPtr(1, [xp, yp]);
                         obj.setPtr(2, [x, y]);
 
-%                         unitsX = obj.data.r.l.unit{obj.data.r.l.layer == 1};
-%                         unitsY = obj.data.r.l.unit{obj.data.r.l.layer == 2};
-
-                        unitsX = obj.displayAxesObjects{obj.axesDisplayed(1)}.units;
-                        unitsY = obj.displayAxesObjects{obj.axesDisplayed(2)}.units;
+                        unitsX = obj.displayAxesObjects{obj.axesDisplayed(1)}.unit;
+                        unitsY = obj.displayAxesObjects{obj.axesDisplayed(2)}.unit;
 
                         if size(obj.img.CData, 3) == 1
                             obj.ptrData(1:3) = NaN;
@@ -429,8 +392,6 @@ classdef SweepViewer < handle
 
                             for jj = 1:length(obj.names)
                                 unitsC = 'cts/sec';
-
-                                '�';
 
                                 if ii ~= jj
                                     obj.menus.ctsMenu(jj).Label = [obj.names{jj} ': ~~~~ ' unitsC];
@@ -449,7 +410,6 @@ classdef SweepViewer < handle
                                 obj.ptrData(ii) = val;
 
                                 unitsC = 'cts/sec';
-    %                             unitsC = '--';
 
                                 if isnan(val)
                                     obj.menus.ctsMenu(ii).Label = [obj.names{ii} ': ~~~~ ' unitsC];
@@ -460,12 +420,13 @@ classdef SweepViewer < handle
                         end
 
                         obj.menus.posMenu.Label = ['Position: [ ' num2str(x, 4)  ' ' unitsX ', ' num2str(y, 4)  ' ' unitsY ' ]'];
-                        obj.menus.indMenu.Label = ['Index: [ '    num2str(xi)               ', ' num2str(yi) ' ]'];
+                        obj.menus.indMenu.Label = ['Index: [ '    num2str(xi)               ', ' num2str(yi)               ' ]'];
                         obj.menus.pixMenu.Label = ['Pixel: [ '    num2str(xp, 4) ' ' unitsX ', ' num2str(yp, 4) ' ' unitsY ' ]'];
+                    otherwise
+                        error(['Display dimension ' num2str(sum(~isNone)) ' not recognized']);
                 end
             end
         end
-
 
         % uimenu callbacks (when right-clicking on the graph)
         function gotoPostion_Callback(obj, ~, ~, isPix, shouldGotoLayer)    % Menu option to goto a position. See below for function of isSel and shouldGotoLayer.
@@ -551,15 +512,6 @@ classdef SweepViewer < handle
             obj.normalize(true);
             obj.datachanged_Callback();
         end
-%         function openCounter_Callback(obj, ~, ~)
-% %             pixels = max(round(20/gui.data.d.intTimes(gui.r.input)), 10);   % Aim for 20 sec of data. At least 10 pixels
-% %             data2 = mcData(mcData.counterConfig(gui.data.d.inputs{gui.r.input}, pixels, gui.data.d.intTimes(gui.r.input)));
-% %             mcDataViewer(data2, false)    % And don't show the control window when opening...
-%         end
-%         function openCounterAtPoint_Callback(obj, ~, ~, isSel, shouldGotoLayer)
-% %             gui.gotoPostion_Callback(0, 0, isSel, shouldGotoLayer);
-% %             gui.openCounter_Callback(0, 0);
-%         end
     end
 
 	methods
@@ -595,11 +547,6 @@ classdef SweepViewer < handle
             for ii = 1:N
                 enabled(ii) = obj.sp{ii}.enabled;
             end
-
-%             if all(~enabled)            % If nothing is enabled, construct isNone such that everything is invisible.
-%                 isNone(:) = 	false;
-%                 isNone(end+1) = false;
-%             end
         end
         function process(obj)
             [isNone, enabled] = obj.isNoneEnabled();
@@ -611,10 +558,11 @@ classdef SweepViewer < handle
             for ii = 1:N
                 if enabled(ii)
                     obj.sp{ii}.process();
-                    label = obj.s.inputs{obj.sp{ii}.I}.get_label();
-%                     label = strrep(label, '[', '\[');
-%                     label = strrep(label, ']', '\]');
-                    titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii} ) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
+%                     label = obj.s.inputs{obj.sp{ii}.I}.get_label();
+%                     titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii} ) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
+                    label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1}
+
+                    titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii}) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
                 end
             end
 
@@ -635,9 +583,6 @@ classdef SweepViewer < handle
                     obj.txt{ii}.Visible = 'on';
                 end
             elseif sum(~isNone) ~= 1 || ~textduring1D
-%                 for ii = index
-%                     obj.txt{ii}.Visible = 'off';    % Make more efficient
-%                 end
                 for ii = index
                     if ~strcmp(obj.txt{ii}.Visible, 'off')
                         obj.txt{ii}.Visible = 'off';    % Make more efficient
@@ -670,7 +615,6 @@ classdef SweepViewer < handle
                 end
             else
                 for ii = index
-%                     obj.plt{ii}.Visible = 'off';    % Make more efficient
                     if ~strcmp(obj.plt{ii}.Visible, 'off')
                         obj.plt{ii}.Visible = 'off';    % Make more efficient
                     end
@@ -678,26 +622,13 @@ classdef SweepViewer < handle
             end
 
             if sum(~isNone) == 2 && any(enabled)    % 2D
-
-%                 empty = NaN(expectedDimensions);
-
                 alpha = ~isnan(obj.sp{enabledIndex(1)}.processed);
 
-%                 sum(enabled)
-
                 if sum(enabled) == 1 && true  % If grayscale
-%                     obj
-%                     obj.sp{enabledIndex(1)}
-
-
                     data = repmat( (obj.sp{enabledIndex(1)}.processed - obj.sp{enabledIndex(1)}.m) / (obj.sp{enabledIndex(1)}.M - obj.sp{enabledIndex(1)}.m), [1 1 3]);
-
-%                     size(data)
-%                     size(alpha)
 
                     obj.img.CData = data;
                     obj.img.AlphaData = alpha;
-%                     obj.img.CLim = [0 1];
                 else
                     partialpixels = true;
 
@@ -713,8 +644,6 @@ classdef SweepViewer < handle
 
                     data = NaN([expectedDimensions 3]);
 
-%                     enabledIndex
-
                     for ii = enabledIndex(enabledIndex <= 3)
 %                         ii
                         data(:,:,ii) = (obj.sp{ii}.processed - obj.sp{ii}.m) / (obj.sp{ii}.M - obj.sp{ii}.m);
@@ -729,44 +658,22 @@ classdef SweepViewer < handle
                 obj.img.XData = obj.displayAxesScans{realAxes(1)};
                 obj.img.YData = obj.displayAxesScans{realAxes(2)};
 
-%                 for ii = enabledIndex
-%                     size(obj.sp{ii}.processed)
-%
-%                     if isNone(2)
-%                         obj.plt{ii}.XData = obj.displayAxesScans{obj.axesDisplayed(1)};
-%                         obj.plt{ii}.YData = obj.sp{ii}.processed;
-%                     else
-%                         obj.plt{ii}.XData = obj.sp{ii}.processed;
-%                         obj.plt{ii}.YData = obj.displayAxesScans{obj.axesDisplayed(~isNone)};
-%                     end
-
                 obj.img.Visible = 'on';
-%                 end
             else
-%                 obj.img.Visible = 'off';    % Make more efficient
-
                 if ~strcmp(obj.img.Visible, 'off')
                     obj.img.Visible = 'off';    % Make more efficient
                 end
             end
 
-
             obj.setPtr(3, [NaN, NaN]);
 
-%             if (now - obj.drawnowLast) > 1/24/60/60/obj.fpsTarget
-%                 drawnow;
-                pause(0.001)
-%                 obj.drawnowLast = now;
-%             end
+            pause(0.001);
         end
 
 		function axeschanged_Callback(obj, src, ~)
             obj.setAxis(src.UserData, src.Value)
 		end
 		function setAxis(obj, axis, to)
-%             axis
-%             to
-
 			N = length(obj.axesDisplayed);
 
 			assert(axis > 0 && axis <= N)
@@ -782,34 +689,26 @@ classdef SweepViewer < handle
 
 			axesNew(axis) = to;
 
-			if ~isempty(obj.panel)
+            if ~isempty(obj.panel)
                 c = num2cell(axesNew);
-				[obj.panel.axesDisplayed.Value] = c{:};
+                [obj.panel.axesDisplayed.Value] = c{:};
             end
 
             if ~isempty(obj.ax)
                 for ii = 1:N
-%                     ii
                     scan = obj.displayAxesScans{axesNew(ii)};
 
 %                     obj.listeners.(obj.axesDisplayedNames{ii})
-
+                    
                     if ~isempty(obj.listeners.(obj.axesDisplayedNames{ii}))
                         delete(obj.listeners.(obj.axesDisplayedNames{ii}));
                     end
 
 %                     obj.listeners.(obj.axesDisplayedNames{ii}) = obj.displayAxesObjects{axesNew(ii)}.addlistener('PostSet', @(s,e)(obj.setPtr(3, [NaN, NaN])));
-
-
 %                     obj.listeners.(obj.axesDisplayedNames{ii})
 
-%                     axesNew(ii)
-%                     scan
-
                     range = [min(scan), max(scan)];
-%                     label = obj.displayAxesObjects{axesNew(ii)}.nameUnits();
                     label = obj.displayAxesObjects{axesNew(ii)}.get_label();
-
                     label = strrep(label, '[um]', '[\mum]');
 
                     if all(isnan(range))
@@ -818,7 +717,7 @@ classdef SweepViewer < handle
 
 
                         range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
-                        label = obj.s.inputs{obj.sp{1}.I}.get_label();
+                        label = 'Filler'; %obj.s.inputs{obj.sp{1}.I}.get_label();
                     end
 
                     switch ii
@@ -872,70 +771,36 @@ classdef SweepViewer < handle
         end
 		function setPtr(obj, ptr, to) 	% Limited to 1D, 2D
 			assert(length(to) == 2);
-
-% 			atemp = [obj.s.axes {NaN}];
             dao = obj.displayAxesObjects(obj.axesDisplayed);
-
-%             if ptr == 1
-%                 obj.displayAxesObjects
-%                 obj.axesDisplayed
-%
-%                 dao
-%
-%                 dao{1}
-%                 dao{2}
-%             end
 
 			range = NaN(1,4);
 
-			for ii = 1:length(dao)
-				if dao{ii}.display_only
-					range(2*ii + (-1:0)) = [-1e9 1e9];
-					to(ii) = NaN;
-				else
-% 					range(2*ii + (-1:0)) = dao{ii}.extRange;
-%                     dao
-					range(2*ii + (-1:0)) = [dao{ii}.min dao{ii}.max];
+            for ii = 1:length(dao)
+                if dao{ii}.display_only
+                    range(2*ii + (-1:0)) = [-1e9 1e9];
+                    to(ii) = NaN;
+                else
+                    range(2*ii + (-1:0)) = [dao{ii}.min dao{ii}.max];
 
-					if isnan(to(ii))
-						if ptr == 3
-%                             if isempty(obj.listeners.x) && isempty(obj.listeners.y) % If we're scanning. Change this!
-%                                 vec = obj.s.currentPoint();
-%                                 to(ii) =
-%                             else
+                    if isnan(to(ii))
+                        if ptr == 3
                             if ~dao{ii}.display_only
                                 to(ii) = dao{ii}.read();
                             else
                                 to(ii) = NaN;
                             end
-%                             end
-% 						elseif ptr == 4
-% 							to(ii) = dao{ii}.value;
-						end
-					end
-				end
+                        end
+                    end
+                end
             end
-
-%             obj.ptr
-%
-%             obj.ptr(ptr)
-%
-%             [range(1) range(2) NaN to(2) to(2)]
-
-% 			[range(1) range(2) NaN to(2) to(2)]
-% 			[to(1) to(1) NaN range(3) range(4)]
 
 			obj.ptr{ptr}.XData = [range(1) range(2) NaN to(1) to(1)];
 			obj.ptr{ptr}.YData = [to(2) to(2) NaN range(3) range(4)];
-
-%             drawnow;%?
-
-%             obj.datachanged_Callback(0, 0);
         end
 
         function ct = currentTab(obj)
+            obj.panel.tabgroup
             ct = obj.panel.tabgroup.SelectedTab.UserData;
-%             ct = obj.panel.tabgroup
         end
         function tabchanged_Callback(obj, src, ~)
             x = src.SelectedTab.UserData;

@@ -1,8 +1,8 @@
 classdef SweepProcessed < handle
 
 	properties (SetAccess=private)
-		s = [];		% Parent scan of type `Base.Scan`
-		v = [];     % Parent viewer of type `Base.ScanViewer`
+		s = [];             % Parent scan of type `Base.Sweep`
+		v = [];             % Parent viewer of type `Base.SweepViewer`
 	end
 
 	properties (Constant)
@@ -38,12 +38,12 @@ classdef SweepProcessed < handle
 	end
 
 	methods
-		function obj = ScanProcessed(s, v, x)
+		function obj = SweepProcessed(s, v, x)
 			obj.s = s;
 			obj.v = v;
 			obj.x = x;
 
-			L = obj.s.dimension() + length(obj.s.inputDimensions());
+			L = obj.s.length() + sum(obj.s.measurementLengths());
 
             obj.sliceDefault =      num2cell(ones(1, L));
 			obj.sliceDefault(:) =   {':'};
@@ -55,21 +55,14 @@ classdef SweepProcessed < handle
             obj.sliceOptions(1) = -1;
             obj.sliceOptions(2) = -2;
 
-			% obj.options = ones(1, L);
-
-% 			for ii = 1:length(obj.v.axesDisplayed)
-% 				if obj.v.axesDisplayed(ii) > 1 && obj.v.axesDisplayed(ii) <= L
-% 					obj.slice{obj.v.axesDisplayed(ii)-1} = -ii; % L(ii) + length(obj.axisOptions) + ii;
-% 				end
-% 			end
-
 			if ~isempty(obj.v.panel) && ~isempty(obj.v.panel.tabgroup) %#ok<*ALIGN>
-%                 obj.v.panel.tabgroup
 				obj.makePanel();
                 obj.v.panel.tabgroup.SelectedTab = obj.tab.tab;
             end
+            
+            obj.v.displayAxesMeasNum
 
-			if obj.x > length(obj.s.inputs)
+			if obj.x > max(obj.v.displayAxesMeasNum)
 				obj.I = 0;
             else
 				obj.I = x;
@@ -78,6 +71,236 @@ classdef SweepProcessed < handle
 			obj.process()
         end
         
+        function makePanel(obj)
+			if ~isempty(obj.tab)
+				return
+			end
+
+			padding = .5;
+			ch = 1.25;
+
+			% Tab construction
+			obj.tab.tab = uitab('Parent', obj.v.panel.tabgroup, 'Title', obj.v.names{obj.x}, 'UserData', obj.x);
+
+			obj.tab.tab.Units = 'characters';
+			width = obj.tab.tab.InnerPosition(3);
+			height = obj.tab.tab.InnerPosition(4)-1.5*ch;
+
+			% Input selector
+			MM = length(obj.s.measurements);
+			iNames = {'None [none]'};
+
+			for ii = 1:MM
+                labels = obj.s.measurements{ii}.getLabels();
+                sd = obj.s.measurements{ii}.subdata()
+                for jj = 1:length(sd)
+                    iNames{end+1} = labels.(sd{jj});%#ok
+                end
+            end
+            
+            iNames
+
+
+			uicontrol(obj.tab.tab, 					'Style', 'text',...
+													'String', 'Input: ',...
+													'HorizontalAlignment', 'left',...
+													'Units', 'characters',...
+			 										'Position', [padding, height-padding-(ch+padding), 5, ch]);
+
+			obj.tab.input = uicontrol(obj.tab.tab, 	'Style', 'popupmenu',...
+													'String', iNames,...
+													'Value', obj.I+1,...
+													'HorizontalAlignment', 'left',...
+													'Units', 'characters',...
+			 										'Position', [2*padding+3, height-padding-(ch+padding), width-5*padding-5-7.5, ch],...
+													'Callback', @obj.setinput_Callback);
+
+			% Enabled checkbox
+			obj.tab.enabled = uicontrol(obj.tab.tab,'Style', 'checkbox',...
+                                                    'Interruptible', 'off',...
+													'String', 'Enabled? ',...
+													'Value', obj.enabled,...
+													'HorizontalAlignment', 'left',...
+													'Units', 'characters',...
+			 										'Position', [2*padding+3+width-5*padding-5-8, height-padding-(ch+padding), 10, ch],...
+                                                    'Callback', @obj.setEnabled_Callback);
+
+			% Scalebox
+            obj.tab.scale.panel  = uipanel(	'Parent', obj.tab.tab,...
+                                            'Units', 'characters',...
+                                            'Position', [padding, height-2.8*ch-5, width-2*padding, 6],...
+                                            'Title', 'Scale');
+			obj.makeScaleGUI();
+
+			N = obj.s.length();
+%             sd = obj.s.subdata;
+
+            tw = 20;
+            
+            base = 4.6;
+
+			% Axes
+			for ii = 1:N
+				levellist = [obj.axisOptions];
+
+                name = obj.s.sdims{ii}.get_label();
+                
+				uicontrol(obj.tab.tab, 					'Style', 'text',...
+														'String', [name ': '],...
+														'Tooltip', obj.s.sdims{ii}.help_text,...
+														'HorizontalAlignment', 'left',...
+														'Units', 'characters',...
+				 										'Position', [padding, height-padding-(base+ii)*(ch+padding), 12, ch]);
+
+                bw1 = (width-5*padding-tw)/2;
+				popuppos = [2*padding+tw-padding, height-padding-(base+ii)*(ch+padding), bw1, ch];
+				editpos = [2*padding+tw-padding+bw1, height-padding-(base+ii)*(ch+padding), bw1-3*padding, ch];
+
+				val = obj.sliceOptions(ii);
+                
+				str = 'X';
+				vis1 = 'on';
+				vis2 = 'off';
+
+				if isreal(val) && val < 0
+					assert(-val <= length(obj.v.axesDisplayedNames))
+					str = upper(obj.v.axesDisplayedNames{-val});
+					vis1 = 'off';
+					vis2 = 'on';
+				end
+
+				obj.tab.axes(ii) = uicontrol(obj.tab.tab, 	'Style', 'popupmenu',...
+															'String', levellist,...
+															'Value', obj.sliceOptions(ii),...
+															'Visible', 'on',...
+                                                            'UserData', ii,...
+															'HorizontalAlignment', 'left',...
+															'Units', 'characters',...
+					 										'Position', popuppos,...
+                                                            'Callback', @obj.updateSliceOptions_Callback);
+
+				obj.tab.frozen(ii) = uicontrol(obj.tab.tab, 'Style', 'popupmenu',...
+															'String', {str},...
+															'Value', 1,...
+															'Enable', 'off',...
+															'Visible', vis2,...
+															'HorizontalAlignment', 'left',...
+															'Units', 'characters',...
+					 										'Position', popuppos);
+
+				obj.tab.edit(ii) = uicontrol(obj.tab.tab,   'Style', 'edit',...
+															'String', obj.slice{ii},...
+															'Visible', vis1,...
+                                                            'UserData', ii,...
+															'HorizontalAlignment', 'center',...
+															'Units', 'characters',...
+					 										'Position', editpos,...
+                                                            'Callback', @obj.updateSlice_Callback);
+            end
+
+            kk = N + 1;
+
+            mm = 1;
+
+			% Input Panels
+			for ii = 1:length(obj.s.measurements)
+                meas = obj.s.measurements{ii};
+                sd = meas.subdata();
+                dims_ = meas.getDims();
+                names_ = meas.getLabels();
+                
+                for ll = 1:length(sd)
+                    dims__ = dims_.(sd{ll});
+                    Mi = length(dims__);
+
+                    if Mi == 0
+                        obj.tab.inputAxesPanel(mm) = uipanel(	'Parent', obj.tab.tab, 'Visible', 'off');
+                        delete(obj.tab.inputAxesPanel(mm))
+                    else
+                        vis = 'off';
+
+                        if mm == obj.I
+                            vis = 'on';
+                        end
+
+                        obj.tab.inputAxesPanel(mm) = uipanel(	'Parent', obj.tab.tab,...
+                                                                'Units', 'characters',...
+                                                                'Position', [padding, height-padding-(base+3+N)*(ch+padding), width-2*padding, (Mi+2)*ch],...
+                                                                'Title', names_.(sd{ll}),...
+                                                                'Visible', vis);
+
+                        for jj = 1:Mi
+                            val = obj.slice{kk};
+
+                            str = 'X';
+                            vis1 = 'on';
+                            vis2 = 'off';
+
+                            if isreal(val) && val < 0
+                                assert(-val <= length(obj.v.displayAxesNames))
+            % 					val = obj.sliceDefault{ii};
+                                str = upper(obj.v.displayAxesNames{-val});
+                                vis1 = 'off';
+                                vis2 = 'on';
+                            end
+
+%                             removesnap = obj.s.inputs{ii}.inputAxes{jj}.display_only;
+                            removesnap = dims__{jj}.display_only;
+
+                            levellist = obj.axisOptions(1:(end-removesnap));
+
+                            name = regexprep(dims__{jj}.get_label(), {['^' names_.(sd{ll})]}, {''});
+
+                            uicontrol(obj.tab.inputAxesPanel(mm), 	'Style', 'text',...
+                                                                    'String', [name ': '],...
+                                                                    'Tooltip', dims__{jj}.help_text,...
+                                                                    'HorizontalAlignment', 'left',...
+                                                                    'Units', 'characters',...
+                                                                    'Position', [padding, 1*ch-padding-(-Mi+jj)*(ch+padding), tw, ch]);
+
+                            bw1 = (width-5*padding-tw)/2;
+                            y = 1*ch-padding-(-Mi+jj)*(ch+padding);
+                            popuppos = [2*padding+tw-2.5*padding, y, bw1, ch];
+                            editpos = [2*padding+tw-2.5*padding+bw1, y, bw1-3*padding, ch];
+
+                            obj.tab.axes(kk) = uicontrol(obj.tab.inputAxesPanel(mm), 	'Style', 'popupmenu',...
+                                                                                        'String', levellist,...
+                                                                                        'Value', obj.sliceOptions(kk),...
+                                                                                        'Visible', 'on',...
+                                                                                        'UserData', kk,...
+                                                                                        'HorizontalAlignment', 'left',...
+                                                                                        'Units', 'characters',...
+                                                                                        'Position', popuppos,...
+                                                                                        'Callback', @obj.updateSliceOptions_Callback);
+
+                            obj.tab.frozen(kk) = uicontrol(obj.tab.inputAxesPanel(mm),  'Style', 'popupmenu',...
+                                                                                        'String', {str},...
+                                                                                        'Value', 1,...
+                                                                                        'Enable', 'off',...
+                                                                                        'Visible', vis2,...
+                                                                                        'HorizontalAlignment', 'left',...
+                                                                                        'Units', 'characters',...
+                                                                                        'Position', popuppos);
+
+                            obj.tab.edit(kk) = uicontrol(obj.tab.inputAxesPanel(mm),    'Style', 'edit',...
+                                                                                        'String', obj.slice{kk},...
+                                                                                        'Visible', vis1,...
+                                                                                        'UserData', kk,...
+                                                                                        'HorizontalAlignment', 'center',...
+                                                                                        'Units', 'characters',...
+                                                                                        'Position', editpos,...
+                                                                                        'Callback', @obj.updateSlice_Callback);
+
+                            kk = kk + 1;
+                            mm = mm + 1;
+                        end
+                    end
+                end
+			end
+
+			% obj.tab.Scrollable = 'on';
+        end
+
         function tf = hasUI(obj)
             tf = isempty(obj.tab);
         end
@@ -87,43 +310,33 @@ classdef SweepProcessed < handle
                 return
             end
             
-			s = size(obj.s.data{obj.I});
+% 			s_ = size(obj.s.data{obj.I});
+            sd = obj.s.subdata
+			s_ = size(obj.s.data.(sd{obj.I}).dat);
 
-			N = length(s);
+			N = length(s_);
 			D = (1:N);
 
 			S.type = '()';
 			S.subs = obj.slice;		% num2cell(obj.slice);
 			S.subs(obj.sliceOptions <= 0) = {':'};	% Account for X and Y
+            
+            
+            p = subsref(obj.s.data.(sd{obj.I}).dat, S);
+            size(obj.s.data.(sd{obj.I}).dat)
+            size(p)
 
+            obj.v.displayAxesMeasNum
             
-            % This is handled elswhere.
-% 			for xx = X(obj.sliceOptions == 6)		% If the option choice was 'snap'...
-% 				if ~isempty(obj.v.displayAxesObjects{xx})
-%                     dif = abs(obj.v.displayAxesScans{xx} - obj.v.displayAxesObjects{xx}.value);
-%                     
-%                     indices = 1:length(obj.v.displayAxesScans{xx});
-%                     
-% 					S.subs{xx} = min(indices(dif == min(dif)));
-% 				else
-% 					error();
-% 				end
-%             end
+            relevant = obj.v.displayAxesMeasNum == 0 | obj.v.displayAxesMeasNum == obj.I; % Look for axes which are either global (0) or related to this input (obj.I)
             
-%             q = obj.s.data{obj.I};
-
-%             size(q)
+            relevant
             
-            p = subsref(obj.s.data{obj.I}, S);
-            
-%             size(p)
-            
-%             obj.v.displayAxesInputs
-%             obj.I
-
-            relevant = obj.v.displayAxesInputs == 0 | obj.v.displayAxesInputs == obj.I; % Look for axes which are either global (0) or related to this input (obj.I)
+            obj.sliceOptions
             
             opts = obj.sliceOptions(relevant(2:end));   % Ignore the first axis, which is None
+            
+            opts
             
             for ii = 1:(length(obj.axisOptions)-1)  % Iterate through the non-snap options
                 d = D(opts == ii);
@@ -146,38 +359,10 @@ classdef SweepProcessed < handle
                     opts(opts == ii) = [];
                 end
             end
-
-%             if obj.normAuto
-%                 obj.normalize(p);
-%             end
-
-%             'swish'
-% % 
-%             size(p)
-
-%             p
-
-%             obj.processed = squeeze(p);
-%             obj.processed = p;
-            
-%             'dish'
-%             
-%             size(obj.processed)
-            
-%             if callAbove
-%             end
-            
-%             obj.sliceOptions
             
 			scandim = obj.sliceOptions < 0;
-            
-%             scandim
 			
 			xy = abs(obj.sliceOptions(scandim));
-			
-% 			xy
-			
-			% assert(all(size(obj.processed) == L(scandim)));
 			
 			if length(xy) == 2 && diff(xy) > 0		% Transpose the data if the viewer order is reversed from the full data order. Only works for 2D; make generic.
 				obj.processed = squeeze(p)';
@@ -186,39 +371,7 @@ classdef SweepProcessed < handle
             end
             
             obj.dataChanged_Callback(0,0);
-		end
-
-% 		function normalize(obj, p)
-%             if isempty(p)
-%                 p = obj.processed;
-%             end
-%             
-%             if obj.normAll
-%                 obj.m = nanmin(nanmin(p));
-%                 obj.M = nanmax(nanmax(p));
-%             else
-%                 obj.m = nanmin(nanmin(obj.s.data{obj.I}));
-%                 obj.M = nanmax(nanmax(obj.s.data{obj.I}));
-%             end
-%             
-%             if isnan(obj.m) && isnan(obj.M)
-%                 obj.m = 0;
-%                 obj.M = 1;
-%             end
-%             
-%             assert(~(isnan(obj.m) || isnan(obj.M)))
-%             
-%             if obj.m == obj.M
-%                 obj.m = obj.m - .5;
-%                 obj.M = obj.M + .5;
-%             end
-%                 
-%             assert(obj.m < obj.M);
-%         end
-        
-%         function updateDisplayAxes()
-%             
-%         end
+        end
 
         function updateSlice_Callback(obj, src, ~)
 %             src
@@ -353,15 +506,15 @@ classdef SweepProcessed < handle
             end
         end
         
+        function setinput_Callback(obj, src, ~)
+            obj.I = src.Value-1;
+        end
 		function set.I(obj, I)
 			if isempty(I)
 				I = obj.I;
 			end
 
-			traitors = obj.v.displayAxesInputs(obj.v.axesDisplayed) > 0 & obj.v.displayAxesInputs(obj.v.axesDisplayed) ~= I;
-
-%             obj.I
-%             traitors
+			traitors = obj.v.displayAxesMeasNum(obj.v.axesDisplayed) > 0 & obj.v.displayAxesMeasNum(obj.v.axesDisplayed) ~= I;
             
 			if any(traitors)
 				obj.enabled = false;
@@ -376,12 +529,6 @@ classdef SweepProcessed < handle
             end
 
 			if ~isempty(obj.tab)	% If we have a panel...
-%                 obj.I
-%                 I
-
-%                 obj.tab.frozen.Visible
-%                 obj.sliceOptions < 0
-
                 for ii = 1:length(obj.sliceOptions)
                     if any(ii+1 == obj.v.axesDisplayed)   % If an axis is a slice axis...
                         indices = 1:length(obj.v.axesDisplayedNames);
@@ -396,12 +543,8 @@ classdef SweepProcessed < handle
                     end
                     
                     obj.tab.frozen(ii).Visible = obj.sliceOptions(ii) < 0;
-%                     obj.tab.axes(ii).Visible = obj.sliceOptions(ii) >= 0;
                     obj.tab.edit(ii).Visible = obj.sliceOptions(ii) >= 0;
                 end
-
-%                 traitors = obj.v.displayAxesInputs(obj.v.axesDisplayed) > 0 & obj.v.displayAxesInputs(obj.v.axesDisplayed) ~= I;
-
 
 				if obj.I ~= I
                     
@@ -412,6 +555,8 @@ classdef SweepProcessed < handle
                         end
 
                         if I > 0
+                            I
+                            obj.tab.inputAxesPanel
                             if isvalid(obj.tab.inputAxesPanel(I))
                                 obj.tab.inputAxesPanel(I).Visible = 'on';
                             end
@@ -432,8 +577,6 @@ classdef SweepProcessed < handle
             if obj.I == 0 && obj.enabledUI
                 obj.enabled = true;
             end
-
-			% obj.process();
         end
         
         function setEnabled_Callback(obj, src, ~)
@@ -486,264 +629,47 @@ classdef SweepProcessed < handle
 			end
         end
 
-        function setinput_Callback(obj, src, ~)
-            obj.I = src.Value-1;
-        end
-        
-        function makePanel(obj)
-			if ~isempty(obj.tab)
-				return
-			end
-
-			padding = .5;
-			ch = 1.25;
-
-			% Tab constructionn
-			obj.tab.tab = uitab('Parent', obj.v.panel.tabgroup, 'Title', obj.v.names{obj.x}, 'UserData', obj.x);
-
-			obj.tab.tab.Units = 'characters';
-			width = obj.tab.tab.InnerPosition(3);
-			height = obj.tab.tab.InnerPosition(4)-1.5*ch;
-
-			% Input selector
-			MM = length(obj.s.inputs);
-			iNames = {'None [none]'};
-
-			for ii = 1:MM
-				iNames{end+1} = obj.s.inputs{ii}.get_label();%#ok
-			end
-
-
-			uicontrol(obj.tab.tab, 					'Style', 'text',...
-													'String', 'Input: ',...
-													'HorizontalAlignment', 'left',...
-													'Units', 'characters',...
-			 										'Position', [padding, height-padding-(ch+padding), 5, ch]);
-
-			obj.tab.input = uicontrol(obj.tab.tab, 	'Style', 'popupmenu',...
-													'String', iNames,...
-													'Value', obj.I+1,...
-													'HorizontalAlignment', 'left',...
-													'Units', 'characters',...
-			 										'Position', [2*padding+3, height-padding-(ch+padding), width-5*padding-5-7.5, ch],...
-													'Callback', @obj.setinput_Callback);
-
-			% Enabled checkbox
-			obj.tab.enabled = uicontrol(obj.tab.tab,'Style', 'checkbox',...
-													'String', 'Enabled? ',...
-													'Value', obj.enabled,...
-													'HorizontalAlignment', 'left',...
-													'Units', 'characters',...
-			 										'Position', [2*padding+3+width-5*padding-5-8, height-padding-(ch+padding), 10, ch],...
-                                                    'Callback', @obj.setEnabled_Callback);
-% 			 										'Position', [padding, height-padding-2*(ch+padding), 10, ch],...
-
-			% Scalebox
-            obj.tab.scale.panel  = uipanel(	'Parent', obj.tab.tab,...
-                                            'Units', 'characters',...
-                                            'Position', [padding, height-2.8*ch-5, width-2*padding, 6],...
-                                            'Title', 'Scale');
-			obj.makeScaleGUI();
-% 			obj.makeScalePanel();
-% 			obj.tab.scale.panel.Units = 'characters';
-% 			obj.tab.scale.panel.Position(2) = height-3.4*ch-obj.tab.scale.panel.Position(4);
-
-			N = obj.s.dimension();
-
-            tw = 12;
-            
-            base = 4.6;
-
-			% Axes
-			for ii = 1:N
-				levellist = [obj.axisOptions]; %strcat(strread(num2str(obj.s.scans{ii}), '%s')', [' ' obj.s.axes{ii}.extUnits])];
-
-%                 name = obj.s.axes{ii}.nameUnits();
-                name = obj.s.axes{ii}.get_label();
-                
-				uicontrol(obj.tab.tab, 					'Style', 'text',...
-														'String', [name ': '],...
-														'Tooltip', obj.s.axes{ii}.help_text,...
-														'HorizontalAlignment', 'left',...
-														'Units', 'characters',...
-				 										'Position', [padding, height-padding-(base+ii)*(ch+padding), 12, ch]);
-
-                bw1 = (width-5*padding-tw)/2;
-				popuppos = [2*padding+tw-padding, height-padding-(base+ii)*(ch+padding), bw1, ch];
-				editpos = [2*padding+tw-padding+bw1, height-padding-(base+ii)*(ch+padding), bw1-3*padding, ch];
-
-				val = obj.sliceOptions(ii);
-%                 obj.sliceOptions(ii)
-%                 val
-                % obj.slice
-% 				dif = val - length(levellist);
-
-%                 val
-%                 length(levellist)+1
-				str = 'X';
-				vis1 = 'on';
-				vis2 = 'off';
-
-%                 dif
-
-				if isreal(val) && val < 0
-					assert(-val <= length(obj.v.axesDisplayedNames))
-% 					val = obj.sliceDefault{ii};
-					str = upper(obj.v.axesDisplayedNames{-val});
-					vis1 = 'off';
-					vis2 = 'on';
-				end
-
-				obj.tab.axes(ii) = uicontrol(obj.tab.tab, 	'Style', 'popupmenu',...
-															'String', levellist,...
-															'Value', obj.sliceOptions(ii),...
-															'Visible', 'on',...
-                                                            'UserData', ii,...
-															'HorizontalAlignment', 'left',...
-															'Units', 'characters',...
-					 										'Position', popuppos,...
-                                                            'Callback', @obj.updateSliceOptions_Callback);
-
-				obj.tab.frozen(ii) = uicontrol(obj.tab.tab, 'Style', 'popupmenu',...
-															'String', {str},...
-															'Value', 1,...
-															'Enable', 'off',...
-															'Visible', vis2,...
-															'HorizontalAlignment', 'left',...
-															'Units', 'characters',...
-					 										'Position', popuppos);
-
-				obj.tab.edit(ii) = uicontrol(obj.tab.tab,   'Style', 'edit',...
-															'String', obj.slice{ii},...
-															'Visible', vis1,...
-                                                            'UserData', ii,...
-															'HorizontalAlignment', 'center',...
-															'Units', 'characters',...
-					 										'Position', editpos,...
-                                                            'Callback', @obj.updateSlice_Callback);
-            end
-
-            kk = N + 1;
-
-			% Input Panels
-			for ii = 1:length(obj.s.inputs)
-				Mi = length(obj.s.inputs{ii}.inputAxes);
-                
-                if Mi == 0
-                    obj.tab.inputAxesPanel(ii) = uipanel(	'Parent', obj.tab.tab, 'Visible', 'off');
-                    delete(obj.tab.inputAxesPanel(ii))
-                else
-                    vis = 'off';
-
-                    if ii == obj.I
-                        vis = 'on';
-                    end
-
-                    obj.tab.inputAxesPanel(ii) = uipanel(	'Parent', obj.tab.tab,...
-                                                            'Units', 'characters',...
-                                                            'Position', [padding, height-padding-(base+3+N)*(ch+padding), width-2*padding, (Mi+2)*ch],...
-                                                            'Title', obj.s.inputs{ii}.name,...
-                                                            'Visible', vis);
-
-                    for jj = 1:Mi
-                        val = obj.slice{kk};
-
-                        str = 'X';
-                        vis1 = 'on';
-                        vis2 = 'off';
-
-                        if isreal(val) && val < 0
-                            assert(-val <= length(obj.v.displayAxesNames))
-        % 					val = obj.sliceDefault{ii};
-                            str = upper(obj.v.displayAxesNames{-val});
-                            vis1 = 'off';
-                            vis2 = 'on';
-                        end
-
-                        removesnap = obj.s.inputs{ii}.inputAxes{jj}.display_only;
-
-                        levellist = obj.axisOptions(1:(end-removesnap)); % strcat(strread(num2str(obj.s.inputs{ii}.inputScans{jj}), '%s')', [' ' obj.s.inputs{ii}.inputAxes{jj}.extUnits])];
-
-    % 					name = regexprep(obj.s.inputs{ii}.inputAxes{jj}.nameUnits(), {['^' obj.s.inputs{ii}.name]}, {''});
-                        name = regexprep(obj.s.inputs{ii}.inputAxes{jj}.get_label(), {['^' obj.s.inputs{ii}.name]}, {''});
-
-    %                     name
-
-                        uicontrol(obj.tab.inputAxesPanel(ii), 	'Style', 'text',...
-                                                                'String', [name ': '],...
-                                                                'Tooltip', obj.s.inputs{ii}.inputAxes{jj}.help_text,...
-                                                                'HorizontalAlignment', 'left',...
-                                                                'Units', 'characters',...
-                                                                'Position', [padding, 1*ch-padding-(-Mi+jj)*(ch+padding), 12, ch]);
-
-                        bw1 = (width-5*padding-tw)/2;
-                        y = 1*ch-padding-(-Mi+jj)*(ch+padding);
-                        popuppos = [2*padding+tw-2.5*padding, y, bw1, ch];
-                        editpos = [2*padding+tw-2.5*padding+bw1, y, bw1-3*padding, ch];
-
-                        obj.tab.axes(kk) = uicontrol(obj.tab.inputAxesPanel(ii), 	'Style', 'popupmenu',...
-                                                                                    'String', levellist,...
-                                                                                    'Value', obj.sliceOptions(kk),...
-                                                                                    'Visible', 'on',...
-                                                                                    'UserData', kk,...
-                                                                                    'HorizontalAlignment', 'left',...
-                                                                                    'Units', 'characters',...
-                                                                                    'Position', popuppos,...
-                                                                                    'Callback', @obj.updateSliceOptions_Callback);
-
-                        obj.tab.frozen(kk) = uicontrol(obj.tab.inputAxesPanel(ii),  'Style', 'popupmenu',...
-                                                                                    'String', {str},...
-                                                                                    'Value', 1,...
-                                                                                    'Enable', 'off',...
-                                                                                    'Visible', vis2,...
-                                                                                    'HorizontalAlignment', 'left',...
-                                                                                    'Units', 'characters',...
-                                                                                    'Position', popuppos);
-
-                        obj.tab.edit(kk) = uicontrol(obj.tab.inputAxesPanel(ii),    'Style', 'edit',...
-                                                                                    'String', obj.slice{kk},...
-                                                                                    'Visible', vis1,...
-                                                                                    'UserData', kk,...
-                                                                                    'HorizontalAlignment', 'center',...
-                                                                                    'Units', 'characters',...
-                                                                                    'Position', editpos,...
-                                                                                    'Callback', @obj.updateSlice_Callback);
-
-                        kk = kk + 1;
-                    end
-                end
-			end
-
-			% obj.tab.Scrollable = 'on';
-        end
-
-        % Next gen scale GUI
+		% Scale panel creation + callbacks
         function makeScaleGUI(obj)
-% 			obj.tab.scale.panel = uipanel('Parent', obj.tab.tab, 'Units', 'pixels', 'Position', [1 20 pw+2 psh+2*bh], 'Title', 'Scale');
-
-% 			padding = .5;
 			ch = 1.25;
             y = 3.8;
             
-            obj.tab.scale.norm =        uicontrol('Parent', obj.tab.scale.panel, 'Style', 'push',  'String', 'Normalize',   'Units', 'characters', 'Position', [.5 y 10 ch], 'Callback', @obj.normalize_Callback);
-
-			obj.tab.scale.normAuto =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'check', 'String', 'Auto',        'Units', 'characters', 'Position', [12 y 10 ch], 'Value', obj.normAuto, 'Callback', @obj.normauto_Callback);
-			obj.tab.scale.normAll =     uicontrol('Parent', obj.tab.scale.panel, 'Style', 'check', 'String', 'Slicewise',   'Units', 'characters', 'Position', [20 y 10 ch], 'Value', ~obj.normAll, 'Callback', @obj.normall_Callback);
-% 			obj.tab.scale.normPair =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'check', 'String', 'Paired',      'Units', 'characters', 'Position', [30 y 10 ch], 'Value', false);
+            obj.tab.scale.norm =        uicontrol(  'Parent', obj.tab.scale.panel,...
+                                                    'Interruptible', 'off',...
+                                                    'Style', 'push',...
+                                                    'String', 'Normalize',...
+                                                    'Units', 'characters',...
+                                                    'Position', [.5 y 10 ch],...
+                                                    'Callback', @obj.normalize_Callback);
+			obj.tab.scale.normAuto =    uicontrol(  'Parent', obj.tab.scale.panel,...
+                                                    'Interruptible', 'off',...
+                                                    'Style', 'check',...
+                                                    'String', 'Auto',... 
+                                                    'Units', 'characters',...
+                                                    'Position', [12 y 10 ch],...
+                                                    'Value', obj.normAuto,...
+                                                    'Callback', @obj.normauto_Callback);
+			obj.tab.scale.normAll =     uicontrol(  'Parent', obj.tab.scale.panel,...
+                                                    'Interruptible', 'off',...
+                                                    'Style', 'check',...
+                                                    'String', 'Slicewise',...
+                                                    'Units', 'characters',...
+                                                    'Position', [20 y 10 ch],...
+                                                    'Value', ~obj.normAll,...
+                                                    'Callback', @obj.normall_Callback);
+			obj.tab.scale.normPair =    uicontrol(  'Parent', obj.tab.scale.panel,...
+                                                    'Interruptible', 'off',...
+                                                    'Style', 'check',...
+                                                    'String', 'Paired',...
+                                                    'Units', 'characters',...
+                                                    'Position', [30 y 10 ch],...
+                                                    'Value', false,...
+                                                    'Enable', 'off');
 			
             obj.tab.scale.ax = axes(obj.tab.scale.panel,    'Units', 'Normalized',...
                                                             'Position', [0 0 1 1],...
                                                             'XGrid', 'on',...
                                                             'YGrid', 'on');
-            
-%             obj.ax.ButtonDownFcn = @obj.figureClickCallback;
-%             obj.ax.DataAspectRatioMode = 'manual';
-%             obj.ax.BoxStyle = 'full';
-%             obj.ax.Box = 'on';
-%             obj.ax.UIContextMenu = menu;
-%             obj.ax.XGrid = 'on';
-%             obj.ax.YGrid = 'on';
-%             obj.ax.Layer = 'top';
             
             obj.tab.scale.ax.Units = 'characters';
             obj.tab.scale.ax.Position(2) = 1.3;
@@ -752,13 +678,7 @@ classdef SweepProcessed < handle
             obj.tab.scale.hist = histogram(obj.tab.scale.ax, NaN, 100,... 
                                             'FaceColor', obj.v.colors{obj.x}*.8,...
                                             'EdgeColor', 'none',...
-                                            'PickableParts', 'none');%,...
-%                                             'BinMethod', 'auto');
-                                        
-%             obj.tab.scale.box =  patch([0, 0, 100, 100], [-1e5, 1e5, 1e5, -1e5],  obj.v.colors{obj.x},...
-%                                             'EdgeColor',  obj.v.colors{obj.x},...
-%                                             'FaceAlpha', .05,...
-%                                             'Linewidth', 3);
+                                            'PickableParts', 'none');
 
             menu = uicontextmenu;
             obj.tab.scale.box = images.roi.Rectangle(obj.tab.scale.ax,  'Deletable', false,...
@@ -769,61 +689,19 @@ classdef SweepProcessed < handle
             obj.tab.scale.ax.ButtonDownFcn = [];
             obj.tab.scale.ax.Interactions = [];
             
-%             obj.ax.ButtonDownFcn = @obj.figureClickCallback;
-%             obj.tab.scale.ax.Toolbar.Visible = 'off';
             obj.tab.scale.ax.Toolbar = [];
             disableDefaultInteractivity(obj.tab.scale.ax)
                                                                     
             obj.normAuto = obj.normAuto;
                                                                     
-            addlistener(obj.tab.scale.box, 'MovingROI', @obj.positionChange_Callback);
+            addlistener(obj.tab.scale.box, 'MovingROI', @obj.scalePositionChange_Callback);
         end
-        function positionChange_Callback(obj, ~, evt)
+        function scalePositionChange_Callback(obj, ~, evt)
             obj.m = evt.CurrentPosition(1);
             obj.M = evt.CurrentPosition(1) + evt.CurrentPosition(3);
             
-%             obj.dataChanged_Callback(0,0);
             obj.v.process();
         end
-        
-		% Scale panel creation + callbacks
-		function makeScalePanel(obj)
-			pw = 250;           % Panel Width, the width of the side panel
-
-			bp = 5;             % Button Padding
-			bw = pw/2 - 2*bp;   % Button Width, the width of a button/object
-			bh = 16;            % Button Height, the height of a button/object
-
-			psh = 3.25*bh;         % Scale figure height
-
-			obj.tab.scale.panel = uipanel('Parent', obj.tab.tab, 'Units', 'pixels', 'Position', [1 20 pw+2 psh+2*bh], 'Title', 'Scale');
-
-			obj.tab.scale.minText =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'text',   'String', 'Min:',   'Units', 'pixels', 'Position', [bp,psh,bw/4,bh], 'HorizontalAlignment', 'right');
-			obj.tab.scale.minEdit =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'edit',   'String', 0,        'Units', 'pixels', 'Position', [2*bp+bw/4,psh,bw/2,bh]); %, 'Enable', 'Inactive');
-			obj.tab.scale.minSlid =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'slider', 'Value', 0,         'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh,5*bw/4,bh], 'Min', 0, 'Max', 2, 'SliderStep', [2/300, 2/30]); % Instert reasoning for 2/3
-
-			obj.tab.scale.maxText =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'text',   'String', 'Max:',   'Units', 'pixels', 'Position', [bp,psh-bh,bw/4,bh], 'HorizontalAlignment', 'right');
-			obj.tab.scale.maxEdit =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'edit',   'String', 1,        'Units', 'pixels', 'Position', [2*bp+bw/4,psh-bh,bw/2,bh]); %, 'Enable', 'Inactive');
-			obj.tab.scale.maxSlid =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'slider', 'Value', 1,         'Units', 'pixels', 'Position', [3*bp+3*bw/4,psh-bh,5*bw/4,bh], 'Min', 0, 'Max', 2, 'SliderStep', [2/300, 2/30]);
-
-			obj.tab.scale.dataMinText = uicontrol('Parent', obj.tab.scale.panel, 'Style', 'text',  'String', 'Data Min:',  'Units', 'pixels', 'Position', [2*bp+bw,psh-2*bh,bw/2,bh], 'HorizontalAlignment', 'right');
-			obj.tab.scale.dataMinEdit = uicontrol('Parent', obj.tab.scale.panel, 'Style', 'edit',  'String', 0,            'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-2*bh,bw/2,bh], 'Enable', 'Inactive');
-
-			obj.tab.scale.dataMaxText = uicontrol('Parent', obj.tab.scale.panel, 'Style', 'text',  'String', 'Data Max:',  'Units', 'pixels', 'Position', [2*bp+bw,psh-3*bh,bw/2,bh], 'HorizontalAlignment', 'right');
-			obj.tab.scale.dataMaxEdit = uicontrol('Parent', obj.tab.scale.panel, 'Style', 'edit',  'String', 1,            'Units', 'pixels', 'Position', [3*bp+3*bw/2,psh-3*bh,bw/2,bh], 'Enable', 'Inactive');
-
-			obj.tab.scale.normAuto =    uicontrol('Parent', obj.tab.scale.panel, 'Style', 'check', 'String', 'Auto', 'Units', 'pixels', 'Position', [bp+.7*bw,psh-3*bh,.4*bw,bh], 'Value', obj.normAuto);
-			obj.tab.scale.normAll =     uicontrol('Parent', obj.tab.scale.panel, 'Style', 'check', 'String', 'Slicewise', 'Units', 'pixels', 'Position', [bp,psh-3*bh,.6*bw,bh], 'Value', obj.normAll);
-			obj.tab.scale.norm =        uicontrol('Parent', obj.tab.scale.panel, 'Style', 'push',  'String', 'Normalize',      'Units', 'pixels', 'Position', [bp,psh-2*bh,1.1*bw,bh], 'Callback', @obj.normalize_Callback);
-
-			obj.tab.scale.minEdit.Callback = @obj.edit_Callback;
-			obj.tab.scale.maxEdit.Callback = @obj.edit_Callback;
-
-			obj.tab.scale.minSlid.Callback = @obj.slider_Callback;
-			obj.tab.scale.maxSlid.Callback = @obj.slider_Callback;
-
-			obj.tab.scale.normAuto.Callback = @obj.normauto_Callback;
-		end
 		function normall_Callback(obj, ~, ~)
 			obj.normAll = ~obj.tab.scale.normAll.Value;
 		end
@@ -848,128 +726,22 @@ classdef SweepProcessed < handle
                 obj.normalize(false)
             end
         end
-		function edit_Callback(obj, src,~)
-			val = str2double(src.String);
-
-			if isnan(val)   % If it's NaN (if str2double didn't work), check if it's an equation
-				try
-					val = eval(src.String);
-				catch err
-					display(err.message);
-					val = 0;
-				end
-			end
-
-			if isnan(val)   % If it's still NaN, set to zero
-				val = 0;
-			end
-
-			switch src
-				case obj.tab.scale.minEdit
-					obj.tab.scale.minSlid.Value = val;
-					obj.slider_Callback(obj.tab.scale.minSlid, 0)
-				case obj.tab.scale.maxEdit
-					obj.tab.scale.maxSlid.Value = val;
-					obj.slider_Callback(obj.tab.scale.maxSlid, 0)
-			end
-		end
 		function normalize_Callback(obj, ~, ~)
             obj.v.process();
             obj.normalize(true)
-% 			if ~isnan(str2double(obj.tab.scale.dataMinEdit.String))
-% 				obj.tab.scale.minSlid.Max = str2double(obj.tab.scale.dataMinEdit.String);
-% 			end
-% 			obj.tab.scale.minSlid.Value = obj.tab.scale.minSlid.Max;
-% 
-% 			if ~isnan(str2double(obj.tab.scale.dataMaxEdit.String))
-% 				obj.tab.scale.maxSlid.Max = str2double(obj.tab.scale.dataMaxEdit.String);
-% 			end
-% 			obj.tab.scale.maxSlid.Value = obj.tab.scale.maxSlid.Max;
-% 
-% 			obj.slider_Callback(obj.tab.scale.minSlid, -1);
-% 			obj.slider_Callback(obj.tab.scale.maxSlid, -1);
-		end
-		function slider_Callback(obj, src, ~)
-			maxMagn = floor(log10(src.Max));
-
-			if src.Value <= 0
-				src.Value = 0;
-				src.Max = 1e4;
-
-				switch src
-					case obj.tab.scale.minSlid
-						obj.tab.scale.minEdit.String = 0;
-					case obj.tab.scale.maxSlid
-						obj.tab.scale.maxEdit.String = 0;
-				end
-			else
-				magn = floor(log10(src.Value));
-
-				str = [num2str(src.Value/(10^magn), '%1.1f') 'e' num2str(magn)];
-
-				switch src
-					case obj.tab.scale.minSlid
-						obj.tab.scale.minEdit.String = str;
-					case obj.tab.scale.maxSlid
-						obj.tab.scale.maxEdit.String = str;
-				end
-
-				if magn+1 > maxMagn
-					switch src
-						case obj.tab.scale.minSlid
-							obj.tab.scale.minSlid.Max = 1.5*10^(magn+1);
-						case obj.tab.scale.maxSlid
-							obj.tab.scale.maxSlid.Max = 1.5*10^(magn+1);
-					end
-				end
-
-				if magn+1 < maxMagn
-					switch src
-						case obj.tab.scale.minSlid
-							obj.tab.scale.minSlid.Max = 1.5*10^(magn+1);
-						case obj.tab.scale.maxSlid
-							obj.tab.scale.maxSlid.Max = 1.5*10^(magn+1);
-					end
-				end
-			end
-
-			if obj.tab.scale.minSlid.Value > obj.tab.scale.maxSlid.Value
-				switch src
-					case obj.tab.scale.minSlid
-						obj.tab.scale.maxSlid.Value = obj.tab.scale.minSlid.Value;
-						if obj.tab.scale.maxSlid.Max < obj.tab.scale.minSlid.Value
-							obj.tab.scale.maxSlid.Max = obj.tab.scale.minSlid.Value;
-						end
-						if obj.tab.scale.maxSlid.Min > obj.tab.scale.minSlid.Value
-							obj.tab.scale.maxSlid.Min = obj.tab.scale.minSlid.Value;
-						end
-						obj.slider_Callback(obj.tab.scale.maxSlid, 0);      % Possible recursion if careless?
-					case obj.tab.scale.maxSlid
-						obj.tab.scale.minSlid.Value = obj.tab.scale.maxSlid.Value;
-						if obj.tab.scale.minSlid.Max < obj.tab.scale.maxSlid.Value
-							obj.tab.scale.minSlid.Max = obj.tab.scale.maxSlid.Value;
-						end
-						if obj.tab.scale.minSlid.Min > obj.tab.scale.maxSlid.Value
-							obj.tab.scale.minSlid.Min = obj.tab.scale.maxSlid.Value;
-						end
-						obj.slider_Callback(obj.tab.scale.minSlid, 0);
-				end
-			else
-
-			end
-
-			obj.applyScale();
         end
         function dataChanged_Callback(obj, ~, ~)
             obj.normalize(false);
         end
 		function normalize(obj, shouldForce)
+            sd = obj.s.subdata
+            
             if obj.normAll
-                m_ = nanmin(obj.s.data{obj.I},[],'all');
-                M_ = nanmax(obj.s.data{obj.I},[],'all');
+                m_ = nanmin(obj.s.data.(sd{obj.I}), [], 'all');
+                M_ = nanmax(obj.s.data.(sd{obj.I}), [], 'all');
             else
-                m_ = nanmin(obj.processed,[],'all');
-                M_ = nanmax(obj.processed,[],'all');
+                m_ = nanmin(obj.processed, [], 'all');
+                M_ = nanmax(obj.processed, [], 'all');
             end
 
 			if isempty(m_) || isnan(m_)
@@ -983,50 +755,6 @@ classdef SweepProcessed < handle
                 m_ = m_ + .5;
                 M_ = M_ + .5;
             end
-            
-%             magn = floor(log10(m_));
-%             MAGN = floor(log10(M_));
-%             
-%             mv = floor(m_/(10^(magn-1)))/10;
-%             Mv = ceil(M_/(10^(magn-1)))/10;
-%             
-%             m_ = mv * (10 ^ magn);
-%             M_ = Mv * (10 ^ MAGN);
-
-% 			if m <= 0
-% 				str = '0';
-% 			else
-% 				magn = floor(log10(m));
-% 				% str = [num2str(m/(10^magn), '%1.1f') 'e' num2str(magn)];
-% 				str = [num2str(floor(m/(10^(magn-1)))/10, '%1.1f') 'e' num2str(magn)];
-% 			end
-% 
-% 			if M <= 0
-% 				STR = '0';
-% 			else
-% 				magn = floor(log10(M));
-% 				% STR = [num2str(M/(10^magn), '%1.1f') 'e' num2str(magn)];
-% 				STR = [num2str(ceil(M/(10^(magn-1)))/10, '%1.1f') 'e' num2str(magn)];
-% 			end
-% 
-% 			if isnan(str2double(str))
-% 				str = '0';
-% 			end
-% 			if isnan(str2double(STR))
-% 				STR = '1';
-% 			end
-% 
-% 			if str2double(STR) < str2double(str)
-% 				str = '0';
-% 				STR = '1';
-% 			end
-% 
-% 			str0 = obj.tab.scale.dataMinEdit.String;
-% 			STR0 = obj.tab.scale.dataMaxEdit.String;
-% 
-% 			obj.tab.scale.dataMinEdit.String = [num2str(mv, '%1.1f') 'e' num2str(magn)];
-% 			obj.tab.scale.dataMaxEdit.String = [num2str(Mv, '%1.1f') 'e' num2str(MAGN)];
-            %obj.s.data{obj.I}
 
 			if (obj.normAuto && ~(obj.m == m_ && obj.M == M_)) || shouldForce
                 obj.m = m_;
@@ -1035,8 +763,6 @@ classdef SweepProcessed < handle
 
             if obj.v.currentTab() == obj.x
                 obj.tab.scale.ax.Visible = 'off';
-                
-%                 obj.tab.scale.hist.NumBins = 1;
                     
                 if obj.normAll
                     obj.tab.scale.hist.Data = obj.s.data{obj.I};
@@ -1044,7 +770,7 @@ classdef SweepProcessed < handle
                     obj.tab.scale.hist.Data = obj.processed(:);
                 end
 
-                obj.tab.scale.hist.BinMethod = 'scott';%'auto';
+                obj.tab.scale.hist.BinMethod = 'scott'; %'auto';
 
                 r_ = M_ - m_;
 
@@ -1053,6 +779,10 @@ classdef SweepProcessed < handle
 
                 r = M__ - m__;
     %             r = M_ - m_;
+    
+                if r == 0
+                    r = r + 1;
+                end
 
                 if ~isnan(r)
                     
@@ -1064,25 +794,12 @@ classdef SweepProcessed < handle
                     obj.tab.scale.box.Position(2) = -top;
                     obj.tab.scale.box.Position(4) = 3.2*top;
 
-    %                 obj.tab.scale.ax.XLim = [m_ - r/10, M_ + r/10];
                     obj.tab.scale.ax.XLim = [m__ - r/5, M__ + r/5];
                     obj.tab.scale.ax.YLim = [0 top*1.2];
                 end
                     
                 obj.tab.scale.ax.Visible = 'on';
             end
-		end
-% 		function applyScale(obj)
-% 			m = obj.tab.scale.minSlid.Value;
-% 			M = obj.tab.scale.maxSlid.Value;
-% 
-% 			if m == M
-% 				m = m - .001;
-% 				M = M + .001;   % Make better?
-% 			end
-% 
-% 			obj.m = m;
-% 			obj.M = M;
-% 		end
+        end
 	end
 end

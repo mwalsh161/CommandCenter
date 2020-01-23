@@ -210,7 +210,8 @@ classdef (HandleCompatible) Measurement
             sizes_ = obj.getSizes();
             
             for ii = 1:numel(subdata)
-                blank.(subdata{ii}).dat = NaN(sizes_.(subdata{ii}));
+                blank.(subdata{ii}).dat = rand(sizes_.(subdata{ii}));
+%                 blank.(subdata{ii}).dat = NaN(sizes_.(subdata{ii}));
                 blank.(subdata{ii}).std = [];
             end
         end
@@ -632,11 +633,11 @@ classdef (HandleCompatible) Measurement
 
                     if isempty(obj.names)
                         for ii = 1:length(subdata)
-                            names.(subdata{ii}) = [obj.names ' ' strrep(subdata{ii}, '_', ' ')];
+                            names.(subdata{ii}) = strrep(subdata{ii}, '_', ' ');
                         end
                     else
                         for ii = 1:length(subdata)
-                            names.(subdata{ii}) = strrep(subdata{ii}, '_', ' ');
+                            names.(subdata{ii}) = [obj.names ' ' strrep(subdata{ii}, '_', ' ')];
                         end
                     end
                 else
