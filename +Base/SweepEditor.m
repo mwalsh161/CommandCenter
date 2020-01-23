@@ -76,6 +76,8 @@ classdef SweepEditor < handle
             obj.f.Position(3) = w;
             obj.f.Position(4) = h + padding;
             
+            movegui(obj.f, 'center')
+            
             % uicontrols
             dp = 115;
             p = [10, h + 6, dp-5, 17];

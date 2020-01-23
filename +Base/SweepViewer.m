@@ -101,10 +101,10 @@ classdef SweepViewer < handle
 			obj.makePlots();
 
 			% First, setup the panel.
-			if ~isempty(varargin)
+            if ~isempty(varargin)
                 p = varargin{1};
             else
-                f = figure('units', 'pixels', 'Position', [100,100,350,500], 'numbertitle', 'off', 'MenuBar', 'None');
+                f = figure('units', 'pixels', 'Position', [100,100,300,500], 'numbertitle', 'off', 'MenuBar', 'None');
                 p = uipanel(f);
             end
             
@@ -273,12 +273,13 @@ classdef SweepViewer < handle
 
 			width = obj.panel.panel.InnerPosition(3);
 			height = obj.panel.panel.InnerPosition(4);
-			padding = .5;
-			ch = 1.25;
+			padding = .4;
+			ch = 1.4;
+            lw = 4;
 
 			numaxes = length(obj.axesDisplayedNames);
 
-			aph = ch*numaxes + padding*(numaxes+2);
+			aph = ch*numaxes + padding*(numaxes+4);
 			apanel = uipanel(obj.panel.panel, 			'Title', 'Slice Axes',....
 														'Units', 'characters',...
 														'Position', [padding, height-aph-padding, width-2*padding, aph]);
@@ -287,20 +288,16 @@ classdef SweepViewer < handle
 			aNames = {};
 
             for ii = 1:N
-% 				aNames{end+1} = obj.displayAxesObjects{ii}.nameUnits();
-%                 obj.displayAxesObjects{ii}
-%                 obj.displayAxesObjects{ii}.get_label()
                 aNames{end+1} = obj.displayAxesObjects{ii}.get_label(); %#ok<AGROW>
             end
-
-% 			aNames{end+1} = 'None';
 
 			for ii = 1:numaxes
 				uicontrol(apanel, 								'Style', 'text',...
 																'String', [' ' upper(obj.axesDisplayedNames{ii}) ': '],...
-																'HorizontalAlignment', 'left',...
+																'HorizontalAlignment', 'right',...
 																'Units', 'characters',...
-																'Position', [padding, aph-padding-(ch+padding)*ii, 2*ch, ch]);
+                                                                'Tooltip', ['Set the ' upper(obj.axesDisplayedNames{ii}) ' axis of the slice to a chosen dimension.'],...
+																'Position', [padding, aph-padding-(ch+padding)*ii-.3-1.5*padding, lw, ch]);
 
 				obj.panel.axesDisplayed(ii) = uicontrol(apanel, 'Style', 'popupmenu',...
 																'String', aNames,...
@@ -308,7 +305,7 @@ classdef SweepViewer < handle
 																'UserData', ii,...
 																'HorizontalAlignment', 'left',...
 																'Units', 'characters',...
-																'Position', [2*padding+ch, aph-padding-(ch+padding)*ii, width-5*padding-ch, ch],...
+																'Position', [2*padding+lw, aph-padding-(ch+padding)*ii-1.5*padding, width-7*padding-lw, ch],...
 																'Callback', @obj.axeschanged_Callback);
 			end
 
@@ -326,7 +323,6 @@ classdef SweepViewer < handle
 
     methods
         function figureClickCallback(obj, ~, evt)
-            evt
             if evt.Button == 3  % Right click
                 x = evt.IntersectionPoint(1);
                 y = evt.IntersectionPoint(2);
@@ -366,7 +362,6 @@ classdef SweepViewer < handle
                         obj.menus.indMenu.Label = ['Index: '    num2str(xi)];
                         obj.menus.pixMenu.Label = ['Pixel: '    num2str(xp, 4) ' ' unitsX];
                     case 2  % 2D
-                        '2D'
                         xlist = (obj.img.XData - x) .* (obj.img.XData - x);
                         ylist = (obj.img.YData - y) .* (obj.img.YData - y);
                         xi = find(xlist == min(xlist), 1);
@@ -718,6 +713,10 @@ classdef SweepViewer < handle
 
                         range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
                         label = 'Filler'; %obj.s.inputs{obj.sp{1}.I}.get_label();
+                    end
+                    
+                    if diff(range) == 0
+                        range = range + [-1 1];
                     end
 
                     switch ii
