@@ -91,8 +91,11 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         unit   = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
 
-    properties%(SetAccess = ?Base.PrefHandler)
+    properties %(Hidden) %, SetAccess = ?Base.PrefHandler)
         help_text = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+    end
+    
+    properties
         % If true, sets GUI control to not be enabled
         readonly = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % If true, this is only used for display, and not saved as a pref
@@ -310,7 +313,9 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                         addParameter(p,mp.Name,mp.DefaultValue{1},mp.DefaultValue{2});
                     end
                 end
+                
                 parse(p,varargin{:});
+                
                 if default_in_parser
                     default = p.Results.default;
                 end
@@ -333,7 +338,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 obj.value = default;
 
             catch err
-                throwAsCaller(err);
+                rethrow(err);
             end
             obj.initialized = true;
         end

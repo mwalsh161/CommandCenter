@@ -147,7 +147,7 @@ classdef (HandleCompatible) Measurement
 
 	methods
 		function obj = Measurement()
-            if ~isa(obj, 'Base.Pref')
+            if ~isa(obj, 'Base.Pref') && ~isa(obj, 'Base.Sweep')
                 mr = Base.MeasurementRegister.instance();
                 mr.addMeasurement(obj);
             end
@@ -159,12 +159,23 @@ classdef (HandleCompatible) Measurement
     end
 
     methods (Sealed)
-        function data = snap(obj)
-            try
-                data = obj.validateData(obj.measure());
-            catch
-                % Throw warning?
-                data = obj.validateData(obj.blank());
+        function data = snap(obj, varargin)
+            if numel(varargin) == 0
+                try
+                    data = obj.validateData(obj.measure());
+                catch err
+%                     warning(err.message)
+                    % Throw warning?
+                    data = obj.validateData(obj.blank());
+                end
+            else
+                try
+                    data = obj.validateData(obj.measure(), varargin);
+                catch err
+%                     warning(err.message)
+                    % Throw warning?
+                    data = obj.validateData(obj.blank(), varargin);
+                end
             end
         end
     end
@@ -366,7 +377,7 @@ classdef (HandleCompatible) Measurement
                             end
                         end
                         
-                        d.metadata = metadata;
+                        d.metadata = metadata;o
 
                         return;
                     end
@@ -500,6 +511,9 @@ classdef (HandleCompatible) Measurement
         function N = getN(obj)
             N = numel(obj.subdata());
         end
+        function N = subdatas(obj)
+            N = numel(obj.subdata());
+        end
     end
     
     methods                     % Set the main vars.
@@ -616,8 +630,14 @@ classdef (HandleCompatible) Measurement
                 if obj.subdataDefined
                     subdata = obj.subdata();
 
-                    for ii = 1:length(subdata)
-                        names.(subdata{ii}) = [obj.names ' ' strrep(subdata{ii}, '_', ' ')];
+                    if isempty(obj.names)
+                        for ii = 1:length(subdata)
+                            names.(subdata{ii}) = [obj.names ' ' strrep(subdata{ii}, '_', ' ')];
+                        end
+                    else
+                        for ii = 1:length(subdata)
+                            names.(subdata{ii}) = strrep(subdata{ii}, '_', ' ');
+                        end
                     end
                 else
                     names.data = obj.names;

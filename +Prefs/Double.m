@@ -44,7 +44,7 @@ classdef Double < Prefs.Numeric
             elseif isnan(val)
                 return
             end
-            if val <= obj.max || val >= obj.min
+            if val > obj.max || val < obj.min
                 assert(val <= obj.max, sprintf('Cannot set value greater than max:\n  val = %f %s > %f %s.', val, obj.unit, obj.max, obj.unit))
                 assert(val >= obj.min, sprintf('Cannot set value less than min:\n  val = %f %s < %f %s.', val, obj.unit, obj.min, obj.unit))
             end

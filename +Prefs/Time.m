@@ -15,8 +15,11 @@ classdef Time < Prefs.Integer
             obj.custom_clean = [];
             obj.set = [];
         end
-        function tf = isnumeric(~)      % We want this one to have min/max while not being numeric.
-            tf = false;
+        function val = read(~)
+            val = now;
+        end
+        function tf = writ(~, ~)
+            tf = true;
         end
     end
 end

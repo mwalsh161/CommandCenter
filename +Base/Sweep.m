@@ -1,196 +1,235 @@
-classdef Sweep < handle
-    % SWEEP is a general class for N-dimensional scanning over Base.Pref objects and measuring
+classdef Sweep < handle & Base.Measurement
+    % SWEEP is a general class for N-dimensional scanning over Base.Pref dimensions, measuring
     % Base.Measurement objects at each point.
 
-    properties (SetAccess=private)   % Identity vars.
+    properties (SetAccess=private)  % Identity vars.
         % Axis Info
-        name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+        name = '';
         
         % Core
-        axes;           % cell array                % Contains 1xN `Base.Pref` classes that are being swept over.
-        scans;          % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
-        inputs;         % cell array                % Contains 1xM `Base.Measurement` classes that are being measured at each point.
+        measurements;   % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
+        sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
+        
+        sdims;          % cell array                % Contains 1xN `Base.Pref` objects that are being swept over.
+        sscans;         % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
     end
     
-    properties
+%   properties (Hidden)             % Inherited from Measurement.
+%       % sizes
+%       % names
+%       % units
+%       % dims
+%       % scans
+%   end
+    
+    properties (SetAccess=private)  % Index vars.
         sub;            % 
 		index;			% integer
     end
 
     properties (SetObservable, SetAccess=private)   % Runtime vars.
-        data;           % cell array 				% 1xM cell array (one cell per `Base.Data`) containing (N+P)-dimensional data, where P is the dimension of that `Base.Data`.
+        data;           % cell array 				% 1xM cell array (one cell per `Base.Measurement`) containing (N+P)-dimensional data, where P is the dimension of that `Base.Measurement`.
     end
     
-    properties (Hidden, SetAccess=private)
-        isNIDAQ;      	% boolean 					% Whether we can scan fast with NIDAQ drivers. Only works if _all_ `Base.Data`s are NIDAQ.
+    properties (SetAccess=private)
+        flags = struct( 'isNIDAQ',                  false,...
+                        'isPulseBlaster',           false,...
+                        'isContinuous',             false,...
+                        'isOptimize',               false,...
+                        'shouldOptimizeAfter',      false,...
+                        'shouldReturnToInitial',    true,...
+                        'shouldSetInitialOnReset',  true)
 	end
 
     methods
-		function obj = Sweep()
-			a = Drivers.AxisTest.instance();
-% 			a1 = a.x;
-% 			a2 = a.y;
-            a1 = a.get_meta_pref('x');
-            a2 = a.get_meta_pref('y');
+		function obj = Sweep(varargin)
+            if numel(varargin) == 0
+                a = Drivers.AxisTest.instance('fish');
+                a1 = a.get_meta_pref('x');
+                a2 = a.get_meta_pref('y');
 
-			obj.name = 'Test';
+                a1.writ(.5);
+                a2.writ(4.5);
+                
+                e = Experiments.Spectrum.instance;
 
-			I2 = Base.Data;
-			I2.inputAxes = {};
-			I2.inputScans = {};
-% 			I2.size = [4 4];
-			I2.size = [4 4];
-			I2.name = 'Input Test 2';
-			I2.checkAxesScans();
-
-			I3 = Base.Data;
-			I3.inputAxes = {};
-			I3.inputScans = {};
-			I3.size = [1 1];
-			I3.name = 'Input Test 3';
-			I3.checkAxesScans();
-
-			obj.axes = {a1, a2};
-			obj.scans = {linspace(0, 1, 41), linspace(3, 5, 81)};
-			obj.inputs = {Base.Data, I2, I3};
-            
-            
-            
-%             a1.writ(.5)
-%             a2.writ(4.5)
-
-%             a1 = .5
-%             a2 = 4.5
-
-%             a1.value = .5;
-%             a2.value = 4.5;
-%             a1.writ(.5);
-%             a2.writ(4.5);
-            a1.writ(.5);
-            a2.writ(4.5);
-
-            obj.reset();
-%             obj.snap();
-            
-            
-
-% 			obj.input
-
-			% Check scans and axes
-% 			assert(length(obj.axes) == length(obj.scans))
-% 
-% 			for ii = 1:length(obj.axes)
-% % 				assert(any((contains(superclasses(obj.axes{ii}), 'Base.Axis'))) || strcmp(class(obj.axes{ii}), 'Base.Axis'), 'Axes must be of class Base.Axis');
-% % 				assert(all(obj.axes{ii}.inRange(obj.scans{ii})), ['Scans for ' obj.axes{ii}.name ' must be within ' obj.axes{ii}.nameRange '. These values were out of range: ' num2str(obj.scans{ii}(~obj.axes{ii}.inRange(obj.scans{ii})))]);
-% 
-% 				for jj = (ii+1):length(obj.axes)
-% 					assert(~obj.axes{ii}.equals(obj.axes{jj}), ['Using ' obj.axes{ii}.name ' twice in the same scan is verboten']);
-% 				end
-% 			end
-% 
-% 			% Check inputs
-% 			for ii = 1:length(obj.inputs)
-% 				assert(any((contains(superclasses(obj.inputs{ii}), 'Base.Input'))) || strcmp(class(obj.inputs{ii}), 'Base.Input'));
-% 			end
-        end
-
-        function L = lengths(obj)
-            % Returns the length of each `Base.Pref` dimension in the scan.
-%             obj.scans
-			L = cellfun(@(x)(length(x)), obj.scans,'UniformOutput', true);
-		end
-        function d = dimension(obj)
-            % Returns the total number of scan dimensions.
-			d = length(obj.scans);
-        end
-
-        function D = inputDimensions(obj)
-            D = [];
-            
-            for ii = 1:length(obj.inputs)
-                D = [D obj.inputs{ii}.lengths()];
+%                 obj = Base.Sweep({e}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 81)});
+                obj = Base.Sweep({a1}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 11)});
+                
+                return;
             end
             
-% 			D = cellfun(@(x)(x.lengths()), obj.inputs, 'UniformOutput', true);
+            obj.measurements =  varargin{1};
+            obj.sdims =         varargin{2};
+            obj.sscans =        varargin{3};
+            
+            if nargin > 3
+                fn = fieldnames(varargin{4});
+                for ii = 1:length(fn)
+                    obj.flags.(fn{ii}) = varargin{4}.(fn{ii});
+                end
+            end
+            
+            
+			% Check measurements
+            assert(numel(obj.measurements) == length(obj.measurements), '')
+            assert(numel(obj.measurements) > 0, '')
+            
+            for ii = 1:length(obj.measurements)
+                assert(isa(obj.measurements{ii}, 'Base.Measurement'), '');
+            end
+            
+			% Check dims and scans
+            assert(length(obj.sdims) == length(obj.sscans))
+            for ii = 1:length(obj.sdims)
+                assert(isa(obj.sdims{ii}, 'Base.Pref'), '');
+                assert(obj.sdims{ii}.isnumeric, '');
+                
+                assert(isnumeric(obj.sscans{ii}), '')
+                assert(numel(obj.sscans{ii}) == length(obj.sscans{ii}), '')
+                % (NotImplemented) Check that all the values in obj.sweeps{2, ii} are in range.
+                
+				for jj = (ii+1):length(obj.sdims)
+					assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
+				end
+            end
+            
+            obj.fillMeasurementProperties();
+            obj.reset();
+        end
+        
+        function fillMeasurementProperties(obj)
+            sizes_ = struct();
+            names_ = struct();
+            units_ = struct();
+            dims_  = struct();
+            scans_ = struct();
+
+            ssizes = obj.lengths();
+
+            for ii = 1:length(obj.measurements)
+                mtag = ['m' num2str(ii) '_'];
+                
+                sd = obj.measurements{ii}.subdata();
+                
+                msizes = obj.measurements{ii}.getSizes();
+                mnames = obj.measurements{ii}.getNames();
+                munits = obj.measurements{ii}.getUnits();
+                mdims =  obj.measurements{ii}.getDims();
+                mscans = obj.measurements{ii}.getScans();
+                
+                for jj = 1:length(sd)
+                    s = msizes.(sd{jj});
+                    sizes_.([mtag sd{jj}]) = [ssizes s(s > 1)];  % Append dimensions
+                    names_.([mtag sd{jj}]) = mnames.(sd{jj});
+                    units_.([mtag sd{jj}]) = munits.(sd{jj});
+                    dims_.( [mtag sd{jj}]) = [obj.sdims     mdims.( sd{jj})];
+                    scans_.([mtag sd{jj}]) = [obj.sscans    mscans.(sd{jj})];
+                end
+            end
+            
+            obj.sizes = sizes_;
+            obj.names = names_;
+            obj.units = units_;
+            obj.dims  = dims_;
+            obj.scans = scans_;
+        end
+
+        function l = length(obj)    % Returns the total number of dimensions length(sdims).
+			l = length(obj.sdims);
+        end
+        function L = lengths(obj)   % Returns the length of each dimension in the scan.
+% 			L = cellfun(@(x)(length(x)), obj.sscans, 'UniformOutput', true);
+            
+            l = obj.length();
+            L = NaN(1, l);
+            
+            for ii = 1:l
+                L(ii) = length(obj.sscans{ii});
+            end
+		end
+
+        function l = measurementLength(obj)
+            l = length(obj.measurements);
+        end
+        function D = measurementLengths(obj)
+            D = [];
+            
+            for ii = 1:length(obj.measurements)
+                D = [D obj.measurements{ii}.subdatas()]; %#ok<AGROW>
+            end
         end
         
 		function reset(obj)
 			obj.index = 1;
 
-			L = obj.lengths();
-			M = length(obj.inputs);
-            
-%             if ~iscell(obj.data) || numel(obj.data) ~= M
-%                 obj.data = cell(1, M);
-%             end
-            
-            newdata = cell(1, M);
-            
-			for ii = 1:M
-                newdata{ii} = NaN([L, obj.inputs{ii}.size]);
-% 				obj.data{ii} = NaN([L, obj.inputs{ii}.size]);
-            end
-            
-            obj.data = newdata;
-            
-%             obj.data
+            obj.data = obj.blank();
 
-			obj.isNIDAQ = false;
+			obj.flags.isNIDAQ = false;
         end
         
-        function [vec, ind] = currentPoint(obj)
+        function [vec, ind] = current(obj)
 % 			[sub{1:length(L)}] = ind2sub(L, obj.index);
 %             sub = cell2mat(sub);
-			A = 1:obj.dimension();
+
+			A = 1:obj.length();
             
             ind = NaN*A;
             vec = NaN*A;
 
-			for aa = A
+            for aa = A
                 ind(aa) = obj.sub(aa);
-                vec(aa) = obj.scans{aa}(obj.sub(aa));
+                vec(aa) = obj.sscans{aa}(obj.sub(aa));
             end
         end
 
-		function snap(obj)  % Snap aquires data in the grid according to 
+		function data = measure(obj)
 			% First, make sure that we are at the correct starting position.
 			L = obj.lengths();
-			M = length(obj.inputs);
 			N = prod(L);
             
             if obj.index > N
                 warning('Already done')
+                data = obj.data;
                 return
             end
             
+            obj.sub = [];
+            
 			[obj.sub{1:length(L)}] = ind2sub(L, obj.index);
             obj.sub = cell2mat(obj.sub);
-			A = 1:obj.dimension();
-
-			for aa = A
-				obj.axes{aa}.writ(obj.scans{aa}(obj.sub(aa)));
+			A = 1:obj.length();
+            
+            for aa = A
+                obj.sdims{aa}.writ(obj.sscans{aa}(obj.sub(aa)));
             end
 
-			% Slow aquisition
-			if ~obj.isNIDAQ
-				while obj.index <= N
-					obj.tick();
-				end
-			else
-				% Not Implemented.
-				error()
-			end
+            % Slow aquisition
+            if ~obj.flags.isNIDAQ
+                while obj.index <= N
+                    obj.tick();
+                end
+            else
+                % Not Implemented.
+                error()
+            end
+            
+            data = obj.data;
         end
         
         function tick(obj)
+            L = obj.lengths();
+            
             % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
             [sub2{1:length(L)}] = ind2sub(L, obj.index);
-            sub2 = cell2mat(sub2);
+            SUB = sub2;
+            sub2 = [sub2{:}];
 
             differences = obj.sub ~= sub2;	% Find the axes that need to change...
-
+			A = 1:obj.length();
+            
             for aa = A(differences)
-                obj.axes{aa}.writ(obj.scans{aa}(sub2(aa)));
+                obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
             end
 
             obj.sub = sub2;
@@ -201,17 +240,31 @@ classdef Sweep < handle
 % 					end
 
             % Then, setup for assigning the data, and measure.
-            SUB = num2cell(obj.sub);
-
             S.type = '()';
+            
+			M = obj.measurementLength;
+            
+            sd = obj.subdata;
+            kk = 1;
 
             for ii = 1:M
-                C    = cell(1, sum(obj.inputs{ii}.size > 1));
-                C(:) = {':'};
+                d =         obj.measurements{ii}.snap(false);   % Don't pass metadata...
+                msd =       obj.measurements{ii}.subdata;
+                
+                for jj = 1:length(msd)
+                    C    = cell(1, sum(size(d.(msd{jj}).dat) > 1));
+                    C(:) = {':'};
 
-                S.subs = [SUB C];
+                    S.subs = [SUB C];
 
-                obj.data{ii} = subsasgn(obj.data{ii}, S, obj.inputs{ii}.snap());
+                    obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
+                    
+%                     if ~isempty(d.(msd{jj}).std)
+%                         obj.data.(sd{kk}).std = subsasgn(obj.data.(sd{kk}), S, d.(msd{jj}).std);
+%                     end
+                    
+                    kk = kk + 1;
+                end
             end
 
             % Lastly, incriment the index.

@@ -14,7 +14,7 @@ classdef SweepEditor < handle
 
         mheaders =  {'#',       'Measurement', 'Subdata',   'Size',    'Unit',     'Time'};
         meditable = [false,     false,         false,       false,      false,      true];
-        mwidths =   {25,        160,           160,         50,         50,         0};
+        mwidths =   {25,        160,           160,         60,         40,         0};
         mformat =   {'char',    'char',        'char',      'char',     'char',     'numeric'};
     end
 
@@ -84,6 +84,7 @@ classdef SweepEditor < handle
                                                     'Tooltip', '',...
                                                     'Style', 'pushbutton',...
                                                     'Units', 'pixels',...
+                                                    'Callback', @obj.generate_Callback,...
                                                     'Position', p);    p(1) = p(1) + dp;
             obj.gui.continuous          = uicontrol('String', 'Continuous',...
                                                     'Tooltip', ['(NotImplemented) Whether to continue repeating the measurement(s)'...
@@ -240,8 +241,26 @@ classdef SweepEditor < handle
     end
     
     methods     % Sweep
+        function generate_Callback(obj, ~, ~)
+            assignin('base', 's', obj.generate());
+        end
         function sweep = generate(obj)
+            scans = {};
             
+            for ii = 1:length(obj.prefs)
+                scans{ii} = linspace(obj.pdata{ii, 8}, obj.pdata{ii, 10}, obj.pdata{ii, 11}); %#ok<AGROW>
+            end
+            
+            
+            flags = struct( 'isNIDAQ',                  false,...
+                            'isPulseBlaster',           false,...
+                            'isContinuous',             obj.gui.continuous.Value,...
+                            'isOptimize',               obj.gui.optimize.Value,...
+                            'shouldOptimizeAfter',      obj.gui.optimizeAfterSweep.Value,...
+                            'shouldReturnToInitial',    obj.gui.returnToInitial.Value,...
+                            'shouldSetInitialOnReset',  true);
+            
+            sweep = Base.Sweep(obj.measurements, obj.prefs, scans, flags);
         end
     end
     

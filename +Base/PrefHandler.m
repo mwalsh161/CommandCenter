@@ -329,7 +329,7 @@ classdef PrefHandler < handle
                 new_val.getEvent = false;
 
                 obj.execute_external_ls(prop,event); % Execute any external listeners
-
+                
                 if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
                     % This should now be interpreted as a set event
                     new_val.value = obj.(prop.Name); % validation occurs here
