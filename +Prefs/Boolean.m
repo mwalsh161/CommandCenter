@@ -1,21 +1,21 @@
 classdef Boolean < Prefs.Numeric
     %BOOLEAN True/False data
-    
+
     properties (Hidden)
         min = false;
         max = true;
     end
-    
+
     properties (Hidden)
         default = false;
         ui = Prefs.Inputs.BooleanField;
     end
-    
+
     methods
         function obj = Boolean(varargin)
             obj = obj@Prefs.Numeric(varargin{:});
-            if isempty(obj.units)
-                obj.units = '0/1';
+            if isempty(obj.unit)
+                obj.unit = '0/1';
             end
         end
         function validate(obj,val)
@@ -25,5 +25,5 @@ classdef Boolean < Prefs.Numeric
             val = logical(val);
         end
     end
-    
+
 end

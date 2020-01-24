@@ -1,5 +1,6 @@
 classdef MultipleChoice < Prefs.Numeric
-    %MULTIPLECHOICE Select among a set of options
+    % MULTIPLECHOICE Select among a set of options.
+    %   These options, set in choices, can be *anything*. This is parsed into UI by arb2string(choices). 
     %   The default value is '', which corresponds to the display name
     %   empty_val, which, if allow_empty is true, is automatically prepended
     %   to choices.
@@ -12,7 +13,7 @@ classdef MultipleChoice < Prefs.Numeric
     end
     
     properties (Hidden)
-        default = {[], @(a)true};
+        default = [];
         ui = Prefs.Inputs.DropDownField;
     end
     properties
@@ -23,18 +24,18 @@ classdef MultipleChoice < Prefs.Numeric
         % Value displayed for empty option
         empty_val = {'<None>', @(a)validateattributes(a,{'char'},{'vector'})};
     end
-    properties (Dependent,Hidden) % Hidden hides from validation_summary
+    properties (Dependent, Hidden) % Hidden hides from validation_summary
         choices_strings = {}; % Used in Prefs.Inputs.DropDownField
     end
-    properties (SetAccess=immutable,Hidden)
+    properties (SetAccess=immutable, Hidden)
         initialized = false;
     end
     
     methods
         function obj = MultipleChoice(varargin)
             obj = obj@Prefs.Numeric(varargin{:});
-%             obj.max = numel(obj.choices);
-            assert(obj.max == numel(obj.choices));
+            obj.max = numel(obj.choices);
+%             assert(obj.max == numel(obj.choices));
             obj.initialized = true;
         end
         function obj = set.allow_empty(obj,val)
@@ -49,33 +50,36 @@ classdef MultipleChoice < Prefs.Numeric
             end
         end
         function obj = set.choices(obj,val)
-            assert(~isempty(val) || obj.allow_empty, 'Choice cannot be set to empty if empty is disallowed.');
-            
-            % Ensure it is of the expected shape
-            if size(val,1) ~= 1
-                val = val';
-            end
-            obj.choices = val;
-            
-            obj.max = length(val);
-        
-            if ~obj.initialized %#ok<MCSUP>
-                return
-            end
-            % Make sure current value is consistent
-            try
-                obj.validate(obj.value);
-            catch
-                str_val = obj.arb2string({obj.value});
-                if obj.allow_empty %#ok<MCSUP>
-                    obj.value = [];
-                    warning('New choices in "%s" prohibit value "%s", changed to empty.',obj.name,str_val{1});
-                else
-                    warning('New choices in "%s" prohibit value "%s", changing to first option.',obj.name,str_val{1});
-                    obj.value = val{1};
+            if obj.initialized
+                assert(~isempty(val) || obj.allow_empty, 'Choice cannot be set to empty if empty is disallowed.');
+
+                % Ensure it is of the expected shape
+                if size(val,1) ~= 1
+                    val = val';
                 end
+                obj.choices = val;
+
+                obj.max = length(val);
+
+                if ~obj.initialized %#ok<MCSUP>
+                    return
+                end
+                % Make sure current value is consistent
+                try
+                    obj.validate(obj.value);
+                catch
+                    str_val = obj.arb2string({obj.value});
+                    if obj.allow_empty %#ok<MCSUP>
+                        obj.value = [];
+                        warning('New choices in "%s" prohibit value "%s", changed to empty.',obj.name,str_val{1});
+                    else
+                        warning('New choices in "%s" prohibit value "%s", changing to first option.',obj.name,str_val{1});
+                        obj.value = val{1};
+                    end
+                end
+            else
+                obj.choices = val;
             end
-            
         end
         function val = get.choices_strings(obj)
             val = obj.arb2string(obj.choices);
@@ -88,7 +92,7 @@ classdef MultipleChoice < Prefs.Numeric
                 return
             end
             for i = 1:length(obj.choices)
-                if isequal(val,obj.choices{i}); return; end
+                if isequal(val, obj.choices{i}); return; end
             end
             error('MULTIPLECHOICE:unrecognizedChoice',...
                 ['Expected input to match one of these values:',...
@@ -99,7 +103,7 @@ classdef MultipleChoice < Prefs.Numeric
             if isnumeric(val)
                 if isempty(val) || isnan(val) || val == 0
                     val = [];
-                elseif val <= length(obj.choices)
+                elseif val <= length(obj.choices) && val == round(val)
                     val = obj.choices{val};
                 end
             end

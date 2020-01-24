@@ -1,8 +1,7 @@
 classdef ButtonField < Prefs.Inputs.LabelControlBasic
-    %CHARFIELD provides UI for text input
+    %BUTTONFIELD provides UI for pushing a button
 
-    properties % Add units in
-        units = gobjects(1)
+    properties
         empty_string = '';
     end
     properties(Hidden)

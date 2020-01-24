@@ -1,6 +1,6 @@
 classdef debug < Modules.Imaging
     %DEBUG Creates random pixels (no hardware needed)
-    
+
     properties
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
@@ -18,7 +18,7 @@ classdef debug < Modules.Imaging
         my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0,'set','testSet');
         my_array2 = Prefs.DoubleArray([1,2;3,4],'hide_label',true,'props',{'RowName',{'this','that'},'ColumnName',{'foo','bar'}});
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
-        my_double = Prefs.Double('name','This double has a super long name!','units','um','min',-50,'max',50);
+        my_double = Prefs.Double('name','This double has a super long name!','unit','um','min',-50,'max',50);
         my_string = Prefs.String('Enter value here','allow_empty',false);
         my_logical = Prefs.Boolean();
         options_1 = Prefs.MultipleChoice('help_text','sooo many options!','choices',{'foo',41,'bar'})
@@ -33,7 +33,7 @@ classdef debug < Modules.Imaging
         ROI = [-1 1;-1 1];
         continuous = false;
     end
-    
+
     methods(Access=private)
         function obj = debug()
             obj.loadPrefs;
@@ -69,15 +69,17 @@ classdef debug < Modules.Imaging
         end
         function focus(obj,ax,stageHandle)
         end
-        function snap(obj,im,continuous)
-            tempim = zeros(obj.resolution(1),obj.resolution(2));
+        function im = snapImage(obj)
+            im = zeros(obj.resolution(1),obj.resolution(2));
             [tempx,tempy] = meshgrid(1:obj.resolution(1),1:obj.resolution(2));
             for i=1:randi([5,20]) %pick a random number of spots
                 loc = (obj.resolution(1)-1).*rand(1,2)-1;
                 gaussim = exp((-(tempx-loc(1)).^2-(tempy-loc(2)).^2)/(2*(mean(obj.resolution)/50)^2)); %make a gaussian with width of 1/50 the resolution
-                tempim = tempim + gaussim;
+                im = im + gaussim;
             end
-            set(im,'cdata',tempim);
+        end
+        function snap(obj,im,continuous)
+            set(im,'cdata',obj.snapImage);
         end
         function startVideo(obj,im)
             obj.continuous = true;
@@ -89,8 +91,7 @@ classdef debug < Modules.Imaging
         function stopVideo(obj)
             obj.continuous = false;
         end
-        
-    end
-    
-end
 
+    end
+
+end

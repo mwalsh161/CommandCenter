@@ -37,8 +37,8 @@ classdef TableField < Base.Input
                 enabled = 'off';
             end
             labeltext = pref.name;
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)',pref.name,pref.units);
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', pref.name, pref.unit);
             end
             height_px = 0;
             obj.ui = uitable(parent, 'units', 'pixels',...

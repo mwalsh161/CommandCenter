@@ -101,8 +101,8 @@ classdef ModuleSelectionField < Base.Input
             if obj.readonly
                 enabled = 'off';
             end
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)',pref.name,pref.units);
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', pref.name, pref.unit);
             end
             % Line 3
             height_px = 0;
@@ -245,7 +245,7 @@ classdef ModuleSelectionField < Base.Input
             lenmenu = 0;
             for i = 1:nmenus
                 temp = uicontrol(f,'units','characters','style','text','string',obj.module_types{i});
-                lenmenu = lenmenu + temp.Extent(3); 
+                lenmenu = lenmenu + temp.Extent(3);
                 delete(temp);
             end
             f.Position(3:4) = [lenmenu*1.5 ,0];
@@ -326,7 +326,7 @@ classdef ModuleSelectionField < Base.Input
             end
             bottom = min(positions);
             top = max(positions);
-            
+
             f.Position(4) = top;
             f.Visible = 'on';
         end

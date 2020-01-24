@@ -16,12 +16,12 @@ classdef Empty < Prefs.Numeric
 
             if numel(varargin) == 2
                 obj.name = varargin{1};
-                obj.units = 'pixels';
+                obj.unit = 'pixels';
                 obj.min = 1;
                 obj.max = varargin{2};
             else
-                obj.name = '';
-                obj.units = '';
+                obj.name = 'None';
+                obj.unit = 'none';
             end
 
             obj.readonly = true;

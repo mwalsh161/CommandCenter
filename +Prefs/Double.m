@@ -1,6 +1,6 @@
 classdef Double < Prefs.Numeric
     %DOUBLE Any numeric value
-    
+
     properties (Hidden)
         default = 0;
         ui = Prefs.Inputs.CharField;
@@ -15,7 +15,7 @@ classdef Double < Prefs.Numeric
         % Truncate actual value to display_precision
         truncate = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
     end
-    
+
     methods
         function obj = Double(varargin)
             obj = obj@Prefs.Numeric(varargin{:});
@@ -44,9 +44,9 @@ classdef Double < Prefs.Numeric
             elseif isnan(val)
                 return
             end
-            if val <= obj.max || val >= obj.min
-                assert(val <= obj.max, sprintf('Cannot set value greater than max:\n  val = %f %s > %f %s.', val, obj.units, obj.max, obj.units))
-                assert(val >= obj.min, sprintf('Cannot set value less than min:\n  val = %f %s < %f %s.', val, obj.units, obj.min, obj.units))
+            if val > obj.max || val < obj.min
+                assert(val <= obj.max, sprintf('Cannot set value greater than max:\n  val = %f %s > %f %s.', val, obj.unit, obj.max, obj.unit))
+                assert(val >= obj.min, sprintf('Cannot set value less than min:\n  val = %f %s < %f %s.', val, obj.unit, obj.min, obj.unit))
             end
         end
     end
