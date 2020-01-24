@@ -246,7 +246,9 @@ classdef SweepEditor < handle
     
     methods     % Sweep
         function generate_Callback(obj, ~, ~)
-            assignin('base', 's', obj.generate());
+            s = obj.generate();
+            assignin('base', 's', s);
+            Base.SweepViewer(s, []);
         end
         function sweep = generate(obj)
             scans = {};

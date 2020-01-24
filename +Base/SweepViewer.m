@@ -138,6 +138,8 @@ classdef SweepViewer < handle
 
             obj.process();
             
+            drawnow;
+            
             obj.ax.Visible = 'on';
             obj.panel.panel.Visible = 'on';
         end
