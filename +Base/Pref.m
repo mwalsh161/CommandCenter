@@ -62,33 +62,33 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
     end
-    properties (Hidden, SetAccess = ?Base.PrefHandler)
+    properties (Hidden, SetAccess=?Base.PrefHandler)
     	getEvent = false;                   % This is reserved for PrefHandler.post to avoid calling set methods on a get event
     end
     properties (Hidden, Access=private)
         initialized = false;                % Flag to prevent the Pref from being used until it has been fully constructed.
     end
 
-    properties (Hidden, Access = private)    % Used by Pref and PrefHandler so Pref can retain access to PrefHandler. Set in Base.Pref.bind(PrefHandler)
+    properties (Hidden, Access=private)     % Used by Pref and PrefHandler so Pref can retain access to PrefHandler. Set in Base.Pref.bind(PrefHandler)
         read_fn     = [];                   % Calls val = PrefHandler.readProp(prop), with the appropriate arguments already filled in.
         writ_fn     = [];                   % Calls tf = PrefHandler.writProp(prop, val), with the appropriate arguments already filled in.
 
         listen_fn   = [];                   % Calls PrefHandler.addlistener(prop, event, callback), with the appropriate arguments already filled in.
     end
-    properties (Hidden, SetAccess = {?Base.Pref, ?Base.PrefRegister})
+    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefRegister})
         % Stores the a string name of the parent PrefHandler subclass for reference. Note that the pref
         % stored in the PrefHandler will _not_ know the singleton_id of the class, but PrefRegister will
         % return a string with the singleton_id appended in [class(PrefHandler) '(''' singleton_id ''')']
         % form.
         parent_class = '';
     end
-    properties (Hidden, SetAccess = {?Base.Pref, ?Base.PrefHandler})
+    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefHandler})
         property_name = '';                 % Name of the property in PrefHandler that this Pref fondles.
     end
 
     properties % {default, validation function}
-        name    = {'', @(a)validateattributes(a,{'char'},{'vector'})};
-        unit   = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+        name = {'', @(a)validateattributes(a,{'char'},{'vector'})};
+        unit = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
 
     properties %(Hidden) %, SetAccess = ?Base.PrefHandler)

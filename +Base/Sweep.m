@@ -48,7 +48,7 @@ classdef Sweep < handle & Base.Measurement
 
     methods
 		function obj = Sweep(varargin)
-            if numel(varargin) == 0
+            if numel(varargin) == 0     % If nothing was given, generate a test Sweep.
                 a = Drivers.AxisTest.instance('fish');
                 a1 = a.get_meta_pref('x');
                 a2 = a.get_meta_pref('y');
@@ -64,14 +64,25 @@ classdef Sweep < handle & Base.Measurement
                 return;
             end
             
-            obj.measurements =  varargin{1};
-            obj.sdims =         varargin{2};
-            obj.sscans =        varargin{3};
-            
-            if nargin > 3
-                fn = fieldnames(varargin{4});
-                for ii = 1:length(fn)
-                    obj.flags.(fn{ii}) = varargin{4}.(fn{ii});
+            if numel(varargin) == 1     % (NotImplemented) If one thing was given, assume it is a data struct (i.e. output of measurement or a scan)
+                obj.data = Base.Measurement.validateStructureStatic(varargin{1}, []);
+                
+                error('NotImplemented');
+                
+%                 obj.measurements =  varargin{1};    % Not sure what to do here.
+%                 
+%                 obj.sdims =         obj.data.metadata.dims;
+%                 obj.sscans =        obj.data.metadata.scans;
+            else
+                obj.measurements =  varargin{1};
+                obj.sdims =         varargin{2};
+                obj.sscans =        varargin{3};
+
+                if nargin > 3
+                    fn = fieldnames(varargin{4});
+                    for ii = 1:length(fn)
+                        obj.flags.(fn{ii}) = varargin{4}.(fn{ii});
+                    end
                 end
             end
             

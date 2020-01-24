@@ -138,7 +138,7 @@ classdef SweepProcessed < handle
 			N = obj.s.length();
 %             sd = obj.s.subdata;
 
-            tw = 30;
+            tw = 30 / (ismac + 1);
             
             base = 4.6;
             

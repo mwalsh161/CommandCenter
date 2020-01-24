@@ -230,8 +230,8 @@ classdef (HandleCompatible) Measurement
         end
     end
     
-    methods (Hidden, Sealed)    % Helper functions for the above.
-        function d = validateStructure(obj, raw)
+    methods (Static, Hidden, Sealed)
+        function d = validateStructureStatic(raw, sizes)
             if isstruct(raw)
                 raw_fields = fieldnames(raw);
                 
@@ -245,13 +245,13 @@ classdef (HandleCompatible) Measurement
                     raw_fields = fieldnames(raw);
                 end
                 
-                if isstruct(obj.sizes)
+                if isstruct(sizes)
                     %%%%% If this Measurement has an expected structure...
                     
                     assert(~isfieldfast(raw_fields, 'dat'), 'dat may not be a field of d when obj.sizes is a struct. Please put the data in the fields specified by obj.sizes.');
                     assert(~isfieldfast(raw_fields, 'std'), 'std may not be a field of d when obj.sizes is a struct. Please put the data in the fields specified by obj.sizes.');
                     
-                    size_fields = fieldnames(obj.sizes);
+                    size_fields = fieldnames(sizes);
                     
                     if numel(size_fields) == 1 && ~isfieldfast(raw_fields, size_fields{1})  % If there's only one field to fill, but this field is not present.
                         assert(~(isfieldfast(raw_fields, 'dat') && isfieldfast(raw_fields, 'dat')), 'd.dat may not exist if d.data does.');
@@ -439,8 +439,8 @@ classdef (HandleCompatible) Measurement
                     error('Cannot interpret obj.sizes-less data struct d if it is not singular and has neither d.dat nor d.data.');
                 end
             else
-                if isstruct(obj.sizes)
-                    size_fields = fieldnames(obj.sizes);
+                if isstruct(sizes)
+                    size_fields = fieldnames(sizes);
                     
                     assert(length(size_fields) == 1, ['Non-struct data can only go into one field, but we received ' num2str(length(size_fields))]);
                     
@@ -457,6 +457,11 @@ classdef (HandleCompatible) Measurement
                     error('Empty data cannot be validated.')
                 end
             end
+        end
+    end
+    methods (Hidden, Sealed)    % Helper functions for the above.
+        function d = validateStructure(obj, raw)
+            d = Base.Measurement.validateStructureStatic(raw, obj.sizes);
         end
         function raw = validateDimension(obj, raw)
             subdata = obj.subdata;
