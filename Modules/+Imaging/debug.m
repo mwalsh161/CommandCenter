@@ -69,15 +69,17 @@ classdef debug < Modules.Imaging
         end
         function focus(obj,ax,stageHandle)
         end
-        function snap(obj,im,continuous)
-            tempim = zeros(obj.resolution(1),obj.resolution(2));
+        function im = snapImage(obj)
+            im = zeros(obj.resolution(1),obj.resolution(2));
             [tempx,tempy] = meshgrid(1:obj.resolution(1),1:obj.resolution(2));
             for i=1:randi([5,20]) %pick a random number of spots
                 loc = (obj.resolution(1)-1).*rand(1,2)-1;
                 gaussim = exp((-(tempx-loc(1)).^2-(tempy-loc(2)).^2)/(2*(mean(obj.resolution)/50)^2)); %make a gaussian with width of 1/50 the resolution
-                tempim = tempim + gaussim;
+                im = im + gaussim;
             end
-            set(im,'cdata',tempim);
+        end
+        function snap(obj,im,continuous)
+            set(im,'cdata',obj.snapImage);
         end
         function startVideo(obj,im)
             obj.continuous = true;

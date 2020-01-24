@@ -205,12 +205,18 @@ classdef (HandleCompatible) Measurement
             end
         end
         
-        function blank = blank(obj) % Gets blank data (filled with NaNs) corresponding to the expected structure and dimensions of the Measurement.
+        function blank = blank(obj, varargin) % Gets blank data (filled with NaNs) corresponding to the expected structure and dimensions of the Measurement.
             subdata = obj.subdata;
             sizes_ = obj.getSizes();
             
+            if numel(varargin) == 1 && isa(varargin{1}, 'function_handle')
+                default = varargin{1};
+            else
+                default = @rand;
+            end
+            
             for ii = 1:numel(subdata)
-                blank.(subdata{ii}).dat = rand(sizes_.(subdata{ii}));
+                blank.(subdata{ii}).dat = default(sizes_.(subdata{ii}));
 %                 blank.(subdata{ii}).dat = NaN(sizes_.(subdata{ii}));
                 blank.(subdata{ii}).std = [];
             end

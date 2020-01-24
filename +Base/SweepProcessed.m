@@ -714,7 +714,8 @@ classdef SweepProcessed < handle
         function set.normAll(obj,normAll)
             obj.normAll = normAll;
             if ~isempty(obj.tab)
-                obj.normalize(false)
+                obj.v.process();
+                obj.normalize(false);
             end
         end
 		function normauto_Callback(obj, ~, ~)
@@ -725,16 +726,18 @@ classdef SweepProcessed < handle
             if ~isempty(obj.tab)
                 if normAuto
                     obj.tab.scale.box.InteractionsAllowed = 'none';
+                    
+                    obj.v.process();
+                    obj.normalize(true);
                 else
                     obj.tab.scale.box.InteractionsAllowed = 'all';
                 end
                 
-                obj.normalize(false)
             end
         end
 		function normalize_Callback(obj, ~, ~)
             obj.v.process();
-            obj.normalize(true)
+            obj.normalize(true);
         end
         function dataChanged_Callback(obj, ~, ~)
             obj.normalize(false);
@@ -743,8 +746,8 @@ classdef SweepProcessed < handle
             sd = obj.s.subdata;
             
             if obj.normAll
-                m_ = nanmin(obj.s.data.(sd{obj.I}), [], 'all');
-                M_ = nanmax(obj.s.data.(sd{obj.I}), [], 'all');
+                m_ = nanmin(obj.s.data.(sd{obj.I}).dat, [], 'all');
+                M_ = nanmax(obj.s.data.(sd{obj.I}).dat, [], 'all');
             else
                 m_ = nanmin(obj.processed, [], 'all');
                 M_ = nanmax(obj.processed, [], 'all');
@@ -758,8 +761,8 @@ classdef SweepProcessed < handle
             end
             
             if m_ == M_
-                m_ = m_ + .5;
-                M_ = M_ + .5;
+                m_ = m_ - 1;
+                M_ = M_ + 1;
             end
 
 			if (obj.normAuto && ~(obj.m == m_ && obj.M == M_)) || shouldForce
@@ -771,7 +774,7 @@ classdef SweepProcessed < handle
                 obj.tab.scale.ax.Visible = 'off';
                     
                 if obj.normAll
-                    obj.tab.scale.hist.Data = obj.s.data{obj.I};
+                    obj.tab.scale.hist.Data = obj.s.data.(sd{obj.I}).dat;
                 else
                     obj.tab.scale.hist.Data = obj.processed(:);
                 end
@@ -784,21 +787,15 @@ classdef SweepProcessed < handle
                 M__ = max(M_+r_/5, obj.M);
 
                 r = M__ - m__;
-    %             r = M_ - m_;
     
                 if r == 0
                     r = r + 1;
                 end
 
                 if ~isnan(r)
-                    
-                    obj.tab.scale.box.Position(1) = obj.m;
-                    obj.tab.scale.box.Position(3) = obj.M - obj.m;
-
                     top = max(max(obj.tab.scale.hist.Values), 1);
 
-                    obj.tab.scale.box.Position(2) = -top;
-                    obj.tab.scale.box.Position(4) = 3.2*top;
+                    obj.tab.scale.box.Position = [obj.m, -top, obj.M - obj.m, 3.2*top];
 
                     obj.tab.scale.ax.XLim = [m__ - r/5, M__ + r/5];
                     obj.tab.scale.ax.YLim = [0 top*1.2];

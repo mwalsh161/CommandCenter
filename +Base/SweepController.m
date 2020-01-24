@@ -26,30 +26,29 @@ classdef SweepController < handle
             
             obj.panel.Units = 'characters';
             h = obj.panel.Position(4);
-            w = obj.panel.Position(3)-4;
+            w = obj.panel.Position(3)-2;
 %             obj.panel.Position(4) = h;
             
             bh = 1.4;
-            p = 2;
+            p = 1;
             
             obj.gui.toggle = uicontrol( 'Style', 'togglebutton',...
-                                        'Interruptible', 'off',...
                                         'Units', 'characters',...
-                                        'Position', [p,h-3*bh/2,.3*w,bh],...
-                                        'Callback', @obj.toggle_Callback); p = p + .3*w;
+                                        'Position', [p,h-3*bh/2,.28*w,bh],...
+                                        'Callback', @obj.toggle_Callback); p = p + .28*w;
             
             
             uicontrol(                      'Style', 'text',...
                                             'String', 'Index: ',...
                                             'Units', 'characters',...
                                             'HorizontalAlignment', 'right',...
-                                            'Position', [p,h-3*bh/2-.2,.15*w,bh]); p = p + .15*w;
+                                            'Position', [p,h-3*bh/2-.2,.125*w,bh]); p = p + .125*w;
             obj.gui.index = uicontrol(      'Style', 'edit',...
                                             'String', 1,...
                                             'Enable', 'inactive',...
                                             'Units', 'characters',...
-                                            'Position', [p,h-3*bh/2,.15*w,bh],...
-                                            'Callback', @obj.index_Callback); p = p + .15*w;
+                                            'Position', [p,h-3*bh/2,.125*w,bh],...
+                                            'Callback', @obj.index_Callback); p = p + .125*w;
             
             
             uicontrol(                      'Style', 'text',...
@@ -58,42 +57,69 @@ classdef SweepController < handle
                                             'HorizontalAlignment', 'center',...
                                             'Position', [p,h-3*bh/2-.2,.05*w,bh]); p = p + .05*w;
             obj.gui.indexTotal = uicontrol( 'Style', 'edit',...
-                                            'String', 100,...
-                                            'UserData', 100,...
+                                            'String', prod(obj.sweep.lengths),...
+                                            'UserData', prod(obj.sweep.lengths),...
                                             'Enable', 'inactive',...
                                             'Units', 'characters',...
-                                            'Position', [p,h-3*bh/2,.15*w,bh]); p = p + .175*w;
+                                            'Position', [p,h-3*bh/2,.125*w,bh]); p = p + .135*w;
                                         
             obj.gui.tick =   uicontrol( 'Style', 'pushbutton',...
                                         'Units', 'characters',...
                                         'String', 'Tick',...
-                                        'Position', [p,h-3*bh/2,.175*w,bh],...
-                                        'Callback', @obj.tick_Callback);
+                                        'Position', [p,h-3*bh/2,.14*w,bh],...
+                                        'Callback', @obj.tick_Callback); p = p + .15*w;
+                                    
+            obj.gui.reset =  uicontrol( 'Style', 'pushbutton',...
+                                        'Units', 'characters',...
+                                        'String', 'Reset',...
+                                        'Position', [p,h-3*bh/2,.14*w,bh],...
+                                        'Callback', @obj.reset_Callback);
             obj.setToggleString();
+            obj.setIndex;
         end
         
         function index_Callback(obj, ~, ~)
             try
+                if strcmp(obj.gui.index.String, 'Done')
+                    return;
+                end
+                
                 ii = max(1, min(obj.gui.indexTotal.UserData, round(str2double(obj.gui.index.String))));
                 obj.gui.index.String = ii;
                 if ~isempty(obj.sweep) && isvalid(obj.sweep)
-                    obj.sweep.index = ii;
+%                     obj.sweep.index = ii;
+                    obj.sweep.gotoIndex(ii);
                 end
-            catch
-                obj.gui.index.String = 1;
+            catch err
+                obj.setIndex;
+                rethrow(err);
+            end
+        end
+        
+        function setIndex(obj)
+            if obj.sweep.index > obj.gui.indexTotal.UserData
+                obj.gui.index.String = 'Done';
+            else
+                obj.gui.index.String = obj.sweep.index;
             end
         end
         
         function tick_Callback(obj, ~, ~)
             thistick = str2double(obj.gui.index.String);
-            if obj.lasttick ~= thistick
+            if obj.lasttick ~= thistick     % Prevents clicking tick very fast and ticking twice on the same point.
                 obj.lasttick = thistick;
                 obj.sweep.tick();
             end
         end
+        function reset_Callback(obj, ~, ~)
+            obj.sweep.reset();
+            obj.setIndex;
+        end
         
         function toggle_Callback(obj, ~, ~)
-            if strcmp(obj.gui.index.String, 'Done') || strcmp(obj.gui.index.String, obj.gui.indexTotal.String)
+            obj.setToggleString();
+            
+            if (strcmp(obj.gui.index.String, 'Done') || strcmp(obj.gui.index.String, obj.gui.indexTotal.String))
                 obj.toggle;
             end
             obj.setToggleString();
@@ -104,18 +130,22 @@ classdef SweepController < handle
         function setToggleString(obj)
             if obj.running
                 obj.gui.toggle.String =         'Sweeping...';
-                obj.gui.toggle.Interruptible =  'off';
+%                 obj.gui.toggle.Interruptible =  'off';
                 obj.gui.toggle.Tooltip =        'Click to stop sweeping.';
                 obj.gui.index.Enable =          'inactive';
                 obj.gui.tick.Enable =           'off';
+                obj.gui.reset.Enable =           'off';
                 
                 obj.sweep.snap();
+                
+                obj.running = false;
             else
                 obj.gui.toggle.String =         'Sweep';
-                obj.gui.toggle.Interruptible =  'on';
+%                 obj.gui.toggle.Interruptible =  'on';
                 obj.gui.toggle.Tooltip =        'Click to start sweeping.';
                 obj.gui.index.Enable =          'on';
                 obj.gui.tick.Enable =           'on';
+                obj.gui.reset.Enable =           'on';
             end
         end
         
