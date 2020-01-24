@@ -179,7 +179,7 @@ classdef Sweep < handle & Base.Measurement
 		function reset(obj)
 			obj.index = 1;
 
-            obj.data = obj.blank();
+            obj.data = obj.blank(@NaN);
 
 			obj.flags.isNIDAQ = false;
         end
@@ -199,30 +199,37 @@ classdef Sweep < handle & Base.Measurement
             end
         end
 
-		function data = measure(obj)
-            % First, make sure that we are at the correct starting position.
+        function gotoIndex(obj, index)
             L = obj.lengths();
-            N = prod(L);
-
-            if obj.index > N
-                warning('Already done')
-                data = obj.data;
-                return
-            end
 
             obj.sub = [];
 
-            [obj.sub{1:length(L)}] = ind2sub(L, obj.index);
+            [obj.sub{1:length(L)}] = ind2sub(L, index);
             obj.sub = cell2mat(obj.sub);
             A = 1:obj.length();
 
             for aa = A
                 obj.sdims{aa}.writ(obj.sscans{aa}(obj.sub(aa)));
             end
+            
+            obj.index = index;
+        end
+		function data = measure(obj)
+            % First, make sure that we are at the correct starting position.
+            N = prod(obj.lengths());
+
+            if obj.index > N
+                warning('Already done')
+                data = obj.data;
+                return
+            end
+            
+            obj.gotoIndex(obj.index);
 
             % Slow aquisition
             if ~obj.flags.isNIDAQ
                 while obj.index <= N && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
+                    obj.controller.gui.toggle.Value
                     obj.tick();
                 end
             else
@@ -296,11 +303,7 @@ classdef Sweep < handle & Base.Measurement
             obj.index = obj.index + 1;
 
             if ~isempty(obj.controller) && isvalid(obj.controller)
-                if obj.index > N
-                    obj.controller.gui.index.String = 'Done';
-                else
-                    obj.controller.gui.index.String = obj.index;
-                end
+                obj.controller.setIndex();
             end
         end
     end

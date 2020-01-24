@@ -310,7 +310,7 @@ classdef PrefHandler < handle
             obj.prop_listener_ctrl(prop.Name,false);
             % Stash prop
             obj.temp_prop.(prop.Name) = obj.(prop.Name);
-            obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
+            obj.(prop.Name) = val;
             % Execute any external listeners
             obj.execute_external_ls(prop,event);
 %             obj.prop_listener_ctrl(prop.Name,true); **********
@@ -325,7 +325,7 @@ classdef PrefHandler < handle
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
             try
                 new_val.getEvent = false;
-                new_val.value = val; % validation occurs here
+                new_val.value = obj.(prop.Name); % validation occurs here
                 new_val.getEvent = false;
 
                 obj.execute_external_ls(prop,event); % Execute any external listeners

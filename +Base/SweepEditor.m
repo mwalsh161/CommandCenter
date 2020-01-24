@@ -71,7 +71,7 @@ classdef SweepEditor < handle
             h = obj.maxelements*rh;
 
             obj.f = figure( 'NumberTitle', 'off', 'name', 'SweepEditor', 'MenuBar', 'None',...
-                            'Toolbar', 'None', 'Resize', 'off'); %, 'Visible', 'off', 'KeyPressFcn', '', 'CloseRequestFcn', '');
+                            'Toolbar', 'None', 'Resize', 'off', 'Visible', 'off'); %, 'KeyPressFcn', '', 'CloseRequestFcn', '');
 
             obj.f.Position(3) = w;
             obj.f.Position(4) = h + padding;
@@ -207,6 +207,8 @@ classdef SweepEditor < handle
             amt.YDir = 'reverse';
             
             obj.update()
+            
+            obj.f.Visible = 'on';
         end
         function makeMenus(obj)
             % Pref Menu

@@ -16,7 +16,8 @@ classdef SweepViewer < handle
 	properties (Hidden, SetAccess=private)          % Processed scan settings
 		names = 	{'R', 'G', 'B'}                                
 		colors = 	{[1 0 0], [0 1 0], [0 0 1]};
-		linewidth = 3;
+		linewidth = 2;
+		alpha = .7;
     end
 
 	properties (Constant, Hidden)                   % Pointer settings
@@ -63,8 +64,13 @@ classdef SweepViewer < handle
 
 	methods
 		function obj = SweepViewer(s_, ax_, varargin)
-			obj.ax = ax_;
-            obj.ax.Toolbar = [];
+            if isempty(ax_)
+                f = figure('units', 'pixels', 'numbertitle', 'off', 'MenuBar', 'None');
+                obj.ax = axes(f);
+            else
+                obj.ax = ax_;
+                obj.ax.Toolbar = [];
+            end
 			obj.s = s_;
 
 			obj.displayAxesObjects =    [{Prefs.Empty}      obj.s.sdims];
@@ -151,11 +157,11 @@ classdef SweepViewer < handle
                 uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotoPostion_Callback, 1, 1});
                 uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotoPostion_Callback, 0, 1});
 
-            mNorm = uimenu(obj.menus.menu,  'Label', 'Normalization');
-                uimenu(mNorm,               'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
-                uimenu(mNorm,               'Label', 'Set as Maximum',              'Callback', {@obj.minmax_Callback, 1});
-                uimenu(mNorm,               'Label', 'Normalize All Slices',        'Callback', {@obj.normalizeSlice_Callback, 0});
-                uimenu(mNorm,               'Label', 'Normalize This Slice',        'Callback', {@obj.normalizeSlice_Callback, 1});
+%             mNorm = uimenu(obj.menus.menu,  'Label', 'Normalization');
+%                 uimenu(mNorm,               'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
+%                 uimenu(mNorm,               'Label', 'Set as Maximum',              'Callback', {@obj.minmax_Callback, 1});
+%                 uimenu(mNorm,               'Label', 'Normalize All Slices',        'Callback', {@obj.normalizeSlice_Callback, 0});
+%                 uimenu(mNorm,               'Label', 'Normalize This Slice',        'Callback', {@obj.normalizeSlice_Callback, 1});
 
 %             mCount = uimenu(menu,               'Label', 'Counter'); %, 'Enable', 'off');
 %                 mcOpen =    uimenu(mCount,      'Label', 'Open',                        'Callback',  @obj.openCounter_Callback);
@@ -228,11 +234,11 @@ classdef SweepViewer < handle
                                                             'PickableParts', 'none');
 
                 % Make plots
-                obj.plt{ii} = plot(obj.ax, [0 ii], [0 1], 	'Color', obj.colors{ii},... % 'MarkerEdgeWidth', 0,... % 'MarkerEdgeColor', obj.colors{ii},...
-                                                        'MarkerFaceColor', obj.colors{ii},...
-                                                        'LineWidth', obj.linewidth,...
-                                                        'Visible', defaultvis,...
-                                                        'PickableParts', 'none');
+                obj.plt{ii} = plot(obj.ax, [0 ii], [0 1], 	'Color', [obj.colors{ii} obj.alpha],... % 'MarkerEdgeWidth', 0,... % 'MarkerEdgeColor', obj.colors{ii},...
+                                                            'MarkerFaceColor', obj.colors{ii},...
+                                                            'LineWidth', obj.linewidth,...
+                                                            'Visible', defaultvis,...
+                                                            'PickableParts', 'none');
             end
 
 			assert(length(obj.pnames) == 3)
@@ -449,7 +455,7 @@ classdef SweepViewer < handle
         function gotoPostion_Callback(obj, ~, ~, isPos, shouldGotoLayer)    % Menu option to goto a position. See below for function of isSel and shouldGotoLayer.
             x = obj.ptr{1+isPos}.XData(5);
             y = obj.ptr{1+isPos}.YData(1);
-
+            
             if ~isnan(x) && ~obj.displayAxesObjects{obj.axesDisplayed(1)}.display_only
                 obj.displayAxesObjects{obj.axesDisplayed(1)}.writ(x);
             end
@@ -765,7 +771,6 @@ classdef SweepViewer < handle
         end
 		function setPtr(obj, ptr, to) 	% Limited to 1D, 2D
             if isvalid(obj) && isvalid(obj.ptr{ptr})
-                
                 assert(length(to) == 2);
                 dao = obj.displayAxesObjects(obj.axesDisplayed);
 
@@ -775,7 +780,7 @@ classdef SweepViewer < handle
                     if dao{ii}.display_only
                         range(2*ii + (-1:0)) = [-1e9 1e9];
                     else
-                        range(2*ii + (-1:0)) = [dao{ii}.min dao{ii}.max];
+                        range(2*ii + (-1:0)) = [max(dao{ii}.min, -1e9) min(dao{ii}.max, 1e9)];
 
                         if isnan(to(ii))
                             if ptr == 3
@@ -793,9 +798,9 @@ classdef SweepViewer < handle
                 obj.ptr{ptr}.YData = [to(2) to(2) NaN range(3) range(4)];
             end
             
-            if isvalid(obj) && ~isvalid(obj.ptr{ptr})
-                warning('Zombie listener');
-            end
+%             if isvalid(obj) && ~isvalid(obj.ptr{ptr})
+%                 warning('Zombie listener');
+%             end
         end
 
         function ct = currentTab(obj)
