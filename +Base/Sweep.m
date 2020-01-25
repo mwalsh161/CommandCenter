@@ -114,43 +114,6 @@ classdef Sweep < handle & Base.Measurement
             obj.reset();
         end
         
-        function fillMeasurementProperties(obj)
-            sizes_ = struct();
-            names_ = struct();
-            units_ = struct();
-            dims_  = struct();
-            scans_ = struct();
-
-            ssizes = obj.lengths();
-
-            for ii = 1:length(obj.measurements)
-                mtag = ['m' num2str(ii) '_'];
-                
-                sd = obj.measurements{ii}.subdata();
-                
-                msizes = obj.measurements{ii}.getSizes();
-                mnames = obj.measurements{ii}.getNames();
-                munits = obj.measurements{ii}.getUnits();
-                mdims =  obj.measurements{ii}.getDims();
-                mscans = obj.measurements{ii}.getScans();
-                
-                for jj = 1:length(sd)
-                    s = msizes.(sd{jj});
-                    sizes_.([mtag sd{jj}]) = [ssizes s(s > 1)];  % Append dimensions
-                    names_.([mtag sd{jj}]) = mnames.(sd{jj});
-                    units_.([mtag sd{jj}]) = munits.(sd{jj});
-                    dims_.( [mtag sd{jj}]) = [obj.sdims     mdims.( sd{jj})];
-                    scans_.([mtag sd{jj}]) = [obj.sscans    mscans.(sd{jj})];
-                end
-            end
-            
-            obj.sizes = sizes_;
-            obj.names = names_;
-            obj.units = units_;
-            obj.dims  = dims_;
-            obj.scans = scans_;
-        end
-
         function l = length(obj)    % Returns the total number of dimensions length(sdims).
 			l = length(obj.sdims);
         end
@@ -243,6 +206,18 @@ classdef Sweep < handle & Base.Measurement
 
             data = obj.data;
         end
+    end
+    methods (Hidden)
+        function measureSweep(obj)
+            
+        end
+        function measureOptimize(obj)
+            options = optimset('Display', 'iter', 'PlotFcns', @optimplotfval);
+
+            fun = @(x)100*(x(2) - x(1)^2)^2 + (1 - x(1))^2;
+            x0 = [-1.2, 1];
+            x = fminsearch(fun, x0, options);
+        end
         function tick(obj)
             L = obj.lengths();
             N = prod(L);
@@ -317,6 +292,43 @@ classdef Sweep < handle & Base.Measurement
             if ~isempty(obj.controller) && isvalid(obj.controller)
                 obj.controller.setIndex();
             end
+        end
+        
+        function fillMeasurementProperties(obj)
+            sizes_ = struct();
+            names_ = struct();
+            units_ = struct();
+            dims_  = struct();
+            scans_ = struct();
+
+            ssizes = obj.lengths();
+
+            for ii = 1:length(obj.measurements)
+                mtag = ['m' num2str(ii) '_'];
+                
+                sd = obj.measurements{ii}.subdata();
+                
+                msizes = obj.measurements{ii}.getSizes();
+                mnames = obj.measurements{ii}.getNames();
+                munits = obj.measurements{ii}.getUnits();
+                mdims =  obj.measurements{ii}.getDims();
+                mscans = obj.measurements{ii}.getScans();
+                
+                for jj = 1:length(sd)
+                    s = msizes.(sd{jj});
+                    sizes_.([mtag sd{jj}]) = [ssizes s(s > 1)];  % Append dimensions
+                    names_.([mtag sd{jj}]) = mnames.(sd{jj});
+                    units_.([mtag sd{jj}]) = munits.(sd{jj});
+                    dims_.( [mtag sd{jj}]) = [obj.sdims     mdims.( sd{jj})];
+                    scans_.([mtag sd{jj}]) = [obj.sscans    mscans.(sd{jj})];
+                end
+            end
+            
+            obj.sizes = sizes_;
+            obj.names = names_;
+            obj.units = units_;
+            obj.dims  = dims_;
+            obj.scans = scans_;
         end
     end
 end
