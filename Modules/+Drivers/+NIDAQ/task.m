@@ -154,12 +154,20 @@ classdef task < handle
             FunctionProto = libfunctions(obj.dev.LibraryName,'-full');
             % find the matching name
             A = strfind(FunctionProto,FunctionName);
+            
+            fIndex = NaN;
+            
             for k=1:length(A)
                 if ~isempty(A{k})
                     fIndex = k;
                     break
                 end
             end
+            
+            if isnan(fIndex)
+                error(['Drivers.NIDAQ: ' FunctionName ' not found in library']);
+            end
+            
             % use regexp to get the number of args, given as [a, b, c, d]
             argText = regexp(FunctionProto{fIndex},'\[(.*)\]','match');
             if isempty(argText) % no [] proto implies 1 return
