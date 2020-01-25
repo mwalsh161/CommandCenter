@@ -135,7 +135,8 @@ classdef SweepEditor < handle
                                                                 ' circshifted. Behaves like a Counter if Time is the only axis.'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
-                                                    'Enable', 'on',...
+                                                    'Enable', 'off',...
+                                                    'Callback', @obj.setContinuous_Callback,...
                                                     'Position', p);    p(1) = p(1) + dp*.8;
             obj.gui.optimize            = uicontrol('String', 'Optimize',...
                                                     'Tooltip', ['(NotImplemented) Instead of scanning across every point'...
@@ -269,6 +270,9 @@ classdef SweepEditor < handle
                             'shouldSetInitialOnReset',  true);
             
             sweep = Base.Sweep(obj.measurements, obj.prefs, scans, flags);
+            
+            d = sweep.blank()
+            whos d
         end
     end
     
@@ -280,14 +284,41 @@ classdef SweepEditor < handle
             obj.gui.numPoints.String = obj.numPoints();
             obj.gui.timeTotal.String = datastrCustom(obj.numPoints() * str2double(obj.gui.timePoint.String));
             
+            if numel(obj.prefs) > 0
+                if isa(obj.prefs{1}, 'Prefs.Time')
+                    obj.gui.continuous.Enable = 'on';
+                else
+                    obj.gui.continuous.Enable = 'off';
+                    obj.gui.continuous.Value = false;
+                end
+                
+                if obj.gui.continuous.Value
+                    obj.prefs{1}.unit = 'ago';
+                    obj.pdata{1, 4} = 'ago';
+                elseif isa(obj.prefs{1}, 'Prefs.Time')
+                    obj.prefs{1}.unit = 'ave';
+                    obj.pdata{1, 4} = 'ave';
+                end
+                
+                for ii = 2:length(obj.prefs)
+                    if isa(obj.prefs{ii}, 'Prefs.Time')
+                        obj.prefs{ii}.unit = 'ave';
+                        obj.pdata{ii, 4} = 'ave';
+                    end
+                end
+            else
+                obj.gui.continuous.Enable = 'off';
+                obj.gui.continuous.Value = false;
+            end
+            
             obj.pt.Data = obj.pdata;
             obj.mt.Data = obj.mdata;
         end
         
         function setNumbers(obj, isPrefs)
             if isPrefs
-                mask = 1:obj.numRows(true);
-                for ii = mask
+                mask = obj.getPrefsMask(); %1:obj.numRows(true);
+                for ii = 1:length(mask)
                     obj.pdata{ii,1} = ['<html><font color=red><b>' num2str(mask(ii))];
                 end
                 obj.pdata{end,1} = '<html><font color=blue><b>+';
@@ -506,6 +537,10 @@ classdef SweepEditor < handle
             end
             obj.update();
         end
+        function setContinuous_Callback(obj, ~, ~)
+            obj.update();
+        end
+        
         function edit_Callback(obj, src, evt)
             isPrefs = src.UserData.UserData;
 
@@ -518,7 +553,7 @@ classdef SweepEditor < handle
                 ind = evt.Indices;
                 
                 if ind(1) > obj.numRows(isPrefs)    % We are in the + row.
-                    obj.pdata{ind(1), ind(2)} = evt.PreviousData;
+%                     obj.pdata{ind(1), ind(2)} = evt.PreviousData;
                     obj.update();
                     return;
                 end
@@ -529,8 +564,13 @@ classdef SweepEditor < handle
                 p = obj.prefs{ind(1)};
                 isInteger = isPrefInteger(p);
                 
+                if strcmp(obj.pheaders{evt.Indices(2)}, 'Pair') % 7
+                    if ind(1) ~= 1
+                        obj.pdata{ind(1), 7} = evt.NewData;
+                    end
+                end
+                
                 if isa(p, 'Prefs.Time')
-                    true
                     switch obj.pheaders{evt.Indices(2)}
                         case {'X0', 'dX'}
                             good = false;
@@ -742,6 +782,8 @@ classdef SweepEditor < handle
             mask = [];
             kk = 1;
             for ii = 1:length(obj.prefs)
+                ii
+                kk
                 if obj.pdata{ii, 7}
                     kk = kk - 1;
                 end
