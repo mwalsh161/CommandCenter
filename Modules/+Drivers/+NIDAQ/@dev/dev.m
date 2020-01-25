@@ -634,7 +634,7 @@ classdef dev < Modules.Driver
                 VoltLim = [obj.AnalogInMinVoltage obj.AnalogInMaxVoltage];
             end
             line = obj.getLine(name,obj.InLines);
-            voltage = libpointer('doublePtr',0);
+            ptr = libpointer('doublePtr',0);
             MinVal = VoltLim(1);
             MaxVal = VoltLim(2);
 
@@ -643,10 +643,12 @@ classdef dev < Modules.Driver
                 
             % create an analog in voltage channel
             err = NaN;
+            voltage = NaN;
             try
                 task.CreateChannels('DAQmxCreateAIVoltageChan',line,'',obj.DAQmx_Val_Cfg_Default,MinVal, MaxVal,obj.DAQmx_Val_Volts ,[]);
                 task.Start;
-                [~,voltage] = task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, voltage,[]);
+                task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, ptr,[]);
+                voltage = ptr.Value;
             catch err
             end
             task.Clear;
@@ -655,17 +657,21 @@ classdef dev < Modules.Driver
         function state = ReadDILine(obj,name)
             TaskName = 'DigitalRead';
             line = obj.getLine(name,obj.InLines);
+            ptr = libpointer('uint32Ptr',0);
             
             % create a new task
             task = obj.CreateTask(TaskName);
             
             % create a digital in channel
             err = NaN;
+            state = NaN; 
             try
                 task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
                 task.Start
-                warning('Not implemented yet')
-                state = 0;
+                warning('NotImplemented');
+                state = NaN;
+%                 task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, ptr,[]);
+%                 state = ptr.Value;
             catch err
             end
             task.Clear
