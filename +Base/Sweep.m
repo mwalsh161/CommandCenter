@@ -37,13 +37,13 @@ classdef Sweep < handle & Base.Measurement
     end
     
     properties (SetAccess=private)
-        flags = struct( 'isNIDAQ',                  false,...
-                        'isPulseBlaster',           false,...
+        flags = struct( 'isNIDAQ',                  false,...   % NotImplemented
+                        'isPulseBlaster',           false,...   % NotImplemented
                         'isContinuous',             false,...
-                        'isOptimize',               false,...
-                        'shouldOptimizeAfter',      false,...
-                        'shouldReturnToInitial',    true,...
-                        'shouldSetInitialOnReset',  true)
+                        'isOptimize',               false,...   % NotImplemented
+                        'shouldOptimizeAfter',      false,...   % NotImplemented
+                        'shouldReturnToInitial',    true,...    % NotImplemented
+                        'shouldSetInitialOnReset',  true)       % NotImplemented
 	end
 
     methods
@@ -218,7 +218,7 @@ classdef Sweep < handle & Base.Measurement
             % First, make sure that we are at the correct starting position.
             N = prod(obj.lengths());
 
-            if obj.index > N
+            if obj.index > N && ~obj.flags.isContinuous
                 warning('Already done')
                 data = obj.data;
                 return
@@ -228,7 +228,7 @@ classdef Sweep < handle & Base.Measurement
 
             % Slow aquisition
             if ~obj.flags.isNIDAQ
-                while obj.index <= N && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
+                while (obj.index <= N || obj.flags.isContinuous) && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
                     obj.controller.gui.toggle.Value
                     obj.tick();
                 end
@@ -246,10 +246,17 @@ classdef Sweep < handle & Base.Measurement
         function tick(obj)
             L = obj.lengths();
             N = prod(L);
+            
+            shouldCircshift = false;
 
             if obj.index > N
-                warning('Already done')
-                return
+                if obj.flags.isContinuous
+                    shouldCircshift = true;
+                    obj.index = 1;
+                else
+                    warning('Already done')
+                    return
+                end
             end
 
             % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
@@ -289,6 +296,11 @@ classdef Sweep < handle & Base.Measurement
 
                     S.subs = [SUB C];
 
+                    if shouldCircshift
+                        obj.data.(sd{kk}).dat           = circshift(obj.data.(sd{kk}).dat,1);
+                        obj.data.(sd{kk}).dat(1,:,:)    = NaN;
+                    end
+                    
                     obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
 
 %                     if ~isempty(d.(msd{jj}).std)

@@ -3,8 +3,8 @@ classdef SweepEditor < handle
 
     properties (Constant, Hidden)
         pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'Pair',      'X0',       'dX',       'X1',       'N',         'Sweep'};
-        peditable =     [false,     false,     false,      false,      false,      false,      false,       true,       true,       true,       true,         false]; 
-        pwidths =       {25,        160,       160,        40,         40,         40,         0,           40,         40,         40,         40,          80};
+        peditable =     [false,     false,     false,      false,      false,      false,      true,        true,       true,       true,       true,         false]; 
+        pwidths =       {25,        160,       160,        40,         40,         40,         40,           40,         40,         40,         40,          80};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric'};
         
 %         pheadersOpt =   {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X0',       'Guess',    'X1',       'N',         'Sweep'};
@@ -411,7 +411,8 @@ classdef SweepEditor < handle
         
         function d = makePrefRow(~, p)          % Make a uitable row for a pref.
             if isempty(p)
-                d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [], [] };
+%                 d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [], [] };
+                d = {'<html><font color=blue><b>+', '', '<font color="gray"><i>Right Click to Add Prefs', '', '', '', '', '', '', '', '', '' };
             else
                 str = p.name;
 
@@ -454,7 +455,7 @@ classdef SweepEditor < handle
         function d = makeMeasurementRow(~, m)   % Make a uitable row for a measurement
             if isempty(m)
 %                 mheaders =  {'#',                 'Parent', 'Subdata', 'Size', 'Unit', 'Integration'};
-                d = {'<html><font color=blue><b>+', '<i>...', '<b>...', '...', '...', 0 };
+                d = {'<html><font color=blue><b>+', '', '<font color="gray"><i>Right Click to Add Measurements', '', '', 0 };
             else
                 subdata = m.subdata;
                 sizes = m.getSizes;
@@ -495,7 +496,11 @@ classdef SweepEditor < handle
         % CALLBACKS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function setSingleTime_Callback(obj, ~, ~)
             try
-                obj.gui.timePoint.String = eval(obj.gui.timePoint.String);  % Not great...
+                x = eval(obj.gui.timePoint.String);  % Not great...
+                assert(isnumeric(x));
+                assert(~isnan(x));
+                assert(numel(x) == 1);
+                obj.gui.timePoint.String = x;
             catch
                 obj.gui.timePoint.String = 1;
             end
@@ -512,7 +517,7 @@ classdef SweepEditor < handle
 %                 obj.pheaders{evt.Indices(2)}
                 ind = evt.Indices;
                 
-                if ind(1) > obj.numRows(isPrefs)    % We are in the ... row.
+                if ind(1) > obj.numRows(isPrefs)    % We are in the + row.
                     obj.pdata{ind(1), ind(2)} = evt.PreviousData;
                     obj.update();
                     return;
@@ -731,6 +736,17 @@ classdef SweepEditor < handle
                 else
                     headers{ii} = ['<html><font color=red><b>' headers{ii}];
                 end
+            end
+        end
+        function mask = getPrefsMask(obj)
+            mask = [];
+            kk = 1;
+            for ii = 1:length(obj.prefs)
+                if obj.pdata{ii, 7}
+                    kk = kk - 1;
+                end
+                mask = [mask kk]; %#ok<AGROW>
+                kk = kk + 1;
             end
         end
         function mask = getMeasurementMask(obj)

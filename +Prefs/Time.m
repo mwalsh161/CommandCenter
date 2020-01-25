@@ -5,7 +5,7 @@ classdef Time < Prefs.Integer
         function obj = Time(varargin)
             obj = obj@Prefs.Integer(1, 'min', 1, 'name', 'Time', 'unit', 'ave');
             
-            obj.parent_class = 'The.Universe';
+            obj.parent_class = 'Zeitgeist';
             obj.property_name = 'time';
 
             obj.readonly = true;

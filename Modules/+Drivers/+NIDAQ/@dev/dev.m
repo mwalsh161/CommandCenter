@@ -655,6 +655,7 @@ classdef dev < Modules.Driver
         function state = ReadDILine(obj,name)
             TaskName = 'DigitalRead';
             line = obj.getLine(name,obj.InLines);
+            state = libpointer('doublePtr',0);
             
             % create a new task
             task = obj.CreateTask(TaskName);
@@ -664,8 +665,25 @@ classdef dev < Modules.Driver
             try
                 task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
                 task.Start
-                warning('Not implemented yet')
-                state = 0;
+                [~,state] = task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, state,[]);
+            catch err
+            end
+            task.Clear
+            if isa(err,'MException'); rethrow(err); end
+        end
+        function state = ReadCILine(obj,name)
+            TaskName = 'CounterRead';
+            line = obj.getLine(name,obj.InLines);
+            
+            % create a new task
+            task = obj.CreateTask(TaskName);
+            
+            % create a counter in channel
+            err = NaN;
+            try
+                task.CreateChannels('DAQmxCreateCICountEdgesChan',line,'',obj.DAQmx_Val_Rising, 0, obj.DAQmx_Val_CountUp);
+                task.Start
+                [~,state] = task.LibraryFunction('DAQmxReadCounterScalarU32',task,obj.ReadTimeout, state,[]);
             catch err
             end
             task.Clear
