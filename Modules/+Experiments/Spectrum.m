@@ -1,13 +1,41 @@
 classdef Spectrum < Modules.Experiment
     %Spectrum Experimental wrapper for Drivers.WinSpec
     
-    properties(SetObservable,GetObservable)
-        ip =        Prefs.String('No Server', 'help', 'IP/hostname of computer with the WinSpec server');
-        grating = 	Prefs.MultipleChoice('');
-        position = 	Prefs.Double(NaN,   'unit', 'nm');      % Grating position
-        exposure =  Prefs.Double(NaN,   'unit', 'sec');     % Exposure time
+    properties(SetObservable, GetObservable)
+        ip          = Prefs.String('No Server', 'help', 'IP/hostname of computer with the WinSpec server');
+        grating     = Prefs.MultipleChoice('');
+        position    = Prefs.Double(NaN, 'unit', 'nm');      % Grating position
+        exposure    = Prefs.Double(NaN, 'unit', 'sec');     % Exposure time
         
         over_exposed_override = Prefs.Boolean(false);       % override over_exposed error from server and return data regardless
+    end
+    
+    properties(SetObservable)   % (1) Stored in a struct
+        measurements = struct(  'wavelength', Base.Measurement([1 1024], 'name', 'Wavelength', 'unit', 'nm'),...
+                                'intensity',  Base.Measurement([1 1024], 'name', 'Intensity',  'unit', 'arb'));
+    end
+    
+    properties(SetObservable)   % (2) Stored in properties, will probably still fill the struct; (a) wavelength returned as ydata
+        wavelength  = Base.Measurement([1 1024], 'name', 'Wavelength', 'unit', 'nm');
+        intensity   = Base.Measurement([1 1024], 'name', 'Intensity',  'unit', 'arb');
+    end
+    
+    properties(SetObservable)   % (2) Stored in properties, will probably still fill the struct; (b) wavelength returned as xdata
+        intensity2  = Base.Measurement([1 1024],    'name', 'Intensity',...
+                                                    'unit', 'arb',...
+                                                    'dims', {Prefs.Empty('name', 'Wavelength',... 
+                                                                        'unit', 'nm')},...      % Defines the name/unit metadata that Base.Sweep will use.
+                                                    'scans', {linspace(635, 639, 1024)});       % This is filled/changed by the user as desired.
+    end
+    
+    methods
+        function data = snap(obj)
+            data = errorCheckingMeasure(obj.measure);
+        end
+        function data = measure(obj)
+            data.wavelength = obj.getWavelength();
+            data.intensity  = obj.getIntensity();
+        end
     end
     
     properties (Hidden, Constant)
@@ -125,8 +153,8 @@ classdef Spectrum < Modules.Experiment
             end
         end
         function setMeasurementVars(obj, N)
-            obj.sizes = struct('wavelength', [1 N],   'intensity', [1 N]);
-            obj.units = struct('wavelength', 'nm',      'intensity', 'arb');
+            obj.sizes = struct('wavelength', [1 N], 'intensity', [1 N]);
+            obj.units = struct('wavelength', 'nm',  'intensity', 'arb');
             % Scans and dims default to 1:N (pixels), which is fine.
         end
         function delete(obj)
