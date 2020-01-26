@@ -95,23 +95,60 @@ classdef Sweep < handle & Base.Measurement
                 assert(isa(obj.measurements{ii}, 'Base.Measurement'), '');
             end
             
+            prefList = {};
+            
 			% Check dims and scans
-            assert(length(obj.sdims) == length(obj.sscans))
-            for ii = 1:length(obj.sdims)
-                assert(isa(obj.sdims{ii}, 'Base.Pref'), '');
-                assert(obj.sdims{ii}.isnumeric, '');
+            if ~obj.flags.isOptimize
+                assert(iscell(obj.sdims), '.sdims must be a cell array.')
+                assert(iscell(obj.sscans), '.sscans must be a cell array.')
+                assert(numel(obj.sdims) == numel(obj.sscans), '.sdims must have the same length as .sdims')
                 
-                assert(isnumeric(obj.sscans{ii}), '')
-                assert(numel(obj.sscans{ii}) == length(obj.sscans{ii}), '')
-                % (NotImplemented) Check that all the values in obj.sweeps{2, ii} are in range.
+                for ii = 1:numel(obj.sdims)
+                    if iscell(obj.sdims{ii})    % If we have paired Prefs.
+                        assert(numel(obj.sdims{ii}) > 1, 'If an element of .sdims is a cell, it is a paired axis and must contain at least two prefs.');
+                        assert(iscell(obj.sscans{ii}), '');
+                        assert(numel(obj.sscans{ii}) == numel(obj.sdims{ii}), '');
+
+                        master = obj.sscans{ii}{1};
+
+                        for jj = 1:length(obj.sdims{ii})
+                            checkPref(obj.sdims{ii}{jj})
+                            checkScan(obj.sscans{ii}{jj}, obj.sdims{ii}{jj});
+                            
+                            assert(length(obj.sscans{ii}{jj}) == length(master), '');
+                        end
+                    else
+                        checkPref(obj.sdims{ii})
+                        checkScan(obj.sscans{ii}, obj.sdims{ii});
+
+    %                     for jj = (ii+1):length(obj.sdims)
+    %                         assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
+    %                     end
+
+                        for jj = (ii+1):length(obj.sdims)
+                            assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
+                        end
+                    end
+                end
+            else
                 
-				for jj = (ii+1):length(obj.sdims)
-					assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
-				end
             end
             
             obj.fillMeasurementProperties();
             obj.reset();
+            
+            function checkPref(pref)
+                assert(isa(pref, 'Base.Pref'), 'Each element ');
+                assert(pref.isnumeric, '');
+            end
+            function checkScan(scan, pref)
+                assert(isnumeric(scan), '')
+                assert(numel(scan) == length(scan), '')
+                
+                for s = scan
+                    pref.validate(s);
+                end
+            end
         end
         
         function l = length(obj)    % Returns the total number of dimensions length(sdims).

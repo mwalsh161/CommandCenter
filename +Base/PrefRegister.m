@@ -104,8 +104,8 @@ classdef PrefRegister < Base.Singleton
                             
                             parent_classFull = makeParentString(obj.register.(modules{ii}).parent, pref, true);
                             pref.parent_class = parent_classFull;
-
-                            folder.Text = ['<html>' parent_classFull];
+                            
+                            folder.Label = ['<html>' parent_classFull];
                             
                             readonly = '';
                             if pref.readonly

@@ -7,13 +7,13 @@ classdef SweepEditor < handle
     properties (Constant, Hidden)
         pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X1',       'Step',     'X2',       'N',         'Pair',      'Sweep',       'OMin',     'Guess',    'OMax'};
         peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true,         false,        true,       true,       true]; 
-        pwidths =       {20,        150,       150,        40,         40,         40,         40,         40,         40,         40,          40,          80,            0,          0,          0,};
-        pwidthsopt =    {20,        150,       150,        40,         40,         40,         0,           0,          0,          0,          0,           0,             40,         40,         40,};
+        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          40,          80,            0,          0,          0,};
+        pwidthsopt =    {20,        160,       160,        40,         40,         40,         0,           0,          0,          0,          0,           0,             40,         40,         40,};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric',   'char',        'numeric',  'numeric',  'numeric'};
         
         mheaders =  {'#',       'Parent',       'Measurement', 'Size',    'Unit',     'Time'};
         meditable = [false,     false,         false,       false,      false,      true];
-        mwidths =   {20,        150,           150,         60,         40,         0};
+        mwidths =   {20,        160,           160,         60,         40,         0};
         mformat =   {'char',    'char',        'char',      'char',     'char',     'numeric'};
     end
 
@@ -362,7 +362,11 @@ classdef SweepEditor < handle
             if isPrefs
                 mask = obj.getPrefsMask(); %1:obj.numRows(true);
                 for ii = 1:length(mask)
-                    obj.pdata{ii,1} = formatNumber(mask(ii));
+                    if obj.gui.optimize.Value
+                        obj.pdata{ii,1} = formatNumber(mask(ii), true);
+                    else
+                        obj.pdata{ii,1} = formatNumber(mask(ii));
+                    end
                 end
                 obj.pdata{end,1} = formatNumber('+');
             else
@@ -385,17 +389,26 @@ classdef SweepEditor < handle
                     end
                 end
             end
-            function str = formatNumber(ii)
+            function str = formatNumber(ii, varargin)
                 if isnan(ii)
                     str = '';
                 else
-                    str = sprintf('<html><tr align=center><td width=%d><font color=%s><b>%s', Base.SweepEditor.pwidths{1}, getColor(ii), num2str(ii));
+                    num = num2str(ii);
+                    
+                    if ~isempty(varargin) && isnumeric(ii)
+                        optnum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                        num = optnum(ii);
+                    end
+                    
+                    str = sprintf('<html><tr align=center><td width=%d><font color=%s><b>%s', Base.SweepEditor.pwidths{1}, getColor(ii), num);
                 end
             end
         end
         
         % ROW FUNCTIONS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function setRow(obj, instrument, isPrefs)
+            instrument
+            
             if isPrefs
                 if obj.pselected == 0
                     obj.pdata(end, :) = centerCharsPrefs(obj.makePrefRow(instrument));
@@ -409,23 +422,13 @@ classdef SweepEditor < handle
                 end
             else
                 if obj.mselected == 0
-                    instrument
-                    obj.makeMeasurementRow(instrument)
-                    cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument))
-                    
-                    size(cm)
-                    size(cm, 1)
-                    size(cm, 2)
-                    
-                    obj.mdata
+                    cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
                     
                     obj.mdata(end:(end+size(cm, 1)-1), :) = cm;
                     
                     obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
                     
                     obj.measurements{end+1} = instrument;
-                    
-                    obj.mdata
                 end
 %                 if obj.mselected == 0
 %                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
@@ -585,7 +588,9 @@ classdef SweepEditor < handle
             end
         end
         function N = numPoints(obj)
-            N = prod(cell2mat(obj.pdata(1:obj.numRows(true), 10)));
+            Ns = cell2mat(obj.pdata(1:obj.numRows(true), 10));
+            Ns = Ns(~cell2mat(obj.pdata(1:obj.numRows(true), 11)));
+            N = prod(Ns);
         end
         
         % CALLBACKS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
@@ -611,7 +616,9 @@ classdef SweepEditor < handle
             obj.update();
         end
         
-        function edit_Callback(obj, src, evt)
+        function good = edit_Callback(obj, src, evt)
+            src
+            
             isPrefs = src.UserData.UserData;
 
             good = true;
@@ -637,14 +644,36 @@ classdef SweepEditor < handle
                 isInteger = isPrefInteger(p);
                 
                 if strcmp(obj.pheaders{evt.Indices(2)}, 'Pair') % 11
-                    if r ~= 1
+                    if r > 1 + obj.gui.continuous.Value
                         obj.pdata{r, 11} = evt.NewData;
+                        
+                        if evt.NewData
+                            N = obj.pdata{r-1, 10};
+                        else
+                            N = obj.pdata{r, 10};
+                        end
+                            
+                        x = r;
+                        
+                        while obj.pdata{x, 11} && x >= r
+                            srcFake.UserData.UserData = true;
+                            
+                            evtFake.Indices         = [x, 10];  % N
+                            evtFake.PreviousData    = obj.pdata{x, 10};
+                            evtFake.EditData        = N;
+                            evtFake.NewData         = N;
+                            evtFake.EventName       = 'CellEditNoUpdate';
+                            
+                            good = obj.edit_Callback(srcFake, evtFake);
+                            
+                            x = x - 1 + 2*good;
+                        end
                     end
                 end
                 
-                if isa(p, 'Prefs.Time')
+                if isa(p, 'Prefs.Time')     % Time should always be of the form X1, Step, X2, N = 1, 1, M, M
                     switch obj.pheaders{evt.Indices(2)}
-                        case {'X1', 'dX'}   % 7, 8
+                        case {'X1', 'Step'}   % 7, 8
                             good = false;
                         case {'X2', 'N'}    % 9, 10
                             obj.pdata{r, 7}  = 1;
@@ -659,14 +688,14 @@ classdef SweepEditor < handle
                             if isInteger, X0 = round(X0); end
                             obj.pdata{r, 7} = X0;
 
-                            obj.updatedX(r);
-                        case 'dX'   % 8
-                            dX = evt.NewData;
+                            obj.updateStep(r);
+                        case 'Step'   % 8
+                            Step = evt.NewData;
 
-                            if obj.pdata{r, 8} > 0 && dX > 0 || obj.pdata{r, 8} < 0 && dX < 0
-                                obj.pdata{r, 8} = dX;
+                            if obj.pdata{r, 8} > 0 && Step > 0 || obj.pdata{r, 8} < 0 && Step < 0
+                                obj.pdata{r, 8} = Step;
 
-                                N = floor((obj.pdata{r, 9} - obj.pdata{r, 7} + dX) / dX);
+                                N = floor((obj.pdata{r, 9} - obj.pdata{r, 7} + Step) / Step);
                                 N = max(2, N);
                                 obj.pdata{r, 10} = N;
                             else
@@ -677,7 +706,7 @@ classdef SweepEditor < handle
                             if isInteger, X1 = round(X1); end
                             obj.pdata{r, 9} = X1;
 
-                            obj.updatedX(r);
+                            obj.updateStep(r);
                         case 'N'   % 10
                             N = round(evt.NewData);
                             if N < 2
@@ -694,25 +723,25 @@ classdef SweepEditor < handle
                     end
                 end
                 
-                dX = obj.pdata{r, 8};
+                Step = obj.pdata{r, 8};
                 
                 if isInteger && good
-                    if abs(dX) < 1 && dX ~= 0
-                        dX = dX/abs(dX);
+                    if abs(Step) < 1 && Step ~= 0
+                        Step = Step/abs(Step);
                     else
-                        dX = round(dX);
+                        Step = round(Step);
                     end
                     
-                    N = (obj.pdata{r, 9} - obj.pdata{r, 7} + dX) / dX;
+                    N = (obj.pdata{r, 9} - obj.pdata{r, 7} + Step) / Step;
                     
                     if N ~= floor(N)
                         N = floor(N);
                         
-                        obj.pdata{r, 8} = dX;
-                        obj.pdata{r, 9} = obj.pdata{r, 7} + (N-1)*dX;
+                        obj.pdata{r, 8} = Step;
+                        obj.pdata{r, 9} = obj.pdata{r, 7} + (N-1)*Step;
                         obj.pdata{r, 10} = N;
                     else
-                        obj.pdata{r, 8} = dX;
+                        obj.pdata{r, 8} = Step;
                         obj.pdata{r, 10} = N;
                     end
                 end
@@ -737,8 +766,9 @@ classdef SweepEditor < handle
                     obj.pdata{r, 12} = makeSweepStr(obj.pdata{r, 7}, obj.pdata{r, 9}, obj.pdata{r, 8});
                 end
                 
-                
-                obj.update();
+                if ~strcmp(evt.EventName, 'CellEditNoUpdate')
+                    obj.update();
+                end
             else
                 
             end
@@ -746,7 +776,7 @@ classdef SweepEditor < handle
         function updateN(obj, ind)
             
         end
-        function updatedX(obj, ind)
+        function updateStep(obj, ind)
             N = obj.pdata{ind, 11};
             if N == 1
                 N = 2;
