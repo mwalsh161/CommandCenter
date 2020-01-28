@@ -30,9 +30,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         wmExposureTolerance = 0.99; %was 0.05 % percent/100
         powerStatusDelay = 1; % seconds
         timeoutAllElements = 300;
-        timeoutSHG = 95; % seconds
-        timeoutThickEtalon = 300; %seconds
+        timeoutSHG = 95; % 7 sig = 95 secs seconds
+        timeoutThickEtalon = 40;% mean %seconds
         wmPower_min = 0; %units?
+        Eta_minSHGPower = 85; % wameter timout with set to 85; see if recurs at 100
+        maxExpTime = 800; 
     end
     properties(Hidden)
         MaxEtalon = 15; % in pm %maybe step these down to 15 look a little unstable when trying to ajdust thick etalon manually with 0.025nm steps
@@ -46,8 +48,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         sPump_power;
         ThickEtalonTolerance = 0.005; %nm
         midTuneTolerance = 0.1;
-        maxEtalon_wlSD;
-        minEtalon_wlSD;
+        MaxEtalon_wlSD;
+        MinEtalon_wlSD;
     end
     properties(SetAccess=protected)
         range = [Sources.TunableLaser_invisible.c./[450, 650],Sources.TunableLaser_invisible.c./[900, 1300]];
@@ -114,8 +116,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         tunePercentRange = ''; %tunePercentRange = Prefs.DoubleArray();
         EtalonStep='';
         AllElementStep = '';
-        MinEtalon_wl = '0';
-        MaxEtalon_wl = '.25';
+        MinEtalon_wl = '';
+        MaxEtalon_wl = '';
     end
     
     properties(SetAccess=private)
@@ -123,7 +125,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         wavemeterHandle
         cwaveHandle
     end
-
+    
     methods(Access=private)
         function obj = CWave()
             obj.loadPrefs;
