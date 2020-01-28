@@ -1553,7 +1553,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  D_term(i) = d_term;  
             end
         end
-        
+
         function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
             
             obj.windupGuardmax = obj.EtaWindupGuardmax; 
@@ -1587,17 +1587,21 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             IntError = [];
             Control = [];
             Measured = [];
-            exit = false;
+            stay = false;
             while (abs(curr_error) > tolerance )
                 tic
                 %obj.updateStatus;
                 obj.is_cwaveReady(0.01,false,false);
                 if obj.SHG_power < obj.cwaveHandle.SHG_MinPower
-                    while ( ((exit == false) & (obj.SHG_power < obj.cwaveHandle.SHG_MinPower)) | curr_error < 0)
+                    while ( (stay == false) & (uEtalonLock == true) & (obj.SHG_power < obj.cwaveHandle.SHG_MinPower) ) %| curr_error < 0)
                         pause(1)
                         if (obj.SHG_power <  obj.cwaveHandle.SHG_MinPower)
-                            [wm_lambda_c,wmPower_c,wm_exptime_c, obj.SHG_power, abort, exit] = reset_hysteresis(obj.SHG_power);
-                        else
+                            obj.cwaveHandle.relock_etalon();
+                            pause(1);
+                            stay = obj.is_cwaveReady(3.5,false,false);
+                            uEtalonLock = obj.is_EtalonRelocked;
+                            break;
+                        elseif (stay == true) & (uEtalonLock == false) & (obj.SHG_power > obj.cwaveHandle.SHG_MinPower) 
                             break
                         end
                     end
@@ -1639,7 +1643,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                           if (obj.get_regopo == 2)
                               pause(0.075) %(was 0.001 s)
                           elseif (obj.get_regopo == 4)
-                              %pause(obj.wavemeterHandle.getExposure()/1000+0.025) 
                               pause(0.001); %pause(0.025)
                           end
                       end
@@ -1672,7 +1675,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  D_term(i) = d_term;  
             end
         end
-
+        
         function [ctrl,prev_error,int_error,p_term,i_term,d_term] = pid_update(obj, curr_error,prev_error, int_error, kp,ki,kd,dt)
  
             % integration
