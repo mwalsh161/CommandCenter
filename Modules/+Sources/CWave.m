@@ -758,6 +758,37 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 obj.tune_etalon;
             end
         end
+        function set.AllElementStep(obj,val)
+            if strcmp(val,'')
+                return
+            end
+            [obj.SHG_power,~] = obj.cwaveHandle.get_photodiode_shg;
+            if obj.SHG_power < obj.Eta_minSHGPower
+                if abs(eval(val)) >= 0  
+                    str = 'Please wait. CWave attempting to lock and optimize SHG power.';
+                    dlg = msgbox(str,mfilename,'modal');
+                    textH = findall(dlg,'tag','MessageBox');
+                    delete(findall(dlg,'tag','OKButton'));
+                    drawnow;
+                    obj.is_cwaveReady(3.5,true,true);
+                    pause(3)
+                    delete(dlg)
+                end
+            else
+                obj.is_cwaveReady(0.005,false,false);
+                obj.AllElementStep = floor( eval(val) );
+                obj.cwaveHandle.set_OPOrLambda(obj.AllElementStep);
+                str = 'Please wait. CWave attempting to lock and optimize SHG power.';
+                dlg = msgbox(str,mfilename,'modal');
+                textH = findall(dlg,'tag','MessageBox');
+                delete(findall(dlg,'tag','OKButton'));
+                drawnow;
+                obj.is_cwaveReady(3.5,true,true);
+                pause(3)
+                delete(dlg);
+            end
+        end
+
           function exit = EtalonStepper(obj ,step, delay_val)
               %step etalon
               %direction = sign(step);
@@ -1208,36 +1239,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                  return
                          end
   
-          end
-          
-          function set.AllElementStep(obj,val)
-              if obj.cwaveHandle.is_ready
-                  [~,sSHGpower] = obj.cwaveHandle.get_photodiode_shg;
-                  if obj.sSHG_power
-                      dlg = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
-                      textH = findall(dlg,'tag','MessageBox');
-                      delete(findall(dlg,'tag','OKButton'));
-                      drawnow;
-                      obj.cwaveHandle.optimize_shg();
-                      while obj.cwaveHandle.is_ready
-                          pause(1)
-                          if ~obj.cwaveHandle.is_ready
-                              delete(dlg)
-                              break;
-                          else 
-                              obj.updateStatus;
-                          end
-                      end
-                  else
-                      return
-                  end
-              end
-              
-              
-              obj.AllElementStep = floor( eval(val) );
-              obj.cwaveHandle.set_OPOrLambda(obj.AllElementStep);
-              obj.is_cwaveReady(0.001,true,false);
-              obj.updateStatus;
           end
 
           function tune_etalon(obj)
