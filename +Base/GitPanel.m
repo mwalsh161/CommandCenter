@@ -3,7 +3,7 @@ classdef GitPanel
     % importantly, it displays things in red or orange (being behind or having untracked changes;
     % uncommitted modified files) to encourage users to fix these things. This is useful to avoid copies
     % of CommandCenter which are year(s) behind. It also includes a menu (right click) which reminds the
-    % user of useful git sequences, and the tooltip displays raw output from git status.
+    % user of useful git sequences, and the TooltipString displays raw output from git status.
     
     properties
         panel;      % uipanel that is the parent.
@@ -93,7 +93,7 @@ classdef GitPanel
                 gitSafe('fetch -q --all');
                 
                 [obj.panel.Children.String, obj.menu.UserData] = obj.info();
-                obj.panel.Children.Tooltip = obj.tooltip();
+                obj.panel.Children.TooltipString = obj.TooltipString();
                 
                 obj.panel.Children.Enable = 'on';
                 obj.panel.HighlightColor = 'w';
@@ -103,7 +103,7 @@ classdef GitPanel
                 obj.panel.Children.Enable = 'on';
                 obj.menu.UserData = 'Could not find hash.';
                 obj.panel.Children.String = '<html>Could not <font color="purple">git</font> fetch.';
-                obj.panel.Children.Tooltip = 'Something terrible happened.';
+                obj.panel.Children.TooltipString = 'Something terrible happened.';
                 drawnow;
                 
                 rethrow(err);
@@ -189,8 +189,13 @@ classdef GitPanel
             
             str = ['<html><font color="blue"><b>' name '</b>&nbsp;&nbsp;<i>' hash '</i></font>' message];
         end
-        function str = tooltip(obj)             % Fills the tooltip with git status + etc
-            str_ = strrep(gitSafe('status --ahead-behind --show-stash'), '/', ' / ');
+        function str = TooltipString(obj)             % Fills the TooltipString with git status + etc
+            status = gitSafe('status --ahead-behind --show-stash');
+            if strcmp(status(1:5), 'error') % Some installations of git  don't understand.
+                status = gitSafe('status');
+            end
+            
+            str_ = strrep(status, '/', ' / ');
             str__ = split(str_, newline);
             
             assert(~isempty(str__));

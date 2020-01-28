@@ -82,7 +82,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         % form.
         parent_class = '';
     end
-    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefHandler})
+    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefHandler, ?Drivers.NIDAQ.out})
         property_name = '';                 % Name of the property in PrefHandler that this Pref fondles.
     end
 

@@ -60,6 +60,10 @@ classdef out < handle
             assert(limits(2) <= dev.AnalogOutMaxVoltage, sprintf('Upper limit is above device max voltage (%g V)',dev.AnalogOutMaxVoltage));
             obj.limits = limits;
             obj.check;
+            
+            % Make and register a fake Pref:
+            pref = Prefs.Double('name', obj.name, 'unit', 'V');
+            pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
         end
         function delete(obj)
             delete(obj.niListener)
@@ -68,6 +72,22 @@ classdef out < handle
             ch = strsplit(obj.line,'/');
             ch = strjoin(ch(3:end),'/');
             str = [obj.name ': ' ch ' (' num2str(obj.state) ')'];
+        end
+        
+        function tf = writ(obj, val)
+            tf = true;
+            
+            try
+                if      strcmp(obj.type, 'digital')
+                    obj.dev.WriteDOLines(obj, obj.name, val);
+                elseif  strcmp(obj.type, 'analog')
+                    obj.dev.WriteAOLines(obj, obj.name, val);
+                else    % Counter outputs NotImplemented.
+
+                end
+            catch
+                tf = false;
+            end
         end
     end
 end

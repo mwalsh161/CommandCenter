@@ -634,7 +634,7 @@ classdef dev < Modules.Driver
                 VoltLim = [obj.AnalogInMinVoltage obj.AnalogInMaxVoltage];
             end
             line = obj.getLine(name,obj.InLines);
-            voltage = libpointer('doublePtr',0);
+            ptr = libpointer('doublePtr',0);
             MinVal = VoltLim(1);
             MaxVal = VoltLim(2);
 
@@ -643,10 +643,12 @@ classdef dev < Modules.Driver
                 
             % create an analog in voltage channel
             err = NaN;
+            voltage = NaN;
             try
                 task.CreateChannels('DAQmxCreateAIVoltageChan',line,'',obj.DAQmx_Val_Cfg_Default,MinVal, MaxVal,obj.DAQmx_Val_Volts ,[]);
                 task.Start;
-                [~,voltage] = task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, voltage,[]);
+                task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, ptr,[]);
+                voltage = ptr.Value;
             catch err
             end
             task.Clear;
@@ -655,17 +657,44 @@ classdef dev < Modules.Driver
         function state = ReadDILine(obj,name)
             TaskName = 'DigitalRead';
             line = obj.getLine(name,obj.InLines);
+            ptr = libpointer('uint32Ptr',0);
             
             % create a new task
             task = obj.CreateTask(TaskName);
             
             % create a digital in channel
             err = NaN;
+            state = NaN; 
             try
                 task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
                 task.Start
-                warning('Not implemented yet')
-                state = 0;
+                warning('NotImplemented');
+                state = NaN;
+%                 [~,ptr] = task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, ptr,[]);
+%                 state = ptr.Value
+            catch err
+            end
+            task.Clear
+            if isa(err,'MException'); rethrow(err); end
+        end
+        function state = ReadCILine(obj,name)
+            TaskName = 'CounterRead';
+            line = obj.getLine(name,obj.InLines);
+            
+            % create a new task
+            task = obj.CreateTask(TaskName);
+            
+            % create a counter in channel
+            err = NaN;
+            try
+                task.CreateChannels('DAQmxCreateCICountEdgesChan',line,'',obj.DAQmx_Val_Rising, 0, obj.DAQmx_Val_CountUp);
+                task.Start
+                warning('NotImplemented');
+                state = NaN;
+%                 [~,state] = task.LibraryFunction('DAQmxReadCounterScalarU32',task,obj.ReadTimeout, state,[]);
+                
+%                 task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, ptr,[]);
+%                 state = ptr.Value;
             catch err
             end
             task.Clear
