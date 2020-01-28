@@ -242,6 +242,8 @@ classdef dev < Modules.Driver
                 delete(task.niListener)
                 task.niListener = [];
             end
+            delete(obj.OutLines);
+            delete(obj.InLines);
             delete(obj.GUI.listeners)
             % Close out GUI
             delete(obj.GUI.fig)

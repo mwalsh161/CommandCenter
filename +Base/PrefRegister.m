@@ -63,67 +63,69 @@ classdef PrefRegister < Base.Singleton
                     error([parentObject.Type ' is an unrecognized object for Base.PrefRegister.getMenu.']);
             end
             
-            if isempty(modules)
-                uimenu(menu, 'Label', '<html>No Modules found', 'Enable', 'off', 'Tag', 'module');
-                return
-            end
-            
             preffound = false;
             
-            for ii = 1:length(modules)
-                if isempty(obj.register.(modules{ii}).parent) || ~isvalid(obj.register.(modules{ii}).parent)
-                    obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
-                else
-                    prefs = fields(obj.register.(modules{ii}).prefs);
-                    
-                    folder = uimenu(menu);
-                    
-                    localpreffound = false;
-                    
-                    for jj = 1:length(prefs)    % First fields will always be .parent
-                        pref = obj.register.(modules{ii}).prefs.(prefs{jj});
+            if ~isempty(modules)
+                for ii = 1:length(modules)
+                    if isempty(obj.register.(modules{ii}).parent) || ~isvalid(obj.register.(modules{ii}).parent)
+                        obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
+                    else
+                        prefs = fields(obj.register.(modules{ii}).prefs);
 
-                        shouldAdd = true;
+                        folder = uimenu(menu);
 
-                        for kk = 1:2:numel(varargin)    % Check that it satisfies the properties in varargin
-                            name = varargin{kk};
-                            value = varargin{kk+1};
-                            
-                            assert(ischar(name), 'Base.PrefRegister.getMenu requires that Names in Name, Value pairs be strings')
-                            
-                            if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref. Change this to include hidden properties?
-                                shouldAdd = shouldAdd && isequal(pref.(name), value);
-                            else                 
-                                shouldAdd = false;
+                        localpreffound = false;
+
+                        for jj = 1:length(prefs)    % First fields will always be .parent
+                            pref = obj.register.(modules{ii}).prefs.(prefs{jj});
+
+                            shouldAdd = true;
+
+                            for kk = 1:2:numel(varargin)    % Check that it satisfies the properties in varargin
+                                name = varargin{kk};
+                                value = varargin{kk+1};
+
+                                assert(ischar(name), 'Base.PrefRegister.getMenu requires that Names in Name, Value pairs be strings')
+
+                                if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref. Change this to include hidden properties?
+                                    shouldAdd = shouldAdd && isequal(pref.(name), value);
+                                else                 
+                                    shouldAdd = false;
+                                end
+                            end
+
+                            if shouldAdd
+                                preffound = true;
+                                localpreffound = true;
+
+                                parent_classFull = makeParentString(obj.register.(modules{ii}).parent, pref, true);
+                                pref.parent_class = parent_classFull;
+
+                                folder.Label = ['<html>' parent_classFull];
+
+                                readonly = '';
+                                if pref.readonly
+                                    readonly = ', <font face="Courier" color="blue"><i>readonly</i></font>';
+                                end
+
+                                prefclass = strsplit(class(pref), '.');
+
+                                label = ['<html>' pref.get_label() ' (<font face="Courier" color="green">.' pref.property_name '</font>, <font face="Courier" color="blue">' prefclass{end} '</font>' readonly ')</html>'];
+
+                                uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
                             end
                         end
 
-                        if shouldAdd
-                            preffound = true;
-                            localpreffound = true;
-                            
-                            parent_classFull = makeParentString(obj.register.(modules{ii}).parent, pref, true);
-                            pref.parent_class = parent_classFull;
-                            
-                            folder.Label = ['<html>' parent_classFull];
-                            
-                            readonly = '';
-                            if pref.readonly
-                                readonly = ', <font face="Courier" color="blue"><i>readonly</i></font>';
-                            end
-                            
-                            prefclass = strsplit(class(pref), '.');
-                            
-                            label = ['<html>' pref.get_label() ' (<font face="Courier" color="green">.' pref.property_name '</font>, <font face="Courier" color="blue">' prefclass{end} '</font>' readonly ')</html>'];
-
-                            uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
+                        if ~localpreffound
+                            delete(folder);
                         end
-                    end
-                    
-                    if ~localpreffound
-                        delete(folder);
                     end
                 end
+            end
+            
+            if isempty(fields(obj.register))
+                uimenu(menu, 'Label', '<html>No Modules found', 'Enable', 'off', 'Tag', 'module');
+                return
             end
             
             if ~preffound

@@ -75,7 +75,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
 
         listen_fn   = [];                   % Calls PrefHandler.addlistener(prop, event, callback), with the appropriate arguments already filled in.
     end
-    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefRegister})
+    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefRegister, ?Drivers.NIDAQ.out})
         % Stores the a string name of the parent PrefHandler subclass for reference. Note that the pref
         % stored in the PrefHandler will _not_ know the singleton_id of the class, but PrefRegister will
         % return a string with the singleton_id appended in [class(PrefHandler) '(''' singleton_id ''')']

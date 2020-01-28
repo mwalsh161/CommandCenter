@@ -48,6 +48,7 @@ classdef out < handle
                 obj.type = 'digital';
             end
             % Fix name to include device id
+            pname = line;
             line = ['/' dev.DeviceChannel '/' upper(line)];
             obj.dev = dev;
             obj.line = line;
@@ -62,20 +63,14 @@ classdef out < handle
             obj.check;
             
             % Make and register a fake Pref:
-<<<<<<< HEAD
             pref = Prefs.Double('name', obj.name, 'unit', 'V', 'min', limits(1), 'max', limits(2));
 %             pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
-            pref.property_name = lower(line);
+            pref.property_name = lower(pname);
+            pref.parent_class = class(dev);
             
             pr = Base.PrefRegister.instance();
             
             pr.addPref(dev, pref);
-=======
-            pref = Prefs.Double('name', obj.name, 'unit', 'V');
-            pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
-            
-            
->>>>>>> 158a2f3dfbb775ea01d6faf0c719cddc7e72ae60
         end
         function delete(obj)
             delete(obj.niListener)
