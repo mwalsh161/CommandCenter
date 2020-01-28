@@ -1000,73 +1000,139 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 Lock_Status = false;
             end    
         end
-          
-          
-          function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus)
-              switch nargin
-                  case 1
-                      delay_val = 1;
-                      SHG_tuning = false;
-                      allStatus = true;
-                  case 2
-                      SHG_tuning = false;
-                      allStatus = true;
-                  case 3
-                      allStatus = true;
-              end
-                      
-              abort = false;
-              time = 0;
-              tic;
-              
-              while(obj.cwaveHandle.is_ready)
-                  pause(delay_val); %in seconds
-                  if allStatus == true
-                      obj.updateStatus;
-                      %[obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
-                  else
-                      [obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
-                  end
-                  time = time + toc; 
-                  if (time > obj.timeoutSHG & SHG_tuning == true & (obj.shg_lock == false | obj.shg_temp_lock == false | obj.sSHG_power == 0 ) )
-                      dialog = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
-                      textH = findall(dialog,'tag','MessageBox');
-                      delete(findall(dialog,'tag','OKButton'));
-                      drawnow;
-                      obj.cwaveHandle.optimize_shg;
-                      while(obj.cwaveHandle.is_ready)
-                          pause(5)
-                      end
-                      delete(dialog);
-                  elseif time > obj.timeoutAllElements
-                     dialog =  questdlg('Tuning Timed out. Continue or abort tuning?', ...
-                             'Cwave Not Ready', ...
-                             'Continue','Abort','Abort');
-                         % Handle response
-                         switch dialog
-                             case 'Continue'
-                                 tic;
-                             case 'Abort'
-                                 obj.cwaveHandle.abort_tune;
-                                 abort = true;
-                                 return;
-                         end
-                  end
-                  
-                  if (obj.cwaveHandle.get_regopo == 4)
-                      regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
-                                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
-                            if regopo4_locked == true & obj.sSHG_power == 0 
+
+        function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus,timeOut)
+            switch nargin
+                case 1
+                    delay_val = 1;
+                    SHG_tuning = false;
+                    allStatus = true;
+                    timeOut = obj.timeoutThickEtalon;
+                case 2
+                    SHG_tuning = false;
+                    allStatus = true;
+                    timeOut = obj.timeoutThickEtalon;
+                case 3
+                    allStatus = true;
+                    timeOut = obj.timeoutThickEtalon;
+                case 4
+                    timeOut = obj.timeoutThickEtalon;
+            end
+            OPOsettle_Delay = 2.5;        
+            abort = false;
+            time = 0;
+            tic;
+            i = 1;
+            [obj.SHG_power, ~] = obj.cwaveHandle.get_photodiode_shg;
+            while(obj.SHG_power < obj.Eta_minSHGPower) 
+                pause(delay_val); %in seconds
+                if allStatus == true
+                    pause(OPOsettle_Delay);
+                    LockStatus = obj.regopo_lockStatus; % this updates the status run updateStatus
+                else
+                    LockStatus = true; %force LockStatus true 
+                    [obj.SHG_power, obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
+                    if i == 1
+                        dialog = msgbox('Please wait while Cwave status is checked.',mfilename,'modal');
+                        textH = findall(dialog,'tag','MessageBox');
+                        delete(findall(dialog,'tag','OKButton'));
+                        drawnow;
+                    end
+                    i = i+1;
+                end
+                time = toc; 
+                if (SHG_tuning == true & (obj.shg_lock == false | obj.shg_temp_lock == false | obj.SHG_power < obj.Eta_minSHGPower | obj.wavemeterHandle.getExposure() > obj.maxExpTime) )
+                    dialog = msgbox('Please wait while CWave re-optimizes SHG power.',mfilename,'modal');
+                    textH = findall(dialog,'tag','MessageBox');
+                    delete(findall(dialog,'tag','OKButton'));
+                    drawnow;
+                    %try first relocking etalon upon first iteration otherwise try repomtimizing the SHG;
+                    if (i ==1)
+                        i = i+1;
+                        obj.cwaveHandle.relock_etalon;
+                    end
+                    dialog0 = msgbox('Relocking etalon.',mfilename,'modal');
+                    textH = findall(dialog0,'tag','MessageBox');
+                    delete(findall(dialog0,'tag','OKButton'));
+                    drawnow;
+                    while obj.SHG_power < obj.Eta_minSHGPower 
+                        pause(OPOsettle_Delay)
+                        LockStatus = obj.regopo_lockStatus;
+                        time = toc;
+                        if (LockStatus & obj.SHG_power > obj.Eta_minSHGPower) 
+                            delete(dialog)
+                            break;
+                        elseif (time > timeOut & obj.wavemeterHandle.getExposure() > obj.maxExpTime)
+                           break;
+                        end
+                        
+                    end
+                    delete(dialog0)
+                    pause(delay_val)
+                    if (obj.SHG_power < obj.Eta_minSHGPower)  
+                        time = 0;
+                        timeOut = obj.timeoutSHG;
+                        tic;
+                        obj.cwaveHandle.set_regopo(2);
+                        obj.cwaveHandle.optimize_shg();
+                        dialog1 = msgbox('Please wait. Re-optimizing SHG.',mfilename,'modal');
+                        textH = findall(dialog1,'tag','MessageBox');
+                        delete(findall(dialog1,'tag','OKButton'));
+                        drawnow;
+                        
+                        while (obj.SHG_power < obj.Eta_minSHGPower)
+                            pause(5)
+                            LockStatus = obj.regopo_lockStatus;
+                            time = toc;
+                            if LockStatus &  obj.SHG_power > obj.Eta_minSHGPower
+                                delete(dialog)
+                                delete(dialog1)
+                                break;
+                            elseif (time > timeOut & obj.wavemeterHandle.getExposure() > obj.maxExpTime)
+                                delete(dialog);
+                                delete(dialog1)
+                                dialog2 = msgbox('SHG Power is low. Retune.',mfilename,'modal');
+                                textH = findall(dialog,'tag','MessageBox');
+                                drawnow;
                                 break;
                             end
-                  elseif obj.cwaveHandle.getregopo == 2 & obj.locked == true
-                      break;
-                  else 
-                      continue;
-                  end
-              end
-          end
-          
+                              
+                        end
+                    elseif time > obj.timeoutAllElements
+                        delete(dialog);
+                        dialog3 =  questdlg('Tuning Timed out. Continue or abort tuning?', ...
+                           'Cwave Not Ready', ...
+                            'Continue','Abort','Abort');
+                        % Handle response
+                        switch dialog3
+                            case 'Continue'
+                                tic;
+                            case 'Abort'
+                                obj.cwaveHandle.abort_tune;
+                                abort = true;
+                                return;
+                        end
+                    end
+                end
+                  
+                if (LockStatus & obj.SHG_power > obj.Eta_minSHGPower)
+                    if LockStatus == true
+                        delete(dialog)
+                    end
+                    abort = false;
+                    break;
+                elseif (time > timeOut & obj.wavemeterHandle.getExposure() > obj.maxExpTime)
+                    if LockStatus == true
+                        delete(dialog)
+                    end
+                    abort = true;
+                    break;
+                else
+                    continue;
+                end
+            end
+        end
+                         
           function [wm_lambda_c,wmPower_c,wm_exptime_c, abort, exit] = reset_hysteresis(obj,pstep)
               i =1;
               %total_step = 0;
