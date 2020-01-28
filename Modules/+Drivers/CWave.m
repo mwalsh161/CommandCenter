@@ -91,7 +91,7 @@ classdef CWave < Modules.Driver
         Ext_SetCommand = 'ext_set_command';
         ExtGet_IntValue = 'ext_get_intvalue';
         ExtGet_FloatValue = 'ext_get_floatvalue';
-        RelockEtalon = 'reg_etacatch';
+        RelockEtalon = 'regeta_catch';
         ShutterSHG = 'shtter_shg';
         ShutterLaser = 'shtter_las';
         Open = 'open';
@@ -113,7 +113,7 @@ classdef CWave < Modules.Driver
         OPO_MaxPower = 10000; %dummy value. value needs to be calibrated (testing needed)
         OPO_MinPower = 100; %dummy value. value needs to be calibrated (testing needed)
         SHG_MaxPower = 10000; %dummy value. value needs to be calibrated (testing needed)
-        SHG_MinPower = 25; %was 100%dummy value. value needs to be calibrated (testing needed)
+        SHG_MinPower = 50; %was 100%dummy value. value needs to be calibrated (testing needed)
     end
     %% Signleton Method
     methods(Static)
@@ -365,8 +365,10 @@ classdef CWave < Modules.Driver
                     % 0=SHG lock stabilized, 1==SHG not locked to reference cavity. Still optimizing
                     assert(status == 0, ['SHG not locked to reference cavity. Optimization still in progress']);
                 case obj.Etalon_LockStatus
-                    % 0=etalon lock stabilized, 1==etalon not locked to reference cavity. Still optimizing
-                    assert(status == 0, ['etalon not locked to reference cavity. Optimization still in progress']);
+                    if status == 1
+                        % 0=etalon lock stabilized, 1==etalon not locked to reference cavity. Still optimizing
+                        disp( ['etalon not locked to reference cavity. Optimization still in progress']);
+                    end
                 case obj.WLM_PID_Optimize
                 case obj.Ext_SetCommand
                     % 0=command executed correctly, 1==error command not executed by external module
@@ -992,7 +994,7 @@ classdef CWave < Modules.Driver
             shg_lock_status = obj.LibraryFunction(obj.SHG_LockStatus);
         end
         
-        function [etalon_lock_status] = get_status_lock_etalon(obj)
+        function etalon_lock_status = get_status_lock_etalon(obj)
             % Description: Reads the current status of the etalon lock.
             % Arguments: none
             % Returns: Returns 0 if the etalon is locked. Returns 1 if optimization is still in progress.
