@@ -600,8 +600,9 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         
         function updateStatus(obj)
             % Get status report from laser and update a few fields
-            tic;
+            % taskes roughly 500 ms to run
             obj.TempBase = obj.cwaveHandle.get_tBase;
+            assert(obj.TempBase < 23.25, 'CWave base temperature is high. Check the plumbing you fool!')
             obj.TempFPGA = obj.cwaveHandle.get_tFPGA;
             obj.TempRef = obj.cwaveHandle.get_tref;
             obj.TempOPO = obj.cwaveHandle.get_topo;
@@ -620,7 +621,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.shg_lock = ~obj.cwaveHandle.shg_lock_stat;
             obj.pump_emission = ~obj.cwaveHandle.laser_emission_stat;
             obj.ref_temp_lock = ~obj.cwaveHandle.ref_temp_stat;
-            %obj.ref_temp_lock = ~obj.cwaveHandle.get_status_temp_ref;
            
             [obj.OPO_power,obj.sOPO_power] = obj.cwaveHandle.get_photodiode_opo;
             [obj.SHG_power,obj.sSHG_power] = obj.cwaveHandle.get_photodiode_shg;
@@ -630,16 +630,14 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
                 & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
             
-            if( (obj.locked ) | ( (obj.cwaveHandle.get_regopo == 4 ...
-                    & regopo4_locked & obj.sSHG_power == false)))
+            if( (obj.locked & obj.SHG_power > obj.Eta_minSHGPower  ) | ( (obj.cwaveHandle.get_regopo == 4 ...
+                    & regopo4_locked & obj.sSHG_power == false) & obj.SHG_power > obj.Eta_minSHGPower) )
                 obj.setpoint = obj.c/obj.getWavelength;  % This sets wavelength_lock
             else
                 obj.setpoint = NaN;
             end
  
             obj.tuning = ~(obj.locked);
-            toc;
-            %fprintf('toc %.8f\n',toc);
             %obj.setpoint = obj.cwaveHandle.WLM_PID_Setpoint;
             % Overwrite getWavelength tuning status with EMM tuning state 
         end
