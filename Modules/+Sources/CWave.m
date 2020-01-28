@@ -800,73 +800,97 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end                                            
         end
         
-          function [wm_wl,wm_power,wm_exptime] = powerStatus(obj, tol,delay_val)
-                    i = 0;
-                    max_interation = 10;
-                    MaxExposuretime = 1500;
-                    obj.wavemeterHandle.setExposureMode(false); % manually set exposure
-                    obj.wavemeterHandle.setExposure(1) % set exposure to 1 ms
-                    obj.wavemeterHandle.setExposureMode(true); %sert exposure mode auto
-                    prev_expTime = obj.wavemeterHandle.getExposure();
-                    curr_expTime = 100000*prev_expTime;
-                    while (  curr_expTime <= (1-tol)*prev_expTime | curr_expTime >= (1+tol)*prev_expTime )
-                        i = i+1;
-                        %obj.updateStatus;
-                        %pause(delay_val)
-                        obj.is_cwaveReady(delay_val,false,false) %try is_cwaveReady instead of updateStatus and pause. SHould be faster
-                        if i > max_interation
-                            regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
-                                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
-                            
-                            regopo4_noEta_locked =   obj.opo_stepper_lock & obj.opo_temp_lock...
-                                & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
-                           
-                            if (obj.cwaveHandle.get_regopo == 4)
-                                if( regopo4_locked == false)
-                                    error('CWave is not locked for regopo4. Refer to lock status to determine failing elements. Currently in OPO regulator mode 4.');
-                                elseif (regopo4_noEta_locked == true & obj.etalon_lock == false)
-                                    error('Etalon is not locked. Currently in OPO regulator mode 4.');
-                                elseif (regopo4_locked == true & powerSHG_status == true)
-                                    dialog2 = msgbox('insufficient power from SHG.',mfilename,'modal');
-                                                     textH = findall(dlg,'tag','MessageBox');
-                                                     %delete(findall(dlg,'tag','OKButton'));
-                                                     drawnow;
-                                    %delete( dialog2);
-                                    disp('insufficient power from SHG.');
-                                end
-                            end
-                                    
-                            if (obj.cwaveHandle.get_regopo == 2)
-                                if (obj.regopo4_locked == true &  obj.etalon_lock == true & obj.shg_lock == false )
-                                    error('SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
-                                elseif (obj.regopo4_locked == true &  obj.etalon_lock == false & obj.shg_lock == true )
-                                    error('Etalon cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
-                                elseif (obj.regopo4_locked == true &  obj.etalon_lock == false & obj.shg_lock == false )
-                                    error('Etalon and SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
-                                end
-                            end
-                            
-                            if( obj.wavemeterHandle.setExposure >= MaxExposuretime)
-                                error('Dim emission. Check that light is well coupled into wave meter')
-                            else
-                                error('Large fluctuations in CWave power.')
-                            end
-                        
-                        elseif ( (1+tol)*prev_expTime >= curr_expTime & curr_expTime >= (1-tol)*prev_expTime )
-                            wm_exptime = obj.wavemeterHandle.getExposure(); 
-                            
-                            if (powerSHG_status == false)
-                                wm_wl = obj.getWavlength(); 
-                                wm_power = obj.wavemeterHandle.getPower(); 
-                                wm_exptime = obj.wavemeterHandle.getExposure(); 
-                            elseif (powerSHG_status == true)
-                                wm_wl = NaN;
-                                wm_power = NaN;
-                            end  
-                            return;
+        function [wm_wl,wm_power,wm_exptime] = powerStatus(obj, tol,delay_val,errorHandling,timeOut)
+                    
+            switch nargin 
+                case 1
+                    tol = obj.wmExposureTolerance;
+                    delay_val = 0.01;
+                    errorHandling = false;
+                    timeOut = 0.1;
+                case 2
+                    delay_val = 0.01;
+                    errorHandling = false;
+                    timeOut = 0.1;
+                case 3
+                    errorHandling = false;
+                    timeOut = 0.1;
+                case 4
+                    timeOut = 0.1;
+
+            end
+            i = 0;
+            max_interation = 5;
+            MaxExposuretime = 1500;
+            obj.is_EtalonRelocked();
+            prev_expTime = obj.wavemeterHandle.getExposure();
+            curr_expTime = 100000*prev_expTime;
+            while (  curr_expTime <= (1-tol)*prev_expTime | curr_expTime >= (1+tol)*prev_expTime )
+                prev_expTime = obj.wavemeterHandle.getExposure();
+                pause(obj.wavemeterHandle.getExposure/2000+0.01);
+                curr_expTime = obj.wavemeterHandle.getExposure();   
+                i = i+1;
+
+                if errorHandling == false
+                    [obj.SHG_power, ~] = obj.cwaveHandle.get_photodiode_shg;
+                else
+                    obj.is_cwaveReady(delay_val,false,false,timeOut)
+                end
+                if i > max_interation & errorHandling == true
+                    regopo4_locked =  obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
+                        & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+
+                    regopo4_noEta_locked =   obj.opo_stepper_lock & obj.opo_temp_lock...
+                        & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission;
+
+                    if (obj.cwaveHandle.get_regopo == 4)
+                        if( regopo4_locked == false)
+                            error('CWave is not locked for regopo4. Refer to lock status to determine failing elements. Currently in OPO regulator mode 4.');
+                        elseif (regopo4_noEta_locked == true & obj.etalon_lock == false)
+                            error('Etalon is not locked. Currently in OPO regulator mode 4.');
+                        elseif (regopo4_locked == true & powerSHG_status == true)
+                            dialog2 = msgbox('insufficient power from SHG.',mfilename,'modal');
+                                             textH = findall(dlg,'tag','MessageBox');
+                                             drawnow;
+                            disp('insufficient power from SHG.');
                         end
                     end
-          end
+
+                    if (obj.cwaveHandle.get_regopo == 2)
+                        if (regopo4_locked == true &  obj.etalon_lock == true & obj.shg_lock == false )
+                            error('SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
+                        elseif (regopo4_locked == true &  obj.etalon_lock == false & obj.shg_lock == true )
+                            error('Etalon cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
+                        elseif (regopo4_locked == true &  obj.etalon_lock == false & obj.shg_lock == false )
+                            error('Etalon and SHG cannot lock. Try retuning manually. Currently in OPO regulator mode 2.')
+                        end
+                    end
+
+                    if( obj.wavemeterHandle.setExposure >= MaxExposuretime)
+                        error('Dim emission. Check that light is well coupled into wave meter')
+                    else
+                        error('Large fluctuations in CWave power.')
+                    end
+
+
+                elseif ( (1+tol)*prev_expTime >= curr_expTime & curr_expTime >= (1-tol)*prev_expTime )
+
+                    if (obj.SHG_power > obj.Eta_minSHGPower) %obj.sSHG_power == false
+                        %pause(0.005);
+                        wm_wl = obj.getWavelength(); 
+                        wm_power = obj.wavemeterHandle.getPower(); 
+                        wm_exptime = obj.wavemeterHandle.getExposure(); 
+                    elseif (obj.SHG_power < obj.Eta_minSHGPower) %obj.sSHG_power == true)
+                        wm_wl = NaN;
+                        wm_power = NaN;
+                        wm_exptime = NaN;
+                    end  
+                    return;
+                end
+
+            end
+        end
+  
           
           function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus)
               switch nargin
