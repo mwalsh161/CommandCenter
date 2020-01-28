@@ -13,7 +13,7 @@ classdef in < handle & Base.Measurement
         function check(obj)
             lineparts = strsplit(obj.line,'/');
             lname = lineparts{end};
-            if numel(lname)>2&&strcmp(lname(1:3),'CTR')
+            if numel(lname)>2 && strcmp(lname(1:3),'CTR')
                 % Counters are ok, and should not go through test below.
                 return
             end

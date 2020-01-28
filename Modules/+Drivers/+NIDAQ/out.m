@@ -62,8 +62,13 @@ classdef out < handle
             obj.check;
             
             % Make and register a fake Pref:
-            pref = Prefs.Double('name', obj.name, 'unit', 'V');
-            pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
+            pref = Prefs.Double('name', obj.name, 'unit', 'V', 'min', limits(1), 'max', limits(2));
+%             pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
+            pref.property_name = lower(line);
+            
+            pr = Base.PrefRegister.instance();
+            
+            pr.addPref(dev, pref);
         end
         function delete(obj)
             delete(obj.niListener)
