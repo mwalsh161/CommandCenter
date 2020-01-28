@@ -1,8 +1,12 @@
 classdef AxisTest < Modules.Driver
 
     properties (GetObservable, SetObservable)
-        x = Prefs.Double(0, 'unit', 'um', 'min', 0, 'max', 10, 'name', 'Test x', 'help', 'Prefs.Double Test as a x axis');
-        y = Prefs.Double(0, 'unit', 'um', 'min', 0, 'max', 10, 'name', 'Test y', 'help', 'Prefs.Double Test as a y axis');
+        x = Prefs.Double(0, 'unit', 'um', 'min', 0, 'max', 10, 'name', 'Test x', 'help', 'Prefs.Double Test as a x axis.');
+        y = Prefs.Double(0, 'unit', 'um', 'min', 0, 'max', 10, 'name', 'Test y', 'help', 'Prefs.Double Test as a y axis.');
+
+        hwp = Prefs.Double(0, 'unit', 'deg', 'min', 0, 'max', 360, 'name', 'Half Wave Plate', 'help', 'To rotate input polarization.');
+
+        voltage = Prefs.Double(0, 'unit', 'V', 'min', 0, 'max', 50, 'name', 'Stark Voltage', 'help', 'Stark tuning voltage');
 
         bool = Prefs.Boolean(false, 'name', 'Test Boolean');
         read_only = Prefs.Boolean(false, 'name', 'Readonly', 'readonly', true);
