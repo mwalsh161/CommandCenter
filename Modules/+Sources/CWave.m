@@ -125,7 +125,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         wavemeterHandle
         cwaveHandle
     end
-    
+
     methods(Access=private)
         function obj = CWave()
             obj.loadPrefs;
@@ -564,8 +564,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
+                %tstart = tic;
                 obj.cwaveHandle.tune_opo_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
                 wl(i) = obj.wavemeterHandle.getWavelength;
+                %telapsed(i+1) = toc(tstart);
             end
             obj.cwaveHandle.tune_opo_cavity(target);
             obj.resonator_percent = obj.GetPercent();
@@ -590,8 +592,10 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
+                %tstart = tic;
                 obj.cwaveHandle.tune_ref_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
                 wl(i) = obj.wavemeterHandle.getWavelength;
+                %telapsed(i+1) = toc(tstart);
             end
             obj.cwaveHandle.tune_ref_cavity(target);
             obj.resonator_percent = obj.GetPercent();
@@ -705,8 +709,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-          function set.target_wavelength(obj,val)
-              %edite 10/30/19 note sure why this is read only???
+        function set.target_wavelength(obj,val)
+            %edite 10/30/19 note sure why this is read only???
             %if isnan(val); obj.target_wavelength = val; return; end % Short circuit on NaN
             %if obj.internal_call; obj.target_wavelength = val; return;
             %else
@@ -714,8 +718,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             %end
             if strcmp(val,''); return; end
             obj.TuneCoarse(obj.c/obj.target_wavelength);
-          end
-          function set.MaxEtalon_wl(obj,val)
+        end
+        function set.MaxEtalon_wl(obj,val)
             if strcmp(val,'')
                 return
             end
@@ -788,7 +792,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 delete(dlg);
             end
         end
-        
+
         function set.tunePercentRange(obj,val)
               
             obj.tunePercentRange = eval(val);
@@ -880,8 +884,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 obj.TunePercent(50.0);
             end
             delete(dlg);
-        end              
-
+        end          
+          
         function exit = EtalonStepper(obj ,step, delay_val)
             %step etalon
             obj.cwaveHandle.tune_thick_etalon(step);
@@ -892,7 +896,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 exit = true;
             end                                            
         end
-        
+          
         function [wm_wl,wm_power,wm_exptime] = powerStatus(obj, tol,delay_val,errorHandling,timeOut)
                     
             switch nargin 
@@ -983,7 +987,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 
             end
         end
-  
+          
         function Lock_Status = regopo_lockStatus(obj)
             obj.updateStatus;
             pause(1);
@@ -1000,7 +1004,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 Lock_Status = false;
             end    
         end
-
+          
         function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus,timeOut)
             switch nargin
                 case 1
@@ -1132,7 +1136,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
         end
-
+          
           function abort = centerThickEtalon(obj)
               abort = false;
               dlgs = questdlg('Is Min and Max range of Etalon correctly set? MaxEtalon_wl and MinEtalon_wl must be measured by autotune or manually by adjusting EtalonStep. If tuning manually MaxEtalon_wl and MinEtalon_wl in Cwave Source preferences', ...
@@ -1454,7 +1458,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           function tune_etalon(obj)
               obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
           end
-          
+
           function set_regopo(obj,val)
               obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,val);
           end
@@ -1462,7 +1466,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
           function val = get_regopo(obj)
               val = obj.cwaveHandle.get_regopo;
           end
-        
+          
           function delete(obj)
               obj.cwaveHandle.delete();
               obj.PulseStreamerHandle.delete(); 
@@ -1553,7 +1557,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  D_term(i) = d_term;  
             end
         end
-
+        
         function [Control, Measured, Dt, IntError, Error, P_term,I_term,D_term] = etalon_pid(obj,setpoint,tolerance,kp,ki,kd)
             
             obj.windupGuardmax = obj.EtaWindupGuardmax; 
@@ -1675,7 +1679,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                  D_term(i) = d_term;  
             end
         end
-        
+
         function [ctrl,prev_error,int_error,p_term,i_term,d_term] = pid_update(obj, curr_error,prev_error, int_error, kp,ki,kd,dt)
  
             % integration
