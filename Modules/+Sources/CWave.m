@@ -658,7 +658,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 
 
         % set methods
-
         function set.cwave_ip(obj,ip)
             err = obj.connect_driver('cwaveHandle', 'CWave', ip);
             if ~isempty(err)
@@ -716,7 +715,49 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             if strcmp(val,''); return; end
             obj.TuneCoarse(obj.c/obj.target_wavelength);
           end
-          
+          function set.MaxEtalon_wl(obj,val)
+            if strcmp(val,'')
+                return
+            end
+            a = eval(val);
+            obj.MaxEtalon_wl = a;
+        end
+        function set.MinEtalon_wl(obj,val)
+            if strcmp(val,'')
+                return
+            end
+            a = eval(val);
+            obj.MinEtalon_wl = a;
+        end  
+        function set.EtalonStep(obj,val)
+            if strcmp(val,'')
+                return
+            end
+            if obj.SHG_power < obj.Eta_minSHGPower
+                if abs(eval(val)) >= 0  
+                    i = 0;
+                    while obj.SHG_power < obj.Eta_minSHGPower
+                        i = i +1;
+                        pause(0.1)
+                        if obj.SHG_power > obj.Eta_minSHGPower | i > 5
+                            break;
+                        end
+                    end
+                    str = 'Please wait. CWave attempting to lock and optimize SHG power.';
+                    dlg = msgbox(str,mfilename,'modal');
+                    textH = findall(dlg,'tag','MessageBox');
+                    delete(findall(dlg,'tag','OKButton'));
+                    drawnow;
+                    obj.is_cwaveReady(3.5,true,true);
+                    pause(3)
+                    delete(dlg)
+                end
+            else
+                obj.is_cwaveReady(1,false,false);
+                obj.EtalonStep = eval(val); 
+                obj.tune_etalon;
+            end
+        end
           function exit = EtalonStepper(obj ,step, delay_val)
               %step etalon
               %direction = sign(step);
@@ -1167,22 +1208,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                                  return
                          end
   
-          end
-
-          function set.MaxEtalon_wl(obj,val)
-              a = eval(val);
-              obj.MaxEtalon_wl = a;
-          end
-          function set.MinEtalon_wl(obj,val)
-               a = eval(val);
-               obj.MinEtalon_wl = a;
-          end
-%           
-          function set.EtalonStep(obj,val)
-              obj.EtalonStep = eval(val);
-              obj.tune_etalon;
-              pause(0.010);
-              obj.updateStatus;
           end
           
           function set.AllElementStep(obj,val)
