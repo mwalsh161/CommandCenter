@@ -1450,14 +1450,11 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                   end
               end 
           end
-          
+
           function tune_etalon(obj)
-%               if obj.cwaveHandle.is_ready == true
-%                   return
-%               end
               obj.cwaveHandle.tune_thick_etalon(obj.EtalonStep);
           end
-
+          
           function set_regopo(obj,val)
               obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,val);
           end
