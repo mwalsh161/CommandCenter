@@ -500,8 +500,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         function TuneSetpoint(obj,setpoint)
             %TuneSetpoint Sets the wavemeter setpoint
             %   setpoint = setpoint in THz
-            %obj.cwaveHandle.fine_tune();
-            %cwave.cwaveHandle.setWLM_gains(20,150);
             target_dev = 0.000001;
             isLocked = true;
             isCoarse = false;
@@ -509,9 +507,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             obj.resonator_tune_speed = 0.1;
             obj.tune(obj.c/setpoint,target_dev,isCoarse, isLocked); 
             obj.resonator_tune_speed = user_speed;
-%             parfor i = 1:500
-%                 obj.tune(setpoint,target_dev,isCoarse);    
-%             end
         end
 
         function TuneCoarse(obj, setpoint)
@@ -562,7 +557,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             assert(target>=0 && target<=100,'Target must be a percentage')
             %set opo cavity to tuning mode 
             if (obj.cwaveHandle.get_regopo() ~= 4)
-                %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4)
                 obj.cwaveHandle.set_regopo(4);
             end
             % tune at a limited rate per step
@@ -570,10 +564,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
-                %tstart = tic;
                 obj.cwaveHandle.tune_opo_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
                 wl(i) = obj.wavemeterHandle.getWavelength;
-                %telapsed(i+1) = toc(tstart);
             end
             obj.cwaveHandle.tune_opo_cavity(target);
             obj.resonator_percent = obj.GetPercent();
@@ -591,7 +583,6 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             assert(target>=0 && target<=100,'Target must be a percentage')
             %set opo cavity to tuning mode 
             if (obj.cwaveHandle.get_regopo() ~= 2)
-                %obj.cwaveHandle.set_intvalue(obj.cwaveHandle.RegOpo_On,4)
                 obj.cwaveHandle.set_regopo(2);
             end
             % tune at a limited rate per step
@@ -599,10 +590,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
-                %tstart = tic;
                 obj.cwaveHandle.tune_ref_cavity(currentPercent+(i)*direction*obj.resonator_tune_speed);
                 wl(i) = obj.wavemeterHandle.getWavelength;
-                %telapsed(i+1) = toc(tstart);
             end
             obj.cwaveHandle.tune_ref_cavity(target);
             obj.resonator_percent = obj.GetPercent();
