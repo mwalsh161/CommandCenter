@@ -440,7 +440,7 @@ classdef dev < Modules.Driver
                 % clear all tasks
                 obj.ClearAllTasks();
                 % unload library
-                if libisloaded(obj.LibraryName),
+                if libisloaded(obj.LibraryName)
                     unloadlibrary(obj.LibraryName);
                 end
             end
@@ -582,7 +582,7 @@ classdef dev < Modules.Driver
                 task.CreateChannels('DAQmxCreateDOChan',lines,[],obj.DAQmx_Val_ChanPerLine);
                 task.Start;
                 task.LibraryFunction('DAQmxWriteDigitalLines',task,1,obj.WriteTimeout,10.0,0,values,0,[]);
-            catch err;
+            catch err
             end
             task.Clear
             if isa(err,'MException'); rethrow(err); end

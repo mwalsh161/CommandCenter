@@ -64,6 +64,8 @@ classdef out < handle
             % Make and register a fake Pref:
             pref = Prefs.Double('name', obj.name, 'unit', 'V');
             pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
+            
+            
         end
         function delete(obj)
             delete(obj.niListener)

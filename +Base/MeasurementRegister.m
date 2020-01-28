@@ -89,15 +89,14 @@ classdef MeasurementRegister < Base.Singleton
     end
     
     methods
-        function addMeasurement(obj, varagin)
+        function addMeasurement(obj, varargin)
             % Adds pref to the register under the field corresponding to the parent.
-            if numel(varagin) == 2
-                m = varagin{1};
-                name = varagin{2};
-            elseif numel(varagin) == 1
-                m = varagin;
-                name = class(m);
-                name = strrep(name, '.', '_');
+            if numel(varargin) == 2
+                m = varargin{1};
+                name = varargin{2};
+            elseif numel(varargin) == 1
+                m = varargin{1};
+                name = strrep(class(m), '.', '_');
             end
             
             if ~isfield(obj.register, name)
@@ -118,7 +117,7 @@ end
 
 function str = makeParentString(parent, isHTML)
     str = strrep(strip(class(parent), '_'), '_', '.');
-    if ~isempty(parent.singleton_id) && ischar(parent.singleton_id)
+    if isa(parent, 'Base.Singleton') && ~isempty(parent.singleton_id) && ischar(parent.singleton_id)
         if isHTML
             str = [str '(<font face="Courier New" color="purple">''' parent.singleton_id '''</font>)'];
         else
