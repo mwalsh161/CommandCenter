@@ -41,14 +41,14 @@ classdef in < handle & Base.Measurement
             else
                 obj.type = 'digital';
             end
+            mname = [lower(dev.DeviceChannel) '_' lower(line)];
+            
             % Fix name to include device id
             line = ['/' dev.DeviceChannel '/' upper(line)];
             obj.dev = dev;
             obj.line = line;
             obj.name = name;
             obj.check;
-            
-            mname = [lower(dev.DeviceChannel) '_' lower(line)];
             
             obj.sizes = struct(mname, [1 1]);
             obj.names = struct(mname, obj.name);
@@ -61,9 +61,16 @@ classdef in < handle & Base.Measurement
             ch = strjoin(ch(3:end),'/');
             str = [obj.name ': ' ch];
         end
+    end
+    methods
         function val = measure(obj)
-            switch
-            val = obj.dev.ReadAILine(obj, obj.name);
+            switch obj.type
+                case 'analog'
+                    val = obj.dev.ReadAILine(obj, obj.name);
+                case 'digital'
+                    val = obj.dev.ReadAILine(obj, obj.name);
+                case 'counter'
+            end
         end
     end
     
