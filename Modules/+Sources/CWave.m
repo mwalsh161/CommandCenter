@@ -1359,7 +1359,98 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                          end
   
           end
-         
+          
+          function uEtalonLock = is_EtalonRelocked(obj,update_status)
+              switch nargin
+                  case 1
+                      update_status = false;
+              end
+              kk = 0;
+              cnts = 0;
+    %                     obj.wavemeterHandle.setExposureMode(false); % manually set exposure
+    %                     obj.wavemeterHandle.setExposure(1) % set exposure to 1 ms
+    %                     obj.wavemeterHandle.setExposureMode(true); %sert exposure mode auto
+              expTime = obj.wavemeterHandle.getExposure();
+              iterExit = 7;
+              if update_status == true
+                  obj.updateStatus;
+                  lock_condition1 = (obj.etalon_lock == false | obj.SHG_power < obj.Eta_minSHGPower);
+                  lock_condition2 = (obj.etalon_lock == true & obj.SHG_power > obj.Eta_minSHGPower);
+              else 
+                  lock_condition1 = true;
+                  lock_condition2 = true;
+              end
+              while(lock_condition1)
+                  if (lock_condition2)
+                      if expTime ~= obj.wavemeterHandle.getExposure()
+                          iterExit = 25;
+                          while( expTime ~= obj.wavemeterHandle.getExposure() )
+                              expTime = obj.wavemeterHandle.getExposure();
+                              %pause(0.050);
+                              if(expTime == obj.wavemeterHandle.getExposure())
+                                  kk = kk + 1;
+                                  cnts = expTime + cnts;
+                                  if kk == iterExit & cnts == kk*expTime
+                                      break;
+                                  elseif kk > iterExit 
+                                      kk = 0;
+                                      cnts = 0;
+                                      break;
+                                  end
+                                  %fprintf('expTime: %.2f\n',expTime)
+                              end
+                          end
+                      elseif expTime == obj.wavemeterHandle.getExposure()
+                        iterExit = 5;
+                        while( expTime == obj.wavemeterHandle.getExposure() )
+                            expTime = obj.wavemeterHandle.getExposure();
+                              %pause(0.005);
+                              if(expTime == obj.wavemeterHandle.getExposure())
+                                  kk = kk + 1;
+                                  cnts = expTime + cnts;
+                                  if kk == iterExit & cnts == kk*expTime
+                                      break;
+                                  elseif kk > iterExit 
+                                      kk = 0;
+                                      cnts = 0;
+                                      break;
+                                  end
+                                  %fprintf('expTime: %.2f\n',expTime)
+                              end
+                        end
+                      end
+                  end
+                  if update_status == true
+                      obj.updateStatus;
+                  else
+                      obj.etalon_lock = ~boolean(obj.cwaveHandle.get_status_lock_etalon());
+                      [obj.SHG_power,~] = obj.cwaveHandle.get_photodiode_shg;
+                  end
+                  
+                  %update lock conditions
+                  lock_condition3 = (obj.etalon_lock == true & obj.SHG_power > obj.Eta_minSHGPower & kk == iterExit & cnts == kk*expTime);
+                  if (lock_condition3)
+                      uEtalonLock = true;
+                      break;
+                  elseif (obj.etalon_lock == true & obj.SHG_power < obj.Eta_minSHGPower)
+                       uEtalonLock = false;
+                      break;
+                      %obj.cwaveHandle.relock_etalon();
+                      %pause(0.1);
+                      %delay = 1;
+                      %obj.is_cwaveReady(delay,false,false);
+                  end
+                  if update_status == true
+                      obj.updateStatus;
+                      lock_condition1 = (obj.etalon_lock == false | obj.SHG_power < obj.Eta_minSHGPower);
+                      lock_condition2 = (obj.etalon_lock == true & obj.SHG_power > obj.Eta_minSHGPower);
+                  else 
+                      lock_condition1 = true;
+                      lock_condition2 = true;
+                  end
+              end 
+          end
+          
           function tune_etalon(obj)
 %               if obj.cwaveHandle.is_ready == true
 %                   return
