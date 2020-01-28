@@ -984,6 +984,23 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
             end
         end
   
+        function Lock_Status = regopo_lockStatus(obj)
+            obj.updateStatus;
+            pause(1);
+            regOPO_State = obj.cwaveHandle.get_regopo;
+            pause(1);
+            if (regOPO_State == 4)
+                Lock_Status =  (obj.etalon_lock & obj.opo_stepper_lock & obj.opo_temp_lock...
+                    & obj.shg_stepper_lock & obj.shg_temp_lock & obj.thin_etalon_lock & obj.pump_emission);
+            elseif (regOPO_State == 2)
+                Lock_Status = obj.locked;
+            elseif (regOPO_State  ~= 4 | regOPO_State  ~= 2 )
+                Lock_Status = false;
+            else
+                Lock_Status = false;
+            end    
+        end
+          
           
           function abort = is_cwaveReady(obj,delay_val,SHG_tuning,allStatus)
               switch nargin
