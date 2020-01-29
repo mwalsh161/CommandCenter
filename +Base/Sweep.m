@@ -23,13 +23,14 @@ classdef Sweep < handle & Base.Measurement
 %   end
 
     properties
-        controller = [];    % Base.SweepController. If this isn't empty, it will look to this for start/stop.
+        controller = [];    % Base.SweepController. If this isn't empty, it will look to this object for start/stop.
     end
     
     properties (SetAccess={?Base.Sweep, ?Base.SweepController})  % Index vars.
-        sub;            % 
-		index;			% integer
+        sub;                % 
+		index;              % integer
         ticking = false;
+        dwell = 1;          % seconds
     end
 
     properties (SetObservable, SetAccess=private)   % Runtime vars.
@@ -37,14 +38,23 @@ classdef Sweep < handle & Base.Measurement
     end
     
     properties (SetAccess=private)
-        flags = struct( 'isNIDAQ',                  false,...   % NotImplemented
-                        'isPulseBlaster',           false,...   % NotImplemented
-                        'isContinuous',             false,...
+        flags = struct( 'isContinuous',             false,...
                         'isOptimize',               false,...   % NotImplemented
                         'shouldOptimizeAfter',      false,...   % NotImplemented
                         'shouldReturnToInitial',    true,...    % NotImplemented
                         'shouldSetInitialOnReset',  true)       % NotImplemented
-	end
+    end
+    
+    properties (SetAccess=private, Hidden)  % NIDAQ vars.
+        NIDAQ = struct( 'isNIDAQ',              false,...
+                        'isPrefNIDAQ',          false,...
+                        'isMeasurementNIDAQ',   false,...
+                        'dev',                  [],...
+                        'task',                 [],...
+                        'pulseTrain',           [],...
+                        'timer',                [],...
+                        'updateRate',           .2);  % seconds
+    end
 
     methods
 		function obj = Sweep(varargin)
@@ -84,18 +94,30 @@ classdef Sweep < handle & Base.Measurement
                         obj.flags.(fn{ii}) = varargin{4}.(fn{ii});
                     end
                 end
+
+                if nargin > 4
+%                     obj.name = varargin{5};
+                    obj.dwell = varargin{5};
+                end
             end
             
+            defaultname = 'Sweep';  % Fix me.
             
 			% Check measurements
             assert(numel(obj.measurements) == length(obj.measurements), '')
             assert(numel(obj.measurements) > 0, '')
             
+            obj.NIDAQ.isMeasurementNIDAQ = false(1, numel(obj.measurements));
+            
             for ii = 1:length(obj.measurements)
                 assert(isa(obj.measurements{ii}, 'Base.Measurement'), '');
+                
+                obj.NIDAQ.isMeasurementNIDAQ(ii) = isa(obj.measurements{ii}, 'Drivers.NIDAQ.in');
             end
             
             prefList = {};
+                
+            obj.NIDAQ.isPrefNIDAQ = false(1, numel(obj.sdims));
             
 			% Check dims and scans
             if ~obj.flags.isOptimize
@@ -104,39 +126,42 @@ classdef Sweep < handle & Base.Measurement
                 assert(numel(obj.sdims) == numel(obj.sscans), '.sdims must have the same length as .sdims')
                 
                 for ii = 1:numel(obj.sdims)
-                    if iscell(obj.sdims{ii})    % If we have paired Prefs.
-                        assert(numel(obj.sdims{ii}) > 1, 'If an element of .sdims is a cell, it is a paired axis and must contain at least two prefs.');
-                        assert(iscell(obj.sscans{ii}), '');
-                        assert(numel(obj.sscans{ii}) == numel(obj.sdims{ii}), '');
+                    checkPref(obj.sdims{ii})
+                    checkScan(obj.sscans{ii}, obj.sdims{ii});
 
-                        master = obj.sscans{ii}{1};
+                    obj.NIDAQ.isPrefNIDAQ(ii) = isNIDAQ(obj.sdims{ii});
 
-                        for jj = 1:length(obj.sdims{ii})
-                            checkPref(obj.sdims{ii}{jj})
-                            checkScan(obj.sscans{ii}{jj}, obj.sdims{ii}{jj});
-                            
-                            assert(length(obj.sscans{ii}{jj}) == length(master), '');
-                        end
-                    else
-                        checkPref(obj.sdims{ii})
-                        checkScan(obj.sscans{ii}, obj.sdims{ii});
-
-    %                     for jj = (ii+1):length(obj.sdims)
-    %                         assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
-    %                     end
-
-                        for jj = (ii+1):length(obj.sdims)
-                            assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
-                        end
+                    for jj = (ii+1):length(obj.sdims)
+                        assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
                     end
                 end
             else
+                error('NotImplemented');
+            end
+            
+            if isempty(obj.name)
+                obj.name = defaultname;
+            end
+            
+            if all(obj.NIDAQ.isPrefNIDAQ) && all(obj.NIDAQ.isMeasurementNIDAQ)
+                obj.NIDAQ.isNIDAQ = true;
                 
+                obj.NIDAQ.dev = obj.measurements{1}.dev;
+                obj.NIDAQ.task = obj.NIDAQ.dev.CreateTask(obj.name);
+                
+                obj.NIDAQ.task
             end
             
             obj.fillMeasurementProperties();
             obj.reset();
             
+            function tf = isNIDAQ(pref)
+                if isa(pref, 'Prefs.Time')
+                    tf = true;
+                else
+                    tf = strcmp(pref.parent_class, 'Drivers.NIDAQ.dev');
+                end
+            end
             function checkPref(pref)
                 assert(isa(pref, 'Base.Pref'), 'Each element ');
                 assert(pref.isnumeric, '');
@@ -180,8 +205,6 @@ classdef Sweep < handle & Base.Measurement
 			obj.index = 1;
 
             obj.data = obj.blank(@NaN);
-
-			obj.flags.isNIDAQ = false;
         end
         
         function [vec, ind] = current(obj)
@@ -242,6 +265,67 @@ classdef Sweep < handle & Base.Measurement
             end
 
             data = obj.data;
+        end
+    
+        function setupNIDAQ(obj)
+            if ~isempty(obj.NIDAQ.timer)
+                return  % Silently fail
+            end
+            obj.NIDAQ.timer = timer('ExecutionMode', 'fixedRate', 'name', 'Counter',...
+                'period', obj.update_rate, 'timerfcn', @obj.cps);
+            
+            dwell = obj.dwell/1000; % ms to s
+            obj.PulseTrainH = obj.nidaq.CreateTask('Counter PulseTrain');
+            f = 1/dwell; %#ok<*PROP>
+            try
+                obj.PulseTrainH.ConfigurePulseTrainOut('CounterSync', f);
+            catch err
+                obj.reset
+                rethrow(err)
+            end
+            obj.NIDAQ.task = obj.nidaq.CreateTask([obj.name ' Task']);
+            
+            try
+                continuous = true;
+                buffer = 2*f*obj.update_rate;
+                obj.CounterH.ConfigureCounterIn(obj.lineIn,buffer,obj.PulseTrainH,continuous);
+            catch err
+                obj.reset
+                rethrow(err)
+            end
+        end
+        function measureNIDAQ(obj)
+            obj.NIDAQ.pulseTrain.Start;
+            obj.NIDAQ.task.Start;
+            start(obj.NIDAQ.timer)
+%             obj.running = true;
+        end
+        function resetNIDAQ(obj)
+            if ~isempty(obj.timerH)
+                if isvalid(obj.timerH) && strcmp(obj.timerH.Running,'on')
+                    obj.stopTimer()
+                end
+                obj.timerH = [];
+            else
+                if ~isempty(obj.CounterH) && isvalid(obj.CounterH)
+                    obj.CounterH.Clear;
+                end
+                if ~isempty(obj.PulseTrainH) && isvalid(obj.PulseTrainH)
+                    obj.PulseTrainH.Clear
+                end
+            end
+        end
+        function updateNIDAQ(obj)
+            % Reads Counter Task
+            if ~isvalid(obj.CounterH)
+                obj.stopTimer()
+            end
+            nsamples = obj.CounterH.AvailableSamples;
+            if nsamples
+                counts = mean(diff(obj.CounterH.ReadCounter(nsamples)));
+                counts = counts/obj.dwell;
+                obj.callback(counts,nsamples)
+            end
         end
     end
     methods (Hidden)

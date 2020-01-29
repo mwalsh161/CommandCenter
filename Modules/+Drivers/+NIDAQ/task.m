@@ -465,6 +465,10 @@ classdef task < handle
             obj.Verify
         end
 
+        function ConfigureMultiInMultiOut(obj, in, out, NSamples, continuous)
+            
+        end
+        
         %% Read
         function count = AvailableSamples(obj)
             count = uint32(0);
