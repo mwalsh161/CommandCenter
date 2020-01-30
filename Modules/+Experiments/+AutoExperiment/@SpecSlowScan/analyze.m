@@ -6,6 +6,7 @@ function varargout = analyze(data,varargin)
 %       [FitType]: "gauss" or "lorentz" (default "gauss")
 %       [inds]: array of indices to mask full dataset (default: all data)
 %       [viewonly]: do not begin uifitpeaks on the axes
+%       [new]: arrow navigation will go to nearest new site (e.g. continued = 0)
 %   Outputs: None (see below)
 %   Interactivity:
 %       click on a spot to see corresponding data
@@ -44,6 +45,7 @@ addParameter(p,'Analysis',[],@isstruct);
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
 addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numeric'},{'vector'}));
 addParameter(p,'viewonly',false,@islogical);
+addParameter(p,'new',false,@islogical);
 parse(p,varargin{:});
 
 prefs = data.meta.prefs;
@@ -118,6 +120,7 @@ ax(5).UIContextMenu = c;
 
 % Constants and large structures go here
 n = length(sites);
+filter_new = p.Results.new;
 viewonly = p.Results.viewonly;
 FitType = p.Results.FitType;
 wavenm_range = 299792./prefs.freq_range; % Used when plotting
@@ -300,16 +303,24 @@ end
     end
 
     function cycleSite(~,eventdata)
-        switch eventdata.Key
-            case 'leftarrow'
-                direction = -1;
-            case 'rightarrow'
-                direction = 1;
-            otherwise % Ignore anything else
-                return
+        ind = site_index;
+        for i = 1:n % Just go through sites once
+            switch eventdata.Key
+                case 'leftarrow'
+                    direction = -1;
+                case 'rightarrow'
+                    direction = 1;
+                otherwise % Ignore anything else
+                    return
+            end
+            ind = mod(ind-1+direction,n)+1;
+            if filter_new && ~any([sites(ind).experiments.continued]==0)
+                continue
+            end
+            changeSite(ind);
+            return
         end
-        ind = mod(site_index-1+direction,n)+1;
-        changeSite(ind);
+        errordlg('No new sites found; try relaunching without new flag set to true.')
     end
 %% Update UI methods
     function prepUI(ax,selector)
