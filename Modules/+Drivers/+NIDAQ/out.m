@@ -15,6 +15,9 @@ classdef out < handle
     properties(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.out})
         niListener                     % Handle to NIDAQ's listener to state_change
     end
+    properties (Access=private, Hidden)
+        pref;                           % The fake pref that is constructed to lead to this DAQ.
+    end
     
     methods(Access=private)
         function check(obj)
@@ -68,8 +71,9 @@ classdef out < handle
             pref.property_name = lower(pname);
             pref.parent_class = class(dev);
             
-            pr = Base.PrefRegister.instance();
+            obj.pref = pref;
             
+            pr = Base.PrefRegister.instance();
             pr.addPref(dev, pref);
         end
         function delete(obj)
@@ -95,6 +99,11 @@ classdef out < handle
             catch
                 tf = false;
             end
+        end
+    end
+    methods
+        function pref = get_meta_pref(obj)
+            pref = obj.pref;
         end
     end
 end

@@ -34,6 +34,9 @@ classdef in < handle & Base.Measurement
     
     methods(Access={?Drivers.NIDAQ.dev})
         function obj = in(dev,line,name)
+            dev
+            line
+            name
             assert(length(name)>=1,'Must have a line name')
             % Determine type of channel
             if lower(line(1))=='a'
@@ -66,9 +69,9 @@ classdef in < handle & Base.Measurement
         function val = measure(obj)
             switch obj.type
                 case 'analog'
-                    val = obj.dev.ReadAILine(obj, obj.name);
+                    val = obj.dev.ReadAILine(obj.name);
                 case 'digital'
-                    val = obj.dev.ReadAILine(obj, obj.name);
+                    val = obj.dev.ReadDILine(obj.name);
                 case 'counter'
             end
         end

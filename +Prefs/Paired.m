@@ -25,9 +25,10 @@ classdef Paired < Prefs.Numeric
         min = -Inf;
         max = Inf;
     end
-    properties (Hidden, Access=private)
-        prefs       = Prefs.Numeric.empty(1,0);
-        pairings    = {};
+    properties (Hidden, Access={?Prefs.Paired, ?Base.Sweep})
+        prefs       = Prefs.Numeric.empty(1,0);     % Array of prefs
+        pairings    = {};                           % Array of function_handles
+%         normalized  = [];                           % If function_handles
     end
 
     methods
@@ -104,7 +105,7 @@ classdef Paired < Prefs.Numeric
         function validate(obj, val)
             for ii = 1:length(obj.prefs)
 %                 try
-                obj.prefs(ii).validate(obj.paired{ii}(val));
+                obj.prefs(ii).validate(obj.pairings{ii}(val));
 %                 catch err
 %                     % Should error descriptively.
 %                 end

@@ -50,10 +50,12 @@ classdef Sweep < handle & Base.Measurement
                         'isPrefNIDAQ',          false,...
                         'isMeasurementNIDAQ',   false,...
                         'dev',                  [],...
-                        'task',                 [],...
+                        'tasks',                [],...
                         'pulseTrain',           [],...
-                        'timer',                [],...
-                        'updateRate',           .2);  % seconds
+                        'lastCount',            [],...  % integer array with size tasks
+                        'dwell',                [],...  % seconds (temp variable until a better solution is written)
+                        'timer',                [],...  % timer that periodically gathers data from the DAQ
+                        'updateRate',           .2);    % seconds
     end
 
     methods
@@ -147,9 +149,8 @@ classdef Sweep < handle & Base.Measurement
                 obj.NIDAQ.isNIDAQ = true;
                 
                 obj.NIDAQ.dev = obj.measurements{1}.dev;
-                obj.NIDAQ.task = obj.NIDAQ.dev.CreateTask(obj.name);
                 
-                obj.NIDAQ.task
+                obj.setupNIDAQ();
             end
             
             obj.fillMeasurementProperties();
@@ -158,6 +159,12 @@ classdef Sweep < handle & Base.Measurement
             function tf = isNIDAQ(pref)
                 if isa(pref, 'Prefs.Time')
                     tf = true;
+                elseif isa(pref, 'Prefs.Paired')
+                    tf = true;
+                    
+                    for ii = 1:length(pref.prefs)
+                        tf = tf && isNIDAQ(pref.prefs(ii));
+                    end
                 else
                     tf = strcmp(pref.parent_class, 'Drivers.NIDAQ.dev');
                 end
@@ -266,23 +273,37 @@ classdef Sweep < handle & Base.Measurement
 
             data = obj.data;
         end
-    
+    end
+    methods (Access=private, Hidden)
         function setupNIDAQ(obj)
-            if ~isempty(obj.NIDAQ.timer)
-                return  % Silently fail
-            end
-            obj.NIDAQ.timer = timer('ExecutionMode', 'fixedRate', 'name', 'Counter',...
-                'period', obj.update_rate, 'timerfcn', @obj.cps);
+            error('NotImplemented');
             
-            dwell = obj.dwell/1000; % ms to s
-            obj.PulseTrainH = obj.nidaq.CreateTask('Counter PulseTrain');
-            f = 1/dwell; %#ok<*PROP>
-            try
-                obj.PulseTrainH.ConfigurePulseTrainOut('CounterSync', f);
-            catch err
-                obj.reset
-                rethrow(err)
+            obj.NIDAQ.timer = timer('ExecutionMode', 'fixedRate', 'name', ['Sweep ' obj.name],...
+                'period', obj.NIDAQ.updateRate, 'timerfcn', @obj.updateNIDAQ);
+            
+            obj.PulseTrainH = obj.NIDAQ.dev.CreateTask('Counter PulseTrain');
+            
+            f = 1/obj.NIDAQ.dwell;
+%             try
+                obj.NIDAQ.pulseTrain.ConfigurePulseTrainOut('CounterSync', f);  % Change this?
+%             catch err
+%                 rethrow(err)
+%             end
+            
+
+            kk = 1;
+
+            for ii = 1:length(obj.sdims)
+                if isa(obj.sdims{ii}, 'Prefs.Paired')
+                    
+                else
+                    obj.NIDAQ.tasks(kk) = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.sdims{ii}.name]);
+                    configureTask(obj.sdims{ii}, obj.NIDAQ.tasks(kk));
+                end
             end
+            
+%             obj.NIDAQ.task = obj.NIDAQ.dev.CreateTask(obj.name);
+            
             obj.NIDAQ.task = obj.nidaq.CreateTask([obj.name ' Task']);
             
             try
@@ -292,6 +313,10 @@ classdef Sweep < handle & Base.Measurement
             catch err
                 obj.reset
                 rethrow(err)
+            end
+            
+            function configureTask(pref, task)
+                
             end
         end
         function measureNIDAQ(obj)
@@ -327,12 +352,25 @@ classdef Sweep < handle & Base.Measurement
                 obj.callback(counts,nsamples)
             end
         end
+        function stopTimer(obj,varargin)
+            if isvalid(obj)
+                stop(obj.timerH);
+                delete(obj.timerH);
+                obj.timerH = [];
+                obj.CounterH.Clear;
+                obj.PulseTrainH.Clear;
+                obj.callback = [];
+                obj.running = false;
+            end
+        end
     end
     methods (Hidden)
         function measureSweep(obj)
             
         end
         function measureOptimize(obj)
+            error('NotImplemented')
+            
             options = optimset('Display', 'iter', 'PlotFcns', @optimplotfval);
 
             fun = @(x)100*(x(2) - x(1)^2)^2 + (1 - x(1))^2;

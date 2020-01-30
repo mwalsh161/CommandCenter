@@ -165,7 +165,7 @@ classdef task < handle
             end
             
             if isnan(fIndex)
-                error(['Drivers.NIDAQ: ' FunctionName ' not found in library']);
+                error(['Drivers.NIDAQ: ' FunctionName ' not found in library. Valid functiibs are:' 13 strjoin(FunctionProto, char(13))]);
             end
             
             % use regexp to get the number of args, given as [a, b, c, d]
