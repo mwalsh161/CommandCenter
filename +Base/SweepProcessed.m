@@ -43,7 +43,15 @@ classdef SweepProcessed < handle
 			obj.v = v;
 			obj.x = x;
 
-			L = obj.s.length() + sum(obj.s.measurementLengths());
+            'fish'
+            
+            obj.s.length()
+            sum(obj.s.measurementDimensions())
+            obj.s.measurementDimensions()
+            
+            'dish'
+            
+			L = obj.s.length() + sum(obj.s.measurementDimensions());
 
             obj.sliceDefault =      num2cell(ones(1, L));
 			obj.sliceDefault(:) =   {':'};
@@ -53,16 +61,22 @@ classdef SweepProcessed < handle
             obj.sliceOptions =          2*ones(1, L);           % Default option is 2
             
             obj.sliceOptions(1) = -1;
-            obj.sliceOptions(2) = -2;
+            if L > 1
+                obj.sliceOptions(2) = -2;
+            end
 
 			if ~isempty(obj.v.panel) && ~isempty(obj.v.panel.tabgroup) %#ok<*ALIGN>
 				obj.makePanel();
                 obj.v.panel.tabgroup.SelectedTab = obj.tab.tab;
             end
             
-            obj.v.displayAxesMeasNum
+%             obj.v.displayAxesMeasNum
+            
+            so = obj.sliceOptions
 
-			if obj.x > max(obj.v.displayAxesMeasNum)
+% 			if obj.x > max(obj.v.displayAxesMeasNum)
+            obj.v.displayAxesMeasNum
+			if obj.x > max(abs(obj.v.displayAxesMeasNum))
 				obj.I = 0;
             else
 				obj.I = x;
@@ -299,9 +313,9 @@ classdef SweepProcessed < handle
                                                                                         'Callback', @obj.updateSlice_Callback);
 
                             kk = kk + 1;
-                            mm = mm + 1;
                         end
                     end
+                    mm = mm + 1;
                 end
 			end
 
@@ -330,7 +344,11 @@ classdef SweepProcessed < handle
             
             p = subsref(obj.s.data.(sd{obj.I}).dat, S);
             
+            obj.v.displayAxesMeasNum
+            
             relevant = obj.v.displayAxesMeasNum == 0 | obj.v.displayAxesMeasNum == obj.I; % Look for axes which are either global (0) or related to this input (obj.I)
+            
+            relevant
             
             opts = obj.sliceOptions(relevant(2:end));   % Ignore the first axis, which is None
             
@@ -462,6 +480,8 @@ classdef SweepProcessed < handle
             old = obj.sliceOptions;
 			obj.sliceOptions = sliceOptions;
             
+            obj.sliceOptions
+            
 			if ~isempty(obj.tab)	% If we have a panel...
                 for ii = 1:length(obj.sliceOptions)
                     
@@ -485,6 +505,8 @@ classdef SweepProcessed < handle
                         obj.tab.edit(ii).Enable = 'off';
                     else
                         if obj.enabledUI
+                            ii
+                            obj.tab.edit(ii)
                             obj.tab.edit(ii).Enable = 'on';
                         end
                     end
@@ -768,6 +790,7 @@ classdef SweepProcessed < handle
 			if (obj.normAuto && ~(obj.m == m_ && obj.M == M_)) || shouldForce
                 obj.m = m_;
                 obj.M = M_;
+                obj.v.process();
             end
 
             if obj.v.currentTab() == obj.x

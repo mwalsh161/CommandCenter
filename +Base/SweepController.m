@@ -131,7 +131,7 @@ classdef SweepController < handle
             if obj.running
                 obj.gui.toggle.String =         'Sweeping...';
 %                 obj.gui.toggle.Interruptible =  'off';
-                obj.gui.toggle.Tooltip =        'Click to stop sweeping.';
+                obj.gui.toggle.TooltipString =        'Click to stop sweeping.';
                 obj.gui.index.Enable =          'inactive';
                 obj.gui.tick.Enable =           'off';
                 obj.gui.reset.Enable =           'off';
@@ -142,7 +142,7 @@ classdef SweepController < handle
             else
                 obj.gui.toggle.String =         'Sweep';
 %                 obj.gui.toggle.Interruptible =  'on';
-                obj.gui.toggle.Tooltip =        'Click to start sweeping.';
+                obj.gui.toggle.TooltipString =        'Click to start sweeping.';
                 obj.gui.index.Enable =          'on';
                 obj.gui.tick.Enable =           'on';
                 obj.gui.reset.Enable =           'on';

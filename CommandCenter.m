@@ -257,6 +257,10 @@ if exist(MATLAB_prefs,'file')
     [msg,msgID] = copyfile(MATLAB_prefs,fullfile(path,'.matlabprefs.mat.backup'));
     if ~isempty(msg)
         warning(msgID,msg);
+        warning([   'If you recently installed a new version of matlab, you can copy your old prefs from:' 13 ...
+                    '    C:\Users\<username>\AppData\Roaming\MathWorks\MATLAB\<RXXXx old version>' 13 ...
+                    'To:' 13 ...
+                    '    C:\Users\<username>\AppData\Roaming\MathWorks\MATLAB\<RXXXx new version>']);
     end
 else
     warning('CC:pref_backup_failed','Unable to locate matlabprefs.mat, no backup was made.');

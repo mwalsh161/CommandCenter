@@ -69,7 +69,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         initialized = false;                % Flag to prevent the Pref from being used until it has been fully constructed.
     end
 
-    properties (Hidden, Access=private)     % Used by Pref and PrefHandler so Pref can retain access to PrefHandler. Set in Base.Pref.bind(PrefHandler)
+    properties (Hidden)     % Used by Pref and PrefHandler so Pref can retain access to PrefHandler. Set in Base.Pref.bind(PrefHandler)
         read_fn     = [];                   % Calls val = PrefHandler.readProp(prop), with the appropriate arguments already filled in.
         writ_fn     = [];                   % Calls tf = PrefHandler.writProp(prop, val), with the appropriate arguments already filled in.
 
@@ -199,6 +199,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                         (avail_methods{j}),fnstring,nin))
                 end
             end
+
+            pr = Base.PrefRegister.instance();
+                    
+            pr.addPref(module_instance, obj);
         end
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set

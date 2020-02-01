@@ -259,7 +259,7 @@ classdef SweepEditor < handle
             scans = {};
             
             for ii = 1:length(obj.prefs)
-                scans{ii} = linspace(obj.pdata{ii, 8}, obj.pdata{ii, 10}, obj.pdata{ii, 11}); %#ok<AGROW>
+                scans{ii} = linspace(obj.pdata{ii, 7}, obj.pdata{ii, 9}, obj.pdata{ii, 10}); %#ok<AGROW>
             end
             
             
@@ -271,7 +271,7 @@ classdef SweepEditor < handle
                             'shouldReturnToInitial',    obj.gui.returnToInitial.Value,...
                             'shouldSetInitialOnReset',  true);
             
-            sweep = Base.Sweep(obj.measurements, obj.prefs, scans, flags);
+            sweep = Base.Sweep(obj.measurements, obj.prefs(end:-1:1), scans(end:-1:1), flags);
             
             d = sweep.blank()
             whos d
@@ -617,13 +617,9 @@ classdef SweepEditor < handle
         end
         
         function good = edit_Callback(obj, src, evt)
-            src
-            
             isPrefs = src.UserData.UserData;
 
             good = true;
-            
-            evt
             
             if isPrefs
 %                 obj.pheaders{evt.Indices(2)}
@@ -671,6 +667,16 @@ classdef SweepEditor < handle
                     end
                 end
                 
+                ndata = evt.NewData;
+                
+                if isnan(ndata) && ischar(evt.EditData)
+                    ndata = str2num(evt.EditData); %#ok<ST2NM>
+                end
+                
+                if isempty(ndata)
+                    ndata = NaN;
+                end
+                
                 if isa(p, 'Prefs.Time')     % Time should always be of the form X1, Step, X2, N = 1, 1, M, M
                     switch obj.pheaders{evt.Indices(2)}
                         case {'X1', 'Step'}   % 7, 8
@@ -678,19 +684,19 @@ classdef SweepEditor < handle
                         case {'X2', 'N'}    % 9, 10
                             obj.pdata{r, 7}  = 1;
                             obj.pdata{r, 8}  = 1;
-                            obj.pdata{r, 9} = evt.NewData;
-                            obj.pdata{r, 10} = evt.NewData;
+                            obj.pdata{r, 9} = ndata;
+                            obj.pdata{r, 10} = ndata;
                     end
                 else
                     switch obj.pheaders{evt.Indices(2)}
                         case 'X1'   % 7
-                            X0 = max(m, min(M, evt.NewData));
+                            X0 = min(M, max(m, ndata));
                             if isInteger, X0 = round(X0); end
                             obj.pdata{r, 7} = X0;
 
                             obj.updateStep(r);
                         case 'Step'   % 8
-                            Step = evt.NewData;
+                            Step = ndata;
 
                             if obj.pdata{r, 8} > 0 && Step > 0 || obj.pdata{r, 8} < 0 && Step < 0
                                 obj.pdata{r, 8} = Step;
@@ -702,13 +708,13 @@ classdef SweepEditor < handle
                                 good = false;
                             end
                         case 'X2'   % 9
-                            X1 = max(m, min(M, evt.NewData));
+                            X1 = max(m, min(M, ndata));
                             if isInteger, X1 = round(X1); end
                             obj.pdata{r, 9} = X1;
 
                             obj.updateStep(r);
                         case 'N'   % 10
-                            N = round(evt.NewData);
+                            N = round(ndata);
                             if N < 2
                                 good = false;
     %                             obj.pdata{r, 10} = N;
@@ -777,15 +783,15 @@ classdef SweepEditor < handle
             
         end
         function updateStep(obj, ind)
-            N = obj.pdata{ind, 11};
+            N = obj.pdata{ind, 10};
             if N == 1
                 N = 2;
             end
             dX = (obj.pdata{ind, 9} - obj.pdata{ind, 7}) / (N - 1);
             
             if dX ~= 0
-                obj.pdata{ind(1), 8} = dX;
-                obj.pdata{ind(1), 10} = N;
+                obj.pdata{ind, 8} = dX;
+                obj.pdata{ind, 10} = N;
             end
         end
         

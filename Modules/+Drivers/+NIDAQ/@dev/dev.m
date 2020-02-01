@@ -447,9 +447,9 @@ classdef dev < Modules.Driver
                 catch err
                     warning(err.message)
                 end
-                delete(obj.OutLines);
-                delete(obj.InLines);
             end
+            delete(obj.OutLines);
+            delete(obj.InLines);
             if ~obj.init_error
                 % clear all tasks
                 obj.ClearAllTasks();

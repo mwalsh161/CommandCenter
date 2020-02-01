@@ -145,7 +145,7 @@ classdef Sweep < handle & Base.Measurement
                 obj.name = defaultname;
             end
             
-            if all(obj.NIDAQ.isPrefNIDAQ) && all(obj.NIDAQ.isMeasurementNIDAQ)
+            if all(obj.NIDAQ.isPrefNIDAQ) && all(obj.NIDAQ.isMeasurementNIDAQ) && false
                 obj.NIDAQ.isNIDAQ = true;
                 
                 obj.NIDAQ.dev = obj.measurements{1}.dev;
@@ -205,6 +205,13 @@ classdef Sweep < handle & Base.Measurement
             
             for ii = 1:length(obj.measurements)
                 D = [D obj.measurements{ii}.subdatas()]; %#ok<AGROW>
+            end
+        end
+        function D = measurementDimensions(obj)
+            D = [];
+            
+            for ii = 1:length(obj.measurements)
+                D = [D obj.measurements{ii}.dimensions()]; %#ok<AGROW>
             end
         end
         

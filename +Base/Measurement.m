@@ -216,7 +216,12 @@ classdef (HandleCompatible) Measurement
             end
             
             for ii = 1:numel(subdata)
-                blank.(subdata{ii}).dat = default(sizes_.(subdata{ii}));
+                s = sizes_.(subdata{ii});
+                s
+                if numel(s) == 1
+                    s = [1 s];
+                end
+                blank.(subdata{ii}).dat = default(s);
 %                 blank.(subdata{ii}).dat = NaN(sizes_.(subdata{ii}));
                 blank.(subdata{ii}).std = [];
             end
@@ -525,6 +530,17 @@ classdef (HandleCompatible) Measurement
         end
         function N = subdatas(obj)
             N = numel(obj.subdata());
+        end
+        function D = dimensions(obj)
+            s = obj.getSizes;
+            sd = obj.subdata;
+            
+            D = [];
+            
+            for ii = 1:numel(s)
+                this = s.(sd{ii});
+                D = [D this(this > 1)]; %#ok<AGROW>
+            end
         end
     end
     

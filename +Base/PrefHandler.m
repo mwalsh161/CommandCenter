@@ -50,8 +50,6 @@ classdef PrefHandler < handle
             external_ls_struct.PreGet = Base.PrefListener.empty(1,0);
             external_ls_struct.PostGet = Base.PrefListener.empty(1,0);
 
-            pr = Base.PrefRegister.instance();
-
             for i = 1:length(props)
                 prop = props(i);
                 if contains('Base.Pref',superclasses(prop.DefaultValue))
@@ -84,8 +82,6 @@ classdef PrefHandler < handle
                     % Done after binding Set/Get listeners since the method call expects them to be set already
 
                     obj.set_meta_pref(prop.Name, pref);
-                    
-                    pr.addPref(obj, obj.get_meta_pref(prop.Name));
                 end
             end
         end

@@ -107,6 +107,8 @@ classdef MeasurementRegister < Base.Singleton
                     obj.addMeasurement(m, name)
                     return;
                 end
+            elseif ~isvalid(obj.register.(name))
+                obj.register.(name) = m;
             end
         end
         function delete(obj)

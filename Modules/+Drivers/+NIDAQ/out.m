@@ -9,8 +9,10 @@ classdef out < handle
         name                           % Alias - name used in MATLAB
         limits                         % [low,high] for analog lines
     end
-    properties(SetAccess={?Drivers.NIDAQ.task,?Drivers.NIDAQ.dev},SetObservable,AbortSet)
-        state = NaN                    % Last set state
+%     properties(SetAccess={?Drivers.NIDAQ.task,?Drivers.NIDAQ.dev}, SetObservable, GetObservable)
+    properties(SetObservable, GetObservable)
+%          state = NaN                    % Last set state
+        state = NaN;
     end
     properties(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.out})
         niListener                     % Handle to NIDAQ's listener to state_change
@@ -67,9 +69,15 @@ classdef out < handle
             
             % Make and register a fake Pref:
             pref = Prefs.Double('name', obj.name, 'unit', 'V', 'min', limits(1), 'max', limits(2));
-%             pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
+            pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
             pref.property_name = lower(pname);
             pref.parent_class = class(dev);
+            
+            pref.writ_fn = @(x)(obj.writ(x));
+            pref.read_fn = @()(obj.read());
+%             pref.listen_fn = @(event, callback)(module_instance.addlistener(obj.property_name, event, callback));
+%             pref.listen_fn = @(event, callback)(event.proplistener(obj, 'state', event, callback));
+            pref.listen_fn = @(event, callback)([]);
             
             obj.pref = pref;
             
@@ -84,21 +92,37 @@ classdef out < handle
             ch = strjoin(ch(3:end),'/');
             str = [obj.name ': ' ch ' (' num2str(obj.state) ')'];
         end
-        
-        function tf = writ(obj, val)
-            tf = true;
-            
+    end
+    methods
+        function set_state(obj, val)
+%             obj.type
             try
                 if      strcmp(obj.type, 'digital')
-                    obj.dev.WriteDOLines(obj, obj.name, val);
+                    obj.dev.WriteDOLines(obj.name, val);
                 elseif  strcmp(obj.type, 'analog')
-                    obj.dev.WriteAOLines(obj, obj.name, val);
+%                     true
+%                     obj.dev
+%                     val
+                    obj.dev.WriteAOLines(obj.name, val);
                 else    % Counter outputs NotImplemented.
 
                 end
+                
+%                 obj.state = val;
+            catch err
+                warning(err.message);
+            end
+        end
+        function tf = writ(obj, val)
+            try
+                obj.set_state(val);
+                tf = true;
             catch
                 tf = false;
             end
+        end
+        function val = read(obj)
+            val = obj.state;
         end
     end
     methods

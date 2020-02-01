@@ -163,9 +163,11 @@ classdef PrefRegister < Base.Singleton
                     obj.addPref(parent, pref)
                     return;
                 end
+            elseif ~isvalid(obj.register.(parent_name).parent)
+                obj.register.(parent_name).parent = parent;
             end
 
-            obj.register.(parent_name).prefs.(pref.property_name) = pref;
+            obj.register.(parent_name).prefs.(pref.property_name) = pref;   % This still works if set_meta_pref is called on the same pref.
         end
         function delete(obj)
             obj.register = [];    % Prevent objects from being deleted by getting rid of reference to the struct beforehand. Note that record of these objects will be erased.

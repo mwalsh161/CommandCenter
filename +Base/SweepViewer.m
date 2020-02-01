@@ -89,12 +89,16 @@ classdef SweepViewer < handle
                 scans_ = m.getScans;
                 
                 for jj = 1:length(sd)
-                    obj.displayAxesMeasNum =        [obj.displayAxesMeasNum         kk];
-                    obj.displayAxesObjects =        [obj.displayAxesObjects         dims_.(sd{jj})];
-                    obj.displayAxesScans =          [obj.displayAxesScans           scans_.(sd{jj})];
-                    
+                    if numel(dims_.(sd{jj})) > 0
+                        obj.displayAxesMeasNum =        [obj.displayAxesMeasNum         kk];
+                        obj.displayAxesObjects =        [obj.displayAxesObjects         dims_.(sd{jj})];
+                        obj.displayAxesScans =          [obj.displayAxesScans           scans_.(sd{jj})];
+                    end
+
                     kk = kk + 1;
                 end
+                
+                obj.displayAxesMeasNum(1) = -kk+1;
             end
             
             sd = obj.s.subdata;
@@ -197,7 +201,7 @@ classdef SweepViewer < handle
             obj.ax.YGrid = 'on';
             obj.ax.Layer = 'top';
 %             obj.ax.TickDir = 'both';
-            disableDefaultInteractivity(obj.ax)
+%             disableDefaultInteractivity(obj.ax)
 %             obj.ax.Toolbar.Visible = 'off';
 %             obj.ax.XMinorTick = 'on';
 %             obj.ax.YMinorTick = 'on';
@@ -578,7 +582,7 @@ classdef SweepViewer < handle
 
             if sum(~isNone) == 0 && any(enabled)    % 0D
                 for ii = enabledIndex
-                    obj.txt{ii}.String = obj.sp{ii}.processed;
+                    obj.txt{ii}.String = num2str(obj.sp{ii}.processed,3);
                     obj.txt{ii}.Visible = 'on';
                 end
             elseif sum(~isNone) ~= 1 || ~textduring1D
@@ -612,6 +616,8 @@ classdef SweepViewer < handle
                         end
                     end
                 end
+                
+                obj.updateAxes;
             else
                 for ii = index
                     if ~strcmp(obj.plt{ii}.Visible, 'off')
@@ -667,6 +673,8 @@ classdef SweepViewer < handle
             obj.setPtr(3, [NaN, NaN]);
 
             pause(0.001);
+            drawnow
+            pause(0.001);
         end
 
 		function axeschanged_Callback(obj, src, ~)
@@ -693,7 +701,12 @@ classdef SweepViewer < handle
                 [obj.panel.axesDisplayed.Value] = c{:};
             end
 
+            axesOld = obj.axesDisplayed;
+            obj.axesDisplayed = axesNew;
+            
             if ~isempty(obj.ax)
+                [isNone, enabled] = obj.isNoneEnabled();
+                
                 for ii = 1:N
                     scan = obj.displayAxesScans{axesNew(ii)};
                     
@@ -705,7 +718,10 @@ classdef SweepViewer < handle
                         obj.listeners.(obj.axesDisplayedNames{ii}) = obj.displayAxesObjects{axesNew(ii)}.addlistener( 'PostSet', @(s,e)( obj.setPtr(3, [NaN, NaN]) ) );
                     end
 
-                    range = [min(scan), max(scan)];
+                    ds = mean(diff(scan))/2;
+                    
+                    range = [min(scan), max(scan)] + (sum(~isNone) == 2)*ds*[-1 1];
+                    
                     label = obj.displayAxesObjects{axesNew(ii)}.get_label();
                     label = strrep(label, '[um]', '[\mum]');
 
@@ -713,9 +729,22 @@ classdef SweepViewer < handle
 %                        range = [0 1];
 %                        label = 'Input Axis TODO'
 
-
-                        range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
-                        label = 'Filler'; %obj.s.inputs{obj.sp{1}.I}.get_label();
+%                         range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
+                        range = [NaN NaN];
+                        for jj = 1:length(obj.sp)
+                            if enabled(jj)
+                                range(1) = min(range(1), obj.sp{jj}.m);
+                                range(2) = max(range(2), obj.sp{jj}.M);
+                            end
+                        end
+                        
+                        if isnan(range)
+                            range = [0 1];
+                        else
+                            range = range + .05*diff(range)*[-1 1];
+                        end
+                        
+                        label = obj.sp{1}.tab.input.String{obj.sp{1}.I+1}; %'Filler' %obj.s.inputs{obj.sp{1}.I}.get_label();
                     end
                     
                     if diff(range) == 0
@@ -735,9 +764,6 @@ classdef SweepViewer < handle
                     end
                 end
             end
-
-            axesOld = obj.axesDisplayed;
-            obj.axesDisplayed = axesNew;
 
             if ~isempty(obj.ax)
                 if N == 2
@@ -766,6 +792,9 @@ classdef SweepViewer < handle
 
                 obj.datachanged_Callback(0, 0);
             end
+        end
+        function updateAxes(obj)
+            obj.setAxis(1, obj.axesDisplayed(1));
         end
 
         function axesvaluechanged_Callback(obj, ~, ~)
