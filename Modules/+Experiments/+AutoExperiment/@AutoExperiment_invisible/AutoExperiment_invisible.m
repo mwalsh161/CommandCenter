@@ -7,35 +7,42 @@ classdef AutoExperiment_invisible < Modules.Experiment
     % AcquireSites abstract method must also be created. Subclasses may
     % find it useful to take advantage of some static helper methods
     % defined here as well.
+    %
+    % It is safe for subclasses to add any meta data to obj.meta. This
+    % property is programmed to be immutable to subclasses. This can be
+    % done in pre/post/patch functions (or anything with access to obj).
     
     properties
         prefs = {'run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
-        show_prefs = {'experiments','run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
+        show_prefs = {'experiments','run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','continue_experiment','repeat'};
         readonly_prefs = {'experiments'};
     end
     properties(Abstract)
-        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs)
+        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs). Run before experiment group.
+        prerun_functions %cell array of method names in subclass definition that take input (experiment). Run immediately before experiment's run method
     end
     properties(SetAccess=protected,Hidden)
         data = [] % Useful for saving data from run method
-        meta = [] % Useful to store meta data in run method
+        meta = struct() % Useful to store meta data in run method [THIS IS IMMUTABLE in that once a field is set it can't be changed]
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
+        fatal_flag = false; % if true, an error becomes fatal
     end
     properties(SetObservable, AbortSet)
         experiments = Modules.Experiment.empty(0); %array of experiment handles
         run_type = {Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
                     Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST};
-        site_selection = {'Peak finder','Grid','Manual sites'};
+        site_selection = {'Peak finder','Grid','Manual sites','Load from file'};
         imaging_source = Modules.Source.empty(1,0);
         tracking_threshold = 0.9; %tracking metric will be normalized to 1
         min_tracking_seconds = 0; %in seconds; tracker won't run twice within this amount of time
         max_tracking_seconds = Inf; %in seconds; if tracking_threshold isn't hit, tracker will still run after this amount of time
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
         repeat = 1;
+        continue_experiment = false;
     end
-    properties(Constant)
+    properties(Constant,Hidden)
         SITES_FIRST = 'All Sites First';
         EXPERIMENTS_FIRST = 'All Experiments First';
     end
@@ -47,7 +54,33 @@ classdef AutoExperiment_invisible < Modules.Experiment
             %   positions = [Nx2] array of positions
             %   manual_input = boolean, true if positions were user-supplied
             %   meta = empty if manual_input, else UserData from imfindpeaks
+            persistent last_path
+            if isempty(last_path)
+                last_path = '';
+            end
             sites = struct('image',[],'positions',[],'input_method',site_selection,'meta',[]);
+            
+            if strcmp(site_selection,'Load from file')
+                [file,path] = uigetfile('*.mat','Site Selection',last_path);
+                    if isequal(file,0)
+                        error('Site selection aborted')
+                    else
+                        last_path = path;
+                        temp = load(fullfile(path,file));
+                        f = fieldnames(temp);
+                        assert(numel(f)==1,...
+                            sprintf('The mat file containing sites should only contain a single variable, found:\n\n%s',...
+                            strjoin(f,', ')))
+                        sites.positions = temp.(f{1});
+                        sites.meta.path = fullfile(path,file);
+                        recvd = num2str(size(sites.positions),'%i, ');
+                        assert(size(sites.positions,2)==2,...
+                            sprintf('Only supports loading x, y coordinates (expected Nx2 array, received [%s]).',recvd(1:end-1)));
+                    end
+                sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
+                return
+            end
+            
             if isempty(managers.Imaging.current_image)
                 source_on = imaging_source.source_on;
                 imaging_source.on;
@@ -62,7 +95,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
             f = figure;
             ax_temp = axes('parent',f);
             imH = imagesc(sites.image.ROI(1,:),sites.image.ROI(2,:),sites.image.image,'parent',ax_temp);
-            colormap(ax_temp,'bone');
+            colormap(ax_temp,managers.Imaging.set_colormap);
             set(ax_temp,'ydir','normal')
             axis(ax_temp,'image') 
             switch site_selection
@@ -73,13 +106,37 @@ classdef AutoExperiment_invisible < Modules.Experiment
                     sites.positions = [scatterH.XData',scatterH.YData'];
                     sites.meta = scatterH.UserData;
                 case 'Grid'
-                    sites = obj.select_grid_sites(sites,ax_temp);
+                    sites = Experiments.AutoExperiment.AutoExperiment_invisible.select_grid_sites(sites,ax_temp);
                 case 'Manual sites'
-                    title('Click on all positions, then hit enter when done.')
-                    sites.positions = ginput();
+                    title(sprintf('Click on all positions\nDrag to adjust\nRight click on point to get menu to delete.\n\nRight click on image to finish (DO NOT CLOSE!)'))
+                    imH.UserData.h = [];
+                    imH.ButtonDownFcn = @im_clicked;
+                    uiwait(f);
+                    sites.positions = NaN(0,2);
+                    for i = 1:length(imH.UserData.h)
+                        if isvalid(imH.UserData.h(i))
+                            sites.positions(end+1,:) = imH.UserData.h(i).getPosition;
+                        end
+                    end
             end
+            % Add in column of NaNs for Z (this will prevent setting Z when
+            % moving to emitter position; Track can still modify global Z
+            % if desired.
+            sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
             close(f)
             assert(~isempty(sites.positions),'No positions!')
+            function im_clicked(hObj,eventdata)
+                if eventdata.Button ~= 1
+                    uiresume;
+                    return
+                end
+                h = impoint(hObj.Parent,eventdata.IntersectionPoint(1:2));
+                if isempty(hObj.UserData.h)
+                    hObj.UserData.h = h;
+                else
+                    hObj.UserData.h(end+1) = h;
+                end
+            end
         end
         sites = select_grid_sites(sites,ax_temp)
         varargout = view(varargin);
@@ -89,21 +146,31 @@ classdef AutoExperiment_invisible < Modules.Experiment
             %   dy = change in x
             %   dz = change in x
             %   metric = whatever metric used to track (e.g. fluorescence)
-            dx = NaN;
-            dy = NaN;
-            dz = NaN;
+            dx = NaN; dy = NaN; dz = NaN; % Case when told to explicitly not track
+            if ~islogical(thresh)
+                dx = 0; dy = 0; dz = 0;
+            end
             metric = NaN;
         end
     end
-
+    methods(Access=private)
+        function reset_meta(obj)
+            % The only function allowed to delete obj.meta; used to reset between runs
+            obj.meta = struct();
+        end
+    end
     methods
         function obj = AutoExperiment_invisible()
             obj.run_type = obj.SITES_FIRST;
             obj.loadPrefs;
-            assert(all(cellfun(@(x)ismethod(obj,x),obj.patch_functions)),'One or more named patch_function do not have corresponding methods.') %make sure all patch funcitons are valid
+            assert(all(cellfun(@(x)ismethod(obj,x)||isempty(x),obj.patch_functions)),'One or more named patch_function do not have corresponding methods.') %make sure all patch functions are valid
+            assert(all(cellfun(@(x)ismethod(obj,x)||isempty(x),obj.prerun_functions)),'One or more named prerun_functions do not have corresponding methods.') %make sure all prerun functions are valid
         end
         run(obj,statusH,managers,ax)
         function delete(obj)
+            % Clean up all experiments now to ensure no odd behavior when
+            % CC cleans everything up on shut down (race conditions)
+            delete(obj.experiments);
         end
         function abort(obj)
             obj.abort_request = true;
@@ -121,9 +188,65 @@ classdef AutoExperiment_invisible < Modules.Experiment
             dat.data = obj.data;
             dat.meta = obj.meta;
         end
+        function LoadData(obj,data)
+            % Not grabbing the meta data as that will be re-assigned
+            assert(isfield(data,'data'),'No field "data"; likely wrong experiment');
+            assert(isfield(data.data,'image'),'No field "data.image"; likely wrong experiment');
+            assert(isfield(data.data,'sites'),'No field "data.sites"; likely wrong experiment');
+            assert(~isempty(data.data.sites),'No sites data in loaded experiment');
+            obj.data = data.data;
+            obj.continue_experiment = true;
+        end
         function PreRun(obj,status,managers,ax)
         end
         function PostRun(obj,status,managers,ax)
+        end
+        function set.meta(obj,val)
+            % To make it immutable, we will go through each field in val
+            % and add it to obj.meta if it is new, otherwise we error.
+            assert(isstruct(val),'obj.meta must be a struct!');
+            st = dbstack(1,'-completenames'); % omit this call in stack
+            % Allow obj.reset_meta to do anything
+            if strcmp(st(1).name,'AutoExperiment_invisible.reset_meta')
+                obj.meta = val;
+                return
+            end
+            fields = fieldnames(val);
+            to_add = false(size(fields));
+            for i = 1:length(fields)
+                if isfield(obj.meta,fields{i}) && ~matrix_starts_with(val.(fields{i}),obj.meta.(fields{i}))
+                    sz = ''; % Provide additional error help
+                    if numel(obj.meta,fields{i}) > 1
+                        sz = '(';
+                        for ind = size(obj.meta.(fields{i}))
+                            sz = [sz sprintf('1:%i,',ind)];
+                        end
+                        sz(end) = ')'; % Replace last "," with the closing paren
+                    end
+                    error('Field "%s%s" already exists in obj.meta!',fields{i},sz);
+                else % Not a field yet
+                    to_add(i) = true;
+                end
+            end
+            % Now that there weren't errors, update meta
+            obj.meta = val;
+        end
+        function set.run_type(obj,val)
+            obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
+        end
+        function set.continue_experiment(obj,val)
+            %val is boolean; true = continue experiment, false = start anew
+            obj.continue_experiment = val;
+            pan = get(gcbo,'parent'); %grab handle to settings panel
+            site_sel = findobj(pan,'tag','site_selection');
+            if isempty(site_sel) || ~isvalid(site_sel)
+                return;
+            end
+            if val
+                set(site_sel,'enable','off'); %require use of old sites, so disable site selection
+            else
+                set(site_sel,'enable','on');
+            end
         end
     end
     methods(Abstract)

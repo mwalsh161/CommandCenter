@@ -6,45 +6,80 @@ function TuneCoarse(obj,target)
 
 %   target = frequency in THz
 
-%check if in range
-obj.RangeCheck(target);
-
-err = [];
-obj.locked = false; %whether errored or not, should no longer be locked
+Pgain = 0.5; %gain on P for this P-only PID controller
+FineThresh = max(obj.wavemeter.resolution,obj.resolution);
+in_bound_flag = true;
+obj.locked = false; % Make sure to adjust if necessary before returning
 obj.tuning = true;
+if obj.debug
+    f_debug = UseFigure(mfilename('class'),'name','TuneCoarse',true);
+    figure(f_debug); % Bring to front (and gcf)
+    ax_debug = axes('parent',f_debug);
+    hold(ax_debug,'on');
+    p_debug(1) = plot(ax_debug,[0 1], [target target],'k');
+    p_debug(5) = plot(ax_debug,[0 1], [target target]-FineThresh,'--k');
+    p_debug(6) = plot(ax_debug,[0 1], [target target]+FineThresh,'--k');
+    p_debug(2) = plot(ax_debug,NaN, NaN,'.-');
+    p_debug(3) = plot(ax_debug,NaN, NaN,'.-');
+    p_debug(4) = plot(ax_debug,NaN, NaN,'k*');
+    legend(p_debug(1:4),{'Target','SetPoint','Last Measured','Out of Range'});
+    ylabel(ax_debug,'Frequency (THz)');
+    xlabel(ax_debug,'Iteration')
+end
 try    
-    FineThresh = max(obj.wavemeter.resolution,obj.resolution);
-    CorThresh = 30*FineThresh;
-    laserloc = obj.getFrequency;
-    if abs(laserloc - target) < FineThresh %already close enough
-        return
-    end
+    % Take laser out of PID mode, and set it to the middle of piezo range
     obj.wavemeter.setDeviationChannel(false);
     obj.TunePercent(50);
-    Pgain = 0.9; %gain on P for this P-only PID controller
-    obj.setMotorFrequency(target);
-    laserloc = obj.getFrequency;
-    LaserFreqSet = laserloc; %first laser setpoint is presumed to be where the laser is measured to be
-    
+    freq = [target, obj.getFrequency];
+    % Begin PID algorithm
     t = tic;
-    while abs(laserloc - target) > FineThresh %threshold for catching NV in scan
-        assert(toc(t) < obj.TuningTimeout,'Tuning timed out');
-        if abs(laserloc - target) > CorThresh %coarse threshold
-            LaserFreqSet = LaserFreqSet-Pgain*(laserloc- target); %take difference, use to set again
-        else %we're close; use small steps
-            LaserFreqSet = LaserFreqSet - FineThresh*sign(laserloc-target)/2; %small 10 GHz step in correct direction
+    while abs(freq(2) - target) > FineThresh
+        assert(toc(t) < obj.TuningTimeout,'Unable to complete tuning within timeout.');
+        if obj.debug
+            p_debug(2).YData = [p_debug(2).YData freq(1)];
+            p_debug(3).YData = [p_debug(3).YData freq(2)];
+            x_debug = 0:length(p_debug(2).YData)-1; % Ignore initial NaN
+            set(p_debug([1,5,6]),'xdata',x_debug([1 end])+0.5);
+            set(p_debug(2),'xdata',x_debug);
+            set(p_debug(3),'xdata',x_debug-0.5);
+            drawnow;
         end
-        obj.setMotorFrequency(LaserFreqSet); %command to set wavelength needs to be in nm
-        %get laser location again
-        laserloc = obj.getFrequency;
+        try
+            obj.setMotorFrequency(freq(1));
+            in_bound_flag = true; % Must be back in bounds
+        catch sub_err
+            if contains(sub_err.message,'Out of Range') && in_bound_flag
+                if obj.debug
+                    plot(ax_debug,x_debug(end), freq(1),'k*','handlevisibility','off');
+                end
+                temp = mean(freq);
+                if temp > freq(1) && temp >= target % Near the low end of range
+                    in_bound_flag = false;
+                elseif temp < freq(1) && temp <= target % Near the high end of range
+                    in_bound_flag = false;
+                end
+                freq(1) = temp;
+                continue
+            end
+            rethrow(sub_err);
+        end
+        freq(2) = obj.getFrequency;
+        % "Logical beginning" of PID algorithm loop
+        freq(1) = freq(1) + Pgain*(target - freq(2)); %take difference, use to set again
+    end
+    if obj.debug % Grab that last observation
+        p_debug(3).YData = [p_debug(3).YData freq(2)];
+        x_debug = 0:length(p_debug(3).YData)-1; % Ignore initial NaN
+        set(p_debug(3),'xdata',x_debug-0.5);
     end
     obj.setpoint = target;
-    obj.tuning = false;
 catch err
     obj.setpoint = NaN;
+    obj.serial.TrackMode = 'off';
     obj.tuning = false;
     rethrow(err)
 end
+obj.serial.TrackMode = 'off';
 obj.tuning = false;
 
 end

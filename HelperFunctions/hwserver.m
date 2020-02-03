@@ -28,6 +28,22 @@ classdef hwserver < handle
             end
             delete(obj.connection);
         end
+        function response = reload(obj,module)
+            if ~exist('module','var')
+                module = '';
+            end
+            module = urlencode(module);
+            handshake = urlencode(jsonencode(struct('name',['_reload_' module])));
+            fopen(obj.connection);
+            try
+                fprintf(obj.connection,'%s\n',handshake);
+                response = obj.receive; % Error handling in method
+            catch err
+                fclose(obj.connection);
+                rethrow(err)
+            end
+            fclose(obj.connection);
+        end
         function response = help(obj)
             handshake = urlencode(jsonencode(struct('name','_help')));
             fopen(obj.connection);
@@ -74,7 +90,10 @@ classdef hwserver < handle
                 fprintf(obj.connection,'%s\n',msg);
                 response = obj.receive;
             catch err
-                fprintf(obj.connection,'%s\n',abort);
+                % For future use in more parallel hwserver;
+                % for now, it is redundant with keep_alive: false and is
+                % error-prone server-side if called too quickly
+                % fprintf(obj.connection,'%s\n',abort);
             end
             fclose(obj.connection);
             if ~isempty(err)
@@ -106,8 +125,11 @@ classdef hwserver < handle
             end
             response = jsondecode(urldecode(response));
             if response.error
+                % Make sure we escape the % character because it will likely go 
+                % through another format string during error handling
                 ME = MException('HWSERVER:error',...
-                    'hwserver error: %s\n%s',response.response,response.traceback);
+                    'hwserver error: %s\n%s',strrep(response.response,'%','%%'),...
+                    strrep(response.traceback,'%','%%'));
                 throwAsCaller(ME);
             end
             response = response.response;

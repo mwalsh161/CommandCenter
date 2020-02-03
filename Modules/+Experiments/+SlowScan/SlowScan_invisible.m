@@ -10,6 +10,7 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
         repumpLaser = Modules.Source.empty(1,0);
         APDline = 1;  % Indexed from 1
         repumpTime_us = 1; %us
+        resOffset_us = 0.1;
         resTime_us = 0.1;
     end
     properties
@@ -28,7 +29,7 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
     methods
         function obj = SlowScan_invisible()
             obj.path = 'APD1';
-            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','repumpTime_us','resTime_us'}]; %additional preferences not in superclass
+            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','repumpTime_us','resOffset_us','resTime_us'}]; %additional preferences not in superclass
         end
         function s = BuildPulseSequence(obj,freqIndex)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
@@ -41,12 +42,12 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
                 resChannel = channel('Resonant','color','r','hardware',obj.resLaser.PBline-1);
                 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
                 s.channelOrder = [repumpChannel, resChannel, APDchannel];
-                g = node(s.StartNode,repumpChannel,'delta',0);
+                g = node(s.StartNode,repumpChannel,'units','us','delta',0);
                 g = node(g,repumpChannel,'units','us','delta',obj.repumpTime_us);
-                r = node(g,resChannel,'delta',0);
-                node(r,APDchannel,'delta',0);
+                r = node(g,resChannel,'units','us','delta',obj.resOffset_us);
+                node(r,APDchannel,'units','us','delta',0);
                 r = node(r,resChannel,'units','us','delta',obj.resTime_us);
-                node(r,APDchannel,'delta',0);
+                node(r,APDchannel,'units','us','delta',0);
                 
                 obj.sequence = s;
             end

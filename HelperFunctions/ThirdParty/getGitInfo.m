@@ -16,6 +16,7 @@ function gitInfo=getGitInfo(root)
 %
 % This function must be in the base directory of the git repository
 %
+% ADAPTED FROM:
 % Released under a BSD open source license. Based on a concept by Marc
 % Gershow.
 %
@@ -88,10 +89,16 @@ gitInfo.branch=branchName;
 
 
 %Read in SHA1
-SHA1text=fileread(fullfile(root,['.git/' pathstr],[name ext]));
-SHA1=textscan(SHA1text,'%s');
+try
+    SHA1text=fileread(fullfile(root,['.git/' pathstr],[name ext]));
+    SHA1=textscan(SHA1text,'%s');
+catch err
+    if strcmp(err.identifier,'MATLAB:fileread:cannotOpenFile') % See if packed
+        SHA1text=fileread(fullfile(root,'.git/packed-refs'));
+        SHA1=regexp(SHA1text,['([A-z0-9]*) refs/heads/' branchName],'tokens');
+    end
+end
 gitInfo.hash=SHA1{1}{1};
-
 
 %Read in config file
 config=fileread(fullfile(root,'.git/config'));

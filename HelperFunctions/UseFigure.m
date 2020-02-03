@@ -19,7 +19,8 @@ if ~mod(nargin,2)
 end
 
 f = findall(0,'tag',tag);
-if isempty(f)
+new = isempty(f);
+if new
     f = figure('tag',tag);
 elseif reset
     clf(f,'reset');
@@ -31,7 +32,7 @@ if ~isempty(varargin)
 end
 
 if nargout
-    varargout = {f};
+    varargout = {f,new};
 end
 end
 

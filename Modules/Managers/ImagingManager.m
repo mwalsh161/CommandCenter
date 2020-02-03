@@ -39,7 +39,7 @@ classdef ImagingManager < Base.Manager
             set(handles.image_ROIreset,'callback',@obj.resetROI);
             set(handles.image_ROI,'CellEditCallback',@obj.roiCallback);
             set(handles.image_save,'ClickedCallback',@obj.save)
-            colormap(obj.handles.axImage,obj.set_colormap)
+            colormap(obj.handles.figure1,obj.set_colormap)
             set(handles.clim_lock,'value',obj.climLock)  % Set to previous value
             set(handles.clim_low,'string',num2str(obj.climLow))
             set(handles.clim_high,'string',num2str(obj.climHigh))
@@ -62,7 +62,19 @@ classdef ImagingManager < Base.Manager
                 cal = 1;
             end
         end
-        
+        function load_im(obj,path)
+            im = load(path);
+            delete(obj.current_image)
+            cla(obj.handles.axImage)
+            obj.current_image = Base.SmartImage(im.image, obj.handles.axImage,...
+                                                    obj.handles.Managers.Stages,...
+                                                    obj.handles.Managers.Sources,...
+                                                    obj, obj.dumbimage);
+            if strcmp(obj.handles.colorbar_toggle.State,'on')
+                % This leaves it permanently on after SmartImage replaces the temp image
+                colorbar(obj.handles.axImage);
+            end
+        end
         function open_im(obj,path)
             im = load(path);
             newFig = figure('numbertitle','off','HandleVisibility','off');
@@ -70,7 +82,10 @@ classdef ImagingManager < Base.Manager
             NewAx = axes('parent',newFig);
             colormap(newFig,obj.set_colormap)
             try
-                Base.SmartImage(im.image,NewAx,obj.handles.Managers.Stages,obj);
+                Base.SmartImage(im.image, NewAx,...
+                                obj.handles.Managers.Stages,...
+                                obj.handles.Managers.Sources,...
+                                obj, obj.dumbimage);
             catch err
                 delete(newFig)
                 obj.error(sprintf('SmartImage could not open %s:\n%s',path,err.message))
@@ -200,7 +215,10 @@ classdef ImagingManager < Base.Manager
                 obj.sandboxed_function({obj.active_module,'snap'},temp);
                 imPixels = get(temp,'cdata');
                 % Use ImageManager default for obj.dumbimage.  This could be queried directly in SmartImage if that is better
-                obj.current_image = Base.SmartImage(imPixels,obj.handles.axImage,obj.handles.Managers.Stages,obj,obj.dumbimage);
+                obj.current_image = Base.SmartImage(imPixels, obj.handles.axImage,...
+                                                    obj.handles.Managers.Stages,...
+                                                    obj.handles.Managers.Sources,...
+                                                    obj, obj.dumbimage);
                 
                 if strcmp(obj.handles.colorbar_toggle.State,'on')
                     % This leaves it permanently on after SmartImage replaces the temp image
@@ -268,6 +286,9 @@ classdef ImagingManager < Base.Manager
                 low = str2double(get(obj.handles.clim_low,'string'));
                 high = str2double(get(obj.handles.clim_high,'string'));
                 set(obj.handles.axImage,'clim',[low high])
+            end
+            if ~isempty(obj.active_module.path) %if path defined, select path
+                obj.handles.Managers.Path.select_path(obj.active_module.path);
             end
             obj.log('%s starting video.',class(obj.active_module))
             obj.sandboxed_function({obj.active_module,'startVideo'},hImage);

@@ -1,6 +1,14 @@
 classdef DBManager < Base.Manager
-    %DBMANAGER Summary of this class goes here
-    %   Detailed explanation goes here
+    %DBMANAGER Responsible for handling save callbacks
+    %   The methods here prepare a data struct with a few default fields
+    %   before passing to a Modules.Database instance:
+    %       data.origin: The module whose data is being saved
+    %       data.saved_by: The soon-to-be executing Module.Database instance
+    %       data.saved_at: MATLAB datetime object
+    %       [data|image]: data (Modules.Experiment) or image
+    %          (Modules.Imaging) from origin module
+    %   It is also worth noting that the notes from CC are passed as an
+    %   argument to the Module.Database rather than a data field.
     
     properties
         use_git_info = true;
@@ -22,6 +30,7 @@ classdef DBManager < Base.Manager
             obj.blockOnLoad = handles.menu_saving;
             set(handles.image_save,'ClickedCallback',@(hObj,eventdata)obj.imSave(false,hObj,eventdata))
             set(handles.experiment_save,'Callback',@(hObj,eventdata)obj.expSave(false,hObj,eventdata))
+            set(handles.experiment_load,'Callback',@(hObj,eventdata)obj.expLoad(hObj,eventdata))
             addlistener(obj.handles.Managers.Experiment,'experiment_finished',@(hObj,eventdata)obj.expSave(true,hObj,eventdata));
             addlistener(obj.handles.Managers.Imaging,'image_taken',@(hObj,eventdata)obj.imSave(true,hObj,eventdata));
         end
@@ -55,11 +64,16 @@ classdef DBManager < Base.Manager
                 % If is necessary! Otherwise always inactive when new mod added.
                 obj.disable;
                 notes = strjoin(cellstr(obj.handles.notes.String),newline);
+                saved_datetime = datetime; % So it will be same for all
+                target_module = class(module);
                 for i = 1:numel(obj.modules)
-                    active_module = obj.modules{i};
-                    if auto==active_module.autosave
+                    active_DBmodule = obj.modules{i};
+                    if auto==active_DBmodule.autosave
                         try
-                            class_str = class(active_module);
+                            DBclass_str = class(active_DBmodule);
+                            data.origin = target_module; % The module whose data is being saved
+                            data.saved_by = DBclass_str;   % Module.Database
+                            data.saved_at = saved_datetime;
                             try % If using git, append all the info of this version
                                 gitPath = mfilename('fullpath');
                                 gitPath = fileparts(gitPath); gitPath = fileparts(gitPath); gitPath = fileparts(gitPath);
@@ -77,8 +91,8 @@ classdef DBManager < Base.Manager
                             catch
                                 warning('Computer info inspection failed!')
                             end
-                            obj.sandboxed_function({active_module,type},data,ax,module,notes);
-                            obj.log('%s to <a href="matlab: opentoline(%s,1)">%s</a>',type,which(class_str),class_str)
+                            obj.sandboxed_function({active_DBmodule,type},data,ax,module,notes);
+                            obj.log('%s to <a href="matlab: opentoline(%s,1)">%s</a>',type,which(DBclass_str),DBclass_str)
                         catch err
                             obj.error('Some saves failed. Should never get here!! Seek help at commandcenter-dev.slack.com\n%s',err.message)
                         end
@@ -129,6 +143,25 @@ classdef DBManager < Base.Manager
             ax = obj.handles.axExp;
             data.data = temp;
             obj.Save('SaveExp',data,auto,ax,obj.handles.Managers.Experiment.active_module)
+        end
+        function expLoad(obj,varargin)
+            assert(~isempty(obj.active_module),'No module loaded.')
+            assert(~isempty(obj.handles.Managers.Experiment.active_module),'No experiment module loaded.')
+            err = [];
+            h = msgbox('Loading data.','DBManager','help','modal');
+            h.KeyPressFcn='';  % Prevent esc from closing window
+            delete(findall(h,'tag','OKButton')); drawnow;
+            try
+                data = obj.sandboxed_function({obj.active_module,'LoadExp'});
+                if obj.last_sandboxed_fn_eval_success
+                    obj.handles.Managers.Experiment.sandboxed_function({obj.handles.Managers.Experiment.active_module,'LoadData'},data);
+                end
+            catch err
+            end
+            delete(h);
+            if ~isempty(err)
+                rethrow(err)
+            end
         end
     end
 end

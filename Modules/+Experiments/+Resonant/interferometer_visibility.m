@@ -73,6 +73,7 @@ classdef interferometer_visibility < Modules.Experiment
             obj.data.visibility = [];
             tempData.stream = [];  % Stores plot data
             tempData.visibility = [];
+            obj.rl.arm;
             % Setup Infinite scan
             obj.darkCounts;
             set(statusH,'string','Setting up NIDAQ tasks...'); drawnow;

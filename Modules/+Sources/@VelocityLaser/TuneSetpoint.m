@@ -2,8 +2,6 @@ function TuneSetpoint(obj,setpoint)
 %TuneSetpoint Sets the wavemeter setpoint
 %   frequency = desired setpoint in THz or nm
 
-%check if in range
-obj.RangeCheck(setpoint);
 obj.tuning = true;
 try
     obj.percent_setpoint = NaN;
@@ -15,10 +13,7 @@ try
     PIDstart = tic;
     while sum(abs(setpoint-frequency) < obj.wavemeter.resolution) < 10 %wait until laser settles to frequency
         frequency = [frequency, obj.wavemeter.getFrequency];
-        if toc(PIDstart) > obj.TuningTimeout
-            obj.locked = false;
-            error('Unable to reach setpoint within timeout.')
-        end
+        assert(toc(PIDstart) < obj.TuningTimeout,'Unable to complete tuning within timeout.');
     end
     obj.setpoint = setpoint;
     obj.locked = true;

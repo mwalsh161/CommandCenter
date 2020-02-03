@@ -4,9 +4,11 @@ classdef Manual < Modules.Database
     properties(SetAccess=private)
         autosave = false;
     end
-    properties
+    properties(SetObservable)
         ImPath = '.';
         ExpPath = '.';
+    end
+    properties
         prefs = {'ImPath','ExpPath'};
     end
     
@@ -61,8 +63,11 @@ classdef Manual < Modules.Database
             end
         end
         
-        function settings(obj,panelH)
-            
+        function data = LoadExp(obj)
+            [fname,path] = uigetfile('*.mat','Open Experiment',obj.ExpPath);
+            assert(~isnumeric(fname),'No file selected');
+            file = load(fullfile(path,fname));
+            data = file.data.data;
         end
     end
     

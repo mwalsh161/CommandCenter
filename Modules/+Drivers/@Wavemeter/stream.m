@@ -17,7 +17,7 @@ end
 % Get all available channels (should be readonly)
 states = find(Drivers.Wavemeter.getChannelStates(ip));
 for i = 1:length(states)
-    wm(i) = Drivers.Wavemeter.instance(ip,states(i));  %#ok<AGROW>
+    wm(i) = Drivers.Wavemeter.instance(ip,states(i),false);  %#ok<AGROW>
     if ~wm(i).readonly
         delete(wm)
         error('Somehow loaded channel that is not in use! Aborted.')

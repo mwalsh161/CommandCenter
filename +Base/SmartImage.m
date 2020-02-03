@@ -44,18 +44,29 @@ classdef SmartImage < handle
             % Gather all public properites into one structure that aren't objects
             props = properties(module);
             for i = 1:numel(props)
-                if ~isobject(eval(sprintf('module.%s',props{i})))
-                    eval(sprintf('info.%s=module.%s;',props{i},props{i}));
+                if ~isobject(module.(props{i}))
+                    info.(props{i}) = module.(props{i});
                 end
             end
             info.module = class(module);
         end
+        function stages = get_modules_str(info)
+            % Returns same as the stageManager.get_modules_str (but starts with info struct)
+            n = length(info.stages);
+            stages = cell(1,n);
+            for i = 1:n
+                stages{i} = info.stages(i).ModuleInfo.module;
+            end
+        end
     end
     methods
-        function obj = SmartImage(firstInp,ax,stage,imager,dumbimage)
-            % The first input can either be the image cdata, or the info
-            % from another SmartImage.
-            if nargin < 5
+        function obj = SmartImage(firstInp,ax,stage,source,imager,dumbimage)
+            % The first input can either be the image cdata, or the info from another SmartImage
+            % stage -> stage manager
+            % source -> source manager
+            % imager -> imaging manager
+            % dumbimage -> boolean
+            if nargin < 6
                 dumbimage = false;
             end
             obj.stage = stage;
@@ -66,14 +77,19 @@ classdef SmartImage < handle
                 % Create info struct
                 info.image = firstInp;
                 info.globalPos = obj.getGlobalPosition;
-                stages = struct('module',{},'position',{});
+                stages = struct('position',[],'ModuleInfo',cell(1,numel(stage.modules)));
                 for i = 1:numel(stage.modules)
                     tempModule = stage.modules{i};
-                    temp.module = class(tempModule);
-                    temp.position = tempModule.getCalibratedPosition;
-                    stages(end+1) = temp;
+                    stages(i).ModuleInfo = obj.extractModuleSettings(tempModule); % This will contain uncalibrated position, and calibration factor
+                    stages(i).position = tempModule.getCalibratedPosition;
                 end
-                info.stage = stage.get_modules_str;
+                info.stages = stages;
+                sources = struct('ModuleInfo',cell(1,numel(stage.modules)));
+                for i = 1:numel(source.modules)
+                    tempModule = source.modules{i};
+                    sources(i).ModuleInfo = obj.extractModuleSettings(tempModule);
+                end
+                info.sources = sources;
                 info.ROI = imager.ROI;
                 info.ModuleInfo = obj.extractModuleSettings(imager.active_module);
                 obj.info = info;
@@ -108,7 +124,7 @@ classdef SmartImage < handle
 
             % Create Crosshairs
             hold(ax,'on');
-            if isequal(obj.info.stage,stage.get_modules_str)
+            if isequal(obj.get_modules_str(obj.info),stage.get_modules_str)
                 pos = stage.position-obj.info.globalPos;
             else
                 pos = NaN(1,2);
@@ -266,21 +282,19 @@ classdef SmartImage < handle
         end
         % Callbacks
         function popout(obj,varargin)
+            % handle saving (need to get DBManager)
+            [~,fig] = gcbo;
+            managers = fig.UserData;
             % Need to move handles to new object
             newFig = figure('numbertitle','off','HandleVisibility','off');
             set(newFig,'name',sprintf('SmartImage %i',newFig.Number))
             NewAx = axes('parent',newFig);
             colormap(newFig,colormap(obj.ax))
-            im = Base.SmartImage(obj.info,NewAx,obj.stage,obj.imager);
-            % handle saving (need to get DBManager)
-            [~,fig] = gcbo;
-            if strcmp(fig.Name,'CommandCenter')
-                Managers = fig.UserData;  % Legacy :(
-            else
-                Managers = fig.UserData.Managers;
-            end
-            newFig.UserData.Managers = Managers; % For popout in new figure
-            db = Managers.DB;
+            Base.SmartImage(obj.info,NewAx,managers.Stages,...
+                                           managers.Sources,...
+                                           managers.Imaging);
+            newFig.UserData.Managers = managers; % For popout in new figure
+            db = managers.DB;
             delete(findall(newFig,'tag','figMenuFileSaveAs'))
             set(findall(newFig,'tag','figMenuFileSave'),'callback',@(hObj,eventdata)db.imSave(false,hObj,eventdata))
             set(findall(newFig,'tag','Standard.SaveFigure'),'ClickedCallback',@(hObj,eventdata)db.imSave(false,hObj,eventdata))
@@ -304,9 +318,12 @@ classdef SmartImage < handle
                         errordlg(sprintf('Image was taken without a stage active.\nCannot perform this move.'))
                         return
                     end
-                    if ~isequal(obj.stage.get_modules_str,obj.info.stage)
-                        stages = strjoin(obj.info.stage);
-                        errordlg(sprintf('Image was taken with a different set of stages active:\n%s\nCannot perform this move.',stages))
+                    imStages = obj.get_modules_str(obj.info);
+                    activeStages = obj.stage.get_modules_str;
+                    if ~isequal(imStages,activeStages)
+                        imStages = strjoin(imStages,', ');
+                        activeStages = strjoin(activeStages,', ')
+                        errordlg(sprintf('Image was taken with stages:\n%s\n\nCurrent stages:\n%s\n\nCannot perform this move.',imStages,activeStages))
                         return
                     end
                     currentZ = obj.stage.position(3);

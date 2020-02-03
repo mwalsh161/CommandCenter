@@ -15,8 +15,13 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
         properties(Access=private)
             listeners
         end
-        properties(SetAccess=private)
-            PulseBlaster                 % Hardware handle
+        
+        function arm(obj)
+            arm@Sources.Verdi_invisible(obj);
+        end
+        function delete(obj)
+            delete(obj.listeners)
+
         end
         methods(Access=protected)
             function obj = Laser532_PB()

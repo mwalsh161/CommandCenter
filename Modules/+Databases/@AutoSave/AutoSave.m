@@ -241,6 +241,12 @@ classdef AutoSave < Modules.Database
             save(fullpath,'data','-v7.3')
             obj.last_exp_fname = fullpath;
         end
+        function data = LoadExp(obj)
+            [fname,path] = uigetfile('*.mat','Open Experiment',obj.exp_dir);
+            assert(~isnumeric(fname),'No file selected');
+            file = load(fullfile(path,fname));
+            data = file.data.data;
+        end
         
         % Settings and Callbacks
         function settings(obj,panelH)
