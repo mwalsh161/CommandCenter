@@ -27,49 +27,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     events
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
-    
-    methods(Access=private)
-        function savePrefs(obj)
-            % This method is called in the Module destructor (this file),
-            % so the user doesn't need to worry about calling it.
-            %
-            % Saves any property in the obj.pref cell array
-            
-            % if namespace isn't set, means error in constructor
-            if isempty(obj.namespace)
-                return
-            end
-            assert(ischar(obj.namespace),'Namespace must be a string!')
-            if isprop(obj,'prefs')
-                for i = 1:numel(obj.prefs)
-                    if ~ischar(obj.prefs{i})
-                        warning('MODULE:save_prefs','Error on savePrefs (position %i): %s',i,'Must be a string!')
-                        continue
-                    end
-                    try
-                        val = obj.(obj.prefs{i});
-                        if ismember('Base.Module',superclasses(val))
-                            temp = {};
-                            for j = 1:length(val)
-                                temp{end+1} = class(val(j));
-                            end
-                            val = temp;
-                        end
-                        if ismember('Base.pref',superclasses(val))
-                            % THIS SHOULD NOT HAPPEN, bug haven't figured
-                            % out why it does sometimes yet
-                            val = val.value;
-                            warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
-                        end
-                        setpref(obj.namespace,obj.prefs{i},val);
-                    catch err
-                        warning('MODULE:save_prefs','Error on savePrefs. Skipped pref ''%s'': %s',obj.prefs{i},err.message)
-                    end
-                end
-            end
-        end
-    end
-    methods
+
+    methods(Sealed)
         function obj = Module
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
@@ -195,6 +154,45 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 warning('MODULE:prefs2struct','No prefs defined for %s!',class(obj))
             end
         end
+        function savePrefs(obj)
+            % This method is called in the Module destructor (this file),
+            % so the user doesn't need to worry about calling it.
+            %
+            % Saves any property in the obj.pref cell array
+            
+            % if namespace isn't set, means error in constructor
+            if isempty(obj.namespace)
+                return
+            end
+            assert(ischar(obj.namespace),'Namespace must be a string!')
+            if isprop(obj,'prefs')
+                for i = 1:numel(obj.prefs)
+                    if ~ischar(obj.prefs{i})
+                        warning('MODULE:save_prefs','Error on savePrefs (position %i): %s',i,'Must be a string!')
+                        continue
+                    end
+                    try
+                        val = obj.(obj.prefs{i});
+                        if ismember('Base.Module',superclasses(val))
+                            temp = {};
+                            for j = 1:length(val)
+                                temp{end+1} = class(val(j));
+                            end
+                            val = temp;
+                        end
+                        if ismember('Base.pref',superclasses(val))
+                            % THIS SHOULD NOT HAPPEN, bug haven't figured
+                            % out why it does sometimes yet
+                            val = val.value;
+                            warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
+                        end
+                        setpref(obj.namespace,obj.prefs{i},val);
+                    catch err
+                        warning('MODULE:save_prefs','Error on savePrefs. Skipped pref ''%s'': %s',obj.prefs{i},err.message)
+                    end
+                end
+            end
+        end
         function varargout = loadPrefs(obj,varargin)
             % loadPrefs is a useful method to load any saved prefs. Not
             % called by default, because order might matter to user.
@@ -272,6 +270,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 varargout = varargout(1:nargout);
             end
         end
+    end
+    methods
         function delete(obj)
             warning(obj.StructOnObject_state,'MATLAB:structOnObject')
             obj.savePrefs;

@@ -318,11 +318,12 @@ classdef Manager < handle
     methods
         function tasks = inactive(obj)
             % Called when inactivity timer expires
-            tasks = {};
+            tasks = {'Saved module prefs'};
             for i = 1:length(obj.modules)
                  % If user doesn't have return arg, will be empty double: fine
                  % If user has an error in module, as usual, sandboxed_function
                  % will handle, and program execution will continue
+                 obj.modules{i}.savePrefs;
                 task = obj.sandboxed_function({obj.modules{i} ,'inactive'});
                 if ~isempty(task)
                     tasks{end+1} = sprintf('%s: %s',class(obj.modules{i}),task);

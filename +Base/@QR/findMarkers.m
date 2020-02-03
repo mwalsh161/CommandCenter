@@ -14,7 +14,7 @@ end
 
 % Find Circles
 % Convert to BW (logical)
-thresh.BW = median(im_filt(:)) - sensitivity*std(im_filt(:));
+thresh.BW = nanmedian(im_filt(:)) - sensitivity*nanstd(im_filt(:));
 BW = im_filt<=thresh.BW;
 if isvalidax(ax_debug(2))
     imagesc(ax_debug(2),BW);

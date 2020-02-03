@@ -69,8 +69,16 @@ classdef hwserver < handle
             fopen(obj.connection);
             err = [];
             try
-                fprintf(obj.connection,'%s\n',handshake);
-                obj.receive; % Error handling in method
+                try
+                    fprintf(obj.connection,'%s\n',handshake);
+                    obj.receive; % Error handling in method
+                catch handshake_err
+                    if strcmp(handshake_err.identifier, 'HWSERVER:empty')
+                        error('HWSERVER:failed_handshake', ['Failed handshake: ' handshake_err.message])
+                    else
+                        rethrow(handshake_err)
+                    end
+                end
                 fprintf(obj.connection,'%s\n',msg);
                 response = obj.receive;
             catch err

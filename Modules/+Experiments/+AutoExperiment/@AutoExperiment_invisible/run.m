@@ -1,8 +1,9 @@
 function run(obj,status,managers,ax)
 obj.abort_request = false;
 obj.fatal_flag = false;
+nexps = length(obj.experiments);
 assert(all(cellfun(@ischar,obj.patch_functions)),'One or more patch function is not a valid handle.');
-assert(length(obj.patch_functions) == length(obj.experiments),'Number of patch functions does not match number of experiments.')
+assert(length(obj.patch_functions) == nexps,'Number of patch functions does not match number of experiments.')
 assert(~isempty(obj.imaging_source),'No imaging source selected, please select one and re-run.')
 
 if isempty(managers.Imaging.modules) || isempty(managers.Stages.modules)
@@ -24,6 +25,10 @@ obj.imaging_source.arm; % Arm imaging source for experiment
 % Initialize with whatever data user chose
 if obj.continue_experiment
     assert(~isempty(obj.data),'No data from memory, try loading experiment from file (in Save Settings panel)!')
+    if ~isempty(obj.analysis)
+        status.String = 'Checking analysis file'; drawnow;
+        obj.primary_validate_analysis(); % Run experiment's validation
+    end
     % Tag all this data as not new by incrementing continued flag
     nsites = length(obj.data.sites);
     for i = 1:nsites
@@ -34,6 +39,7 @@ if obj.continue_experiment
         end
     end
 else % Start a new experiment
+    assert(isempty(obj.analysis),'Analysis loaded. Did you mean to continue an experiment?')
     obj.data = [];
     sites = obj.AcquireSites(managers);
     if obj.imaging_source.source_on
@@ -51,9 +57,9 @@ end
 nsites = length(obj.data.sites);
 switch obj.run_type
     case obj.SITES_FIRST
-        [Y,X] = meshgrid(1:length(obj.experiments),1:nsites);
+        [Y,X] = meshgrid(1:nexps,1:nsites);
     case obj.EXPERIMENTS_FIRST
-        [X,Y] = meshgrid(1:nsites,1:length(obj.experiments));
+        [X,Y] = meshgrid(1:nsites,1:nexps);
     otherwise
         error('Unknown run_type %s',obj.run_type)
 end
@@ -69,21 +75,34 @@ err = [];
 try
     for repetition = 1:obj.repeat
         for i=1:size(run_queue,1)
-            status.String = 'Searching for next experiment to run...';
             try
-                drawnow limitrate;
-                assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 site_index = run_queue(i,1);
                 exp_index = run_queue(i,2);
+                status.String = sprintf('Searching for next experiment to run\nSite: %i/%i\nExperiment: %i/%i...',site_index,nsites,exp_index,nexps);
+                drawnow limitrate;
+                assert(~obj.abort_request,'User aborted'); % Allows aborting before running any experiments
                 experiment = obj.experiments(exp_index); %grab experiment instance
                 mask = ismember({obj.data.sites(site_index).experiments.name},class(experiment));
                 last_attempt = min([[obj.data.sites(site_index).experiments(mask).continued] Inf]); % Abort could leave a gap (Inf for first time through)
                 prev_mask = and(mask,[obj.data.sites(site_index).experiments.continued]==last_attempt); % Previous run
-                if any(prev_mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed] &...
-                                        not([obj.data.sites(site_index).experiments(prev_mask).skipped]) &...
-                                        not([obj.data.sites(site_index).experiments(prev_mask).redo_requested]))
-                    % If there are any from last run, and all of them are
-                    % completed, not skipped, and have not requested a redo,
+                % Check redo flag for this site and this experiment
+                redo = false;
+                if ~isempty(obj.analysis) && ~isempty(obj.analysis.sites(site_index,exp_index).redo)
+                    try
+                        redo = logical(obj.analysis.sites(site_index,exp_index).redo);
+                        assert(all(islogical(redo)) && isscalar(redo),'Redo flag from analysis file must be a logical scalar value if it exists.');
+                    catch redo_err
+                        redo = false;
+                        warning('AUTOEXP:analysis','Site %i, Experiment Index: %i: %s',site_index,exp_index,redo_err.message)
+                    end
+                    for j = find(prev_mask) % Update previous run's redo flag
+                        obj.data.sites(site_index).experiments(j).redo_requested = redo;
+                    end
+                end
+                if ~redo && (any(prev_mask) && all([obj.data.sites(site_index).experiments(prev_mask).completed] &...
+                                               not([obj.data.sites(site_index).experiments(prev_mask).skipped])))
+                    % If no redo request and there are any from last run,
+                    % and all of them are completed and not skipped,
                     % then skip running again. Remember, any([]) == false
                     obj.logger.log(sprintf('Skipping site %i, experiment %s',site_index,class(experiment)),obj.logger.DEBUG);
                     continue
@@ -145,7 +164,7 @@ try
                         if ~isempty(obj.prerun_functions{exp_index})
                             obj.(obj.prerun_functions{exp_index})(experiment);
                         end
-                        RunExperiment(obj,managers,experiment,site_index,ax)
+                        RunExperiment(obj,managers,experiment,ax)
                         obj.data.sites(site_index).experiments(local_exp_index).data = experiment.GetData;
                         obj.data.sites(site_index).experiments(local_exp_index).tstop = datetime('now');
                         obj.data.sites(site_index).experiments(local_exp_index).dP = dP;
@@ -219,7 +238,7 @@ imaging_source.on;
 imaging_source.off;
 end
 
-function RunExperiment(obj,managers,experiment,site_index,ax)
+function RunExperiment(obj,managers,experiment,ax)
 [abortBox,abortH] = ExperimentManager.abortBox(class(experiment),@(~,~)obj.abort);
 try
     drawnow; assert(~obj.abort_request,'User aborted');
@@ -228,10 +247,10 @@ try
     end
     obj.current_experiment = experiment;
     cla(ax,'reset');
+    subplot(1,1,1,ax); % Re-center
     experiment.run(abortBox,managers,ax);
     obj.current_experiment = [];
 catch exp_err
-    obj.data.sites(site_index).experiments(end).err = exp_err;
     delete(abortH);
     rethrow(exp_err)
 end

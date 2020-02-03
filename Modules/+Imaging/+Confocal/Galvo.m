@@ -122,7 +122,7 @@ classdef Galvo < Modules.Imaging
             try
                 obj.galvos.AbortScan;
             catch err
-                errordlg(getReport(err,'hyperlinks','off'));
+                errordlg(getReport(err,'extended','hyperlinks','off'));
             end
         end
         function startVideo(obj,im)
