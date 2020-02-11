@@ -4,6 +4,9 @@ classdef Source < Base.Module
     properties(Abstract,SetAccess=private,SetObservable)
         source_on   % Boolean representing if the source is illuminating area of interest.
     end
+    properties(Access=private)
+        armed=false;
+    end
     properties(SetAccess={?SourcesManager},GetAccess=private)
         % CC_dropdown.h = Handle to dropdown in CommandCenter
         % CC_dropdown.i = index for this module in CC manager list
@@ -29,13 +32,23 @@ classdef Source < Base.Module
             % Note: this method will be called everytime a user manually
             % turns a source on from CC GUI, so the developer is responsible
             % for ensuring extra work isn't performed if not necessary.
-            warning('SOURCE:notimplemented','arm method not implemented for %s',class(obj))
+            if ~obj.armed
+                armed = questdlg('Source not armed; arm source, then click "Ok"','Ok','Cancel','Ok');
+                if armed~='Ok'
+                    error('%s not armed',class(obj))
+                end
+            end
         end
         function blackout(obj)
             %this method should do whatever is necessary to completely
             %block emissions from the source; for example, this may include
             %powering off a source
-            warning('SOURCE:notimplemented','blackout method not implemented for %s',class(obj))
+            if obj.armed
+                blackout = questdlg('Source is armed; blackout source, then click "Ok"','Ok','Cancel','Ok');
+                if blackout~='Ok'
+                    error('%s not blacked out',class(obj))
+                end
+            end
         end
     end
     methods(Access=private)
