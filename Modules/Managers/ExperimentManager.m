@@ -22,7 +22,7 @@ classdef ExperimentManager < Base.Manager
             last_dumbimage = obj.handles.Managers.Imaging.dumbimage;
             obj.handles.Managers.Imaging.dumbimage = true;
             obj.log('%s starting experiment.',class(obj.active_module))
-            obj.disable;
+            obj.disable; 
             if strcmp(get(obj.handles.panel_exp,'visible'),'off')
                 CommandCenter('axes_exp_only_Callback',obj.handles.axes_exp_only,[],guidata(obj.handles.axes_exp_only))
             end
