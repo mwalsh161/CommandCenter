@@ -128,30 +128,7 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
             end
         end
         
-        function setProperty(obj,prop_name,value)
-            current_value=obj.getProperty(prop_name);
-            if ~strcmp(current_value,value)
-                obj.core.setProperty(obj.dev,prop_name,value);
-                obj.update_property_cell_array(prop_name,value);
-            else
-                return
-            end
-            if ~isempty(obj.panel_handle)&& isvalid(obj.panel_handle)
-                obj.panel_handle.UserData.update(obj.panel_handle,prop_name,value);
-            end
-            if strcmp(prop_name,'Binning')
-                res(1) = obj.core.getImageWidth();
-                res(2) = obj.core.getImageHeight();
-                obj.resolution = res;
-                ROI=obj.core.getROI;
-                obj.ROI=[ROI.x,ROI.x+ROI.width;ROI.y,ROI.y+ROI.height];
-            end
-        end
-        
-        function val = getProperty(obj,prop_name)
-            val=char(obj.core.getProperty(obj.dev,prop_name));  
-        end
-        
+       
         function grabFrame(obj,~,~,hImage)
             % Timer Callback for frame acquisition
             if obj.core.isSequenceRunning()&&obj.core.getRemainingImageCount()>0
@@ -239,6 +216,31 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
             val = val/obj.calibration;
         end  
         
+         function setProperty(obj,prop_name,value)
+            current_value=obj.getProperty(prop_name);
+            if ~strcmp(current_value,value)
+                obj.core.setProperty(obj.dev,prop_name,value);
+                obj.update_property_cell_array(prop_name,value);
+            else
+                return
+            end
+            if ~isempty(obj.panel_handle)&& isvalid(obj.panel_handle)
+                obj.panel_handle.UserData.update(obj.panel_handle,prop_name,value);
+            end
+            if strcmp(prop_name,'Binning')
+                res(1) = obj.core.getImageWidth();
+                res(2) = obj.core.getImageHeight();
+                obj.resolution = res;
+                ROI=obj.core.getROI;
+                obj.ROI=[ROI.x,ROI.x+ROI.width;ROI.y,ROI.y+ROI.height];
+            end
+        end
+        
+        function val = getProperty(obj,prop_name)
+            val=char(obj.core.getProperty(obj.dev,prop_name));  
+        end
+        
+        
     end
     
     methods
@@ -276,7 +278,7 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
         end
         
         function dat = snap(obj,varargin)
-            if strcmp(obj.getTrigMode,'External Exposure') || (obj.core.isSequenceRunning()&& obj.core.getRemainingImageCount()>0)
+            if strcmp(obj.getTrigMode,'External Exposure') || strcmp(obj.getTrigMode,'External Start') || (obj.core.isSequenceRunning()&& obj.core.getRemainingImageCount()>0)
                 dat=obj.core.popNextImage;
             else
                 obj.core.snapImage();
@@ -321,8 +323,13 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
             obj.snap; %take an image to clean circular buffer
         end
         
-        function startSequenceAcquisition(obj,Num_images)
-            obj.setTrigMode('External Exposure');
+        function startSequenceAcquisition(obj,Num_images,varagin)
+            narginchk(1,3)
+            if nargin == 2
+                obj.setTrigMode('External Exposure');
+            else
+                obj.setTrigMode(varagin);
+            end
             BytesPerPixel = obj.core.getBytesPerPixel();
             width = obj.core.getImageWidth();
             height = obj.core.getImageHeight();
@@ -389,14 +396,18 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
             assert(isa(Gain,'double'),'value for camera''s Gain must be a double!')
             assert(mod(Gain,1)==0,'Gain must be an integer.')
             assert(Gain>0,'Gain must be a value greater than 0')
-            obj.setProperty('Gain',num2str(Gain));
+            obj.setProperty('Pre-Amp-Gain',num2str(Gain));
         end
         
         function setTrigMode(obj,trig_mode)
             assert(~obj.core.isSequenceRunning,'Cannot change trig_mode when sequence is running')
             assert(ischar(trig_mode),'trig_mode must be a character')
-            if ~(strcmp(trig_mode,'Internal')||strcmp(trig_mode,'External Exposure'))
-                error('trig mode only accepts trigger types Internal and External Exposure')
+            switch trig_mode
+                case {'External Start'}
+                case {'Internal'}
+                case {'External Exposure'}
+                otherwise
+                    error('unknown trigger mode. Trig modes are: Internal, External Exposure, and External Start.')
             end
             obj.setProperty('Trigger',trig_mode);
         end
@@ -424,7 +435,7 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
         function Gain = getEMGain(obj)
             EMSwitch_state = obj.getProperty('EMSwitch');
             if strcmp(EMSwitch_state,'Off')
-                Gain = 0;
+                Gain = 1;
                 return
             end
             Gain = obj.getProperty('Gain');
@@ -432,8 +443,8 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
         end
         
         function Gain = getGain(obj)
-           Gain = obj.getProperty('Gain');
-           Gain = str2num(Gain);
+           Gain = obj.getProperty('Pre-Amp-Gain');
+           Gain = str2num(Gain(1:end - 1)); %get rid of x that micromanager has
         end
         
         function trig_mode = getTrigMode(obj)

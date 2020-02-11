@@ -7,6 +7,7 @@ classdef AndorEMCCD < Imaging.Camera.Micromanager_camera_invisible
         data_type = 'General';    % For diamondbase (via ImagingManager)
         device_path='C:\Program Files\Micro-Manager-1.4';
         CamCenterCoord = [0,0]
+        offset = 100; %dc offset
     end
     
     properties (Constant)
@@ -32,15 +33,7 @@ classdef AndorEMCCD < Imaging.Camera.Micromanager_camera_invisible
         end
     end
     methods
-        
-        function setGain(obj,~)
-            warning('setGain is not supported by Andor camera.');
-        end
-        
-        function Gain = getGain(obj)
-            Gain = [];
-        end
-        
+     
         function delete(obj)
         end
         
