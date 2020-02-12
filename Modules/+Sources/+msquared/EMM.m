@@ -217,7 +217,7 @@ classdef EMM < Modules.Source & Sources.TunableLaser_invisible
                 textH.String = 'Please wait while EMM tunes to taget wavelength.'; drawnow;
                 obj.emmHandle.set_wavelength(target);
                 obj.target_wavelength = target;
-                obj.trackFrequency; % Will block until obj.tuning = false (calling obj.getFrequency)
+                obj.trackFrequency(obj.c/target); % Will block until obj.tuning = false (calling obj.getFrequency)
             catch err
             end
             delete(dlg);

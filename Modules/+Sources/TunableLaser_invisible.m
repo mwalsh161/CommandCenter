@@ -31,13 +31,49 @@ classdef TunableLaser_invisible < handle
         c = 299792; %speed of light in nm*Thz
     end
     methods
-        function trackFrequency(obj)
-            fprintf('Tuning: %i\n',obj.tuning);
+        function trackFrequency(obj,varargin)
+            target = NaN;
+            if nargin > 1
+                target = varargin{1};
+            end
+            t = tic; % Start clock
+            [f,new] = UseFigure('TunableLaser.trackFrequency');
+            if new % Prepare axes
+                set(f,'name','TunableLaser.trackFrequency','NumberTitle','off');
+                f.UserData.ax(1) = subplot(2,1,1,'parent',f);
+                f.UserData.ax(2) = subplot(2,1,2,'parent',f);
+                hold(f.UserData.ax(1),'on'); hold(f.UserData.ax(2),'on');
+                title(f.UserData.ax(1),'');
+                xlabel(f.UserData.ax(1),'Time (s)');
+                ylabel(f.UserData.ax(1),'Frequency (THz)');
+                xlabel(f.UserData.ax(2),'Time (s)');
+                ylabel(f.UserData.ax(2),'|dF| (dTHz)');
+                set(f.UserData.ax(2),'yscale','log');
+            end
+            ax = f.UserData.ax;
+            ax(1).Title.String = sprintf('Tuning %s',class(obj));
+            delete([ax(1).Children ax(2).Children]); % Clean up from last time
+            setpointH = plot(ax(1),[0 1],[0 0]+target,'--k','DisplayName','Setpoint');
+            freqH = plot(ax(1),NaN,NaN,'r-o','DisplayName','Current Frequency');
+            dfreqH = plot(ax(2),NaN,NaN,'r-o');
+            legend(ax(1),'show');
+            n = 0;
             while obj.tuning
                 freq = obj.getFrequency;
-                fprintf('Tuning: %i\n',obj.tuning);
-                fprintf('%g THz\n',freq);
+                n = n + 1;
+                dt = toc(t);
+                setpointH.XData(2) = dt; % Extend dashed line
+                freqH.XData(end+1) = dt;
+                freqH.YData(end+1) = freq;
+                if n > 1
+                    dfreqH.XData(end+1) = dt;
+                    dfreqH.YData = abs(diff(freqH.YData));
+                end
+                drawnow limitrate;
             end
+            freqH.Color = lines(1);
+            dfreqH.Color = lines(1);
+            ax(1).Title.String = class(obj);
         end
         function obj = TunableLaser_invisible()
             obj.show_prefs = [{'setpoint','locked'},obj.show_prefs];
