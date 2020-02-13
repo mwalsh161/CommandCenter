@@ -169,7 +169,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.target_wavelength = target;
             obj.tuning = true;
             pause(1) % Wait for msquared to start tuning
-            obj.trackFrequency; % Will block until obj.tuning = false (calling obj.getFrequency)
+            obj.trackFrequency(obj.c/target); % Will block until obj.tuning = false (calling obj.getFrequency)
             obj.updateStatus();
         end
         

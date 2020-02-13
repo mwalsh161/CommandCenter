@@ -42,6 +42,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
         fatal_flag = false; % if true, an error becomes fatal
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
+        analysis = [];
     end
     properties(SetObservable, GetObservable)
         experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'n',Inf,'inherits',{'Modules.Experiment'},'readonly',true);
