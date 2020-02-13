@@ -52,7 +52,8 @@ classdef TunableLaser_invisible < handle
             end
             ax = f.UserData.ax;
             ax(1).Title.String = sprintf('Tuning %s',class(obj));
-            delete([ax(1).Children ax(2).Children]); % Clean up from last time
+            delete(ax(1).Children); % Clean up from last time
+            delete(ax(2).Children);
             setpointH = plot(ax(1),[0 1],[0 0]+target,'--k','DisplayName','Setpoint');
             freqH = plot(ax(1),NaN,NaN,'r-o','DisplayName','Current Frequency');
             dfreqH = plot(ax(2),NaN,NaN,'r-o');

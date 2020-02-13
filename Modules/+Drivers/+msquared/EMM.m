@@ -118,7 +118,7 @@ classdef EMM < Modules.Driver
             obj.com('set_wavelength',val,0);
         end
         function set_wavelength(obj,val)
-            out = obj.com_blocking('set_wavelength',val,60);
+            out = obj.com_blocking('set_wavelength',val,obj.blocking_timeout);
             if out{2}.report == 1
                 error('Tuning failed')
             end

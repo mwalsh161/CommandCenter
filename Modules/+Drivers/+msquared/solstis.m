@@ -21,39 +21,52 @@ classdef solstis < Modules.Driver
         % for calls to HWserver
         moduleName = 'msquared.NW';
         laserName = 'solstis';
+        blocking_timeout = 60;  % If call is blocking, adjust wait time
     end
     
     properties (SetAccess=immutable)
         hwserver;  % Handle to hwserver
+        default_timeout; % Used to set back after a blocking call
     end
     methods(Static)
         
-        function obj = instance(ip)
+        function obj = instance(host)
             mlock;
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.msquared.solstis.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
+            [~,resolvedIP] = resolvehost(host);
             for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
                     error('%s driver is already instantiated!',mfilename)
                 end
             end
-            obj = Drivers.msquared.solstis(ip);
+            obj = Drivers.msquared.solstis(host);
             obj.singleton_id = resolvedIP;
             Objects(end+1) = obj;
         end
     end
-     methods(Access=private)
-        function obj = solstis(ip)
-            obj.hwserver = hwserver(ip);
+    methods(Access=private)
+        function obj = solstis(host)
+            obj.hwserver = hwserver(host);
+            obj.default_timeout = obj.hwserver.connection.Timeout;
             obj.hwserver.ping; % Make sure we are connected
         end
         function reply = com(obj,fn,varargin)
             reply = obj.hwserver.com(obj.moduleName,fn,obj.laserName,varargin{:});
         end
-     end
+        function reply = com_blocking(obj,fn,varargin)
+            obj.hwserver.connection.Timeout = obj.blocking_timeout;
+            try
+                reply = obj.com(fn,varargin{:});
+            catch err
+                obj.hwserver.connection.Timeout = obj.default_timeout;
+                rethrow(err);
+            end
+            obj.hwserver.connection.Timeout = obj.default_timeout;
+        end
+    end
     methods
         
         
@@ -122,11 +135,14 @@ classdef solstis < Modules.Driver
             min = range.minimum_wavelength;
             max = range.maximum_wavelength;
             assert(val>=min && val<=max,sprintf('Target wavelength out of range [%g, %g]',min,max))
-            out = obj.com('lock_wavelength_to',val);
+            out = obj.com('set_wavelength',val,0); % last arg is timeout
             assert(out.status==0,'Failed to set target')
         end
         function set_wavelength(obj,val)
-            error('Not implemented')
+            out = obj.com_blocking('set_wavelength',val,obj.blocking_timeout);
+            if out{2}.report == 1
+                error('Tuning failed')
+            end
         end
     end
 end
