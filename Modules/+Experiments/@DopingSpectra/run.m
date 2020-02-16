@@ -4,6 +4,8 @@ function run( obj,status,managers,ax )
     status.String = 'Experiment started';
     drawnow;
     
+    obj.data.spec_intensity = [];
+    
     rangeBG = eval(obj.BGVoltageRange);
     obj.data.BackgateVoltages = rangeBG;
     rangeTip = eval(obj.TipVoltageRange);
@@ -27,23 +29,27 @@ function run( obj,status,managers,ax )
     end
     
     
-    obj.KeithleyBG.setOutputVoltage(0);
-    obj.KeithleyTip.setOutputVoltage(0);
     obj.KeithleyBG.outputOn();
-    obj.KeithleyTip.outputOn();
-    pause(0.2)
+    obj.KeithleyTip.outputOn();   
+    setVoltageGently(obj.KeithleyBG, rangeBG(1), 0.1);
+    setVoltageGently(obj.KeithleyTip, rangeTip(1), 0.1);
+    pause(5)
     
     for i = 1:length(rangeBG)
         
         assert(~obj.abort_request,'User aborted.');
-        obj.KeithleyBG.setOutputVoltage(rangeBG(i));
-        pause(0.2)
+        %obj.KeithleyBG.setOutputVoltage(rangeBG(i));
+        setVoltageGently(obj.KeithleyBG, rangeBG(i), 0.1);
+        
+        setVoltageGently(obj.KeithleyTip, rangeTip(1), 0.1);
+        pause(5)
         
         for j = 1:length(rangeTip)
             
             assert(~obj.abort_request,'User aborted.');
-            obj.KeithleyTip.setOutputVoltage(rangeTip(j));
-            pause(0.2)
+            %obj.KeithleyTip.setOutputVoltage(rangeTip(j));
+            setVoltageGently(obj.KeithleyTip, rangeTip(j), 0.1);
+            pause(1)
             
             switch obj.Detection_Type
                 case 'Spectrometer'
@@ -68,19 +74,19 @@ function run( obj,status,managers,ax )
     switch obj.Detection_Type
         case 'Spectrometer'
             obj.data.spec_wavelength = spectrum.wavelength;
+            obj.data.spec_intensity_header = ["Backgate Voltage", "Tip Voltage", "Spectrum"];
         case 'APD'
             obj.data.APD_counts = scanH.CData;
-            obj.data.APD_dwelltime = obj.APD_dwell; 
+            obj.data.APD_dwelltime = obj.APD_dwell;
+            obj.data.APD_counts_header = ["Backgate Voltage", "Tip Voltage"];
     end
-    obj.data.BGVoltages = rangeBG;
-    obj.data.TipVoltages = rangeTip;
     
     % Edit this to include meta data for this experimental run (saved in obj.GetData)
     obj.meta.prefs = obj.prefs2struct;
     obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
     
-    obj.KeithleyBG.setOutputVoltage(0);
-    obj.KeithleyTip.setOutputVoltage(0);
+    setVoltageGently(obj.KeithleyBG, 0, 0.1);
+    setVoltageGently(obj.KeithleyTip, 0, 0.1);
     obj.KeithleyBG.outputOff();
     obj.KeithleyTip.outputOff();
     
@@ -93,4 +99,16 @@ function run( obj,status,managers,ax )
         % HANDLE ERROR CODE %
         rethrow(err)
     end
+end
+
+function setVoltageGently(keithley,targetVoltage,stepSize)
+    startVoltage = keithley.readOutputVoltage();
+    if startVoltage > targetVoltage
+        stepSize = stepSize*-1;
+    end
+    for V = startVoltage:stepSize:targetVoltage
+        keithley.setOutputVoltage(V);
+        pause(0.1);
+    end
+    keithley.setOutputVoltage(targetVoltage)
 end
