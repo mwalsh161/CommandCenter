@@ -157,7 +157,7 @@ classdef SmartImage < handle
             
             % Add listeners
             obj.listeners(2) = addlistener(imager,'ROI','PostSet',@obj.updateROI);
-            obj.listeners(3) = addlistener(stage,'position','PostSet',@obj.updatePos);
+            obj.listeners(3) = addlistener(stage,'newPosition',@obj.updatePos);
             % Set up remaining contextmenus (note obj.contextmenu = axes, parent = imrect stuff)
             obj.ROIMenu = uimenu(obj.contextmenu,'Label','ROI Visible','Callback',@obj.visCallback,'checked','on','UserData','ROI','tag','smartimage');
             obj.crosshairMenu = uimenu(obj.contextmenu,'Label','CrossHair Visible','Callback',@obj.visCallback,'checked','on','UserData','crosshair','tag','smartimage');
@@ -322,12 +322,11 @@ classdef SmartImage < handle
                     activeStages = obj.stage.get_modules_str;
                     if ~isequal(imStages,activeStages)
                         imStages = strjoin(imStages,', ');
-                        activeStages = strjoin(activeStages,', ')
+                        activeStages = strjoin(activeStages,', ');
                         errordlg(sprintf('Image was taken with stages:\n%s\n\nCurrent stages:\n%s\n\nCannot perform this move.',imStages,activeStages))
                         return
                     end
-                    currentZ = obj.stage.position(3);
-                    obj.stage.move([newPos currentZ])
+                    obj.stage.move([newPos NaN]);
                 end
             end
         end

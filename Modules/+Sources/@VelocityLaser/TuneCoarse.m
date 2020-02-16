@@ -6,13 +6,13 @@ function TuneCoarse(obj,target)
 
 %   target = frequency in THz
 
-Pgain = 0.5; %gain on P for this P-only PID controller
+Pgain = 0.4; %gain on P for this P-only PID controller
 FineThresh = max(obj.wavemeter.resolution,obj.resolution);
 in_bound_flag = true;
 obj.locked = false; % Make sure to adjust if necessary before returning
 obj.tuning = true;
 if obj.debug
-    f_debug = UseFigure(mfilename('class'),'name','TuneCoarse',true);
+    f_debug = UseFigure([mfilename('class') '.TuneCoarse'],'name','TuneCoarse',true);
     figure(f_debug); % Bring to front (and gcf)
     ax_debug = axes('parent',f_debug);
     hold(ax_debug,'on');
@@ -63,6 +63,7 @@ try
             end
             rethrow(sub_err);
         end
+        pause(0.2); % Wait for motor to catch up
         freq(2) = obj.getFrequency;
         % "Logical beginning" of PID algorithm loop
         freq(1) = freq(1) + Pgain*(target - freq(2)); %take difference, use to set again

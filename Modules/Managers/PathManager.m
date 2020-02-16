@@ -50,25 +50,17 @@ classdef PathManager < Base.Manager
     end
     properties
         module_types = {};
-        prefs = {'paths'};
     end
     
-    methods(Static)
+    methods(Static,Hidden)
         function instruction_strings = get_string_instructions(instructions)
             instruction_strings = {};
             if isstruct(instructions)
                 for i = 1:length(instructions)
-                    inputs = {};
-                    for j = 1:length(instructions(i).method_inputs)
-                        if isnumeric(instructions(i).method_inputs{j})
-                            inputs{end+1} = ['[' num2str(instructions(i).method_inputs{j}) ']'];
-                        elseif ischar(instructions(i).method_inputs{j})
-                            inputs{end+1} = ['''' instructions(i).method_inputs{j} ''''];
-                        elseif iscell(instructions(i).method_inputs{j})
-                            inputs{end+1} = ['{' strjoin(instructions(i).method_inputs{j},', ') '}'];
-                        else
-                            inputs{end+1} = '??';
-                        end
+                    narin = length(instructions(i).method_inputs);
+                    inputs = cell(1,narin);
+                    for j = 1:narin
+                        inputs{j} = PathManager.format_instruction_inputs(instructions(i).method_inputs{j});
                     end
                     if ~isempty(instructions(i).module_name)
                         instruction_strings{end+1} = sprintf('%s.%s(%s)',...
@@ -87,10 +79,23 @@ classdef PathManager < Base.Manager
                 error('Instructions are in the wrong format.')
             end
         end
+        function fmt = format_instruction_inputs(input)
+            if isnumeric(input)
+                fmt = ['[' num2str(input) ']'];
+            elseif ischar(input)
+                fmt = ['''' input ''''];
+            elseif iscell(input)
+                input = cellfun(@PathManager.format_instruction_inputs,input,'UniformOutput',false);
+                fmt = ['{' strjoin(input,', ') '}'];
+            else
+                fmt = '??';
+            end
+        end
     end
     methods
         function obj = PathManager(handles)
             obj = obj@Base.Manager('Paths',handles); % "Simple" manager
+            obj.prefs = [obj.prefs {'paths'}];
             % Grab all classes in Modules package
             [~,obj.module_types,~] = Base.GetClasses('+Modules');
             % Add menu to CommandCenter and tie in some callbacks
@@ -122,7 +127,9 @@ classdef PathManager < Base.Manager
             % Note this will not clean up any potential aliases pointing to this path
             map = ismember({obj.paths.name},name);
             obj.assert(any(map),sprintf('No path found by name "%s"',name));
-            obj.assert(~strcmp(obj.paths(map).name,obj.active_path),'Change to new path before deleting');
+            if strcmp(obj.paths(map).name,obj.active_path)
+                obj.active_path = '';
+            end
             obj.paths(map) = [];
         end
         function select_path(obj,name,prompt,update_active)
@@ -134,10 +141,13 @@ classdef PathManager < Base.Manager
                 update_active = false;
             end
             % Check to see if exists
+            if isempty(obj.paths)
+                obj.error(sprintf('Attempted to select "%s", but there are currently no paths defined.',name),true);
+            end
             map = ismember({obj.paths.name},name);
             if ~any(map)
                 if prompt
-                    answer = questdlg('Attempted to select a path that does not exist. If it exists under a different name, you can make an alias for it.',...
+                    answer = questdlg(sprintf('Attempted to select "%s" which does not exist. If it exists under a different name, you can make an alias for it.',name),...
                                         mfilename,'Make Alias','Cancel','Make Alias');
                     if strcmp(answer,'Make Alias')
                         obj.new_alias_GUI(name)
@@ -145,8 +155,7 @@ classdef PathManager < Base.Manager
                         return
                     end
                 end % If no prompt is desired, error
-                err = MException('MANAGER:no_path','');
-                obj.error(sprintf('No path found by name "%s"',name),err)
+                obj.error(sprintf('No path found by name "%s"',name),true);
             end
             
             path = obj.paths(map);
@@ -177,7 +186,9 @@ classdef PathManager < Base.Manager
                 obj.active_path = name;
             end
         end
-        
+    end
+    
+    methods(Hidden)
         % GUI methods
         function menu_open_CB(obj,hObj,~)
             % Redraw each time
@@ -195,8 +206,10 @@ classdef PathManager < Base.Manager
                 'checked',getchecked(name)),...
                 {obj.paths.name},'uniformoutput',false);
             uimenu(hObj,'separator','on','Text','New Path','callback',@obj.new_path_GUI);
-            uimenu(hObj,'Text','New Alias','callback',@obj.new_alias_GUI);
-            if length(obj.paths) > 1
+            if ~isempty(obj.paths)
+                uimenu(hObj,'Text','New Alias','callback',@obj.new_alias_GUI);
+            end
+            if ~isempty(obj.paths)
                 uimenu(hObj,'Text','Remove Path/Alias','callback',@obj.remove_path_CB);
             end
             if ~isempty(obj.paths)
@@ -227,6 +240,7 @@ classdef PathManager < Base.Manager
             if ~isempty(varargin)&&ischar(varargin{1})
                 default_name = varargin{1};
             end
+            assert(~isempty(obj.paths),'No paths!')
             f = figure('name','New Alias','IntegerHandle','off','menu','none',...
                 'toolbar','none','visible','off','units','characters','resize','off');
             f.Units = 'characters';

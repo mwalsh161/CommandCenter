@@ -15,7 +15,7 @@ function [readInfo,f_debug] = hone(im,readInfo,varargin)
 %   OUTPUT:
 %     readInfo: see READER help. qrInfo not altered.
 %     f_debug: either gobjects(1) or the figure handle if debug is true
-
+assert(isequal(size(im.ROI),[2,2]),'ROI must be 2x2!');
 assert(isstruct(readInfo)&&isfield(readInfo,'tform'),...
     'readInfo must be output struct from Base.QR.reader');
 assert(~isempty(readInfo.tform),'Base.QR.reader did not find a QR (tform is empty).');
@@ -28,6 +28,15 @@ addParameter(p,'debug',false,@(a)validateattributes(a,{'logical'},{'scalar'}));
 
 parse(p,varargin{:});
 p = p.Results;
+% Fix inversions
+if im.ROI(1,1) > im.ROI(1,2) % invert in x
+    im.ROI(1,:) = [im.ROI(1,2) im.ROI(1,1)];
+    im.image = fliplr(im.image);
+end
+if im.ROI(2,1) > im.ROI(2,2) % invert in y
+    im.ROI(2,:) = [im.ROI(2,2) im.ROI(2,1)];
+    im.image = flipud(im.image);
+end
 
 %NOTE: lab refers to image coords and sample refers to QR coords
 xlim = im.ROI(1,:);
@@ -64,6 +73,7 @@ labR = max(p.min_radius,sampleR)/scale;  % Take into account min_radius when goi
 honedC = NaN(size(labC));
 honedR = NaN(size(labR));
 outstruct = struct('f',[],'gof',[],'output',cell(size(labR)));
+errored = false(size(labR));
 imcomp = double(imcomplement(im));  % Use this for GaussFit2D (fits positive (bright) things)
 
 x = linspace(xlim(1),xlim(2),size(im,2));
@@ -83,10 +93,25 @@ parfor (i = 1:size(labC,1), nworkers)
     [~,yIND(1)] = min(abs(y-(labC(i,2)-labR(i)*n_radius_crop)));
     [~,yIND(2)] = min(abs(y-(labC(i,2)+labR(i)*n_radius_crop)));
     % Fit
+    try
     [honedC(i,:),honedR(i),outstruct(i)] = gaussfit2D(x(xIND(1):xIND(2)),...
                                    y(yIND(1):yIND(2)),...
                                    imcomp(yIND(1):yIND(2),xIND(1):xIND(2)),labR(i)/2);
+    catch
+        errored(i) = true;
+    end
 end
+if any(errored)
+    warning('%i errored in fitting',sum(errored));
+end
+% Remove points that errored
+outstruct(errored) = [];
+honedC(errored,:) = [];
+labC(errored,:) = [];
+sampleC(errored,:) = [];
+honedR(errored) = [];
+labR(errored) = [];
+sampleR(errored) = [];
 % moved less than object radius (QR coords)
 labRact = sampleR/scale; % Not including the min_radius
 stayedclose = sqrt(sum((honedC - labC).^2,2)) < labRact*p.r_move_thresh;
@@ -104,36 +129,40 @@ if p.debug
     axis(ax_debug,'image');
     hold(ax_debug,'on');
     set(ax_debug,'ydir','normal');
-    for i = 1:size(labC,1)
-        % Draw initial points as black line with white border
-        circle(labC(i,:),labR(i),'EdgeColor','w','LineWidth',2.5);
-        circle(labC(i,:),labR(i),'EdgeColor','k');
-        c = 'g';
-        if ~stayedclose(i)
-            c = 'm';
-        elseif ~goodfit(i)
-            c = 'y';
-        elseif ~stayedclose(i) && ~goodfit(i)
-            c = 'r';
+    if isempty(labC)
+        title('Failed to find any!')
+    else
+        for i = 1:size(labC,1)
+            % Draw initial points as black line with white border
+            circle(labC(i,:),labR(i),'EdgeColor','w','LineWidth',2.5);
+            circle(labC(i,:),labR(i),'EdgeColor','k');
+            c = 'g';
+            if ~stayedclose(i)
+                c = 'm';
+            elseif ~goodfit(i)
+                c = 'y';
+            elseif ~stayedclose(i) && ~goodfit(i)
+                c = 'r';
+            end
+            h(i) = circle(honedC(i,:),honedR(i),'EdgeColor',c,...
+                'UserData',struct('c',labC(i,:),'r',labR(i),'minRused',used_min_radius(i),'outstruct',outstruct(i),'distMoved',sqrt(sum((honedC(i,:) - labC(i,:)).^2,2))),...
+                'ButtonDownFcn',{@more_data,x,y,imcomp,n_radius_crop,p.min_radius});
         end
-        h(i) = circle(honedC(i,:),honedR(i),'EdgeColor',c,...
-            'UserData',struct('c',labC(i,:),'r',labR(i),'minRused',used_min_radius(i),'outstruct',outstruct(i),'distMoved',sqrt(sum((honedC(i,:) - labC(i,:)).^2,2))),...
-            'ButtonDownFcn',{@more_data,x,y,imcomp,n_radius_crop,p.min_radius});
+        % Seemst to be bug where FaceColor needs to be RENDERED then unset
+        set(h,'FaceColor', 'k'); drawnow nocallbacks;
+        set(h,'FaceColor', 'none');
+        plt(1) = plot(ax_debug,NaN,NaN,'ok'); plt(2) = plot(ax_debug,NaN,NaN,'og');
+        plt(3) = plot(ax_debug,NaN,NaN,'om'); plt(4) = plot(ax_debug,NaN,NaN,'oy');
+        plt(5) = plot(ax_debug,NaN,NaN,'or');
+        set(plt,'linewidth',1.5);
+        legend(plt,{'Initial Guess','Success',...
+            sprintf('center moved > %g*r',p.r_move_thresh),...
+            sprintf('adjrsquared < %g',p.goodfit_thresh),...
+            'moved & poor fit'});
+        iptPointerManager(f_debug, 'enable');
+        iptSetPointerBehavior(h, @(hFigure, ~)set(hFigure, 'Pointer', 'cross'));
+        addlistener(f_debug,'ObjectBeingDestroyed',@(~,~)delete(findall(0,'tag','Base.QR.hone_spot')));
     end
-    % Seemst to be bug where FaceColor needs to be RENDERED then unset
-    set(h,'FaceColor', 'k'); drawnow nocallbacks;
-    set(h,'FaceColor', 'none');
-    plt(1) = plot(ax_debug,NaN,NaN,'ok'); plt(2) = plot(ax_debug,NaN,NaN,'og');
-    plt(3) = plot(ax_debug,NaN,NaN,'om'); plt(4) = plot(ax_debug,NaN,NaN,'oy');
-    plt(5) = plot(ax_debug,NaN,NaN,'or');
-    set(plt,'linewidth',1.5);
-    legend(plt,{'Initial Guess','Success',...
-        sprintf('center moved > %g*r',p.r_move_thresh),...
-        sprintf('adjrsquared < %g',p.goodfit_thresh),...
-        'moved & poor fit'});
-    iptPointerManager(f_debug, 'enable');
-    iptSetPointerBehavior(h, @(hFigure, ~)set(hFigure, 'Pointer', 'cross'));
-    addlistener(f_debug,'ObjectBeingDestroyed',@(~,~)delete(findall(0,'tag','Base.QR.hone_spot')));
 end
 
 % Calculate transform

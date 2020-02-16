@@ -65,13 +65,55 @@ if strcmp(hObject.Visible,'on')
     % Means it already exists, so do nothing
     return
 end
+MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
+[path,~,~] = fileparts(mfilename('fullpath'));
+% Check for lock file
+if exist(fullfile(path,'.lock'),'file')
+    lock = fullfile(path,'.lock');
+    
+    answer = questdlg(sprintf('Found a lock file, are you sure there is no other CommandCenter instance running?\n%s', lock),...
+                                '.lock File Found', 'Continue With This Instance', 'Oops, An Instance Exists', 'Oops, An Instance Exists');
+                            
+    switch answer
+        case 'Continue With This Instance'
+        case 'Oops, An Instance Exists'
+            delete(hObject);
+            error('Truly, one CommandCenter is more than enough.')
+    end
+end
+fclose(fopen(fullfile(path,'.lock'), 'w'));
 
 % Allocate names in case error for things that need to be cleaned up
 loading_fig = [];
 handles.logger = [];
 handles.inactivity_timer = [];
-try 
+handles.GitPanel = [];
+try
+    % Check integrity of pref file
+    try
+        getpref();
+    catch err
+        if strcmp(err.identifier,'MATLAB:load:notBinaryFile') && exist(fullfile(path,'.matlabprefs.mat.backup'),'file')
+            backup = dir(fullfile(path,'.matlabprefs.mat.backup'));
+            original = dir(MATLAB_prefs);
+            backup_info = sprintf('%s (%i B) %s',backup.date,backup.bytes,fullfile(backup.folder,backup.name));
+            original_info = sprintf('%s (%i B) %s',original.date,original.bytes,fullfile(original.folder,original.name));
+            resp = questdlg(sprintf(['Error loading MATLAB''s pref file. May have been corrupted on a force quit. ' ...
+                'A backup file was found, would you like to restore it?\n\nBackup: %s\n\nOriginal: %s'],...
+                backup_info,original_info),mfilename,'Yes','Cancel','Yes');
+            if strcmp(resp,'Yes')
+                [msg,msgID] = copyfile(fullfile(path,'.matlabprefs.mat.backup'),MATLAB_prefs);
+                if ~isempty(msg)
+                    error(msgID,msg);
+                end
+            else
+                error('COMMANDCENTER:prefs_corrupted','Cannot continue with corrupted pref file.')
+            end
+        else
+            rethrow(err);
+        end
+    end
     % Parse inputs
     assert(all(cellfun(@ischar,varargin)),'All inputs provided to CommandCenter must be strings')
     [debug,varargin] = parseInput(varargin,'debug');
@@ -82,8 +124,10 @@ try
         error('Invalid argument(s) provided to CommandCenter upon launching:\n  %s',...
             strjoin(varargin,'\n  '));
     end
+    debugLevel = Base.Logger.INFO;
     if debug
         loggerStartState = 'on';
+        debugLevel = Base.Logger.DEBUG;
     end
     if reset
         % Remove Manager prefs which is responsible for remembering which
@@ -94,13 +138,13 @@ try
     end
     
     % Update path
-    [path,~,~] = fileparts(mfilename('fullpath'));
     warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
     end
-    [loading_fig,textH]=Base.loadIm(fullfile(path,'static','load.png'),...
-        'CommandCenter Loading','initialmagnification',40);
+    [loading_fig, textH] = Base.loadingFigure(fullfile(path, 'static', 'load.png'),...
+        'CommandCenter Loading');
+    set(textH,'String','Adding Paths'); drawnow;
     addpath(path)
     addpath(genpath(fullfile(path,'overload_builtin')))
     addpath(genpath(fullfile(path,'HelperFunctions')))
@@ -108,26 +152,13 @@ try
     addpath(genpath(fullfile(path,'slackAPI')))
     addpath(fullfile(path,'Modules'))
     addpath(fullfile(path,'Modules','Managers'))
-
+    
     % Check Git
-    set(textH,'String','Checking Git (see Command Window)'); drawnow;
-    oldPath = cd(path);
-    try
-        fprintf('Running "git fetch", please wait... ');
-        [~] = git('fetch'); % Toss output
-        fprintf('done.\n');
-        out = git('status');
-        if contains(out,'nothing to commit, working tree clean')&&contains(strrep(out,'-',' '),'branch is up to date with')
-            fprintf('%s\n',out);
-        else
-            fprintf(2,'%s\n',out); % red (via stderr fid)
-        end
-    catch git_err
-        fprintf(2,'Initial git commands failed (continuing): %s\n',git_err.message);
-    end
-    cd(oldPath);
+    set(textH,'String','Checking Git'); drawnow;
+    handles.GitPanel = Base.GitPanel(handles.panelGit, handles.figure1);
     
     % Prepare Key
+    set(textH,'String','Checking Key'); drawnow;
     if exist(fullfile(path,'.unique_key.mat'),'file')
         unique_key = load(fullfile(path,'.unique_key.mat'));
         unique_key = unique_key.unique_key;
@@ -140,20 +171,25 @@ try
     end
     
     % Setup Logging
+    set(textH,'String','Setting Up Logger'); drawnow;
     handles.logger = Base.Logger(mfilename,loggerStartState);
+    handles.logger.logLevel = [debugLevel, debugLevel]; % [listbox,textfile]
     handles.logger.URL = sprintf('https://commandcenter-logger.mit.edu/new-log/%s/%s/',key,unique_key); % Set destination URL
     setappdata(hObject,'ALLmodules',{})
     setappdata(hObject,'logger',handles.logger)
     set(handles.file_logger,'checked',handles.logger.visible)
     
     % Convert panels to scrollPanels
+    set(textH,'String','Making Panels'); drawnow;
+    loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
+    handles.reload_CData = loaded_vars.im;
     handles.panelStage = Base.UIscrollPanel(handles.panelStage);
     handles.panelImage = Base.UIscrollPanel(handles.panelImage);
     handles.panelSource = Base.UIscrollPanel(handles.panelSource);
     handles.panelExperiment = Base.UIscrollPanel(handles.panelExperiment);
     handles.panelSave = Base.UIscrollPanel(handles.panelSave);
-    controls = [handles.panelStage,handles.panelImage,handles.panelSource,...
-        handles.panelExperiment,handles.panelSave];
+    controls = {handles.panelStage, handles.panelImage, handles.panelSource,...
+        handles.panelExperiment, handles.panelSave, handles.panelGit};
     Base.UIScrollPanelContainer(handles.LeftPanel,controls,5);
     Base.Resizable(handles.panelStage);
     Base.Resizable(handles.panelImage);
@@ -168,6 +204,7 @@ try
     handles.AxesPanelsH = pos(4);  % Necessary to allow GlobalPosition to hang out up there.
     axes_im_only_Callback(hObject,[],handles)  % Set default to just image
     
+    set(textH,'String','Loading Managers'); drawnow;
     handles.Managers = Base.ManagerContainer;   % So every Manager has same access to other managers
     handles.Managers.Logger = handles.logger;   % Make more accessible
     handles.Managers.handles = handles;         % Give the manager container a handle to figure handles
@@ -183,33 +220,46 @@ try
     set(textH,'String','Loading StageManager'); drawnow;
     handles.Managers.Stages = StageManager(handles);
     
-    set(textH,'String','Loading Experiment module');
+    set(textH,'String','Loading Experiment Modules');
     handles.Managers.Experiment = ExperimentManager(handles);
     
-    set(textH,'String','Loading Imaging module'); drawnow;
+    set(textH,'String','Loading Imaging Modules'); drawnow;
     handles.Managers.Imaging = ImagingManager(handles);
     set(handles.(handles.Managers.Imaging.set_colormap),'checked','on') % Tags correspond to colormaps
     set(allchild(handles.menu_colormap),'callback',...
         @(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
     
-    set(textH,'String','Loading Database module'); drawnow;
+    set(textH,'String','Loading Database Modules'); drawnow;
     handles.Managers.DB = DBManager(handles);
     
-    set(textH,'String','Loading Source modules'); drawnow;
+    set(textH,'String','Loading Source Modules'); drawnow;
     handles.Managers.Sources = SourcesManager(handles);
     
-    set(textH,'String','Loading paths'); drawnow;
+    set(textH,'String','Loading Paths'); drawnow;
     handles.Managers.Path = PathManager(handles); % Generates its own menu item
     
     set(textH,'String','Preparing GUI'); drawnow;
     set(textH,'String','Done.'); drawnow;
 catch err
-    close(loading_fig)
+    delete(loading_fig)
     delete(handles.inactivity_timer)
     delete(handles.logger)
     delete(hObject)
+    if exist(fullfile(path,'.lock'),'file')
+        delete(fullfile(path,'.lock'));
+    end
     errordlg(sprintf('%s\n\nDetails in Command Window',err.message),'Error Loading CommandCenter')
     rethrow(err)
+end
+
+% Backup MATLAB prefs file
+if exist(MATLAB_prefs,'file')
+    [msg,msgID] = copyfile(MATLAB_prefs,fullfile(path,'.matlabprefs.mat.backup'));
+    if ~isempty(msg)
+        warning(msgID,msg);
+    end
+else
+    warning('CC:pref_backup_failed','Unable to locate matlabprefs.mat, no backup was made.');
 end
 
 % Provide some useful pointers to ManagerContainer class
@@ -226,7 +276,7 @@ handles.output = [];
 
 % Update handles structure
 guidata(hObject, handles);
-close(loading_fig)
+delete(loading_fig)
 if strcmp(handles.inactivity_timer.Running,'off')
     % No modules are loaded on startup (otherwise settings called)
     start(handles.inactivity_timer);
@@ -309,6 +359,20 @@ delete(hObject)
 [path,~,~] = fileparts(mfilename('fullpath'));
 if exist(fullfile(path,'dbquit.m'),'file') % Disable override
     delete(fullfile(path,'dbquit.m'));
+end
+% Backup MATLAB prefs file
+MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
+if exist(MATLAB_prefs,'file')
+    [msg,msgID] = copyfile(MATLAB_prefs,fullfile(path,'.matlabprefs.mat.backup'));
+    if ~isempty(msg)
+        warning(msgID,msg);
+    end
+else
+    warning('CC:pref_backup_failed','Unable to locate matlabprefs.mat, no backup was made.');
+end
+
+if exist(fullfile(path,'.lock'),'file')
+    delete(fullfile(path,'.lock'));
 end
 
 % --- Executes when figure1 is resized.

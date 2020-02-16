@@ -50,6 +50,16 @@ function [pos,readInfo,f_debug] = reader(im,varargin)
 %   QR: The "sample" coordinates. Generated from decoding QR
 %       code and knowledge of QR positioning.
 assert(size(im.image,3)==1,'Image must be gray scale.')
+assert(isequal(size(im.ROI),[2,2]),'ROI must be 2x2!');
+% Fix inversions
+if im.ROI(1,1) > im.ROI(1,2) % invert in x
+    im.ROI(1,:) = [im.ROI(1,2) im.ROI(1,1)];
+    im.image = fliplr(im.image);
+end
+if im.ROI(2,1) > im.ROI(2,2) % invert in y
+    im.ROI(2,:) = [im.ROI(2,2) im.ROI(2,1)];
+    im.image = flipud(im.image);
+end
 x = im.ROI(1,:);
 y = im.ROI(2,:);
 im = double(im.image); % Necessary for some filter operations
@@ -147,15 +157,15 @@ for i = 1:nQRs
     end
 end
 % Get overall image transform
-mask = ~isnan(markersQRAct);
+mask = ~isnan(markersQRAct(1,1,:));
 npoints = 0;
 im2QRT = affine2d.empty();
 pos = NaN(1,2);
 err = NaN(1,2);
-if any(mask)
+if any(mask(:))
     % Remvoing instead of keeping retains array shape (3x2xN)
-    markersImAct(~mask) = [];
-    markersQRAct(~mask) = [];
+    markersImAct = markersImAct(:,:,mask);
+    markersQRAct = markersQRAct(:,:,mask);
     % 1) shiftdim:  2xNx3; to get x,y dim first
     % 2) reshape:   2x3N ; grouped by marker first, then QR index
     % 3) transpose: 3Nx2 ; dim fitgeotrans wants

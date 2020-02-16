@@ -10,7 +10,7 @@ classdef EMM < Modules.Driver
     
     properties
         % for calls to HWserver
-        moduleName = 'msquared';
+        moduleName = 'msquared.NW';
         laserName = 'EMM';
         blocking_timeout = 60;  % If call is blocking, adjust wait time
     end
@@ -118,7 +118,7 @@ classdef EMM < Modules.Driver
             obj.com('set_wavelength',val,0);
         end
         function set_wavelength(obj,val)
-            out = obj.com_blocking('set_wavelength',val,60);
+            out = obj.com_blocking('set_wavelength',val,obj.blocking_timeout);
             if out{2}.report == 1
                 error('Tuning failed')
             end
