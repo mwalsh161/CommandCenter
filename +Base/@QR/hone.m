@@ -169,7 +169,7 @@ end
 mask = stayedclose & goodfit;
 honedC = honedC(mask,:);
 sampleC = sampleC(mask,:);
-im2QRT = fitgeotrans(honedC,sampleC,'nonreflectivesimilarity');
+im2QRT = fitgeotrans(honedC,sampleC,'similarity');
 % Calculate position and error in control points
 markers_theory = transformPointsForward(im2QRT, honedC);
 err = sqrt(mean((markers_theory-sampleC).^2)); % std in x and y
