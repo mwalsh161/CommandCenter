@@ -12,7 +12,7 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 %       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
-%   [Locations]: Location limits in x to impose on the fitted peak properties.
+%   [Location]: Location limits in x to impose on the fitted peak properties.
 %       Default: [min(x) max(x)]
 %   [ConfLevel]: confidence interval level (default 0.95)
 %   [n]: fit exactly n peaks (n > 0). Not compatible with AmplitudeSensitivity or StopMetric.
