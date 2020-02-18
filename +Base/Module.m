@@ -399,6 +399,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
                         mps{i} = mps{i}.adjust_UI(suggested_label_width, margin);
+                        obj.set_meta_pref(setting_names{i},mps{i});
                         lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
                 end
@@ -412,6 +413,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end
+            % set method might notify "update_settings"
+            mp = obj.get_meta_pref(mp.property_name);
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
             mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
