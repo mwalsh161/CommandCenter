@@ -20,7 +20,7 @@ classdef EMM < Sources.msquared.common_invisible
         % total tunable range in THz (should be updated when crystal changed; see obj.fitted_oven)
         range = Sources.TunableLaser_invisible.c./[580,661];
     end
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,GetObservable)
         fitted_oven = Prefs.Integer(1,'readonly',true,'set','set_fitted_oven',...
             'help_text','Crystal being used: 1,2,3. This also sets range');
     end
@@ -30,7 +30,7 @@ classdef EMM < Sources.msquared.common_invisible
     
     methods(Access=private)
         function obj = EMM()
-            obj.show_prefs = [obj.prefs(1:8), {'fitted_oven'}, obj.prefs(9:end)];
+            obj.show_prefs = [obj.show_prefs(1:8), {'fitted_oven'}, obj.show_prefs(9:end)];
             obj.init();
             if obj.tuning
                 dlg = msgbox('Please wait while tuning completes from previous tuning...',mfilename,'modal');
