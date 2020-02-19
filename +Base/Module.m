@@ -416,7 +416,17 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % set method might notify "update_settings"
             mp = obj.get_meta_pref(mp.property_name);
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
-            mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+            try
+                mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+            catch err
+                error('MODULE:UI',['Failed to (re)set value in UI. ',... 
+                       'Perhaps got deleted during callback? ',...
+                       'You can click the settings refresh button to try and restore.',...
+                       '\n\nError:\n%s'],err.message)
+                % FUTURE UPDATE: make this an errordlg instead, and
+                % provide a button to the user in the errordlg figure to
+                % reload settings.
+            end
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
                 try
                     val_help = mp.validation_summary(obj.pref_handler_indentation);
