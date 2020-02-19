@@ -123,12 +123,30 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             n = 101;
             voltages = NaN(n,1);
             percents = linspace(0,100,n)';
+            f = UseFigure('SolsTiS.calibrate_voltageToPercent',true);
+            ax = axes('parent',f); hold(ax,'on');
+            figure(f);
+            lnH = plot(ax,voltages,percents,'-o');
+            ylabel(ax,'Percent (%)');
+            xlabel(ax,'Voltage (V)');
+            tH = title(ax,'Starting Calibration');
             for i = 1:n
-                obj.solstisHandle.set_resonator_percent(percents(i));
-                reply = obj.solstisHandle.getStatus();
-                voltages(i) = reply.resonator_voltage;
+                tH.String = sprintf('Calibrating: %i/%i',i,n);
+               % obj.solstisHandle.set_resonator_percent(percents(i));
+               % reply = obj.solstisHandle.getStatus();
+               % voltages(i) = reply.resonator_voltage;
+                voltages(i) = rand(1);
+                lnH.XData(i) = voltages(i);
+                drawnow limitrate;
             end
             ft = fit(voltages,percents,'poly2');
+            plotV = linspace(min(voltages),max(voltages),1001);
+            fitbounds = predint(ft,plotV,0.95,'functional','on'); %get confidence bounds on fit
+            errorfill(plotV,ft(plotV),[abs(ft(plotV)'-fitbounds(:,1)');abs(fitbounds(:,2)'-ft(plotV)')],'parent',ax);
+            answer = questdlg('Calibration satisfactory?','SolsTiS Resonator Calibration Verification','Yes','No, abort','Yes');
+            if strcmp(answer,'No, abort')
+                error('Failed SolsTiS resonator calibration validation.')
+            end
             obj.resVolt2Percent = ft;
         end
         
