@@ -27,7 +27,8 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         range = Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
     end
     properties(SetObservable,AbortSet)
-        resonatorVoltageToPercentCalibration = [-0.000425732939240   0.599558121753631  -5.361161084160642]; %second order polynomial
+        resVolt2Percent = cfit(); %second order polynomial
+        calibrateRes = false; % Interface to request calibration
         tuning = false;
         hwserver_ip = Sources.msquared.SolsTiS.no_server;
         etalon_percent = 0;  % Settable
@@ -40,8 +41,9 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         PBline = 1; % Indexed from 1
         resonator_tune_speed = 2; % percent per step
         pb_ip = Sources.msquared.SolsTiS.no_server;
-        prefs = {'hwserver_ip','PBline','pb_ip'};
-        show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage','etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip'};
+        prefs = {'hwserver_ip','PBline','pb_ip','resVolt2Percent'};
+        show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
+            'etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip','calibrateRes'};
         readonly_prefs = {'tuning','resonator_voltage','etalon_voltage'};
     end
     properties(Access=private)
@@ -97,10 +99,6 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     methods
-        function resonatorPercent = resonatorVoltageToPercent(obj,voltage)
-            resonatorPercent = obj.resonatorVoltageToPercentCalibration(1)*voltage^2 ...
-            +obj.resonatorVoltageToPercentCalibration(2)*voltage+obj.resonatorVoltageToPercentCalibration(3);
-        end
         function updateStatus(obj)
             % Get status report from laser and update a few fields
             if strcmp(obj.hwserver_ip,obj.no_server)
@@ -118,6 +116,21 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
                 obj.getWavelength; % This sets wavelength_lock (and potentially etalon_lock)
             end
         end
+        function calibrate_voltageToPercent(obj)
+            if isempty(obj.solstisHandle) || ~isvalid(obj.solstisHandle)
+                error('Need to connect to SolsTiS first.')
+            end
+            n = 101;
+            voltages = NaN(n,1);
+            percents = linspace(0,100,n)';
+            for i = 1:n
+                obj.solstisHandle.set_resonator_percent(percents(i));
+                reply = obj.solstisHandle.getStatus();
+                voltages(i) = reply.resonator_voltage;
+            end
+            ft = fit(voltages,percents,'poly2');
+            obj.resVolt2Percent = ft;
+        end
         
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
@@ -130,8 +143,11 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
         function percent = GetPercent(obj)
-                obj.updateStatus();
-                percent =  obj.resonatorVoltageToPercent(obj.resonator_voltage);
+            if isempty(obj.resVolt2Percent)
+                error('Calibrate resonator first. Click "calibrateRes" setting or call "calibrate_voltageToPercent".');
+            end
+            obj.updateStatus();
+            percent = obj.resVolt2Percent(obj.resonator_voltage);
         end
         function delete(obj)
             if ~isempty(obj.solstisHandle)
@@ -229,6 +245,11 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         end
         
         % Set methods
+        function set.calibrateRes(obj,~)
+            % Check mark used to call calibration method
+            obj.calibrate_voltageToPercent();
+            obj.calibrateRes = false;
+        end
         function set.hwserver_ip(obj,ip)
             if isempty(ip); return; end % Short circuit on empty IP
             err = obj.connect_driver('solstisHandle','msquared.solstis',ip);
