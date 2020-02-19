@@ -145,10 +145,11 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
                 lnH.XData(i) = voltages(i);
                 drawnow limitrate;
             end
-            [ft,gof] = fit(voltages,percents,'smoothingspline');
+            [ft,gof] = fit(voltages,percents,'poly2');
             tH.String = sprintf('adjR^2: %g',gof.adjrsquare);
             plotV = linspace(min(voltages),max(voltages),1001);
-            plot(ax,plotV,ft(plotV));
+            fitbounds = predint(ft,plotV,0.95,'functional','on'); %get confidence bounds on fit
+            errorfill(plotV,ft(plotV),[abs(ft(plotV)'-fitbounds(:,1)');abs(fitbounds(:,2)'-ft(plotV)')],'parent',ax);
             subplot(2,1,1,ax);
             ax_resid = subplot(2,1,2,'parent',f);
             plot(ax_resid,voltages,percents-ft(voltages),'-o');
