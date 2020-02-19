@@ -36,6 +36,25 @@ classdef SolsTiS < Sources.msquared.common_invisible
             obj = Object;
         end
     end
+    methods(Hidden)
+        function host = loadLaser(obj)
+            host = obj.hwserver_host;
+            modName = obj.moduleName;
+            if isempty(host)||strcmp(host,obj.no_server)||isempty(modName); return; end
+            err = obj.connect_driver('solstisHandle','msquared.solstis',host,modName);
+            if ~isempty(err)
+                obj.hwserver_host = obj.no_server;
+                obj.updateStatus();
+                if contains(err.message,'driver is already instantiated')
+                    error('solstis driver already instantiated. Likely due to an active EMM source; please close it and retry.')
+                end
+                rethrow(err)
+            end
+            range = obj.solstisHandle.get_wavelength_range; %#ok<*PROP> % solstis hardware handle
+            obj.range = obj.c./[range.minimum_wavelength, range.maximum_wavelength];
+            obj.updateStatus();
+        end
+    end
     methods
         function delete(obj)
             if ~isempty(obj.solstisHandle)
@@ -55,23 +74,6 @@ classdef SolsTiS < Sources.msquared.common_invisible
             obj.updatingVal = false;
             pause(1) % Wait for msquared to start tuning
             obj.trackFrequency(obj.c/target); % Will block until obj.tuning = false (calling obj.getFrequency)
-            obj.updateStatus();
-        end
-        
-        % Set methods
-        function host = set_hwserver_host(obj,host,~)
-            if isempty(host); return; end % Short circuit on empty hostname
-            err = obj.connect_driver('solstisHandle','msquared.solstis',host);
-            if ~isempty(err)
-                obj.hwserver_host = obj.no_server;
-                obj.updateStatus();
-                if contains(err.message,'driver is already instantiated')
-                    error('solstis driver already instantiated. Likely due to an active EMM source; please close it and retry.')
-                end
-                rethrow(err)
-            end
-            range = obj.solstisHandle.get_wavelength_range; %#ok<*PROPLC> % solstis hardware handle
-            obj.range = obj.c./[range.minimum_wavelength, range.maximum_wavelength];
             obj.updateStatus();
         end
     end

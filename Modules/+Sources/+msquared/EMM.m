@@ -62,6 +62,34 @@ classdef EMM < Sources.msquared.common_invisible
             obj = Object;
         end
     end
+    methods(Hidden)
+        function host = loadLaser(obj)
+            host = obj.hwserver_host;
+            modName = obj.moduleName;
+            if isempty(host)||isempty(modName); return; end
+            % solstis
+            err = obj.connect_driver('solstisHandle','msquared.solstis',host,modName);
+            if ~isempty(err)
+                obj.hwserver_host = obj.no_server;
+                obj.updateStatus();
+                if contains(err.message,'driver is already instantiated')
+                    error('solstis driver already instantiated. Likely due to an active SolsTiS source; please close it and retry.')
+                end
+                rethrow(err)
+            end
+            % EMM (if here, we can assume solstis loaded correctly)
+            err = obj.connect_driver('emmHandle','msquared.EMM',host,modName);
+            if ~isempty(err)
+                obj.hwserver_host = obj.no_server;
+                obj.updateStatus();
+                delete(obj.solstisHandle);
+                obj.solstisHandle = [];
+                error('solstis loaded, but EMM failed. Solstis handle destroyed:\n%s',err.message);
+            end
+            % Can only get here if both successful
+            obj.updateStatus();
+        end
+    end
     methods
         function ready(obj)
             obj.emmHandle.ready;
@@ -70,7 +98,7 @@ classdef EMM < Sources.msquared.common_invisible
             % Common gets solstis stuff
             updateStatus@Sources.msquared.common_invisible(obj)
             % Now get EMM stuff. This kills man-in-the-middle!!
-            if ~strcmp(obj.hwserver_host,obj.no_server)
+            if isempty(obj.emmHandle) || ~isvalid(obj.emmHandle)
                 reply = obj.emmHandle.getStatus();
                 obj.updatingVal = true;
                     obj.fitted_oven = reply.fitted_oven;
@@ -140,30 +168,6 @@ classdef EMM < Sources.msquared.common_invisible
         end
         
         % Set methods
-        function host = set_hwserver_host(obj,host,~)
-            if isempty(host); return; end % Short circuit on empty hostname
-            % solstis
-            err = obj.connect_driver('solstisHandle','msquared.solstis',host);
-            if ~isempty(err)
-                obj.hwserver_host = obj.no_server;
-                obj.updateStatus();
-                if contains(err.message,'driver is already instantiated')
-                    error('solstis driver already instantiated. Likely due to an active SolsTiS source; please close it and retry.')
-                end
-                rethrow(err)
-            end
-            % EMM (if here, we can assume solstis loaded correctly)
-            err = obj.connect_driver('emmHandle','msquared.EMM',host);
-            if ~isempty(err)
-                obj.hwserver_host = obj.no_server;
-                obj.updateStatus();
-                delete(obj.solstisHandle);
-                obj.solstisHandle = [];
-                error('solstis loaded, but EMM failed. Solstis handle destroyed:\n%s',err.message);
-            end
-            % Can only get here if both successful
-            obj.updateStatus();
-        end
         function val = set_fitted_oven(obj,val,~)
             if isnan(val); obj.fitted_oven = val; return; end % Short circuit on NaN
             obj.fitted_oven = val;

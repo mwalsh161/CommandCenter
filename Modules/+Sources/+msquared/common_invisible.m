@@ -6,11 +6,12 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     end
     properties
         resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
-        prefs = {'hwserver_host','PBline','pb_host','resonator_tune_speed','resVolt2Percent'};
+        prefs = {'hwserver_host','PBline','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
-            'etalon_percent','etalon_voltage','hwserver_host','PBline','pb_host','resonator_tune_speed','calibrateRes'};
+            'etalon_percent','etalon_voltage','hwserver_host','moduleName','PBline','pb_host','resonator_tune_speed','calibrateRes'};
     end
     properties(SetObservable,GetObservable)
+        moduleName = Prefs.MultipleChoice('set','set_moduleName','help_text','Modules will be loaded when a hwserver hostname is supplied.');
         calibrateRes = Prefs.Boolean(false,'set','set_calibrateRes',...
             'help_text','Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
         tuning = Prefs.Boolean(false,'readonly',true);
@@ -39,8 +40,6 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
 
     methods(Access=protected)
         function init(obj) % Call in subclass constructor
-            obj.hwserver_host = obj.no_server; % Default value (overriden in loadPrefs if saved)
-            obj.pb_host = obj.no_server; % Default value (overriden in loadPrefs if saved)
             obj.loadPrefs;  % This will call set.(*_host) too which instantiate hardware
             obj.updateStatus(); % Redundant with set.(*_host) but useful for if no host pref
         end
@@ -60,6 +59,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             end
         end
     end
+    methods(Abstract,Hidden)
+        host = loadLaser(obj);
+    end
     methods
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
@@ -75,7 +77,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         function updateStatus(obj)
             % Get status report from SolsTiS laser and update fields
             obj.updatingVal = true;
-            if strcmp(obj.hwserver_host,obj.no_server)
+            if isempty(obj.solstisHandle) || ~isvalid(obj.solstisHandle)
                 obj.etalon_lock = false; %NaN; logical cannot be NaN or creation of the ui is failing
                 obj.locked = false; %NaN;
                 obj.etalon_voltage = NaN;
@@ -239,9 +241,27 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             obj.calibrate_voltageToPercent();
             val = false;
         end
-        function val = set_hwserver_host(~,val,~)
-            % This is specific per device and should be overloaded
-            error('Not Implemented')
+        function val = set_moduleName(obj,val,~)
+            obj.loadLaser();
+        end
+        function host = set_hwserver_host(obj,host,~)
+            % Get list of lasers at this host
+            opts = {};
+            if ~isempty(host) && ~strcmp(host,obj.no_server)
+                opts = Drivers.msquared.solstis.getLasers(host);
+            end
+            mp = obj.get_meta_pref('moduleName');
+            if ~isequal(mp.choices,opts) % Only update if different
+                if ~isempty(mp.value)
+                    % If we need to reset it, we also need to re-grab the metapref
+                    obj.moduleName = '';
+                    mp = obj.get_meta_pref('moduleName');
+                end
+                mp.choices = opts;
+                obj.set_meta_pref('moduleName',mp);
+                notify(obj,'update_settings');
+            end
+            host = obj.loadLaser();
         end
         function val = set_etalon_percent(obj,val,~)
             if isnan(val); return; end % Short circuit on NaN
