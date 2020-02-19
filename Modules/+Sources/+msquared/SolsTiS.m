@@ -27,7 +27,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         range = Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
     end
     properties(SetObservable,AbortSet)
-        resVolt2Percent = cfit(); %second order polynomial
+        resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
         calibrateRes = false; % Interface to request calibration
         tuning = false;
         hwserver_ip = Sources.msquared.SolsTiS.no_server;
@@ -41,9 +41,9 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
         PBline = 1; % Indexed from 1
         resonator_tune_speed = 2; % percent per step
         pb_ip = Sources.msquared.SolsTiS.no_server;
-        prefs = {'hwserver_ip','PBline','pb_ip','resVolt2Percent'};
+        prefs = {'hwserver_ip','PBline','pb_ip','resonator_tune_speed','resVolt2Percent'};
         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
-            'etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip','calibrateRes'};
+            'etalon_percent','etalon_voltage','hwserver_ip','PBline','pb_ip','resonator_tune_speed','calibrateRes'};
         readonly_prefs = {'tuning','resonator_voltage','etalon_voltage'};
     end
     properties(Access=private)
@@ -120,6 +120,12 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             if isempty(obj.solstisHandle) || ~isvalid(obj.solstisHandle)
                 error('Need to connect to SolsTiS first.')
             end
+            obj.WavelengthLock(false);
+            % Put resonator at zero percent and wait to settle just in case
+            obj.solstisHandle.set_resonator_percent(0);
+            pause(0.5);
+            % Calls will go to driver directly since no assumptions on
+            % calibration being there or accurate yet
             n = 101;
             voltages = NaN(n,1);
             percents = linspace(0,100,n)';
@@ -132,22 +138,30 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             tH = title(ax,'Starting Calibration');
             for i = 1:n
                 tH.String = sprintf('Calibrating: %i/%i',i,n);
-               % obj.solstisHandle.set_resonator_percent(percents(i));
-               % reply = obj.solstisHandle.getStatus();
-               % voltages(i) = reply.resonator_voltage;
-                voltages(i) = rand(1);
+                obj.solstisHandle.set_resonator_percent(percents(i));
+                pause(1);
+                reply = obj.solstisHandle.getStatus();
+                voltages(i) = reply.resonator_voltage;
                 lnH.XData(i) = voltages(i);
                 drawnow limitrate;
             end
-            ft = fit(voltages,percents,'poly2');
+            [ft,gof] = fit(voltages,percents,'smoothingspline');
+            tH.String = sprintf('adjR^2: %g',gof.adjrsquare);
             plotV = linspace(min(voltages),max(voltages),1001);
-            fitbounds = predint(ft,plotV,0.95,'functional','on'); %get confidence bounds on fit
-            errorfill(plotV,ft(plotV),[abs(ft(plotV)'-fitbounds(:,1)');abs(fitbounds(:,2)'-ft(plotV)')],'parent',ax);
+            plot(ax,plotV,ft(plotV));
+            subplot(2,1,1,ax);
+            ax_resid = subplot(2,1,2,'parent',f);
+            plot(ax_resid,voltages,percents-ft(voltages),'-o');
+            ylabel(ax_resid,'Percent (%)');
+            xlabel(ax_resid,'Voltage (V)');
+            title(ax_resid,'Residuals');
             answer = questdlg('Calibration satisfactory?','SolsTiS Resonator Calibration Verification','Yes','No, abort','Yes');
             if strcmp(answer,'No, abort')
                 error('Failed SolsTiS resonator calibration validation.')
             end
-            obj.resVolt2Percent = ft;
+            obj.resVolt2Percent.fcn = ft;
+            obj.resVolt2Percent.gof = gof;
+            obj.resVolt2Percent.datetime = datetime;
         end
         
         function on(obj)
@@ -161,11 +175,11 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             obj.PulseBlaster.lines(obj.PBline) = false;
         end
         function percent = GetPercent(obj)
-            if isempty(obj.resVolt2Percent)
+            if isempty(obj.resVolt2Percent.fcn)
                 error('Calibrate resonator first. Click "calibrateRes" setting or call "calibrate_voltageToPercent".');
             end
             obj.updateStatus();
-            percent = obj.resVolt2Percent(obj.resonator_voltage);
+            percent = obj.resVolt2Percent.fcn(obj.resonator_voltage);
         end
         function delete(obj)
             if ~isempty(obj.solstisHandle)
@@ -226,7 +240,7 @@ classdef SolsTiS < Modules.Source & Sources.TunableLaser_invisible
             assert(target>=0&&target<=100,'Target must be a percentage')
             % tune at a limited rate per step
             currentPercent = obj.GetPercent;
-            numberSteps = mod(abs(currentPercent-target),obj.resonator_tune_speed);
+            numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
             direction = sign(target-currentPercent);
             for i = 1:numberSteps
                 obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
