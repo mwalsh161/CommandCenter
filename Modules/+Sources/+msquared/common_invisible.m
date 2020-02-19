@@ -1,7 +1,7 @@
 classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invisible
     % Code and methods shared by EMM and SolsTiS will be inherited from this class
 
-    properties(SetObservable,SetAccess=protected)
+    properties(SetObservable,SetAccess=private)
         source_on = false;  % Always assume on (cant be changed here)
     end
     properties
@@ -31,6 +31,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         timeout = 30   % Ignore errors within this timeout on wavelength read (getWavelength)
         PulseBlaster   % handle to PulseBlaster Driver
         solstisHandle  % handle to Solstis Driver
+        updatingVal = false; % This signals to set methods to not talk to hardware
     end
     properties(Constant,Hidden)
         no_server = 'No Server';  % Message when not connected
@@ -58,17 +59,6 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                 end
             end
         end
-        function tf = internal_call(obj)
-            tf = false; % Assume false, verify that true later
-            st = dbstack(2);  % Exclude this method, and its caller
-            if ~isempty(st)
-                caller_class = strsplit(st(1).name,'.');
-                caller_class = caller_class{1};
-                this_class = strsplit(class(obj),'.');
-                this_class = this_class{end};
-                tf = strcmp(this_class,caller_class);
-            end
-        end
     end
     methods
         function on(obj)
@@ -84,6 +74,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
 
         function updateStatus(obj)
             % Get status report from SolsTiS laser and update fields
+            obj.updatingVal = true;
             if strcmp(obj.hwserver_host,obj.no_server)
                 obj.etalon_lock = false; %NaN; logical cannot be NaN or creation of the ui is failing
                 obj.locked = false; %NaN;
@@ -98,6 +89,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                 obj.resonator_voltage = reply.resonator_voltage;
                 obj.getWavelength; % This sets wavelength_lock (and potentially etalon_lock)
             end
+            obj.updatingVal = false;
         end
         function calibrate_voltageToPercent(obj)
             if isempty(obj.solstisHandle) || ~isvalid(obj.solstisHandle)
@@ -168,13 +160,15 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                     end
                 end
             end
-            obj.setpoint = obj.c/wavelength;
-            obj.tuning = istuning;
-            obj.wavelength_lock = lock;
-            obj.locked = lock;
-            if lock
-                obj.etalon_lock = true;
-            end
+            obj.updatingVal = true;
+                obj.setpoint = obj.c/wavelength;
+                obj.tuning = istuning;
+                obj.wavelength_lock = lock;
+                obj.locked = lock;
+                if lock
+                    obj.etalon_lock = true;
+                end
+            obj.updatingVal = false;
         end
         function tune(~,~)
             % This is specific per device and should be overloaded
@@ -232,7 +226,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                 obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
             end
             obj.solstisHandle.set_resonator_percent(target);
-            obj.resonator_percent = target;
+            obj.updatingVal = true;
+                obj.resonator_percent = target;
+            obj.updatingVal = false;
             obj.updateStatus(); % Get voltage of resonator
         end
     end
@@ -250,7 +246,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         function val = set_etalon_percent(obj,val,~)
             if isnan(val); return; end % Short circuit on NaN
             assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_host')
-            if obj.internal_call; return; end
+            if obj.updatingVal; return; end
             obj.solstisHandle.set_etalon_percent(val);
             obj.updateStatus();
         end
@@ -259,7 +255,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             if isnan(val); return; end % Short circuit on NaN
             assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_host')
             assert(islogical(val)||val==0||val==1,'Value must be true/false')
-            if obj.internal_call; return; end
+            if obj.updatingVal; return; end
             if val
                 strval = 'on';
             else
@@ -270,17 +266,17 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         end
         function val = set_resonator_percent(obj,val,~)
             if isnan(val); return; end % Short circuit on NaN
-            if obj.internal_call; return; end
+            if obj.updatingVal; return; end
             obj.TunePercent(val);
         end
         function val = set_target_wavelength(obj,val,~)
             if isnan(val); return; end % Short circuit on NaN
-            if obj.internal_call; return; end
+            if obj.updatingVal; return; end
             obj.tune(val);
         end
         function val = set_wavelength_lock(obj,val,~)
             if isnan(val); return; end % Short circuit on NaN
-            if obj.internal_call; return; end
+            if obj.updatingVal; return; end
             obj.WavelengthLock(val);
         end
 

@@ -72,8 +72,10 @@ classdef EMM < Sources.msquared.common_invisible
             % Now get EMM stuff. This kills man-in-the-middle!!
             if ~strcmp(obj.hwserver_host,obj.no_server)
                 reply = obj.emmHandle.getStatus();
-                obj.fitted_oven = reply.fitted_oven;
-                obj.tuning = strcmp(reply.tuning,'active'); % Overwrite getWavelength tuning status with EMM tuning state
+                obj.updatingVal = true;
+                    obj.fitted_oven = reply.fitted_oven;
+                    obj.tuning = strcmp(reply.tuning,'active'); % Overwrite getWavelength tuning status with EMM tuning state
+                obj.updatingVal = false;
             end
         end
         function tune(obj,target)
@@ -81,6 +83,7 @@ classdef EMM < Sources.msquared.common_invisible
             % (potentially a very expensive operation if switching from
             % solstis)
             % target in nm
+            obj.updatingVal = true;
             assert(~isempty(obj.emmHandle)&&isobject(obj.emmHandle) && isvalid(obj.emmHandle),'no emmHandle, check hwserver_host')
             assert(target>=obj.c/max(obj.range)&&target<=obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             err = [];
@@ -105,12 +108,14 @@ classdef EMM < Sources.msquared.common_invisible
                 obj.locked = false;
                 obj.wavelength_lock = false;
                 obj.setpoint = NaN;
+                obj.updatingVal = false;
                 rethrow(err)
             end
             obj.setpoint = obj.c/target;
             obj.locked = true;
             obj.wavelength_lock = true;
             obj.etalon_lock = true;  % We don't know at this point anything about etalon if not locked
+            obj.updatingVal = false;
         end
 
         function delete(obj)
@@ -135,7 +140,7 @@ classdef EMM < Sources.msquared.common_invisible
         end
         
         % Set methods
-        function set_hwserver_host(obj,host)
+        function host = set_hwserver_host(obj,host,~)
             if isempty(host); return; end % Short circuit on empty hostname
             % solstis
             err = obj.connect_driver('solstisHandle','msquared.solstis',host);
@@ -157,7 +162,6 @@ classdef EMM < Sources.msquared.common_invisible
                 error('solstis loaded, but EMM failed. Solstis handle destroyed:\n%s',err.message);
             end
             % Can only get here if both successful
-            obj.hwserver_host = host;
             obj.updateStatus();
         end
         function val = set_fitted_oven(obj,val,~)

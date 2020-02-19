@@ -49,15 +49,17 @@ classdef SolsTiS < Sources.msquared.common_invisible
             assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_host')
             assert(target>obj.c/max(obj.range)&&target<obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             obj.solstisHandle.set_target_wavelength(target);
-            obj.target_wavelength = target;
-            obj.tuning = true;
+            obj.updatingVal = true;
+                obj.target_wavelength = target;
+                obj.tuning = true;
+            obj.updatingVal = false;
             pause(1) % Wait for msquared to start tuning
             obj.trackFrequency(obj.c/target); % Will block until obj.tuning = false (calling obj.getFrequency)
             obj.updateStatus();
         end
         
         % Set methods
-        function set_hwserver_host(obj,host)
+        function host = set_hwserver_host(obj,host,~)
             if isempty(host); return; end % Short circuit on empty hostname
             err = obj.connect_driver('solstisHandle','msquared.solstis',host);
             if ~isempty(err)
@@ -70,7 +72,6 @@ classdef SolsTiS < Sources.msquared.common_invisible
             end
             range = obj.solstisHandle.get_wavelength_range; %#ok<*PROPLC> % solstis hardware handle
             obj.range = obj.c./[range.minimum_wavelength, range.maximum_wavelength];
-            obj.hwserver_host = host;
             obj.updateStatus();
         end
     end
