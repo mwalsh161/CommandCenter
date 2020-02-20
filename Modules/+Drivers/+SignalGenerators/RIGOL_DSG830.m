@@ -106,6 +106,10 @@ classdef RIGOL_DSG830 < Drivers.SignalGenerators.SignalGenerator
                     error('unknown direction. Directions are FWD and REV,');
             end
             obj.writeOnly(string);
+         end
+        
+        function setUnitPower(obj)
+            warning('not implemented');
         end
         
         function  setPointTrig(obj,trigType)
@@ -347,10 +351,16 @@ classdef RIGOL_DSG830 < Drivers.SignalGenerators.SignalGenerator
         end
         
         function program_list(obj,freq_list,power_list)
-            obj.setListTrig('EXT')
-            obj.setFreqList(freq_list);
-            obj.setPowerList(power_list);
-            obj.exeLIST;
+            obj.setPowerCW(power_list(1));
+            obj.setPointTrig('EXT')
+            obj.setStepTrig('auto')
+            obj.setSweepType('freq');
+            obj.setSweepStartFreq(freq_list(1));
+            obj.setSweepStopFreq(freq_list(end));
+            obj.setSweepNumPoints(numel(freq_list));
+            obj.setSweepDwellTime(0.02); %fix later
+            obj.executeSweep;
+            obj.setSweepMode('continuous');
             obj.off;
         end
         
@@ -376,7 +386,7 @@ classdef RIGOL_DSG830 < Drivers.SignalGenerators.SignalGenerator
             string = ':SOUR:SWE:RES:ALL';
             obj.writeOnly(string);
         end
-        
+   
         function  reset(obj)
             string = sprintf('*RST');
             obj.writeOnly(string);
