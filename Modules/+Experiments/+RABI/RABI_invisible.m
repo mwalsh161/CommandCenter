@@ -152,15 +152,8 @@ classdef RABI_invisible  < Modules.Experiment
         
         function set.laser_read_time(obj,val)
             assert(isnumeric(val),'laser_read_time must be of dataType numeric.')
-            assert(val>obj.minDuration*1000,['laser_read_time must be greater than the ',num2str(obj.minDuration*1000)])
-            if val > 400
-                button = questdlg('Are you sure you want to set laser duration to greater than 400 ns?');
-                if strcmp(button,'Yes')
-                    obj.laser_read_time = val;
-                end
-            else
-                obj.laser_read_time = val;
-            end
+            assert(val>obj.minDuration,['laser_read_time must be greater than the ',num2str(obj.minDuration)])
+            obj.laser_read_time = val;
         end
         
         function run(obj,statusH,managers,ax)
