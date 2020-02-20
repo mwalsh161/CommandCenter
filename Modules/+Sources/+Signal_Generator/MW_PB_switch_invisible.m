@@ -102,9 +102,11 @@ classdef MW_PB_switch_invisible < Sources.Signal_Generator.SG_Source_invisible
             if isempty(obj.MW_switch)
                 error('MW switch does not exist!')
             end
-            pb_line = obj.MW_switch_PB_line;
-            obj.MW_switch.lines(pb_line) = true;
-            obj.source_pb_on=1;
+            if strcmpi(obj.MW_switch_on,'yes')
+                pb_line = obj.MW_switch_PB_line;
+                obj.MW_switch.lines(pb_line) = true;
+                obj.source_pb_on=1;
+            end
         end
         
         function pb_off(obj)
@@ -112,8 +114,17 @@ classdef MW_PB_switch_invisible < Sources.Signal_Generator.SG_Source_invisible
                 error('MW switch does not exist!')
             end
             pb_line = obj.MW_switch_PB_line;
-            obj.MW_switch.lines(pb_line) = true;
+            obj.MW_switch.lines(pb_line) = false;
             obj.source_pb_on=0;
+        end
+        
+        function on(obj,~)
+            obj.pb_on;
+            on@Sources.Signal_Generator.SG_Source_invisible(obj);
+        end
+        function off(obj)
+            obj.pb_off
+            off@Sources.Signal_Generator.SG_Source_invisible(obj);
         end
     end
 end
