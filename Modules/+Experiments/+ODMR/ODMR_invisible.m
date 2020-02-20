@@ -185,8 +185,8 @@ classdef ODMR_invisible  < Modules.Experiment
         
         function abort(obj)
             obj.abort_request = true;
-%             obj.RF.off;
-%             obj.RF.serial.reset;
+            obj.RF.off;
+            obj.RF.serial.reset;
             obj.laser.off;
         end
         
