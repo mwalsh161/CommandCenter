@@ -129,8 +129,9 @@ classdef ODMR_APD <  Experiments.ODMR.ODMR_invisible
     methods
         
         function abort(obj)
-            delete(obj.f);
             obj.Ni.ClearAllTasks;
+            delete(obj.f);
+            obj.pulseblaster.stop
             abort@Experiments.ODMR.ODMR_invisible(obj)
         end
         
