@@ -11,7 +11,9 @@ function [tform,aborted,altered] = uifitgeotrans(movingPoints,fixedPoints,transf
 %           that default operation is to delete the figure when done.
 %       [movingLineParams]: (struct()) Name,value pairs stored as field: value
 %           in a struct that will be passed to LINE() for moving points.
-%       [fixedLineParams]: (struct()) Same as movingParams, but for fixed points.
+%       [fixedLineParams]: (struct()) Same as movingLineParams, but for fixed points.
+%       [connectorLineParams]: (struct('linestyle','--','color',[0,0,0]))
+%           Same as movingLineParams, but for connector lines on paired points.
 %       [PreserveFig]: (false) Specify to true to avoid deleting figure.
 %           Note the user can still "abort" and delete the figure. Also,
 %           note that axes will be held if preserved.
@@ -31,6 +33,7 @@ p.KeepUnmatched = true;
 addParameter(p,'Parent',[],@(x) isa(x,'matlab.graphics.axis.Axes')&&isvalid(x));
 addParameter(p,'movingLineParams',struct(),@(x) isstruct(x));
 addParameter(p,'fixedLineParams',struct(),@(x) isstruct(x));
+addParameter(p,'connectorLineParams',struct('linestyle','--','color',[0,0,0]),@(x) isstruct(x));
 addParameter(p,'PreserveFig',false,@(a)validateattributes(a,{'logical'},{'scalar'}));
 
 parse(p,varargin{:});
@@ -62,7 +65,7 @@ allowed = {'color','linewidth'};
 params = fieldnames(p.movingLineParams);
 movingLineParams = cell(1,0);
 for i = 1:length(params)
-    assert(ismember(lower(params{i}),allowed,sprintf('Currently only supports %s',strjoin(allowed,', '))));
+    assert(ismember(lower(params{i}),allowed),sprintf('Currently only supports %s',strjoin(allowed,', ')));
     if strcmpi(params{i},'color')
         assert(isequsl(size(p.movingLineParams.(params{i})),[1,3]),'Color should be row vector of length 3');
         cs(1,:) = p.movingLineParams.(params{i});
@@ -78,7 +81,7 @@ end
 params = fieldnames(p.fixedLineParams);
 fixedLineParams = cell(1,0);
 for i = 1:length(params)
-    assert(ismember(lower(params{i}),allowed,sprintf('Currently only supports %s',strjoin(allowed,', '))));
+    assert(ismember(lower(params{i}),allowed),sprintf('Currently only supports %s',strjoin(allowed,', ')));
     if strcmpi(params{i},'color')
         assert(isequsl(size(p.fixedLineParams.(params{i})),[1,3]),'Color should be row vector of length 3');
         cs(2,:) = p.fixedLineParams.(params{i});
@@ -90,32 +93,49 @@ for i = 1:length(params)
         fixedLineParams(end+1:end+2) = {params{i}, p.fixedLineParams.(params{i})};
     end
 end
+% Pack connectorLineParams
+allowed = {'color','linewidth','linestyle'};
+params = fieldnames(p.connectorLineParams);
+connectorLineParams = cell(1,0);
+for i = 1:length(params)
+    assert(ismember(lower(params{i}),allowed),sprintf('Currently only supports %s',strjoin(allowed,', ')));
+    connectorLineParams(end+1:end+2) = {params{i}, p.connectorLineParams.(params{i})};
+end
 
 % Test varargin on fitgeotrans
 n = min([nFixed,nMoving]);
 fitgeotrans(movingPoints(1:n,:),fixedPoints(1:n,:),transformationType,varargin{:});
 
 lastCloseRequestFcn = 'closereq'; % default
+lastWindowKeyPressFcn = '';
+lastButtonDownFcn = '';
+lastTitle = '';
 if ~isempty(p.Parent)
     ax = p.Parent;
     f = Base.getParentFigure(ax);
     lastCloseRequestFcn = f.CloseRequestFcn;
-    f.CloseRequestFcn = @confirm_close;
+    lastWindowKeyPressFcn = f.WindowKeyPressFcn;
+    lastButtonDownFcn = ax.ButtonDownFcn;
+    
+    lastTitle = ax.Title.String;
 else
-    f = figure('toolbar','none','closerequest',@confirm_close);
+    f = figure('toolbar','none');
     ax = axes('parent',f);
 end
+f.CloseRequestFcn = @confirm_close;
+f.WindowKeyPressFcn = @keyPressed;
+ax.ButtonDownFcn = @clicked;
 hold(ax,'on');
 try
     for i = 1:nMoving
         points{1}(i) = line(ax, movingPoints(i,1), movingPoints(i,2),...
-            'marker','x','linestyle','none','color',cs(1,:),'tag','points.moving',...
+            'marker','x','linestyle','none','color',cs(1,:),'tag','point',...
             'UserData',struct('type',1,'ind',i,'pairedInd',NaN,...
             'pairedPoint',gobjects(1),'origPos',movingPoints(i,:)),movingLineParams{:});
     end
     for i = 1:nFixed
         points{2}(i) = line(ax, fixedPoints(i,1), fixedPoints(i,2),...
-            'marker','o','linestyle','none','color',cs(2,:),'tag','points.fixed',...
+            'marker','o','linestyle','none','color',cs(2,:),'tag','point',...
             'UserData',struct('type',2,'ind',i,'pairedInd',NaN,...
             'pairedPoint',gobjects(1)),fixedLineParams{:});
     end
@@ -140,14 +160,15 @@ menu(2) = uimenu(cm,'label','Select fixed point','callback',@selectPointType,'Us
 uimenu(cm,'label','Finished','callback',@finished,'separator','on');
 f.UIContextMenu = cm;
 ax.UIContextMenu = cm;
-set(points{1},'UIContextMenu',cm);
-set(points{2},'UIContextMenu',cm);
+set(points{1},'UIContextMenu',cm,'ButtonDownFcn',@clicked);
+set(points{2},'UIContextMenu',cm,'ButtonDownFcn',@clicked);
 % Context menu to remove selected ones
 cm_remove = uicontextmenu(f);
 uimenu(cm_remove,'label','Remove from paired points','callback',@removePointPair);
 
 % Set up default behavior
 selectPointType(menu(state+1)); % "Activates" moving points
+title('Select active moving point.');
 uiwait(f);
 if ~isvalid(f)
     return;
@@ -159,7 +180,7 @@ else
     delete(f);
 end
 
-    % Callbacks
+    % Callbacks/helpers
     function finished(~,~)
         if ~altered
             resp = questdlg('No changes have been made yet. Return identity tform?',...
@@ -173,59 +194,72 @@ end
     function clicked(~,eventdata)
         switch eventdata.Button
             case 1 % Select point
-                if isgraphics(active_point(state+1))
-                    active_point(eventdata.Source.UserData.type).LineWidth = ...
-                        base_width(eventdata.Source.UserData.type); % Reset
+                if ~strcmp(eventdata.Source.Tag,'point'); return; end % Short circuit if not point
+                type = eventdata.Source.UserData.type; % Synonymous to state+1
+                if isgraphics(active_point(type))
+                    active_point(type).LineWidth = base_width(type); % Reset
                 end
                 % Update
-                eventdata.Source.LineWidth = base_width(eventdata.Source.UserData.type)*4;
-                active_point(state+1) = eventdata.Source;
+                eventdata.Source.LineWidth = base_width(type)*4;
+                active_point(type) = eventdata.Source;
                 % Switch to other state/population if not selected yet
                 if any(~isgraphics(active_point))
-                    selectPointType(menu(~state+1));
+                    selectPointType(menu(~state+1)); % "other state"
+                    title(ax,'Select other active point.')
+                else % Both selected; help user out a bit
+                    title(ax,'Scrollwheel or Enter to pair.')
                 end
             case 2 % Scroll wheel: confirm pair
-                if all(isgraphics(active_point))
-                    paired_points(end+1,:) = [active_point(1).UserData.origPos,...           % Moving
-                                              active_point(2).XData, active_point(2).YData]; % Fixed
-                    paired_lines(end+1) = line(ax,[active_point(2).XData, active_point(1).XData],...
-                                                  [active_point(2).YData, active_point(1).YData],...
-                                                  'tag','connector','Color',[0 0 0],'linestyle','--',...
-                                                  'HandleVisibility','off','HitTest','Off','PickableParts','none',...
-                                                  'UserData',active_point(1).UserData.ind); % Index to moving point
-                    for j = [1,2] % [Moving, Fixed]
-                        paired{j}(active_point(j).UserData.ind) = true;
-                        active_point(j).Color = cs(j,:) * 0.2;
-                        active_point(j).LineWidth = base_width(j);
-                        active_point(j).ButtonDownFcn = '';
-                        active_point(j).UIContextMenu = cm_remove;
-                        active_point(j).UserData.pairedInd = length(paired_lines);
-                        active_point(j).UserData.pairedPoint = active_point(mod(j,2)+1);
-                    end
-                    active_point = gobjects(1,2); % Deactivate
-                    try
-                        tform = fitgeotrans(paired_points(:,[1,2]),paired_points(:,[3,4]),transformationType,varargin{:});
-                        altered = true;
-                        % Update movingPoints
-                        newMovingPoints = transformPointsForward(tform,movingPoints);
-                        for j = 1:nMoving
-                            points{1}(j).XData = newMovingPoints(j,1);
-                            points{1}(j).YData = newMovingPoints(j,2);
-                        end
-                        % Update connector lines
-                        for j = 1:length(paired_lines)
-                            paired_lines(j).XData(2) = points{1}(paired_lines(j).UserData).XData;
-                            paired_lines(j).YData(2) = points{1}(paired_lines(j).UserData).YData;
-                        end
-                    catch err % Ignore too few points to fit geotrans
-                        if ~strcmp(err.identifier,'images:geotrans:requiredNonCollinearPoints')
-                            rethrow(err);
-                        end
-                    end
-                    drawnow;
-                else
-                    errordlg('Make sure there is an active point in both Moving and Fixed populations.');
+                addPointPair();
+        end
+    end
+    function keyPressed(~,eventdata)
+        if strcmp(eventdata.Key,'return')
+            addPointPair();
+        end
+    end
+    function addPointPair()
+        if ~all(isgraphics(active_point)); return; end % Short circuit unless both active_points ready
+        if all(isgraphics(active_point))
+            title('Select active point.');
+            paired_points(end+1,:) = [active_point(1).UserData.origPos,...           % Moving
+                active_point(2).XData, active_point(2).YData]; % Fixed
+            paired_lines(end+1) = line(ax,[active_point(2).XData, active_point(1).XData],...
+                [active_point(2).YData, active_point(1).YData],connectorLineParams{:},...
+                'tag','connector','HandleVisibility','off','HitTest','Off',...
+                'PickableParts','none','UserData',active_point(1).UserData.ind); % Index to moving point
+            for j = [1,2] % [Moving, Fixed]
+                paired{j}(active_point(j).UserData.ind) = true;
+                active_point(j).Color = cs(j,:) * 0.2;
+                active_point(j).LineWidth = base_width(j);
+                active_point(j).ButtonDownFcn = '';
+                active_point(j).UIContextMenu = cm_remove;
+                active_point(j).UserData.pairedInd = length(paired_lines);
+                active_point(j).UserData.pairedPoint = active_point(mod(j,2)+1);
+            end
+            active_point = gobjects(1,2); % Deactivate
+            try
+                tform = fitgeotrans(paired_points(:,[1,2]),paired_points(:,[3,4]),transformationType,varargin{:});
+                altered = true;
+                % Update movingPoints
+                newMovingPoints = transformPointsForward(tform,movingPoints);
+                for j = 1:nMoving
+                    points{1}(j).XData = newMovingPoints(j,1);
+                    points{1}(j).YData = newMovingPoints(j,2);
                 end
+                % Update connector lines
+                for j = 1:length(paired_lines)
+                    paired_lines(j).XData(2) = points{1}(paired_lines(j).UserData).XData;
+                    paired_lines(j).YData(2) = points{1}(paired_lines(j).UserData).YData;
+                end
+            catch err % Ignore too few points to fit geotrans
+                if ~strcmp(err.identifier,'images:geotrans:requiredNonCollinearPoints')
+                    rethrow(err);
+                end
+            end
+            drawnow;
+        else
+            errordlg('Make sure there is an active point in both Moving and Fixed populations.');
         end
     end
     function removePointPair(~,~)
@@ -238,7 +272,7 @@ end
         POI = [f.CurrentObject, f.CurrentObject.UserData.pairedPoint]; % points of interest
         for j = 1:2
             paired{POI(j).UserData.type}(POI(j).UserData.ind) = false;
-            POI(j).UIContextMenu = '';
+            POI(j).UIContextMenu = cm;
             POI(j).UserData.pairedInd = NaN;
             POI(j).UserData.pairedPoint = gobjects(1);
         end
@@ -250,12 +284,12 @@ end
         
         set(menu(ind_not),'Checked','off');
         set(points{ind_not}(~paired{ind_not}),...
-            'ButtonDownFcn','','Color',cs(ind_not,:));
+            'HitTest','off','Color',cs(ind_not,:));
         leg.String{ind_not} = point_types{ind_not};
         
         set(menu(ind),'Checked','on');
-        set(points{ind}(~paired{ind_not}),...
-            'ButtonDownFcn',@clicked,'Color',cs(ind,:)*0.65);
+        set(points{ind}(~paired{ind}),...
+            'HitTest','on','Color',cs(ind,:)*0.65);
         leg.String{ind} = ['*' point_types{ind}];
         
         uistack(points{ind},'top');
@@ -268,15 +302,17 @@ end
         end
     end
 
-    % Helpers
     function remove_interactivity()
         % Remove interactivity and any potential handle references in userdata
         f.CloseRequestFcn = lastCloseRequestFcn;
+        f.WindowKeyPressFcn = lastWindowKeyPressFcn;
+        ax.ButtonDownFcn = lastButtonDownFcn;
+        ax.Title.String = lastTitle;
         delete(cm); delete(cm_remove);
         leg.String = point_types;
         set(points{1},'ButtonDownFcn','','color',cs(1,:),'linewidth',base_width(1),'UserData',[]);
         set(points{2},'ButtonDownFcn','','color',cs(2,:),'linewidth',base_width(2),'UserData',[]);
-        set(paired_lines,'HandleVisibility','on','UserData',[]);
+        set(paired_lines,'UserData',[]);
     end
 
 end
