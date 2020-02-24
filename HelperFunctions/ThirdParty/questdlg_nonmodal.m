@@ -1,24 +1,24 @@
-% Line 4 and 418 only lines modified from MATLAB's 2019b questdlg
+% Lines in comments and 418 only lines modified from MATLAB's 2019b questdlg
 function ButtonName=questdlg_nonmodal(Question,Title,Btn1,Btn2,Btn3,Default)
-%QUESTDLG Question dialog box.
-%  ButtonName = QUESTDLG(Question) creates a non-modal dialog box that
+%QUESTDLG_NONMODAL Question dialog box.
+%  ButtonName = QUESTDLG_NONMODAL(Question) creates a non-modal dialog box that
 %  automatically wraps the cell array or string (vector or matrix)
 %  Question to fit an appropriately sized window.  The name of the
 %  button that is pressed is returned in ButtonName.  The Title of
 %  the figure may be specified by adding a second string argument:
 %
-%    ButtonName = questdlg(Question, Title)
+%    ButtonName = questdlg_nonmodal(Question, Title)
 %
 %  Question will be interpreted as a normal string.
 %
-%  QUESTDLG uses UIWAIT to suspend execution until the user responds.
+%  QUESTDLG_NONMODAL uses UIWAIT to suspend execution until the user responds.
 %
-%  The default set of buttons names for QUESTDLG are 'Yes','No' and 'Cancel'.
+%  The default set of buttons names for QUESTDLG_NONMODAL are 'Yes','No' and 'Cancel'.
 %  The default answer for the above calling syntax is 'Yes'.
 %  This can be changed by adding a third argument which specifies the
 %  default Button:
 %
-%    ButtonName = questdlg(Question, Title, 'No')
+%    ButtonName = questdlg_nonmodal(Question, Title, 'No')
 %
 %  Up to 3 custom button names may be specified by entering
 %  the button string name(s) as additional arguments to the function
@@ -27,7 +27,7 @@ function ButtonName=questdlg_nonmodal(Question,Title,Btn1,Btn2,Btn3,Default)
 %  setting DEFAULT to the same string name as the button you want
 %  to use as the default button:
 %
-%    ButtonName = questdlg(Question, Title, Btn1, Btn2, DEFAULT);
+%    ButtonName = questdlg_nonmodal(Question, Title, Btn1, Btn2, DEFAULT);
 %
 %  where DEFAULT is set to Btn1.  This makes Btn1 the default answer.
 %  If the DEFAULT string does not match any of the button string names,
@@ -36,7 +36,7 @@ function ButtonName=questdlg_nonmodal(Question,Title,Btn1,Btn2,Btn3,Default)
 %  To use TeX interpretation for the Question string, a data
 %  structure must be used for the last argument, i.e.
 %
-%    ButtonName = questdlg(Question, Title, Btn1, Btn2, OPTIONS);
+%    ButtonName = questdlg_nonmodal(Question, Title, Btn1, Btn2, OPTIONS);
 %
 %  The OPTIONS structure must include the fields Default and Interpreter.
 %  Interpreter may be 'none' or 'tex' and Default is the default button
@@ -47,9 +47,9 @@ function ButtonName=questdlg_nonmodal(Question,Title,Btn1,Btn2,Btn3,Default)
 %
 %  Example:
 %
-%  ButtonName = questdlg('What is your favorite color?', ...
-%                        'Color Question', ...
-%                        'Red', 'Green', 'Blue', 'Green');
+%  ButtonName = questdlg_nonmodal('What is your favorite color?', ...
+%                                 'Color Question', ...
+%                                 'Red', 'Green', 'Blue', 'Green');
 %  switch ButtonName
 %    case 'Red'
 %      disp('Your favorite color is Red');
