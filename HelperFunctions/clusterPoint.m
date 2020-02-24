@@ -1,4 +1,4 @@
-function [clusterNums,centers,iterations] = clusterPoint(X,threshold)
+function [clusterNums,N,centers,iterations] = clusterPoint(X,threshold)
 %CLUSTERPOINT Group 2D points that fall within a distance threshold
 %   This will iteratively calculate nearest neighbors from X until there
 %   are no more nearest neighbors closer than the threshold. Each iteration
@@ -10,14 +10,16 @@ function [clusterNums,centers,iterations] = clusterPoint(X,threshold)
 %       from the center of the cluster (threshold > 0).
 % Outputs:
 %   clusterNums: the cluster "ID" for all points in X (or NaN if not in
-%       cluster). Number will be between 1 and M (or NaN).
+%       cluster). Number will be between 1 and M (or NaN); it indexes into
+%       N and centers.
+%   N: Mx1 numeric array of the number of points in cluster
 %   centers: Mx2 numeric array of (x,y) pairs indicating the caluclated
 %       center of clusters.
 %   iterations: The number of iterations required until convergence.
 
 % Test with no args
 if nargin == 0
-    [clusterNums,centers,iterations] = test();
+    [clusterNums,N,centers,iterations] = test();
     return;
 end
 
@@ -29,6 +31,7 @@ assert(threshold > 0, 'threshold needs to be positive.');
 % Initial state: each cluster is a single point
 centers = X; % All clusters' centers exactly each point
 clusterNums = 1:size(X,1); % All points in their own cluster to start
+N = ones(size(X,1),1); % All sites have one point
 iterations = 0;
 
 while true
@@ -61,6 +64,8 @@ while true
         end
         % Bring nearest neighbor (nn) group to this group
         clusterNums(inds_nn_group) = this_group;
+        N(this_group) = N(this_group) + N(nn_group);
+        N(nn_group) = 0;
         % Update group centers
         centers(inds_nn_group,:) = NaN; % Nullify nn group
         centers(this_group,:) = new_center;
@@ -68,7 +73,7 @@ while true
 end
 end
 
-function [clusterNums,centers,iters] = test()
+function [clusterNums,N,centers,iters] = test()
 n = 10; c = 5;
 threshold = 1;
 Xs = rand(n,2)*10;
@@ -77,19 +82,32 @@ for i = 1:c
     X((i-1)*n+1:i*n,:) = Xs + rand(1,2);
 end
 X(end+1,:) = rand(1,2)*10; % Add lone point too
-[clusterNums,centers,iters] = clusterPoint(X,threshold);
+t = tic;
+[clusterNums,N,centers,iters] = clusterPoint(X,threshold);%
+dt = toc(t);
+% clusters = clusterNums(N>1); % recommended way to analyze this
+clusters = unique(clusterNums); % For debugging purposes; not trusting N
+Ntot = 0;
+for i = 1:max(N)
+    Ntot = Ntot + sum(N==i)*i;
+end
+assert(size(X,1)==Ntot,sprintf('N not adding up to total input points %i~=%i!',Ntot,size(X,1)));
+
 f = UseFigure('test1',true); ax = axes('parent',f);
 hold(ax,'on'); axis(ax,'image');
+title(ax,sprintf('%i iteration(s) (%i ms); drawing...',iters,round(dt*1000)));
 scatter(X(:,1),X(:,2));
-clusters = unique(clusterNums);
+
 legend_holder = gobjects(0);
 cs = lines(7);
+t = tic;
 for i = 1:length(clusters)
     np = sum(clusters(i) == clusterNums); % num points in cluster
+    assert(np == N(clusters(i)),'Number of points in cluster calculated not equal to what got returned.');
     if np > 1
         leg_entry = findobj(legend_holder,'UserData',np);
         if isempty(leg_entry)
-            leg_entry = line(NaN,NaN,'linewidth',2,'color',cs(length(legend_holder)+1,:),...
+            leg_entry = line(ax,NaN,NaN,'linewidth',2,'color',cs(length(legend_holder)+1,:),...
                 'DisplayName',[num2str(np) ' points'],'UserData',np);
             legend_holder(end+1) = leg_entry;
         end
@@ -97,6 +115,7 @@ for i = 1:length(clusters)
             'deletable',false,'InteractionsAllowed','none');
         
     end
-    legend(legend_holder);
 end
+legend(legend_holder);
+title(ax,sprintf('%i iteration(s) (%i ms); drawing (%i ms)',iters,round(dt*1000),round(toc(t)*1000)));
 end
