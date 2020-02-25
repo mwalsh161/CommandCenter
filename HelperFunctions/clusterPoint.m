@@ -83,7 +83,7 @@ for i = 1:c
 end
 X(end+1,:) = rand(1,2)*10; % Add lone point too
 t = tic;
-[clusterNums,N,centers,iters] = clusterPoint(X,threshold);%
+[clusterNums,N,centers,iters] = clusterPoint(X,threshold);
 dt = toc(t);
 % clusters = clusterNums(N>1); % recommended way to analyze this
 clusters = unique(clusterNums); % For debugging purposes; not trusting N
@@ -96,7 +96,7 @@ assert(size(X,1)==Ntot,sprintf('N not adding up to total input points %i~=%i!',N
 f = UseFigure('test1',true); ax = axes('parent',f);
 hold(ax,'on'); axis(ax,'image');
 title(ax,sprintf('%i iteration(s) (%i ms); drawing...',iters,round(dt*1000)));
-scatter(X(:,1),X(:,2));
+scatter(ax,X(:,1),X(:,2));
 
 legend_holder = gobjects(0);
 cs = lines(7);
