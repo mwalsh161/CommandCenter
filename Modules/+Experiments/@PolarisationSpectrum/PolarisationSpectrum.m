@@ -14,7 +14,7 @@ classdef PolarisationSpectrum < Modules.Experiment
     %       diamondbase - diamondbase data
 
     
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,GetObservable,AbortSet)
         angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
         motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','set','set_motor_serial_number','allow_empty',true)
         spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run. Settings for the experiment accessed from GUI
@@ -72,7 +72,7 @@ classdef PolarisationSpectrum < Modules.Experiment
             dat.meta = obj.meta;
         end
 
-        function set.motor_serial_number(obj,val)
+        function val = set_motor_serial_number(obj,val,~)
             val_as_double = str2double(val); % must be double to instantiate motor
             assert(~isnan(val_as_double),'Motor SN must be a valid number.')
 
