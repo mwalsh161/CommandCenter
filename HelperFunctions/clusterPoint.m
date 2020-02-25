@@ -1,4 +1,4 @@
-function [clusterNums,N,centers,iterations] = clusterPoint(X,threshold)
+function [clusterNums,N,centers] = clusterPoint(X,threshold)
 %CLUSTERPOINT Group 2D points that fall within a distance threshold
 %   This will iteratively calculate nearest neighbors from X until there
 %   are no more nearest neighbors closer than the threshold. Each iteration
@@ -19,61 +19,28 @@ function [clusterNums,N,centers,iterations] = clusterPoint(X,threshold)
 
 % Test with no args
 if nargin == 0
-    [clusterNums,N,centers,iterations] = test();
+    [clusterNums,N,centers] = test();
     return;
 end
 
-% Check inputs
-assert(isnumeric(X)&&size(X,2)==2,'X needs to be a Nx2 numeric array.')
-assert(isnumeric(threshold)&&isscalar(threshold),'threshold needs to be a numeric scalar.')
-assert(threshold > 0, 'threshold needs to be positive.');
+% We know that merging two groups might result in a lower distance, so we
+% can turn off the non-monotonic tree warning.
+S = warning('off','stats:linkage:NonMonotonicTree');
+clusterNums = clusterdata(X,'linkage','centroid','Criterion','distance','Cutoff',threshold);
+warning(S) % Turns back to previous state
 
-% Initial state: each cluster is a single point
-centers = X; % All clusters' centers exactly each point
-clusterNums = 1:size(X,1); % All points in their own cluster to start
-N = ones(size(X,1),1); % All sites have one point
-iterations = 0;
-
-while true
-    [I,D] = knnsearch(centers,centers,'k',2); % KNNSEARCH can handle non-finite centers
-    % Remove self
-    self = I(:,1)'==1:size(I,1); % Values in I that are also its index in I are exactly "self"
-    I(~self,2) = I(~self,1); D(~self,2) = D(~self,1);% Preserve these edge cases by copying value to column 2
-    I(:,1) = []; D(:,1) = [];  % Clear first column which is either self or now preserved in column 2
-    [~,sorted] = sort(D); % SORT will put all non-finite values last
-    minD = D(sorted(1));
-    if minD > threshold || isnan(minD)
-        break % Minimum distance too large or we started with all NaNs; we're done
-    end
-    
-    % Main part of algorithm
-    iterations = iterations + 1;
-    for i = 1:length(D) % go through and merge groups if close enough
-        ind = sorted(i);
-        if D(ind) > threshold; break; end % Finished with this iteration
-        this_group = clusterNums(ind);
-        nn_group = clusterNums(I(ind));
-        if this_group == nn_group; continue; end % Already grouped; continue
-        inds_nn_group = clusterNums==nn_group; % All points in nn_group
-        new_group_members = clusterNums==this_group | inds_nn_group;
-        new_center = mean(X(new_group_members,:),1);
-        if any(sqrt(sum((centers(new_group_members,:)-new_center).^2,2)) > threshold)
-            % Edge case where by adding new group members, group now
-            % includes points > threshold from center
-            continue
-        end
-        % Bring nearest neighbor (nn) group to this group
-        clusterNums(inds_nn_group) = this_group;
-        N(this_group) = N(this_group) + N(nn_group);
-        N(nn_group) = 0;
-        % Update group centers
-        centers(inds_nn_group,:) = NaN; % Nullify nn group
-        centers(this_group,:) = new_center;
-    end
+% Do a bit extra processing to get valuable metadata
+clusters = 1:max(clusterNums);
+N = NaN(length(clusters),1);
+centers = NaN(length(clusters),2);
+for i = 1:length(clusters)
+    pts = clusterNums == clusters(i);
+    N(i) = sum(pts);
+    centers(i,:) = mean(X(pts,:),1); % Should match linkage method
 end
 end
 
-function [clusterNums,N,centers,iters] = test()
+function [clusterNums,N,centers] = test()
 n = 10; c = 5;
 threshold = 1;
 Xs = rand(n,2)*10;
@@ -83,27 +50,21 @@ for i = 1:c
 end
 X(end+1,:) = rand(1,2)*10; % Add lone point too
 t = tic;
-[clusterNums,N,centers,iters] = clusterPoint(X,threshold);
+[clusterNums,N,centers] = clusterPoint(X,threshold);
 dt = toc(t);
-% clusters = clusterNums(N>1); % recommended way to analyze this
-clusters = unique(clusterNums); % For debugging purposes; not trusting N
-Ntot = 0;
-for i = 1:max(N)
-    Ntot = Ntot + sum(N==i)*i;
-end
-assert(size(X,1)==Ntot,sprintf('N not adding up to total input points %i~=%i!',Ntot,size(X,1)));
 
-f = UseFigure('test1',true); ax = axes('parent',f);
+clusters = unique(clusterNums);
+
+f = UseFigure('test.clusterPoint',true); ax = axes('parent',f);
 hold(ax,'on'); axis(ax,'image');
-title(ax,sprintf('%i iteration(s) (%i ms); drawing...',iters,round(dt*1000)));
-scatter(ax,X(:,1),X(:,2));
+title(ax,sprintf('Clustering (%i ms); drawing...',round(dt*1000)));
 
-legend_holder = gobjects(0);
+legend_holder = gobjects(1,0);
 cs = lines(7);
 t = tic;
 for i = 1:length(clusters)
-    np = sum(clusters(i) == clusterNums); % num points in cluster
-    assert(np == N(clusters(i)),'Number of points in cluster calculated not equal to what got returned.');
+    pts = X(i==clusterNums,:);
+    np = N(i);
     if np > 1
         leg_entry = findobj(legend_holder,'UserData',np);
         if isempty(leg_entry)
@@ -111,11 +72,13 @@ for i = 1:length(clusters)
                 'DisplayName',[num2str(np) ' points'],'UserData',np);
             legend_holder(end+1) = leg_entry;
         end
-        drawcircle(ax,'Center',centers(clusters(i),:),'Radius',threshold,'Color',leg_entry.Color,...
+        drawcircle(ax,'Center',centers(i,:),'Radius',threshold,'Color',leg_entry.Color,...
             'deletable',false,'InteractionsAllowed','none');
-        
+        line(ax,pts(:,1),pts(:,2),'LineStyle','none','Marker','o','color',leg_entry.Color);
+    else
+        line(ax,pts(:,1),pts(:,2),'LineStyle','none','Marker','o','color',[0 0 0]);
     end
 end
 legend(legend_holder);
-title(ax,sprintf('%i iteration(s) (%i ms); drawing (%i ms)',iters,round(dt*1000),round(toc(t)*1000)));
+title(ax,sprintf('Clustering (%i ms); drawing (%i ms)',round(dt*1000),round(toc(t)*1000)));
 end
