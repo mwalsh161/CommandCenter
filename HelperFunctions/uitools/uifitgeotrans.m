@@ -203,8 +203,8 @@ end
                 eventdata.Source.LineWidth = base_width(type)*4;
                 active_points(type) = eventdata.Source;
                 % Switch to other state/population if not selected yet
+                selectPointType(menu(~state+1)); % "other state"
                 if any(~isgraphics(active_points))
-                    selectPointType(menu(~state+1)); % "other state"
                     title(ax,'Select other active point.')
                 else % Both selected; help user out a bit
                     title(ax,'Scrollwheel or Enter to pair.')
