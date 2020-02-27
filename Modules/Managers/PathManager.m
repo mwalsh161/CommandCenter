@@ -159,6 +159,7 @@ classdef PathManager < Base.Manager
             end
             
             path = obj.paths(map);
+            if isequal(path.name,obj.active_path); return; end
             if ischar(path.instructions) % Alias
                 % Error handling here for better error message (try/catch
                 % wont work with manager error handling
