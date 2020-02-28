@@ -32,6 +32,8 @@ classdef debug < Modules.Imaging
         resolution = [120 120];                 % Pixels
         ROI = [-1 1;-1 1];
         continuous = false;
+        
+        image = Base.Meas([120 120], 'name', 'Image', 'units', 'cts');
     end
 
     methods(Access=private)
