@@ -1,6 +1,6 @@
 function [f,gof,output] = gaussfit(x, y, n, init, limits)
-% GAUSSFIT Fit N lorentzians to x and y data
-%   Apply lorentzN model to data given an initial guess
+% GAUSSFIT Fit N gaussians to x and y data
+%   Apply gaussN model to data given an initial guess
 %   INPUT:
 %   x - vector of x-data (same shape as "fit" takes)
 %   y - vector of y-data (same shape as "fit" takes)
