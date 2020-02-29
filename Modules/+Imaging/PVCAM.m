@@ -4,7 +4,7 @@ classdef PVCAM < Modules.Imaging
     %   Code is unclean. Must be ritually purified.
 
     properties
-%         maxROI = [-1 1; -1 1];
+        maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
         %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
        % show_prefs = {'fyi','my_integer','my_double'};
@@ -28,6 +28,9 @@ classdef PVCAM < Modules.Imaging
         
         resolution = [128 128];                 % Pixels
         ROI = [-1 1;-1 1];
+        continuous = false;
+        
+        
     end
 
     methods(Access=private)
@@ -90,17 +93,15 @@ classdef PVCAM < Modules.Imaging
 
             obj.resolution = [obj.width, obj.height];
             obj.ROI = [0, obj.width-1, 0, obj.height-1];
+            obj.maxROI = obj.ROI;
         end
     end
     methods(Static)
-        function options = get_options()
-            options = {'opt1','opt2'};
-        end
         function obj = instance()
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Imaging.debug();
+                Object = Imaging.PVCAM();
             end
             obj = Object;
         end
@@ -139,16 +140,19 @@ classdef PVCAM < Modules.Imaging
         function snap(obj,im,continuous)
             set(im,'cdata',obj.snapImage);
         end
-%         function startVideo(obj,im)
-%             obj.continuous = true;
-%             while obj.continuous
-%                 obj.snap(im,true);
-%                 drawnow;
-%             end
-%         end
-%         function stopVideo(obj)
-%             obj.continuous = false;
-%         end
+        
+        function startVideo(obj,im)
+            error('NotImplemented')
+            obj.continuous = true;
+            while obj.continuous
+                obj.snap(im,true);
+                drawnow;
+            end
+        end
+        function stopVideo(obj)
+            error('NotImplemented')
+            obj.continuous = false;
+        end
 
     end
 
