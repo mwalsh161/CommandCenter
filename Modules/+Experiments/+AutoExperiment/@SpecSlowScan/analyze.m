@@ -647,7 +647,7 @@ end
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
                 if strcmpi(FitType,'voigt')
-                    nn = (length(fitcoeffs)-1)/3; % 4 degrees of freedom per peak for voigt; subtract background
+                    nn = (length(fitcoeffs)-1)/4; % 4 degrees of freedom per peak for voigt; subtract background
                 else
                     nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
                 end
