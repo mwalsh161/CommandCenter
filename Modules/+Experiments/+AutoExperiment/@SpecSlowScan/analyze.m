@@ -646,14 +646,20 @@ end
             analysis.sites(site_index,i-1).index = inds(site_index);
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
-                nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
+                if strcmpi(FitType,'voigt')
+                    nn = (length(fitcoeffs)-1)/3; % 4 degrees of freedom per peak for voigt; subtract background
+                else
+                    nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
+                end
                 analysis.sites(site_index,i-1).fit = fit_result;
                 analysis.sites(site_index,i-1).amplitudes = fitcoeffs(1:nn);
                 analysis.sites(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
                     analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
-                else
-                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                elseif strcmpi(FitType,'voigt')
+                    fgs = fitcoeffs(2*nn+1:3*nn);
+                    fls = fitcoeffs(3*nn+1:4*nn);
+                    [analysis.sites(site_index,i-1).etas, analysis.sites(site_index,i-1).widths] = voigtApprox(fls, fgs);
                 end
                 analysis.sites(site_index,i-1).background = fitcoeffs(3*nn+1);
             else
