@@ -6,7 +6,7 @@ function varargout = uifitpeaks(ax,varargin)
 %       [Init]: Struct with initial peak guesses. Same format as FITPEAKS
 %           returns for vals/init (each field must be same length). You can
 %           choose to supply a scalar "background" field in addition.
-%       [FitType]: "gauss" or "lorentz" (default "guass")
+%       [FitType]: "gauss", "lorentz", or "voigt" (default "guass")
 %       [Bounds]: How tight to make bounds on fit; [lower,upper] = Bounds*initial guess
 %       [StepSize]: Pixels to increment when moving guess with arrows
 %       [InitWidth]: Pixel width to make newly clicked peaks
@@ -48,7 +48,7 @@ if isempty(p) % Avoid having to rebuild on each function call
     p = inputParser();
     p.KeepUnmatched = true;
     addParameter(p,'Init',[],@isstruct);
-    addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+    addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
     addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
     addParameter(p,'StepSize',10,@(x) isnumeric(x) && numel(x)==1);
     addParameter(p,'InitWidth',5,@(x) isnumeric(x) && numel(x)==1);
@@ -129,6 +129,8 @@ switch fittype
         handles.fit_function = @gaussfit;
     case 'lorentz'
         handles.fit_function = @lorentzfit;
+    case 'voigt'
+        handles.fit_function = @voigtfit;
 end
 handles.guesses = struct('gobs',{});
 handles.colors = lines;
