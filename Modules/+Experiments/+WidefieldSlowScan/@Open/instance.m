@@ -1,4 +1,6 @@
 function obj = instance(varargin)
+    error('NotImplemented.')
+
     % This file is what locks the instance in memory such that singleton
     % can perform properly. 
     % For the most part, varargin will be empty, but if you know what you
