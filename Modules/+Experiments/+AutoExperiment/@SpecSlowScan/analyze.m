@@ -3,7 +3,7 @@ function varargout = analyze(data,varargin)
 %   Inputs:
 %       data: data produced by GetData method
 %       [Analysis]: An analysis struct produced by this function
-%       [FitType]: "gauss" or "lorentz" (default "gauss")
+%       [FitType]: "gauss", "lorentz", or "voigt" (default "gauss")
 %       [inds]: array of indices to mask full dataset (default: all data)
 %       [viewonly]: do not begin uifitpeaks on the axes
 %   Outputs: None (see below)
@@ -41,7 +41,7 @@ function varargout = analyze(data,varargin)
 
 p = inputParser();
 addParameter(p,'Analysis',[],@isstruct);
-addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
 addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numeric'},{'vector'}));
 addParameter(p,'viewonly',false,@islogical);
 parse(p,varargin{:});
