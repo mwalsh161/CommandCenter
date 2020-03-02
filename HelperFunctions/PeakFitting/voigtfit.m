@@ -27,12 +27,16 @@ function [f,gof,output] = voigtfit(x, y, n, init, limits)
     lower_pos = limits.locations(1).*ones(n,1);
     start_pos = init.locations(1:n);
     
-    upper_width = limits.widths(2).*ones(2*n,1)./FWHM_factor;
-    lower_width = limits.widths(1).*ones(2*n,1)./FWHM_factor;
+    upper_width = limits.widths(2).*ones(n,1)./FWHM_factor;
+    lower_width = limits.widths(1).*ones(n,1)./FWHM_factor;
     start_width = init.widths(1:n)./FWHM_factor;
     
-    options.Upper = [upper_amps; upper_pos; upper_width; limits.background(2)];
-    options.Lower = [lower_amps; lower_pos; lower_width; limits.background(1)];
-    options.Start = [start_amps; start_pos; start_width; start_width; init.background     ];
+    upper_etas = ones(n,1);
+    lower_etas = zeros(n,1);
+    start_etas = 0.5*ones(n,1);
+    
+    options.Upper = [upper_amps; upper_pos; upper_width; limits.background(2); upper_etas];
+    options.Lower = [lower_amps; lower_pos; lower_width; limits.background(1); lower_etas];
+    options.Start = [start_amps; start_pos; start_width; init.background;      start_etas];
     [f,gof,output] = fit(x,y,fit_type,options);
 end
