@@ -6,7 +6,7 @@ function obj = instance(varargin)
     mlock;
     persistent Objects
     if isempty(Objects)
-        Objects = Experiments.SlowScan.Closed.empty(1,0);
+        Objects = Experiments.WidefieldSlowScan.Closed.empty(1,0);
     end
     for i = 1:length(Objects)
         if isvalid(Objects(i)) && isequal(varargin,Objects(i).singleton_id)
@@ -14,7 +14,7 @@ function obj = instance(varargin)
             return
         end
     end
-    obj = Experiments.SlowScan.Closed(varargin{:});
+    obj = Experiments.WidefieldSlowScan.Closed(varargin{:});
     obj.singleton_id = varargin;
     Objects(end+1) = obj;
 end

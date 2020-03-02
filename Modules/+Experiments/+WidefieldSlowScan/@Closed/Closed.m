@@ -24,11 +24,6 @@ classdef Closed < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
     end
 
     methods
-        function PreRun(obj,~,managers,ax)
-            % Tune to first point in preparation
-            obj.resLaser.TuneCoarse(mean(obj.scan_points));
-            PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
-        end
         function set.freqs_THz(obj,val)
             obj.scan_points = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
             obj.freqs_THz = val;

@@ -20,17 +20,15 @@ classdef PVCAM < Modules.Imaging
         temp =          Prefs.Integer(0, 'units', 'deg C', 'help_text', 'Temp that the camera thinks it is at.', 'readonly', true);
 %         ROI = Prefs.DoubleArray([1,2;3,4], 'allow_nan', false, 'min', 0, 'set', 'testSet');
         
-        gain =          Prefs.Double(1, 'min', 1, 'readonly', true); % Add better limits.
+        gain =          Prefs.Double(1, 'min', 1, 'max', 3, 'readonly', true); % Add better limits.
         
-        binning =       Prefs.Integer(1, 'units', 'pix', 'min', 1, 'max', 4, 'help_text', 'indexed from 0');   % This is camera-dependent...
+        binning =       Prefs.Integer(1, 'units', 'pix', 'min', 1, 'max', 2, 'help_text', 'indexed from 0');   % This is camera-dependent...
         
         exposure =      Prefs.Double(1000, 'units', 'ms', 'min', 0); % Add better limits.
         
         resolution = [128 128];                 % Pixels
-        ROI = [-1 1;-1 1];
+        ROI = [-1 1; -1 1];
         continuous = false;
-        
-        
     end
 
     methods(Access=private)
@@ -92,7 +90,7 @@ classdef PVCAM < Modules.Imaging
 %             roi_struct = cell2struct(roi_value, roi_name, 2);
 
             obj.resolution = [obj.width, obj.height];
-            obj.ROI = [0, obj.width-1, 0, obj.height-1];
+            obj.ROI = [0, obj.width-1; 0, obj.height-1];
             obj.maxROI = obj.ROI;
         end
     end
