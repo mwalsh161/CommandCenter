@@ -48,7 +48,7 @@ classdef PathManager < Base.Manager
         active_path = '';    % Active path name (will change upon path selection). Empty if unknown.
     end
     properties(SetAccess=private,Hidden)
-        new_style = false; % Backwards compatibility flag
+        temp_file = '';    % Set in constructor
     end
     properties
         module_types = {};
@@ -57,7 +57,8 @@ classdef PathManager < Base.Manager
     methods
         function obj = PathManager(handles)
             obj = obj@Base.Manager('Paths',handles); % "Simple" manager
-            obj.prefs = [obj.prefs {'paths','new_style'}];
+            obj.temp_file = fullfile(fileparts(mfilename('fullpath')),'temp','transition.m');
+            obj.prefs = [obj.prefs {'paths'}];
             % Grab all classes in Modules package
             [~,obj.module_types,~] = Base.GetClasses('+Modules');
             % Add menu to CommandCenter and tie in some callbacks
@@ -66,7 +67,7 @@ classdef PathManager < Base.Manager
             obj.loadPrefs;
             
             % Backwards compatibility; check for old style
-            if ~obj.new_style
+            if ~isfield(obj.paths,'alias')
                 temp = obj.paths;
                 if ~isempty(temp) % Avoid dissimilar structs in updating
                     temp(1).alias = false;
@@ -194,16 +195,22 @@ classdef PathManager < Base.Manager
         end
         function view_path(obj,~,~)
             obj.assert(~isempty(obj.paths),'No paths!')
-            f = figure('name',mfilename,'IntegerHandle','off','menu','none',...
+            f = figure('name',[mfilename '(right click in right panel for options)'],'IntegerHandle','off','menu','none',...
                 'toolbar','none','visible','off','units','characters');
             left = uicontrol(f,'style','listbox','units','normalized','string',{obj.paths.name},...
                 'position',[0 0 0.5 1],'callback',@obj.update_view,'value',1);
             right = uicontrol(f,'style','listbox','units','normalized','position',[0.51 0 0.49 1]);
+            c = uicontextmenu(f);
+            uimenu(c,'Label','Edit path','callback',{@obj.edit_path_view_path_CB,left});
+            uimenu(c,'Label','Delete path','callback',{@obj.delete_path_view_path_CB,left});
+            left.UIContextMenu = c;
+            right.UIContextMenu = c;
             left.UserData.right = right;
             obj.update_view(left);
             f.Visible = 'on';
         end
         function update_view(obj,hObj,~)
+            % hObj -> left panel
             val = hObj.Value;
             if obj.paths(val).alias
                 hObj.UserData.right.String = {'alias',sprintf('---> %s',obj.paths(val).instructions)};
@@ -211,7 +218,26 @@ classdef PathManager < Base.Manager
                 hObj.UserData.right.String = strsplit(obj.paths(val).instructions,newline);
             end
         end
-        
+        function delete_path_view_path_CB(obj,~,~,left)
+            path = obj.paths(left.Value).name;
+            obj.remove_path(path);
+            left.String = {obj.paths.name};
+            left.Value = min(length(obj.paths),left.Value); % Keep in bounds
+            obj.update_view(left);
+        end
+        function edit_path_view_path_CB(obj,~,~,left)
+            I = left.Value;
+            path = obj.paths(I);
+            if path.alias
+                obj.error('Currently no support for editing an alias :(');
+                return
+            end
+            pre = ['% Edit code for "' path.name '"' newline,...
+                   '%     You can use CommandCenter''s "**" menu to help with modules' newline];
+            [path.instructions,~] = uigetcode(obj.temp_file,path.name,pre,'',path.instructions,false);
+            obj.paths(I) = path;
+            obj.update_view(left);
+        end
         function path_selected_CB(obj,hObj,~)
             obj.select_path(hObj.Tag);
         end
@@ -256,11 +282,10 @@ classdef PathManager < Base.Manager
             lock_name = false;
             while true
                 % Prepare code for path
-                temp_file = fullfile(fileparts(mfilename('fullpath')),'temp','transition.m');
                 pre = ['% Write the relevant code to transition to relevant path.' newline,...
                        '% The function name will become the path name.', newline,...
                        '%     You can use CommandCenter''s "**" menu to help with modules' newline];
-                [code,name] = uigetcode(temp_file,default_name,pre,'',default_code,~lock_name);
+                [code,name] = uigetcode(obj.temp_file,default_name,pre,'',default_code,~lock_name);
                 if strcmp(name,'PATH_NAME')
                     resp = questdlg('Did you mean to keep the "PATH_NAME" default name?','Yes','No','No');
                     if strcmp(resp,'Yes')
@@ -272,7 +297,7 @@ classdef PathManager < Base.Manager
             end
             % Save
             if ~isempty(code)
-                obj.new_path(name,code)
+                obj.new_path(name,code,false)
             end
         end
         function remove_path_CB(obj,varargin)
