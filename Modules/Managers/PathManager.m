@@ -20,8 +20,8 @@ classdef PathManager < Base.Manager
     %
     % TIP: Might be useful to call the GUI methods for creating
     % paths/alias:
-    %   obj.new_path_GUI([default name])
-    %   obj.new_alias_GUI([default name])
+    %   obj.new_path_GUI([default_name])
+    %   obj.new_alias_GUI([default_name])
     %
     % TIP: If calling in a setting where the user is not intended to be
     % around (e.g. long, automated experiment), might want to call
@@ -68,6 +68,9 @@ classdef PathManager < Base.Manager
             % Backwards compatibility; check for old style
             if ~obj.new_style
                 temp = obj.paths;
+                if ~isempty(temp) % Avoid dissimilar structs in updating
+                    temp(1).alias = false;
+                end
                 for i = 1:length(temp)
                     temp(i) = obj.update_path(temp(i));
                 end
@@ -148,12 +151,12 @@ classdef PathManager < Base.Manager
                 return
             end
             try % to set path
-                if isempty(path.instructions)
+                if ~isempty(path.instructions)
                     evalc(path.instructions);
                 end
             catch err
                 obj.active_path = '';
-                obj.error(err.message,err)
+                obj.error(sprintf('Error in setting path "%s":\n\n%s',path.name,err.message),err)
             end
             if update_active
                 obj.active_path = name;
@@ -241,27 +244,23 @@ classdef PathManager < Base.Manager
             f.Visible = 'on';
             uiwait(f);
             if ~isvalid(f); return; end % aborted
-            obj.new_path(name.String,target.String{target.Value});
+            obj.new_path(name.String,target.String{target.Value},true);
             delete(f);
         end
-        function new_path_GUI(obj,default_name,default_code,lock_name)
-            if nargin < 2
-                default_name = 'PATH_NAME';
+        function new_path_GUI(obj,varargin)
+            default_name = 'PATH_NAME';
+            if ~isempty(varargin)&&ischar(varargin{1})
+                default_name = varargin{1};
             end
-            if nargin < 3
-                default_code = '';
-            end
-            if nargin < 4
-                lock_name = false;
-            end
-            assert(ischar(default_name) && isvector(default_name), 'default_name must be a char vector.');
+            default_code = '';
+            lock_name = false;
             while true
                 % Prepare code for path
                 temp_file = fullfile(fileparts(mfilename('fullpath')),'temp','transition.m');
                 pre = ['% Write the relevant code to transition to relevant path.' newline,...
                        '% The function name will become the path name.', newline,...
                        '%     You can use CommandCenter''s "**" menu to help with modules' newline];
-                [code,name] = uigetcode(temp_file,default_name,pre,'',default_code,'',~lock_name);
+                [code,name] = uigetcode(temp_file,default_name,pre,'',default_code,~lock_name);
                 if strcmp(name,'PATH_NAME')
                     resp = questdlg('Did you mean to keep the "PATH_NAME" default name?','Yes','No','No');
                     if strcmp(resp,'Yes')
@@ -276,7 +275,7 @@ classdef PathManager < Base.Manager
                 obj.new_path(name,code)
             end
         end
-        function remove_path_CB(obj,~,~)
+        function remove_path_CB(obj,varargin)
             f = figure('name','Select Paths to Remove','IntegerHandle','off','menu','none',...
                 'toolbar','none','visible','off','units','characters');
             f.Position(3) = 50;
