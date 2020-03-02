@@ -1,4 +1,4 @@
-function [code,fn_name] = uigetcode(path,fn_name,beginning_text,ending_text,edit_fn_name)
+function [code,fn_name] = uigetcode(path,fn_name,beginning_text,ending_text,code,edit_fn_name)
 %UIGETCODE Present window for user to enter code and return result
 %   This will open an editor for user to enter code within a function block
 %   and wait until saved and closed before returning what was entered.
@@ -10,8 +10,10 @@ function [code,fn_name] = uigetcode(path,fn_name,beginning_text,ending_text,edit
 %       the placeholder.
 %   (beginning_text):* If supplied, this will appear at the beginning.
 %   (ending_text):* If supplied, this will appear after the end of the fn.
+%   (code): If supplied, this will appear in the function to start.
 %   (edit_fn_name): Default false. Allows user to edit function name. The
 %       function name is returned.
+%   
 %   * Be sure to include newlines and the "%" on each line if you want it
 %       appear as a MATLAB comment.
 % Outputs:
@@ -31,8 +33,18 @@ if nargin < 4
     ending_text = '';
 end
 if nargin < 5
+    code = '';
+end
+if nargin < 6
     edit_fn_name = false;
 end
+char_inputs = {'path','fn_name','beginning_text','ending_text','code'};
+for i = 1:length(char_inputs)
+    if ~eval(sprintf('ischar(%s)',char_inputs{i}))
+        error('"%s" should be a char vector.',char_inputs{i});
+    end
+end
+assert(islogical(edit_fn_name),'"edit_fn_name" should be a scalar logical.');
 
 % Define contents from bottom up
 post = [newline 'end' newline ending_text newline newline,...
@@ -47,12 +59,12 @@ if edit_fn_name
         '%    (edit inside the function)', newline newline,...
         'function '];
     % Keep fn separate from pre
-    init = [pre, fn, newline, post];
+    init = [pre, fn, code, newline, post];
 else
     pre = [pre ,...
         '%    (only edit inside the function)', newline newline,...
         'function ' fn]; % Add fn to pre
-    init = [pre, newline, post];
+    init = [pre, code, newline, post];
 end
 nPre = length(pre);
 nPost = length(post);
@@ -60,6 +72,9 @@ nPost = length(post);
 doc = matlab.desktop.editor.findOpenDocument(path);
 if isempty(doc)
     doc = matlab.desktop.editor.newDocument(init);
+    if exist(path,'dir')==7
+        mkdir(path);
+    end
     doc.saveAs(path);
 else % Reset
     doc.Text = init;
