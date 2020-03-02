@@ -7,8 +7,7 @@ classdef PathManager < Base.Manager
     %       2) Provide inputs necessary to load module
     %       3) Choose method in module
     %       4) Provide inputs necessary to call method for desired path
-    %   A path can also be an alias for another path by putting the name of
-    %     the target path as a string instead of the instructions. Note,
+    %   A path can also be an alias for another path by declaring it. Note,
     %     an alias can point to a non-existing path (case of deletion), so
     %     be careful!
     % It is not a typical "manager" for modules, but a manager for storing
@@ -45,63 +44,36 @@ classdef PathManager < Base.Manager
         %       module_inputs -> cell array of ordered inputs
         %       method_name -> name of method in module to call
         %       method_inputs -> cell array of ordered inputs
-        paths = struct('name',{},'instructions',{});  % Path struct (will change upon adding/deletion)
+        paths = struct('name',{},'alias',false,'instructions','');  % Path struct (will change upon adding/deletion)
         active_path = '';    % Active path name (will change upon path selection). Empty if unknown.
+    end
+    properties(SetAccess=private,Hidden)
+        new_style = false; % Backwards compatibility flag
     end
     properties
         module_types = {};
     end
-    
-    methods(Static,Hidden)
-        function instruction_strings = get_string_instructions(instructions)
-            instruction_strings = {};
-            if isstruct(instructions)
-                for i = 1:length(instructions)
-                    narin = length(instructions(i).method_inputs);
-                    inputs = cell(1,narin);
-                    for j = 1:narin
-                        inputs{j} = PathManager.format_instruction_inputs(instructions(i).method_inputs{j});
-                    end
-                    if ~isempty(instructions(i).module_name)
-                        instruction_strings{end+1} = sprintf('%s.%s(%s)',...
-                            instructions(i).module_name,...
-                            instructions(i).method_name,...
-                            strjoin(inputs,', '));
-                    else
-                        instruction_strings{end+1} = sprintf('%s(%s)',...
-                            instructions(i).method_name,...
-                            strjoin(inputs,', '));
-                    end
-                end
-            elseif ischar(instructions)
-                instruction_strings = {'alias',sprintf('---> %s',instructions)};
-            else
-                error('Instructions are in the wrong format.')
-            end
-        end
-        function fmt = format_instruction_inputs(input)
-            if isnumeric(input)
-                fmt = ['[' num2str(input) ']'];
-            elseif ischar(input)
-                fmt = ['''' input ''''];
-            elseif iscell(input)
-                input = cellfun(@PathManager.format_instruction_inputs,input,'UniformOutput',false);
-                fmt = ['{' strjoin(input,', ') '}'];
-            else
-                fmt = '??';
-            end
-        end
-    end
+
     methods
         function obj = PathManager(handles)
             obj = obj@Base.Manager('Paths',handles); % "Simple" manager
-            obj.prefs = [obj.prefs {'paths'}];
+            obj.prefs = [obj.prefs {'paths','new_style'}];
             % Grab all classes in Modules package
             [~,obj.module_types,~] = Base.GetClasses('+Modules');
             % Add menu to CommandCenter and tie in some callbacks
             uimenu(handles.figure1,'Text','Path',...
                 'Callback',@obj.menu_open_CB,'tag',[mfilename '_menu']);
             obj.loadPrefs;
+            
+            % Backwards compatibility; check for old style
+            if ~obj.new_style
+                temp = obj.paths;
+                for i = 1:length(temp)
+                    temp(i) = obj.update_path(temp(i));
+                end
+                obj.paths = temp;
+                obj.new_style = true;
+            end
         end
         % Functional methods
         function validate_name(obj,name)
@@ -109,14 +81,20 @@ classdef PathManager < Base.Manager
             map = ismember({obj.paths.name},name);
             obj.assert(~any(map),'Path with this name already exists, remove it and try again.');
         end
-        function new_path(obj,name,instructions)
-            obj.assert(isstruct(instructions)||ischar(instructions),'Instructions either need to be an array of structs or a string if this path is an alias.')
+        function new_path(obj,name,instructions,alias)
+            % obj.new_path('foo','drawnow;',[false]); % new instruction "foo"
+            % obj.new_path('foo','bar',true); % alias to path "bar"
+            if nargin < 4
+                alias = false;
+            end
+            obj.assert(islogical(alias)&&isscalar(alias),'"alias" flag should be a scalar logical.');
+            obj.assert(ischar(instructions),'Instructions should be a char vector.')
             obj.validate_name(name);
-            if ischar(instructions) % Alias (validate target)
+            if alias % Alias (validate target)
                 map = ismember({obj.paths.name},instructions);
                 obj.assert(any(map),'The target path for this alias does not exist.');
             end
-            new_path = struct('name',name,'instructions',instructions);
+            new_path = struct('name',name,'instructions',instructions,'alias',alias);
             temp_paths = obj.paths; % Don't write immediately so SetObservable listeners not triggered twice
             temp_paths(end+1) = new_path;
             % Alphabetical ordering
@@ -138,7 +116,7 @@ classdef PathManager < Base.Manager
                 prompt = true;
             end
             if nargin < 4
-                update_active = false;
+                update_active = true;
             end
             % Check to see if exists
             if isempty(obj.paths)
@@ -160,30 +138,24 @@ classdef PathManager < Base.Manager
             
             path = obj.paths(map);
             if isequal(path.name,obj.active_path); return; end
-            if ischar(path.instructions) % Alias
+            if path.alias % Alias
                 % Error handling here for better error message (try/catch
                 % wont work with manager error handling
                 map = ismember({obj.paths.name},path.instructions);
                 obj.assert(any(map),sprintf('The target path for this alias does not exist: "%s"',path.instructions));
-                obj.select_path(path.instructions,prompt,true);
+                obj.select_path(path.instructions,prompt,false);
                 obj.active_path = name;
                 return
             end
-            try
-                for i = 1:length(path.instructions)
-                    instruction = path.instructions(i);
-                    if isempty(instruction.module_name) % Regular function call
-                        feval(instruction.method_name,instruction.method_inputs{:});
-                    else
-                        module = eval(sprintf('%s.instance(instruction.module_inputs{:})',instruction.module_name));
-                        module.(instruction.method_name)(instruction.method_inputs{:});
-                    end
+            try % to set path
+                if isempty(path.instructions)
+                    evalc(path.instructions);
                 end
             catch err
                 obj.active_path = '';
                 obj.error(err.message,err)
             end
-            if ~update_active
+            if update_active
                 obj.active_path = name;
             end
         end
@@ -230,7 +202,11 @@ classdef PathManager < Base.Manager
         end
         function update_view(obj,hObj,~)
             val = hObj.Value;
-            hObj.UserData.right.String = obj.get_string_instructions(obj.paths(val).instructions);
+            if obj.paths(val).alias
+                hObj.UserData.right.String = {'alias',sprintf('---> %s',obj.paths(val).instructions)};
+            else
+                hObj.UserData.right.String = strsplit(obj.paths(val).instructions,newline);
+            end
         end
         
         function path_selected_CB(obj,hObj,~)
@@ -268,136 +244,39 @@ classdef PathManager < Base.Manager
             obj.new_path(name.String,target.String{target.Value});
             delete(f);
         end
-        function new_path_GUI(obj,varargin)
-            default_name = '';
-            if ~isempty(varargin)&&ischar(varargin{1})
-                default_name = varargin{1};
+        function new_path_GUI(obj,default_name,default_code,lock_name)
+            if nargin < 2
+                default_name = 'PATH_NAME';
             end
-            name = inputdlg('Name:','New Path: Name',[1 75],{default_name});
-            if isempty(name) % User aborted, no worries
-                return
+            if nargin < 3
+                default_code = '';
             end
-            name = name{1};
-            obj.validate_name(name);
-            f = figure('name',sprintf('Instructions for "%s": Select instruction type',name),'IntegerHandle','off','menu','none',...
-                'toolbar','none','visible','off','units','characters');
-            f.UserData.uiwait = false;
-            [lbox,ok] = listbox(f,'OK','string',{},'min',0,'max',0);
-            delete(ok)
-            % Get module (optional)
-            for i = 1:length(obj.module_types)
-                package = ['+' Modules.(obj.module_types{i}).modules_package];
-                mod_name = strsplit(obj.module_types{i},'.'); mod_name = mod_name{end};
-                parent_menu = uimenu(f,'Text',mod_name);
-                Base.Manager.getAvailModules(package,parent_menu,@obj.selected,@(~)false);
+            if nargin < 4
+                lock_name = false;
             end
-            uimenu(f,'Text','Function (no module)','callback',@obj.selected,'tag','','UserData','');
-            f.UserData.module = '';
-            
-            instructions = struct('module_name',{},'module_inputs',{},'method_name',{},'method_inputs',{});
+            assert(ischar(default_name) && isvector(default_name), 'default_name must be a char vector.');
             while true
-                temp = obj.UIgetInstruction(f);
-                if ~isempty(temp)
-                    instructions(end+1) = temp;
-                end
-                if ~isvalid(f) % User aborted
-                    return
-                end
-                % Update listbox strings
-                lbox.String = obj.get_string_instructions(instructions);
-                answer = questdlg('Add another instruction?',mfilename,'Yes','No','Yes');
-                if ~strcmp('Yes',answer)
+                % Prepare code for path
+                temp_file = fullfile(fileparts(mfilename('fullpath')),'temp','transition.m');
+                pre = ['% Write the relevant code to transition to relevant path.' newline,...
+                       '% The function name will become the path name.', newline,...
+                       '%     You can use CommandCenter''s "**" menu to help with modules' newline];
+                [code,name] = uigetcode(temp_file,default_name,pre,'',default_code,'',~lock_name);
+                if strcmp(name,'PATH_NAME')
+                    resp = questdlg('Did you mean to keep the "PATH_NAME" default name?','Yes','No','No');
+                    if strcmp(resp,'Yes')
+                        break
+                    end
+                else
                     break
                 end
             end
-            delete(f);
-            if ~isempty(instructions)
-                obj.new_path(name,instructions)
+            % Save
+            if ~isempty(code)
+                obj.new_path(name,code)
             end
         end
-        function instruction = UIgetInstruction(obj,f)
-            instruction = [];
-            try
-                f.UserData.module = ''; % Reset
-                uiwait(f);
-                if ~isvalid(f)||isempty(f.UserData) % User aborted, no worries
-                    return
-                end
-                module_name = f.UserData.module;
-                
-                % Get module/function name and inputs
-                module_inputs = {};
-                method_inputs = {};
-                if ~isempty(module_name) % Module stuff
-                    % Modules might need module input too
-                    mc = meta.class.fromName(module_name);
-                    ind = cellfun(@(a)strcmp(a,'instance'),{mc.MethodList.Name});
-                    m_instance = mc.MethodList(ind);
-                    if ~isempty(m_instance.InputNames) % Only if input
-                        module_inputs = inputdlg(m_instance.InputNames,'Module instance arguments (MATLAB expression!!)',[1 75]);
-                        if isempty(module_inputs) % User aborted, no worries
-                            return
-                        end
-                        % Convert to strings and numbers as necessary
-                        module_inputs = cellfun(@eval,module_inputs,'UniformOutput',false);
-                    end
-                    
-                    % Now get method name
-                    f = figure('name','Select Method','IntegerHandle','off','menu','none',...
-                        'toolbar','none','visible','off','units','characters');
-                    f.Position(3) = 50;
-                    ind = cellfun(@(a)~iscell(a)&&strcmp(a,'public'),{mc.MethodList.Access}); % Cell if specific access granted (i.e. not public)
-                    avail_methods = mc.MethodList(ind);
-                    lbox = listbox(f,'OK','string',{avail_methods.Name});
-                    if ~isvalid(f) % User aborted, no worries
-                        return
-                    end
-                    m_method = avail_methods(lbox.Value);
-                    delete(f);
-                    method_name = m_method.Name;
-                    
-                    % Get method inputs
-                    inp_names = m_method.InputNames;
-                    if ~m_method.Static
-                        inp_names = m_method.InputNames(2:end); % Ignore obj
-                    end
-                    method_inputs = inputdlg(inp_names,sprintf('Module %s arguments (MATLAB expression!!)',method_name),[1 75]);
-                    if isempty(method_inputs) % User aborted, no worries
-                        return
-                    end
-                    % Convert to strings and numbers as necessary
-                    method_inputs = cellfun(@eval,method_inputs,'UniformOutput',false);
-                else % Function stuff
-                    method_call = inputdlg({'Function; e.g. pause(1):'},'Function Call');
-                    if isempty(method_call) % User aborted, no worries
-                        return
-                    end
-                    method_call = method_call{1};
-                    % Clever parse strategy to offload work to MATLAB
-                    % Replace first and last parenthesis with cell bracket and eval it
-                    inds = find(or(method_call=='(',method_call==')'));
-                    if ~any(inds) % assume no inputs
-                        method_name = method_call;
-                    else
-                        method_name = method_call(1:inds(1)-1);
-                        method_inputs = eval(sprintf('{%s}',method_call(inds(1)+1:inds(end)-1)));
-                    end
-                end
-                temp.module_name = module_name;
-                temp.module_inputs = module_inputs;
-                temp.method_name = method_name;
-                temp.method_inputs = method_inputs;
-                instruction = temp;
-            catch err
-                obj.error(err.message,err.stack); % Does not hault execution
-            end
-        end
-        function selected(obj,hObj,~) % Nested method instead of module method; just needs local stuff
-            [~,fig] = gcbo;
-            fig.UserData.module = hObj.UserData;
-            uiresume(fig);
-        end
-        function remove_path_CB(obj,hObj,eventdata)
+        function remove_path_CB(obj,~,~)
             f = figure('name','Select Paths to Remove','IntegerHandle','off','menu','none',...
                 'toolbar','none','visible','off','units','characters');
             f.Position(3) = 50;
@@ -413,6 +292,85 @@ classdef PathManager < Base.Manager
                 obj.error(err)
             end
             delete(f);
+        end
+    end
+    
+    methods(Static,Hidden)
+        function path = update_path(path)
+            % Exclusively used for backwards compatibility
+            if ischar(path.instructions)
+                alias = true;
+                instructions = path.instructions;
+            else
+                alias = false;
+                instructions = strjoin(PathManager.get_string_instructions(path.instructions),newline);
+                suspects = strfind(instructions,'??');
+                suspects = [suspects-1 suspects+2]; % check before and after
+                dblcheck = false;
+                for i = 1:length(suspects)
+                    if instructions(suspects(i)) ~= '''' && instructions(suspects(i)) ~= '"' % single or double quote
+                        dblcheck = true;
+                        break
+                    end
+                end
+                if dblcheck
+                    % Even if false positive, worth checking
+                    temp_file = fullfile(fileparts(mfilename('fullpath')),'temp','transition.m');
+                    pre = ['% PathManger is trying to update your path instructions to the new,',...
+                           '% plain-code format. There was an issue updating "' path.name '".',...
+                           '% Edit the attempted update to be correct.' newline,...
+                           '%     You can use CommandCenter''s "**" menu to help with modules' newline];
+                    [instructions,~] = uigetcode(temp_file,path.name,pre,'',instructions,false);
+                end
+            end
+            path.alias = alias;
+            path.instructions = instructions;
+        end
+        function instruction_strings = get_string_instructions(instructions)
+            % Now exclusively used for backwards compatibility
+            instruction_strings = {};
+            if isstruct(instructions)
+                for i = 1:length(instructions)
+                    narin = length(instructions(i).method_inputs);
+                    method_inputs = cell(1,narin);
+                    for j = 1:narin
+                        method_inputs{j} = PathManager.format_instruction_inputs(instructions(i).method_inputs{j});
+                    end
+                    if ~isempty(instructions(i).module_name) % Module method
+                        narin = length(instructions(i).module_inputs);
+                        module_inputs = cell(1,narin);
+                        for j = 1:narin
+                            module_inputs{j} = PathManager.format_instruction_inputs(instructions(i).module_inputs{j});
+                        end
+                        % Instantiate into variable
+                        instruction_strings{end+1} = sprintf('a = %s.instance(%s)',...
+                            instructions(i).module_name,...
+                            strjoin(module_inputs,', '));
+                        % Then call method
+                        instruction_strings{end+1} = sprintf('a.%s(%s)',...
+                            instructions(i).method_name,...
+                            strjoin(method_inputs,', '));
+                    else % Function
+                        instruction_strings{end+1} = sprintf('%s(%s)',...
+                            instructions(i).method_name,...
+                            strjoin(method_inputs,', '));
+                    end
+                end
+            else
+                error('Instructions are in the wrong format.')
+            end
+        end
+        function fmt = format_instruction_inputs(input)
+            % Now exclusively used for backwards compatibility
+            if isnumeric(input)
+                fmt = ['[' num2str(input) ']'];
+            elseif ischar(input)
+                fmt = ['''' input ''''];
+            elseif iscell(input)
+                fmt = '??';
+            else
+                fmt = '??';
+            end
         end
     end
 end
