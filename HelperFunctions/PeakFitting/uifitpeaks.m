@@ -222,7 +222,7 @@ if isnan(fitconfs(end)) % Background
 else
     handles.background.Marker = 'o';
 end
-if any(isnan(fitconfs))
+if any(isnan(fitconfs(1:3*n)))
     set(ax,'Color',[1 0.8 0.8]);
 else
     set(ax,'Color',[1 1 1]);

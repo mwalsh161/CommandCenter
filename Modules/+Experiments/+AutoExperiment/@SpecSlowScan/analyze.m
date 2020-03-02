@@ -537,10 +537,11 @@ end
                 analysis.sites(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
                     analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
-                elseif strcmpi(FitType,'voigt')
-                    fgs = fitcoeffs(2*nn+1:3*nn);
-                    fls = fitcoeffs(3*nn+1:4*nn);
-                    [analysis.sites(site_index,i-1).etas, analysis.sites(site_index,i-1).widths] = voigtApprox(fls, fgs);
+                else
+                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                end
+                if strcmpi(FitType,'voigt')
+                    analysis.sites(site_index,i-1).etas = fitcoeffs(3*nn+2:4*nn+1);
                 end
                 analysis.sites(site_index,i-1).background = fitcoeffs(3*nn+1);
             else
