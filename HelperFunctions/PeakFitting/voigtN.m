@@ -12,17 +12,9 @@ function [ fit_type ] = voigtN(n , bg)
     
     % a = amplitude,
     % b = center,
-    % cl = Lorentz width,
-    % cg = Gauss width,
-    % d = y-offset.
-    subEQ = @(n)sprintf('voigt(x, a%i, b%i, cl%i, cg%i)',n,n,n,n);
-
-    % a = amplitude,
-    % b = center,
-    % ce = ratio eta,
-    % cf = compsite width f,
-    % d = y-offset.
-%     subEQ = @(n)sprintf('a%i( ce%i ./ (1 + (2*(x - b%i)/cf%i).^2) + (1-ce%i) * exp(- (2 * sqrt(2*ln(2)) * (x - b%i) / cf%i).^2) )',n,n,n,n,n,n,n);
+    % c = compsite width f,
+    % e = lorentzian/gaussian ratio eta
+    subEQ = @(n)sprintf('a%i*(e%i./(1+(2*(x-b%i)/c%i).^2)+(1-e%i)*exp(-2*(sqrt(2*log(2))*(x-b%i)/c%i).^2))',n,n,n,n,n,n,n);
 
     eq = cell(1,n);
     for i=1:n
