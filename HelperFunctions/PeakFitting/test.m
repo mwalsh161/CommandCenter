@@ -4,12 +4,12 @@ f = @(fg,fl)(fg^5+2.69269*fg^4*fl+2.42843*fg^3*fl^2+4.47163*fg^2*fl^3+0.07842*fg
 eta = @(fg,fl)1.36603*(fl/f(fg,fl))-0.47719*(fl/f(fg,fl))^2+0.11116*(fl/f(fg,fl))^3;
 V = @(x,fg,fl)eta(fg,fl)*L(x,f(fg,fl))+(1-eta(fg,fl))*G(x,f(fg,fl));
 Vnorm = @(x,fg,fl)(pi*f(fg,fl)*sqrt(2))/(eta(fg,fl)*(sqrt(2)-sqrt(pi))+sqrt(pi))*V(x,fg,fl);
-x = -10:0.001:10;
+x = -10:0.01:10;
 
 fg = 1;
 fl = 0.5;
 
-y = voigt(x, 1, 0, fl, fg);
+y = voigt(x, 1, 0, fl, fg)+0.2*rand(size(x,1),size(x,2));
 
 % figure;
 % plot(x,Vnorm(x,fg,fl))
@@ -25,6 +25,12 @@ fprintf('Numerical FHWM\n')
 fprintf('Exact (?) FHWM\n')
 f(fg,fl)
 
+%%
+
+[vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x',y','FitType','voigt');
+
+
+%%
 function wid = FWHM(x,y)
     [M,I] = max(y);
     [~,Lm] = min(abs(y(1:I)-M/2));
