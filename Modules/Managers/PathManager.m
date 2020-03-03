@@ -195,8 +195,8 @@ classdef PathManager < Base.Manager
         end
         function view_path(obj,~,~)
             obj.assert(~isempty(obj.paths),'No paths!')
-            f = figure('name',[mfilename '(right click in right panel for options)'],'IntegerHandle','off','menu','none',...
-                'toolbar','none','visible','off','units','characters');
+            f = figure('name',[mfilename '(right click for more options)'],...
+                'IntegerHandle','off','menu','none','toolbar','none','units','characters');
             left = uicontrol(f,'style','listbox','units','normalized','string',{obj.paths.name},...
                 'position',[0 0 0.5 1],'callback',@obj.update_view,'value',1);
             right = uicontrol(f,'style','listbox','units','normalized','position',[0.51 0 0.49 1]);
@@ -207,7 +207,6 @@ classdef PathManager < Base.Manager
             right.UIContextMenu = c;
             left.UserData.right = right;
             obj.update_view(left);
-            f.Visible = 'on';
         end
         function update_view(obj,hObj,~)
             % hObj -> left panel
