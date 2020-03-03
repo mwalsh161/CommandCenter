@@ -11,6 +11,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     
     properties(SetAccess=private,Hidden)
         namespace                   % Namespace for saving prefs
+    end
+    properties(Access=private)
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         StructOnObject_state = 'on';% To restore after deleting
     end
