@@ -32,14 +32,15 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function obj = Module
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
-            % First get namespace
-            obj.namespace = strrep(class(obj),'.','_');
-            % Second, add to global appdata if app is available
             hObject = findall(0,'name','CommandCenter');
             if isempty(hObject)
+                pre = '';
                 obj.logger = Base.Logger_console();
-                return
+            else
+                pre = getappdata(hObject,'namespace_prefix');
             end
+            obj.namespace = [pre strrep(class(obj),'.','_')];
+            if isempty(hObject); return; end
             mods = getappdata(hObject,'ALLmodules');
             obj.logger = getappdata(hObject,'logger');
             mods{end+1} = obj;
