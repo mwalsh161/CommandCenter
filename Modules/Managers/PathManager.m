@@ -297,6 +297,8 @@ classdef PathManager < Base.Manager
             % Save
             if ~isempty(code)
                 obj.new_path(name,code,false)
+            else
+                warndlg('Empty code block; no new path was made.',mfilename);
             end
         end
         function remove_path_CB(obj,varargin)
