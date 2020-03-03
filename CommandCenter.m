@@ -146,7 +146,7 @@ try
     setappdata(hObject,'namespace_prefix',p.Results.namespace);
     
     % Update path
-    warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
+    warning('off','MATLAB:dispatcher:nameConflict');  % Overloaded methods
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
     end

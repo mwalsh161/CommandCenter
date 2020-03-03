@@ -9,7 +9,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     %   If there is a Constant property "visible" and it is set to false,
     %   this will prevent CommandCenter from displaying it.
     
-    properties(Access=private)
+    properties(SetAccess=private,Hidden)
         namespace                   % Namespace for saving prefs
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         StructOnObject_state = 'on';% To restore after deleting
