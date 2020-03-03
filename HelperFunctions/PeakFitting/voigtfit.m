@@ -1,5 +1,5 @@
 function [f,gof,output] = voigtfit(x, y, n, init, limits)
-% GAUSSFIT Fit N voigt functions to x and y data
+% VOIGTFIT Fit N voigt functions to x and y data
 %   Apply voigtN model to data given an initial guess
 %   INPUT:
 %   x - vector of x-data (same shape as "fit" takes)
