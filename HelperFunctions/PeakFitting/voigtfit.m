@@ -15,7 +15,6 @@ function [f,gof,output] = voigtfit(x, y, n, init, limits)
 %
 %   * This is an approximation given the convoluted nature of the voigt
 
-    FWHM_factor = 2; %to account for there being two widths
     fit_type = voigtN(n);
     options = fitoptions(fit_type);
 
@@ -27,9 +26,9 @@ function [f,gof,output] = voigtfit(x, y, n, init, limits)
     lower_pos = limits.locations(1).*ones(n,1);
     start_pos = init.locations(1:n);
     
-    upper_width = limits.widths(2).*ones(n,1)./FWHM_factor;
-    lower_width = limits.widths(1).*ones(n,1)./FWHM_factor;
-    start_width = init.widths(1:n)./FWHM_factor;
+    upper_width = limits.widths(2).*ones(n,1);
+    lower_width = limits.widths(1).*ones(n,1);
+    start_width = init.widths(1:n);
     
     upper_etas = ones(n,1);
     lower_etas = zeros(n,1);
