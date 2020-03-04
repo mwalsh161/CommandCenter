@@ -205,7 +205,7 @@ fitcoeffs = coeffvalues(fit_result);
 vals.amplitudes = fitcoeffs(1:n);
 vals.locations = fitcoeffs(n+1:2*n);
 vals.widths = fitcoeffs(2*n+1:3*n);
-if strcmp(lower(p.FitType),'voigt')
+if strcmp(p.FitType,'voigt')
     vals.etas = fitcoeffs(3*n+2:4*n+1); %extra +1 to account for offset d
 end
 vals.SNRs = vals.amplitudes./noise;
