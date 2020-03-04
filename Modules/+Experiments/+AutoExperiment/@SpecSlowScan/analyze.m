@@ -3,7 +3,7 @@ function varargout = analyze(data,varargin)
 %   Inputs:
 %       data: data produced by GetData method
 %       [Analysis]: An analysis struct produced by this function
-%       [FitType]: "gauss" or "lorentz" (default "gauss")
+%       [FitType]: "gauss", "lorentz", or "voigt" (default "gauss")
 %       [inds]: array of indices to mask full dataset (default: all data)
 %       [viewonly]: do not begin uifitpeaks on the axes
 %       [new]: arrow navigation will go to nearest new site (e.g. continued = 0)
@@ -42,7 +42,7 @@ function varargout = analyze(data,varargin)
 
 p = inputParser();
 addParameter(p,'Analysis',[],@isstruct);
-addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
 addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numeric'},{'vector'}));
 addParameter(p,'viewonly',false,@islogical);
 addParameter(p,'new',false,@islogical);
@@ -645,7 +645,11 @@ end
             analysis.sites(site_index,i-1).index = inds(site_index);
             if ~isempty(fit_result)
                 fitcoeffs = coeffvalues(fit_result);
-                nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
+                if strcmpi(FitType,'voigt')
+                    nn = (length(fitcoeffs)-1)/4; % 4 degrees of freedom per peak for voigt; subtract background
+                else
+                    nn = (length(fitcoeffs)-1)/3; % 3 degrees of freedom per peak; subtract background
+                end
                 analysis.sites(site_index,i-1).fit = fit_result;
                 analysis.sites(site_index,i-1).amplitudes = fitcoeffs(1:nn);
                 analysis.sites(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
@@ -653,6 +657,9 @@ end
                     analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
                 else
                     analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                end
+                if strcmpi(FitType,'voigt')
+                    analysis.sites(site_index,i-1).etas = fitcoeffs(3*nn+2:4*nn+1);
                 end
                 analysis.sites(site_index,i-1).background = fitcoeffs(3*nn+1);
             else
