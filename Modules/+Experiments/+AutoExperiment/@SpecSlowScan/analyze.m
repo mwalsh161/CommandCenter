@@ -166,6 +166,7 @@ if isstruct(p.Results.Analysis)
             analysis.sites(ii,4).amplitudes = NaN;
             analysis.sites(ii,4).widths = NaN;
             analysis.sites(ii,4).locations = NaN;
+            analysis.sites(ii,4).etas = NaN;
             analysis.sites(ii,4).background = NaN;
             analysis.sites(ii,4).index = NaN;
             analysis.sites(ii,4).redo = false;
@@ -634,6 +635,7 @@ end
                 analysis.sites(site_index,i-1).fit = [];
                 analysis.sites(site_index,i-1).amplitudes = NaN;
                 analysis.sites(site_index,i-1).locations = NaN;
+                analysis.sites(site_index,i-1).etas = NaN;
                 analysis.sites(site_index,i-1).widths = NaN;
                 analysis.sites(site_index,i-1).background = NaN;
                 analysis.sites(site_index,i-1).index = NaN;
@@ -655,10 +657,12 @@ end
                 analysis.sites(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
                 if strcmpi(FitType,'gauss')
                     analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
-                else
+                    analysis.sites(site_index,i-1).etas = zeros(1,nn);
+                elseif strcmpi(FitType,'lorentz')
                     analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
-                end
-                if strcmpi(FitType,'voigt')
+                    analysis.sites(site_index,i-1).etas = ones(1,nn);
+                elseif strcmpi(FitType,'voigt')
+                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
                     analysis.sites(site_index,i-1).etas = fitcoeffs(3*nn+2:4*nn+1);
                 end
                 analysis.sites(site_index,i-1).background = fitcoeffs(3*nn+1);
