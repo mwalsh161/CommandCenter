@@ -107,9 +107,10 @@ options.Start = [c,0,0];
 %% Plot
 fig = UseFigure(mfilename,'name',mfilename,'numbertitle','off','Visible','off',true);
 
-ax = subplot(1,3,1,'parent',fig);
-ax(2) = subplot(1,3,2,'parent',fig);
-ax(3) = subplot(1,3,3,'parent',fig);
+ax = subplot(2,3,[1,4],'parent',fig);
+ax(2) = subplot(2,3,[2,5],'parent',fig);
+ax(3) = subplot(2,3,3,'parent',fig);
+ax(4) = subplot(2,3,6,'parent',fig);
 sc = scatter(ax(1),freqs.spec,freqs.open);
 hold(ax(1),'on');
 more_than_one = n_peaks_found>0;
@@ -137,6 +138,11 @@ histogram(ax(3),[sites(:,3).widths]*1000*1000);
 plot(ax(3),[0 0]+median(median_open_spacing)*1000*1000,get(ax(3),'ylim'),'--k');
 legend(ax(3),{'Open (coarse)','Closed','Median Step Size in Open'})
 xlabel(ax(3),'Peak Widths (MHz)')
+
+histogram(ax(4),[sites(:,2).etas]); hold(ax(4),'on');
+histogram(ax(4),[sites(:,3).etas]); hold(ax(4),'off');
+legend(ax(4),{'Open (coarse)','Closed'})
+xlabel(ax(4),'Voigt \eta (0 is Gaussian, 1 is Lorentzian)')
 
 fig.Visible = 'on';
 
