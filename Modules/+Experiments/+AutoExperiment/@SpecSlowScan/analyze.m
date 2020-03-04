@@ -7,6 +7,7 @@ function varargout = analyze(data,varargin)
 %       [inds]: array of indices to mask full dataset (default: all data)
 %       [viewonly]: do not begin uifitpeaks on the axes
 %       [new]: arrow navigation will go to nearest new site (e.g. continued = 0)
+%       [preanalyze]: if true, will fit all data before opening UI
 %   Outputs: None (see below)
 %   Interactivity:
 %       click on a spot to see corresponding data
@@ -30,6 +31,7 @@ function varargout = analyze(data,varargin)
 %       amplitudes - Nx1 double
 %       widths - Nx1 double (all FWHM)
 %       locations - Nx1 double
+%       etas - Nx1 double
 %       background - 1x1 double
 %       fit - cfit object or empty if no peaks found
 %       index - index into data.sites. If NaN, this wasn't analyzed
@@ -45,6 +47,7 @@ addParameter(p,'Analysis',[],@isstruct);
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
 addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numeric'},{'vector'}));
 addParameter(p,'viewonly',false,@islogical);
+addParameter(p,'preanalyze',true,@islogical);
 addParameter(p,'new',false,@islogical);
 parse(p,varargin{:});
 
@@ -122,6 +125,7 @@ ax(5).UIContextMenu = c;
 n = length(sites);
 filter_new = p.Results.new;
 viewonly = p.Results.viewonly;
+preanalyze = p.Results.preanalyze;
 FitType = p.Results.FitType;
 wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
@@ -182,10 +186,24 @@ else
         'amplitudes',NaN,...
         'widths',NaN,...
         'locations',NaN,...
+        'etas',NaN,...
         'background',NaN,...
         'index',NaN,... % Index into sites
         'redo',false,...
         'ignore',[]);     % indices of experiments in the fit
+end
+
+if preanalyze
+    progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
+    setappdata(progbar,'canceling',0);
+    for site_index=1:n
+        waitbar(site_index/n,progbar,sprintf('Analyzing site %i/%i',site_index,n));
+        drawnow limitrate
+        update_analysis();
+        if getappdata(progbar,'canceling')
+            break
+        end
+    end
 end
 
 % Link UI control
@@ -525,6 +543,10 @@ end
         end
         busy = false;
     end
+    function update_analysis()
+        %updates fitting for all experiments on current site
+        
+    end
     function formatSelector(selectorH,experiment,i,exp_ind,site_ind,rgb)
         if nargin < 6
             color = '';
@@ -670,6 +692,7 @@ end
                 analysis.sites(site_index,i-1).fit = [];
                 analysis.sites(site_index,i-1).amplitudes = [];
                 analysis.sites(site_index,i-1).locations = [];
+                analysis.sites(site_index,i-1).etas = [];
                 analysis.sites(site_index,i-1).widths = [];
                 analysis.sites(site_index,i-1).background = [];
             end
