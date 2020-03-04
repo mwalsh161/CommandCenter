@@ -4,7 +4,7 @@ function [code,fn_name] = uigetcode(path,fn_name,beginning_text,ending_text,code
 %   and wait until saved and closed before returning what was entered.
 %   Note, if the user decides on not saving the file; an empty char array
 %   is returned.
-% Inputs: parenthesis indidcate optional positional arguments
+% Inputs: parenthesis indicate optional positional arguments
 %   path: Full pathname of file that gets generated.
 %   fn_name: Name of function to be used. If edit_fn_name is true, this is
 %       the placeholder.
@@ -89,8 +89,8 @@ end
 doc.makeActive();
 
 while doc.Opened
-    % Jail cursor to within function (note use could slip outside
-    % between lines of this while loop; these are separate threads.
+    % Jail cursor to within function (note user could slip outside
+    % between lines of this while loop; these are separate threads).
     try
         % NOTE: len and cursor are NOT atomic, so we will check if it
         % changed while cursor updated.
