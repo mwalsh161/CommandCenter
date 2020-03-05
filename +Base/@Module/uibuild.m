@@ -7,9 +7,15 @@ if isempty(root)
     root = fullfile(root,'Modules');
 end
 
-f = UseFigure('Base.Module.uibuild','numbertitle','off','name','Build Module',...
+%%% TO DO - make it grab same window without destroying "Singleton"
+%%% behavior"
+f = UseFigure('Base.Module.uibuild','numbertitle','off','name','Build Module Code',...
     'toolbar','none','menubar','none','units','char','handlevisibility','off',true);
-ht = 1;
+% globals to be used once module has been built (for method creation)
+MODULE = '';
+MODULEVAR = '';
+MODULEMC = []; % metaclass
+ht = 4;
 
 static(1) = ui(ht,'text','>> ',[],f);
 varnameH = ui(static(1),'edit','my_mod',@verify_varname);
@@ -25,12 +31,11 @@ end
 packageH(1) = ui(static(2),'popup',packages,@next,...
     'UserData',struct('ind',1,'dependent',gobjects(0)));
 
-f.Position(4) = packageH(1).Position(4) + 2;
+f.Position(4) = sum(packageH(1).Position([2,4])) + 2;
 uicontrol(varnameH);
 
 % Nested Helper functions:
-%   next: callback for all packagesH; renders next step in UI
-%   done: callback for check button; renders final copy and returns
+    %% This block is for module construction
     function next(target,~)
         val = target.String{target.Value};
         % Make width tight for selection
@@ -48,6 +53,7 @@ uicontrol(varnameH);
         relpath = fullfile(relpath{:});
         
         % Clean up stale UI
+        delete(packageH(n).UserData.dependent);
         for i = n+1:length(packageH)
             delete(packageH(i).UserData.dependent);
             delete(packageH(i));
@@ -72,51 +78,26 @@ uicontrol(varnameH);
             % Get module name (**specific to this application**)
             relpath(relpath == '+') = []; % Remove +
             module_name = strrep(relpath,filesep,'.');
-            mc = meta.class.fromName(module_name);
+            MODULEMC = meta.class.fromName(module_name);
             
             % Check to see if inputs necessary (check instance method and constructor)
             class_name = module_name(find(module_name=='.',1,'last')+1:end);
             precedence = {'instance',class_name};
             InputNames = {}; % Fall back is default constructor (e.g. no inputs)
             for i = 1:length(precedence)
-                mf = mc.MethodList(ismember({mc.MethodList.Name},precedence{i}));
+                mf = MODULEMC.MethodList(ismember({MODULEMC.MethodList.Name},precedence{i}));
                 if isempty(mf); continue; end
                 InputNames = mf.InputNames; break;
-            end
-            inputs = gobjects(1,length(InputNames)); % Allocate memory for UI
-            
-            % Render UI inputs
-            h = ui(target,'text','(',[]);
-            if ~isempty(InputNames)
-                for i = 1:length(InputNames)
-                    h(end+1) = ui(h(end),'edit',InputNames{i},[],'tooltipstring',InputNames{i});
-                    inputs(i) = h(end);
-                    h(end+1) = ui(h(end),'text',', ',[]);
-                end
-                delete(h(end)); h(end) = []; % extra comma
-            end
-            h(end+1) = ui(h(end),'text',')',[]);
-            
-            h(end+1) = ui(h(end),'pushbutton','<HTML>&#10004;</HTML>',@done,...
-                'foregroundcolor',[0 0.7 0],'UserData',inputs);
-            h(end).Position(3) = 5;
-            h(end+1) = ui(h(end),'pushbutton','<HTML>&#10008;</HTML>',@remove,...
-                'foregroundcolor',[0.7 0 0]);
-            h(end).Position(3) = 5;
-            
-            % Make first input active
-            if ~isempty(inputs)
-                uicontrol(inputs(1));
-            end
+            end            
+            h = makeInputs(target,InputNames,@done);
             target.UserData.dependent = h; % Make sure they will get cleaned up
         end
     end
-
     function done(h,~)
         % Make sure varname is all good
-        varnameStr = varnameH.String;
-        if ~isvarname(varnameStr)
-            errordlg(sprintf('"%s" is not a valid MATLAB variable name.',varnameStr),'Fix variable name!')
+        MODULEVAR = varnameH.String;
+        if ~isvarname(MODULEVAR)
+            errordlg(sprintf('"%s" is not a valid MATLAB variable name.',MODULEVAR),'Fix variable name!')
             return
         end
         % Convert inputs to strings
@@ -126,12 +107,12 @@ uicontrol(varnameH);
         end
         % Walk back through and build code
         n = length(packageH);
-        module_str = cell(1,n);
+        MODULE = cell(1,n);
         for i = 1:n
-            module_str{i} = packageH(i).String{packageH(i).Value};
+            MODULE{i} = packageH(i).String{packageH(i).Value};
         end
-        module_str = strrep(strjoin(module_str,'.'),'+','');
-        code = [varnameStr ' = ' module_str '.instance(' strjoin(input_strs,', ') ')'];
+        MODULE = strrep(strjoin(MODULE,'.'),'+','');
+        code = [MODULEVAR ' = ' MODULE '.instance(' strjoin(input_strs,', ') ')'];
         
         % Clean up everything but the carrot (static(1))
         for i = 1:length(packageH)
@@ -144,11 +125,54 @@ uicontrol(varnameH);
         h = ui(static(1),'text',code,[]);
         ui(h,'pushbutton','Add method call',@addMethod);
     end
-    function remove(h,~)
-        errordlg('Not implemented yet',':(');
+    %% Previous callbacks no longer relevant once we get here
+    function addMethod(h,~) % Make new line and use methodNext callbacks
+        ht = h.Position(2) - 2;
+        static(1) = ui(ht,'text','>> ',[],f);
+        varnameH = ui(static(1),'edit','dat_out',@verify_varname);
+        static(2) = ui(varnameH,'text',[' = ' MODULEVAR '.'],[]);
+        % only show public and non hidden
+        methods = MODULEMC.MethodList;
+        mask = ~[methods.Hidden] & ~[methods.Static] &...
+            arrayfun(@(a)isequal(a.Access,'public'),methods');
+        methods = methods(mask);
+        % Organize by defining class
+        opts = [{MODULE}; superclasses(MODULE)]; % use this order
+        defining = [methods.DefiningClass];
+        finalList = {};
+        for i = 1:length(opts)
+            if i > 1 % Prepend defining class name
+                finalList = [finalList; ...
+                    arrayfun(@(a)[opts{i} '.' a.Name],methods(ismember({defining.Name},opts{i})),'UniformOutput',false)];
+            else
+                finalList = {methods(ismember({defining.Name},opts{i})).Name}';
+            end
+        end
+        if length(finalList)~=length(methods); warning('Missed some methods!'); end
+        fn = ui(static(2),'popup', finalList,@methodNext,'UserData',struct('dependent',gobjects(0)));
+        % Extend figure
+        f.Position(4) = f.Position(4) + fn.Position(4);
+        delete(h);
     end
-    function addMethod(h,~)
-        errordlg('Not implemented yet',':(');
+    function methodNext(target,~)
+        val = target.String{target.Value};
+        % Make width tight for selection
+        temp = ui(target,'edit',val,[],'visible','off');
+        target.Position(3) = temp.Extent(3)+5;
+        delete(temp);
+        if target.Value==1; return; end % Empty choice; nothing else to do
+        
+        % Clean up dependent
+        delete(target.UserData.dependent);
+        
+        % Get input names
+        InputNames = {'test'};
+        
+        h = makeInputs(target,InputNames,@methodDone);
+        target.UserData.dependent = h; % Make sure they will get cleaned up
+    end
+    function methodDone(h,~)
+        
     end
 end
 
@@ -160,6 +184,31 @@ if isvarname(hObj.String)
 else
     hObj.BackgroundColor = [1 0 0];
     hObj.ForegroundColor = [1 1 1];
+end
+end
+
+function h = makeInputs(target,InputNames,doneCallback)
+% Build UI components; the UserData for the done button is the input UIs
+inputs = gobjects(size(InputNames));
+% Render UI inputs
+h = ui(target,'text','(',[]);
+if ~isempty(InputNames)
+    for i = 1:length(InputNames)
+        h(end+1) = ui(h(end),'edit',InputNames{i},[],'tooltipstring',InputNames{i});
+        inputs(i) = h(end);
+        h(end+1) = ui(h(end),'text',', ',[]);
+    end
+    delete(h(end)); h(end) = []; % extra comma
+end
+h(end+1) = ui(h(end),'text',')',[]);
+
+h(end+1) = ui(h(end),'pushbutton','<HTML>&#10004;</HTML>',doneCallback,...
+    'foregroundcolor',[0 0.7 0],'UserData',inputs);
+h(end).Position(3) = 5;
+
+% Make first input active
+if ~isempty(inputs)
+    uicontrol(inputs(1));
 end
 end
 
