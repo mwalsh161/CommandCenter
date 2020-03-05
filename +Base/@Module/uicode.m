@@ -1,4 +1,4 @@
-function [code,f] = uibuildmodule(varargin)
+function [code,f] = uicode(varargin)
 %UIBUILDMODULE An interactive tool to help bulid a module and access a function
 %   Sometimes it can be difficult to understand how to grab the instance to
 %   a particular module. This tool will walk you through the steps
