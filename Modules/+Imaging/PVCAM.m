@@ -34,7 +34,7 @@ classdef PVCAM < Modules.Imaging
     methods(Access=private)
         function obj = PVCAM()
 %             obj.loadPrefs;
-            obj.h_cam
+%             obj.h_cam
             
             % not input, open camera and retreive some pvcam parameters, and return a ROI structure based on the parameters.
             % some parameters
@@ -50,15 +50,18 @@ classdef PVCAM < Modules.Imaging
             pvcam_par = cell2struct(pvcam_para_value, pvcam_para_field, 2);
             % open camera
             obj.h_cam = pvcamopen(0);
+%             obj.h_cam
             if (isempty(obj.h_cam))
-                 disp([datestr(datetime('now')) ':could not open camera']);
+%                  disp([datestr(datetime('now')) ':could not open camera']);
                 pvcamclose(1);
             else
-                disp([datestr(datetime('now')) ':camera detected']);
+%                 disp([datestr(datetime('now')) ':camera detected']);
             end
+            
+            obj.camera_name = obj.h_cam;
 
             %pvcamsetvalue(h_cam, 'PARAM_SPDTAB_INDEX', 0); % set camera to max readout speed at 0, better biniration at 1
-            pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_INDEX', 2); % set camera to max gain 
+            pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_INDEX', 3); % set camera to max gain 
             
 %    [VALUE, TYPE, ACCESS, RANGE] = PVCAMGETVALUE(HCAM, ID) returns the
 %    parameter TYPE, read/write ACCESS, and all acceptable parameter values
@@ -76,7 +79,7 @@ classdef PVCAM < Modules.Imaging
             obj.width = pvcam_par.serdim;
             obj.height = pvcam_par.pardim;
             obj.gain = pvcam_par.gain;
-            gainrange
+%             gainrange
             obj.temp = pvcam_par.temp;
             
             if contains(pvcam_par.timeunit, 'One Millisecond')
@@ -105,6 +108,11 @@ classdef PVCAM < Modules.Imaging
         end
     end
     methods
+        function delete(obj)
+            if (~isempty(obj.h_cam))
+                pvcamclose(1);
+            end
+        end
 %         function set.ROI(obj,val)
 %             % Update ROI without going outside maxROI
 %             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>
@@ -140,7 +148,7 @@ classdef PVCAM < Modules.Imaging
         end
         
         function startVideo(obj,im)
-            error('NotImplemented')
+%             error('NotImplemented')
             obj.continuous = true;
             while obj.continuous
                 obj.snap(im,true);
@@ -148,7 +156,7 @@ classdef PVCAM < Modules.Imaging
             end
         end
         function stopVideo(obj)
-            error('NotImplemented')
+%             error('NotImplemented')
             obj.continuous = false;
         end
 

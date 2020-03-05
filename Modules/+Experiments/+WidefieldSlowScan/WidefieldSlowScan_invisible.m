@@ -5,10 +5,12 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
     % update_plot(ydata) [called in UpdateRun]
     %   Given the calculated ydata, update plots generated in prep_plot
 
-    properties(SetObservable,AbortSet)
+    properties(GetObservable, SetObservable,AbortSet)
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
         imaging = Modules.Imaging.empty(1,0);
+        
+        repump_always_on = Prefs.Boolean(false);
     end
     properties
         prefs = {};
@@ -52,11 +54,16 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 for freqIndex = 1:length(obj.scan_points)
                     obj.repumpLaser.on
                     obj.resLaser.TuneSetpoint(obj.scan_points(freqIndex));
-                    obj.repumpLaser.off
+                    if ~obj.repump_always_on
+                        obj.repumpLaser.off
+                    end
+                    obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
                     
                     status.String = sprintf('Progress (%i/%i pts):\n  ', freqIndex, length(obj.scan_points));
                     
                     img = obj.imaging.snapImage;
+                    
+                    ax.UserData.CData = img;
                     
                     obj.data.images(:,:,freqIndex) = img;
                     
@@ -90,10 +97,14 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             w = obj.imaging.width;
             h = obj.imaging.height;
             
-            imagesc(1:w, 1:h, NaN(h, w));
+            ax.UserData = imagesc(ax, 1:w, 1:h, NaN(h, w));
+            set(ax,'DataAspectRatio',[1 1 1])
             
             xlabel(ax, '$x$ [pix]', 'interpreter', 'latex');
             ylabel(ax, '$y$ [pix]', 'interpreter', 'latex');
+            
+            obj.repumpLaser.on
+            obj.resLaser.on
         end
     end
 end
