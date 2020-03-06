@@ -11,6 +11,8 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         imaging = Modules.Imaging.empty(1,0);
         
         repump_always_on = Prefs.Boolean(false);
+        
+        only_get_frequencies = Prefs.Boolean(false);
     end
     properties
         prefs = {};
@@ -54,7 +56,8 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 for freqIndex = 1:length(obj.scan_points)
                     obj.repumpLaser.on
                     
-                    obj.resLaser.TuneSetpoint(obj.scan_points(freqIndex));
+                    obj.setLaser(freqIndex);
+                    
                     obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
                     
                     if ~obj.repump_always_on
@@ -91,6 +94,10 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             % Callback for saving methods (note, lots more info in the two managers input!)
             dat.data = obj.data;
             dat.meta = obj.meta;
+        end
+        
+        function setLaser(obj, index)
+            obj.resLaser.TuneSetpoint(obj.scan_points(index));
         end
         
         function PreRun(obj,~,managers,ax)
