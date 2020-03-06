@@ -4,8 +4,8 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
     % value, but should be within resolution of the laser
 
     properties(SetObservable, AbortSet)
-        base_freq = Prefs.Double(470, 'unit', 'THz', 'set', 'calc_freqs',                       'help', 'The frequency that.');
-        base_percent = Prefs.Double(50, 'unit', '%', 'set', 'calc_freqs',                       'help', 'The percentage setting for the base frequency.');
+%         base_freq = Prefs.Double(470, 'unit', 'THz', 'set', 'calc_freqs',                       'help', 'The frequency that.');
+%         base_percent = Prefs.Double(50, 'unit', '%', 'set', 'calc_freqs',                       'help', 'The percentage setting for the base frequency.');
         
         DAQ_dev = Prefs.String('Dev1',                                                          'help', 'NIDAQ Device.');
         DAQ_line = Prefs.String('laser',                                                        'help', 'NIDAQ virtual line.');
@@ -23,6 +23,8 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
         freq_from = Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'THz',       'help', 'Calculated conversion between percent and THz for from.');
         freq_to =   Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'THz',       'help', 'Calculated conversion between percent and THz for to.');
         freq_range =Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'GHz',       'help', 'Calculated conversion between percent range and GHz range.');
+        
+        freq_calculate = Prefs.Boolean(false, 'set', 'calc_freqs');
     end
 
     properties
@@ -46,6 +48,8 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
         end
         
         function get_scan_points(obj)
+            base_percent = obj.resLaser.GetPercent;
+            
             stepTHz = obj.step/1e6; % Step is in MHz
             
             if obj.to > obj.from    % We are ascending
@@ -58,7 +62,7 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             
             assert(overshoot_percent >= 0 && overshoot_percent <= 100);                         % Make sure overshoot_percent is sane.
             
-            obj.overshoot_voltage = (overshoot_percent - obj.base_percent) * obj.Vrange / 100;  % And calculate the cooresponding voltage.
+            obj.overshoot_voltage = (overshoot_percent - base_percent) * obj.Vrange / 100;  % And calculate the cooresponding voltage.
             
             rangeTHz = (obj.V2GHz * obj.Vrange / 1e3);
             stepPercent = stepTHz / rangeTHz;               % Convert step to percentage
@@ -70,17 +74,22 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             
             assert(all(scan_percents >= 0 & scan_percents <= 100));                             % Make sure all these values are sane
             
-            obj.scan_points = (scan_percents - obj.base_percent) * obj.Vrange / 100;            % And calculate the cooresponding voltages.
+            obj.scan_points = (scan_percents - base_percent) * obj.Vrange / 100;            % And calculate the cooresponding voltages.
         end
         
         function THz = percent2THz(obj, percent)
-            THz = obj.V2GHz * obj.Vrange * (percent - obj.base_percent);
+            base_percent = obj.resLaser.GetPercent;
+            
+            THz = obj.resLaser.getFrequency + obj.V2GHz * obj.Vrange * (percent - base_percent);
         end
         
         function PreRun(obj, ~, managers, ax)
             PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
             
             obj.get_scan_points();
+            
+            obj.wavelength_lock = false;
+%             obj.etalon_lock = false;
             
             obj.dev = Drivers.NIDAQ.dev(obj.DAQ_dev);
             obj.setLaser(obj.overshoot_voltage)
@@ -92,6 +101,8 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             obj.freq_from = percent2THz(obj, obj.from);
             obj.freq_to = percent2THz(obj, obj.to);
             obj.freq_range = 1e3*(obj.freq_to - obj.freq_from); %thz to ghz
+            
+            val = false;
         end 
         function val = calc_freqs_from(obj, val, ~)
             obj.freq_from = percent2THz(obj, val);
