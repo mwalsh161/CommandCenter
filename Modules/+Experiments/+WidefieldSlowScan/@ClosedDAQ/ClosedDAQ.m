@@ -4,24 +4,25 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
     % value, but should be within resolution of the laser
 
     properties(SetObservable, AbortSet)
-        base_freq = Prefs.Double(470, 'unit', 'THz',                                        'help', 'The frequency that.');
-        base_percent = Prefs.Double(50, 'unit', '%',                                        'help', 'The percentage setting for the base frequency.');
+        base_freq = Prefs.Double(470, 'unit', 'THz', 'set', 'calc_freqs',                       'help', 'The frequency that.');
+        base_percent = Prefs.Double(50, 'unit', '%', 'set', 'calc_freqs',                       'help', 'The percentage setting for the base frequency.');
         
-        DAQ_dev = Prefs.String('Dev1',                                                      'help', 'NIDAQ Device.');
-        DAQ_line = Prefs.String('laser',                                                    'help', 'NIDAQ virtual line.');
+        DAQ_dev = Prefs.String('Dev1',                                                          'help', 'NIDAQ Device.');
+        DAQ_line = Prefs.String('laser',                                                        'help', 'NIDAQ virtual line.');
         
-        from =  Prefs.Double(10, 'set', 'calc_freqs', 'min', 10, 'max', 90, 'unit', '%',    'help', 'Percentage value to scan from.');
-        to =    Prefs.Double(90, 'set', 'calc_freqs', 'min', 10, 'max', 90, 'unit', '%',    'help', 'Percentage value to scan to.');
+        from =  Prefs.Double(10, 'set', 'calc_freqs_from', 'min', 10, 'max', 90, 'unit', '%',   'help', 'Percentage value to scan from.');
+        to =    Prefs.Double(90, 'set', 'calc_freqs_to', 'min', 10, 'max', 90, 'unit', '%',     'help', 'Percentage value to scan to.');
         
-        overshoot = Prefs.Double(5, 'set', 'calc_freqs', 'min', 0, 'max', 10, 'unit', '%',  'help', 'To counteract hysteresis, we offset from by offshoot at the beginning of the scan.');
+        overshoot = Prefs.Double(5, 'set', 'calc_freqs', 'min', 0, 'max', 10, 'unit', '%',      'help', 'To counteract hysteresis, we offset from by offshoot at the beginning of the scan.');
         
-        step =  Prefs.Double(10, 'min', 0, 'MHz',                                           'help', 'Step between points in the sweep. This is in MHz because sane units are sane.');
+        step =  Prefs.Double(10, 'min', 0, 'MHz',                                               'help', 'Step between points in the sweep. This is in MHz because sane units are sane.');
         
-        Vrange = Prefs.Double(10, 'readonly', true, 'unit', 'V',                            'help', 'Max range that the DAQ can input on the laser. This is dangerous to change, so it is readonly for now.');
-        V2GHz = Prefs.Double(2.5, 'unit', 'GHz/V',                                          'help', 'Conversion between voltage and GHz for the laser. This is only used to calculate freq_from and freq_to along with figuring out what step means.');
+        Vrange = Prefs.Double(10, 'readonly', true, 'unit', 'V',                                'help', 'Max range that the DAQ can input on the laser. This is dangerous to change, so it is readonly for now.');
+        V2GHz = Prefs.Double(2.5, 'unit', 'GHz/V',                                              'help', 'Conversion between voltage and GHz for the laser. This is only used to calculate freq_from and freq_to along with figuring out what step means.');
         
-        freq_from = Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'THz',   'help', 'Calculated conversion between percent and THz for from.');
-        freq_to =   Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'THz',   'help', 'Calculated conversion between percent and THz for to.');
+        freq_from = Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'THz',       'help', 'Calculated conversion between percent and THz for from.');
+        freq_to =   Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'THz',       'help', 'Calculated conversion between percent and THz for to.');
+        freq_range =Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'GHz',       'help', 'Calculated conversion between percent range and GHz range.');
     end
 
     properties
@@ -88,9 +89,19 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
 
     methods
         function val = calc_freqs(obj, val, ~) %turn percent ranges into frequencies
-            obj.from_freq = percent2THz(obj, val);
-            obj.to_freq = percent2THz(obj, val);
-            
+            obj.freq_from = percent2THz(obj, obj.from);
+            obj.freq_to = percent2THz(obj, obj.to);
+            obj.freq_range = 1e3*(obj.freq_to - obj.freq_from); %thz to ghz
+        end 
+        function val = calc_freqs_from(obj, val, ~)
+            obj.freq_from = percent2THz(obj, val);
+            obj.freq_to = percent2THz(obj, obj.to);
+            obj.freq_range = 1e3*(obj.freq_to - obj.freq_from); %thz to ghz
+        end
+        function val = calc_freqs_to(obj, val, ~) %turn percent ranges into frequencies
+            obj.freq_from = percent2THz(obj, obj.from);
+            obj.freq_to = percent2THz(obj, val);
+            obj.freq_range = 1e3*(obj.freq_to - obj.freq_from); %thz to ghz
         end 
     end
 end
