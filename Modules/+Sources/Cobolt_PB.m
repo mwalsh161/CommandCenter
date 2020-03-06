@@ -74,11 +74,12 @@ classdef Cobolt_PB < Modules.Source
         function val = set_diode_on(obj, val, ~)
             if obj.isConnected()
                 if val
-                    errorIfNotOK(obj.serial.com('Cobolt', '@cobas', 0));
-                    errorIfNotOK(obj.serial.com('Cobolt', 'l1'));
-                    errorIfNotOK(obj.serial.com('Cobolt', 'cp'));
+                    errorIfNotOK(obj.serial.com('Cobolt', '@cobas', 0));    % No autostart
+                    errorIfNotOK(obj.serial.com('Cobolt', 'l1'));           % Laser On
+                    errorIfNotOK(obj.serial.com('Cobolt', 'cp'));           % Constant Power
+%                     errorIfNotOK(obj.serial.com('Cobolt', 'eoom'));         % Enter Modulation Mode
                 else
-                    errorIfNotOK(obj.serial.com('Cobolt', 'l0'));
+                    errorIfNotOK(obj.serial.com('Cobolt', 'l0'));           % Laser off
                 end
             else
                 val = false;
@@ -160,14 +161,16 @@ classdef Cobolt_PB < Modules.Source
         end
         
         function on(obj)
-            assert(~isempty(obj.PulseBlaster), 'No IP set!')
-            obj.PulseBlaster.lines(obj.PB_line) = true;
-            obj.source_on = true;
+            obj.diode_on = true;
+%             assert(~isempty(obj.PulseBlaster), 'No IP set!')
+%             obj.PulseBlaster.lines(obj.PB_line) = true;
+            obj.source_on = true; 
         end
         function off(obj)
-            assert(~isempty(obj.PulseBlaster), 'No IP set!')
+            obj.diode_on = false;
+%             assert(~isempty(obj.PulseBlaster), 'No IP set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PB_line) = false;
+%             obj.PulseBlaster.lines(obj.PB_line) = false;
         end
         
         function isRunning(obj,varargin)

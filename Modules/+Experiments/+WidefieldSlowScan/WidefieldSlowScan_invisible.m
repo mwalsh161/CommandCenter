@@ -53,11 +53,13 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 
                 for freqIndex = 1:length(obj.scan_points)
                     obj.repumpLaser.on
+                    
                     obj.resLaser.TuneSetpoint(obj.scan_points(freqIndex));
+                    obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
+                    
                     if ~obj.repump_always_on
                         obj.repumpLaser.off
                     end
-                    obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
                     
                     status.String = sprintf('Progress (%i/%i pts):\n  ', freqIndex, length(obj.scan_points));
                     
