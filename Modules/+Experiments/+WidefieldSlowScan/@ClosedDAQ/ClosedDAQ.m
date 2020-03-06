@@ -82,9 +82,10 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
     end
 
     methods
-        function set.calc_freqs(obj, val)
+        function val = calc_freqs(obj, val, ~) %turn percent ranges into frequencies
+            obj.from_freq = percent2THz(obj, val);
+            obj.to_freq = percent2THz(obj, val);
             
-            obj.calc_freqs = val;
         end 
     end
 end
