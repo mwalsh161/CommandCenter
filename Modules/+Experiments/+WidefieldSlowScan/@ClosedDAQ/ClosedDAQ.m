@@ -87,5 +87,9 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
     end
 
     methods
+        function set.calc_freqs(obj, val)
+            
+            obj.calc_freqs = val;
+        end 
     end
 end

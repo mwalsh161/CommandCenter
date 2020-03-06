@@ -5,7 +5,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
     % update_plot(ydata) [called in UpdateRun]
     %   Given the calculated ydata, update plots generated in prep_plot
 
-    properties(GetObservable, SetObservable,AbortSet)
+    properties(GetObservable, SetObservable, AbortSet)
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
         imaging = Modules.Imaging.empty(1,0);
