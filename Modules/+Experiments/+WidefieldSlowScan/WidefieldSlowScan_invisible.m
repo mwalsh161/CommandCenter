@@ -56,7 +56,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 for freqIndex = 1:length(obj.scan_points)
                     obj.repumpLaser.on
                     
-                    obj.setLaser(freqIndex);
+                    obj.setLaser(obj.scan_points(freqIndex));
                     
                     obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
                     
@@ -96,8 +96,8 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             dat.meta = obj.meta;
         end
         
-        function setLaser(obj, index)
-            obj.resLaser.TuneSetpoint(obj.scan_points(index));
+        function setLaser(obj, scan_point)
+            obj.resLaser.TuneSetpoint(scan_point);
         end
         
         function PreRun(obj,~,managers,ax)
