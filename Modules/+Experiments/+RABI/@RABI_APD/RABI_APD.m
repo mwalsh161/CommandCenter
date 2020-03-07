@@ -1,20 +1,51 @@
-classdef RABI_APD <  Experiments.RABI.RABI_invisible
+classdef RABI_APD <  Modules.Experiment
     
     properties (SetObservable)
         APD_PB_line = 3; %indexed from 1
         disp_mode = {'verbose','fast'};
+        CW_freq = 2.87e9;
+        RF_power = -30; %dbm
+        nAverages = 5;
+        Integration_time = 30;  % time for each data point is this value times nAverages (in milliseconds)
+        laser_read_time = 300; %ns
+        start_time = 14; %ns
+        stop_time = 1014; %ns
+        number_points = 100;
+        time_step_size = 10;%ns
+        reInitializationTime = 1000; %ns ; time taken to reiniatilze the NV to zero after measurement
+        padding = 1000; %ns padding between items in the pulse sequence
+        laserDelay = 810; %ns
+    end
+    
+    properties(Constant)
+        %Minimum duration that the pulseblaster can handle.
+        minDuration = 14; %nanoseconds
     end
     
     properties
         f  %data figure that you stream to
+        data;
+        listeners;
+        abort_request = false;  % Request flag for abort
+        ax
+        RF   % RF generator handle
+        Ni   % NIDAQ
+        stage
+        Laser
+        pulseblaster
+        sequence
+        MW_on_time
         prefs = {'CW_freq','RF_power','nAverages','Integration_time'...
             ,'laser_read_time','start_time','stop_time','number_points'...
-            'time_step_size','APD_PB_line','disp_mode','reInitializationTime','padding'}
+            'time_step_size','APD_PB_line','disp_mode','reInitializationTime','padding','laserDelay'}
     end
     
     methods(Access=private)
         function obj = RABI_APD
             obj.loadPrefs;
+            obj.listeners = addlistener(obj,'start_time','PostSet',@obj.update_time_step);
+            obj.listeners(end+1) = addlistener(obj,'stop_time','PostSet',@obj.update_time_step);
+            obj.listeners(end+1) = addlistener(obj,'number_points','PostSet',@obj.update_time_step);
         end
     end
     
@@ -31,121 +62,92 @@ classdef RABI_APD <  Experiments.RABI.RABI_invisible
     
     methods(Access=protected)
         
-        function [s,n_MW_on] = setup_PB_sequence(obj)
-            
-            Integration_time = obj.Integration_time*1e6;
-            laser_read_time = obj.laser_read_time; %in ns
-            MW_on_time = obj.MW_on_time;
-            deadTime = 1*100;
-            
-            if strcmp(obj.disp_mode,'verbose')
-                nSamples = round(Integration_time/laser_read_time);
-            elseif strcmp(obj.disp_mode,'fast')
-                nSamples = round(obj.nAverages*Integration_time/laser_read_time);
-            else
-                error('Unrecognized display mode type.')
-            end
-            
-            % get hw lines for different pieces of equipment(indexed from
-            % 0)
-            
-            [laser_hw,APD_hw,MW_switch_hw] = obj.determine_PB_hardware_handles(); %get the pulsblaster hardware handles
-            
-            % Make some chanels
-            cLaser = channel('laser','color','g','hardware',laser_hw);
-            cAPDgate = channel('APDgate','color','b','hardware',APD_hw,'counter','APD1');
-            cMWswitch = channel('MWswitch','color','k','hardware',MW_switch_hw');
-            
-            %% check offsets are smaller than padding, errors could result otherwise
-            
-            assert(cLaser.offset(1) < obj.padding,'Laser offset is smaller than padding');
-            assert(cAPDgate.offset(1) < obj.padding,'cAPDgate offset is smaller than padding')
-            assert(cMWswitch.offset(1) < obj.padding,'cMWswitch offset is smaller than padding')
-
-            %% 
- 
-            % Make sequence
-            s = sequence('RABI_sequence');
-            s.channelOrder = [cLaser,cAPDgate,cMWswitch];
-            
-            % make outer loop to compensate for limit on sequence.repeat
-            out_loop = 'out_loop';
-            out_val = 1; %temporary placeholder
-            n_init_out_loop = node(s.StartNode,out_loop,'type','start');
-            
-            % MW gate duration
-            n_MW = node(s.StartNode,cMWswitch,'delta',deadTime,'units','ns');
-            n_MW_on = node(n_MW,cMWswitch,'delta',MW_on_time,'units','ns');
-            
-            % Laser duration:data
-            n_Laser = node(n_MW_on,cLaser,'delta',obj.padding,'units','ns');
-            n_Laser = node(n_Laser,cLaser,'delta',obj.reInitializationTime,'units','ns');
-            
-            % APD gate duration:data
-            n_APD = node(n_MW_on,cAPDgate,'delta',obj.padding,'units','ns');
-            n_APD = node(n_APD,cAPDgate,'delta',laser_read_time,'units','ns');
-            
-           
-            % APD gate duration:norm
-            n_APD = node(n_Laser,cAPDgate,'delta',obj.padding,'units','ns');
-            n_APD = node(n_APD,cAPDgate,'delta',laser_read_time,'units','ns');
-            
-            % Laser duration:norm
-            n_Laser = node(n_Laser,cLaser,'delta',obj.padding,'units','ns');
-            n_Laser = node(n_Laser,cLaser,'delta',obj.reInitializationTime,'units','ns');
-            
-            % End outer loop and calculate repetitions
-            n_end_out_loop = node(n_Laser,out_val,'delta',deadTime,'type','end');
-            max_reps = 2^20-1;
-            if nSamples > max_reps
-                % loop to find nearest divisor
-                while mod(nSamples,max_reps) > 0
-                    max_reps = max_reps - 1;
+        function module_handle = find_active_module(obj,modules,active_class_to_find)
+            module_handle=[];
+            for index=1:length(modules)
+                class_name=class(modules{index});
+                num_levels=strsplit(class_name,'.');
+                truth_table=contains(num_levels,active_class_to_find);
+                if sum(truth_table)>0
+                    module_handle=modules{index};
                 end
-                n_end_out_loop.data = nSamples/max_reps;
-                s.repeat = max_reps;
-            else
-                s.repeat = nSamples;
             end
+            assert(~isempty(module_handle)&& isvalid(module_handle),['No actice class under ',active_class_to_find,' in CommandCenter as a source!'])
         end
         
-        function [laser_hw,APD_hw,MW_switch_hw] = determine_PB_hardware_handles(obj)
-            laser_hw = obj.Laser.PBline-1;
-            
-            APD_hw = obj.APD_PB_line-1;
-            
-            MW_switch_hw = obj.RF.MW_switch_PB_line-1;
-        end
-        
-        function initialize_data_acquisition_device(obj,~)
-            obj.Ni = Drivers.NIDAQ.dev.instance('Dev1');
-            obj.Ni.ClearAllTasks;
-            obj.pulseblaster = Drivers.PulseBlaster.Remote.instance(obj.RF.ip);
+        function update_time_step(obj,~,~)
+            time_step_size = (obj.stop_time-obj.start_time)/obj.number_points;
+            if ~isequal(time_step_size,obj.time_step_size)
+                obj.time_step_size = time_step_size;
+            end
         end
         
     end
+    
     methods
-         function plot_data(obj)
-            time_list = obj.determine_time_list();
-            errorbar(time_list,obj.data.contrast_vector,obj.data.error_vector,'parent',obj.ax);
-            xlim(obj.ax,time_list([1,end]));
-            xlabel(obj.ax,'Microwave on Time (ns)')
-            ylabel(obj.ax,'Normalized Fluorescence')
+        
+        function set.laser_read_time(obj,val)
+            assert(isnumeric(val),'laser_read_time must be of dataType numeric.')
+            assert(val>obj.minDuration,['laser_read_time must be greater than the ',num2str(obj.minDuration)])
+            obj.laser_read_time = val;
         end
+        
+        function set.start_time(obj,val)
+            assert(isnumeric(val),'start_time must be a of type numeric.')
+            assert(val>=obj.minDuration,sprintf('start_time must be greater than %d.',obj.minDuration))
+            if ~isequal(val,obj.start_time)
+                obj.start_time = val;
+            end
+        end
+        
+        function set.stop_time(obj,val)
+            assert(isnumeric(val),'stop_time must be a of type numeric.')
+            assert(val>obj.minDuration,sprintf('stop_time must be greater than %d.',obj.minDuration))
+            if ~isequal(val,obj.stop_time)
+                obj.stop_time = val;
+            end
+        end
+        
+        function set.number_points(obj,val)
+            assert(isnumeric(val),'number_points must be a of type numeric.')
+            assert(val>0,'number_points must be positive.')
+            assert(~logical(mod(val,1)),'number_points must be an integer.')
+            if ~isequal(val,obj.number_points)
+                obj.number_points = val;
+            end
+        end
+        
+        function set.time_step_size(obj,val)
+            assert(isnumeric(val),'time_step_size must be a of type numeric.')
+            assert(val>0,'time_step_size must be positive.')
+            try
+                obj.number_points = (obj.stop_time-obj.start_time)./(val);
+            catch err
+                warning('Error when attempting to change time_step_size')
+                error(err.message)
+            end
+            obj.time_step_size = val;
+        end
+        
         
         function abort(obj)
+            
             delete(obj.f);
             obj.Ni.ClearAllTasks;
-            abort@Experiments.RABI.RABI_invisible(obj);
+            
+            obj.abort_request = true;
+            obj.RF.off;
+            obj.RF.serial.reset;
+            obj.Laser.off;
+            
         end
         
-        function data = GetData(obj,~,~)
-            if ~isempty(obj.data)
-                data.APDcounts = obj.data;
-                GetData@Experiments.RABI.RABI_invisible(obj);
-            else
-                data = [];
-            end
+        function delete(obj)
+            delete(obj.listeners)
         end
+        
     end
+    
 end
+
+    
