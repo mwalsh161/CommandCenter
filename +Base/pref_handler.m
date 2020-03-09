@@ -20,6 +20,7 @@ classdef pref_handler < handle
         temp_prop = struct();
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
+        implicit_mps = struct(); % When settings are made, all implicit ("old-style") meta props will go here
     end
     properties(SetAccess = private,Hidden)
         last_pref_set_err = [];
@@ -108,9 +109,10 @@ classdef pref_handler < handle
             % NOTE: this does not do anything with the current value and
             %   MAY result in it changing if you aren't careful!!
             allowed_names = obj.get_class_based_prefs();
-            assert(ismember(name,allowed_names),sprintf(...
-                'You may only set meta prefs for properties that were defined with them:\n%s',...
-                strjoin(allowed_names,', ')));
+            if ~ismember(name,allowed_names)
+                obj.implicit_mps.(name) = pref;
+                return
+            end
             pref = pref.bind(obj);
             obj.prop_listener_ctrl(name,false);
             obj.(name) = pref; % Assign back to property
@@ -129,7 +131,12 @@ classdef pref_handler < handle
                 val = obj.(name);
                 obj.prop_listener_ctrl(name,true);
                 return
+            elseif isfield(obj.implicit_mps,name)
+                val = obj.implicit_mps.(name);
+                return
             end
+            % Anything beyond this point must be an old-stlye pref that was
+            %   not loaded (or for the first time) in the settings call
             % old style prefs: auto generate default type here
             val = obj.(name);
             prop = findprop(obj,name);

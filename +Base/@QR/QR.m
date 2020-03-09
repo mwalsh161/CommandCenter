@@ -48,6 +48,8 @@ classdef QR
             % Given which axes, invert all affine2d transform objects
             % contained in readInfo (returned by Base.QR.reader)
             % ax should be an "indexed axes" - x: 1, y: 2
+            assert(isnumeric(ax),...
+                sprintf('ax must be a numeric type, not "%s".',class(ax)));
             assert(any(ax==[1,2]),...
                 sprintf('ax should be 1 for x or 2 for y. %i not supported.',ax))
             yinv = eye(3); yinv(ax,ax) = -1;

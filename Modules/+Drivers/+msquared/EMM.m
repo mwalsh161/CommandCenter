@@ -10,38 +10,48 @@ classdef EMM < Modules.Driver
     
     properties
         % for calls to HWserver
-        moduleName = 'msquared.NW';
-        laserName = 'EMM';
         blocking_timeout = 60;  % If call is blocking, adjust wait time
     end
-
+    properties(Constant)
+        laserName = 'EMM';
+        moduleNamePrefix = 'msquared.';
+    end
     properties (SetAccess=immutable)
+        moduleName = '';
         hwserver;  % Handle to hwserver
         default_timeout; % Used to set back after a blocking call
     end
+
     methods(Static)
-        
-        function obj = instance(ip)
+        function obj = instance(host,moduleName)
             mlock;
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.msquared.EMM.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
+            [~,resolvedIP] = resolvehost(host);
+            singleton_id = {resolvedIP,moduleName};
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(resolvedIP,Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(singleton_id,Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
-            obj = Drivers.msquared.EMM(ip);
-            obj.singleton_id = resolvedIP;
+            obj = Drivers.msquared.EMM(host, moduleName);
+            obj.singleton_id = singleton_id;
             Objects(end+1) = obj;
+        end
+        function opts = getLasers(host)
+            % Get all msquared.* module options
+            hw = hwserver(host);
+            opts = hw.get_modules(Drivers.msquared.EMM.moduleNamePrefix);
+            delete(hw);
         end
     end
      methods(Access=private)
-        function obj = EMM(ip)
-            obj.hwserver = hwserver(ip);
+        function obj = EMM(host, moduleName)
+            obj.moduleName = moduleName;
+            obj.hwserver = hwserver(host);
             obj.default_timeout = obj.hwserver.connection.Timeout;
             obj.hwserver.ping; % Make sure we are connected
         end

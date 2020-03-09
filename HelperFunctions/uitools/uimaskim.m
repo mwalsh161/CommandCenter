@@ -1,4 +1,4 @@
-function [im] = uimaskim(im,varargin)
+function [im,aborted,altered] = uimaskim(im,varargin)
 %UIMASKIM Interactively mask/crop regions of CC image
 %   im corresponds to the "info" property of Base.SmartImage
 %   This function will read the "ROI" field and alter the "image" field by
@@ -10,7 +10,9 @@ function [im] = uimaskim(im,varargin)
 %   Clicking exit (the "X"), will abort the masking and return the original
 %       image.
 
-f = figure('toolbar','none');
+aborted = true;
+altered = false;
+f = figure('toolbar','none','closerequest',@confirm_close);
 DRECT = [];
 draw_callback = [];
 if nargin == 2
@@ -45,7 +47,12 @@ imH.UIContextMenu = cm;
 f.UIContextMenu = cm;
 if ~isempty(draw_callback)
     hold(ax,'on');
-    draw_callback(ax);
+    try
+        draw_callback(ax);
+    catch err
+        delete(f);
+        rethrow(err);
+    end
     assert(isvalid(imH),'Original image to be modified was deleted.');
 end
 new_region();
@@ -55,10 +62,18 @@ if ~isvalid(f) % Catch any scenario user closes unexpectedly
     return % Aborts any masking already done
 end
 im.image = imH.CData;
+aborted = false;
 delete(f);
 
     % Update imH directly
     function finished(~,~)
+        if ~altered
+            resp = questdlg(['No changes have been made yet. Return original image?' newline,...
+                'Cancel to use context menu to continue editing image.'],'uimaskim: No Changes Detected','Yes','Cancel','Cancel');
+            if strcmp(resp,'Cancel')
+                return
+            end
+        end
         delete(DRECT);
         uiresume(f);
     end
@@ -66,10 +81,10 @@ delete(f);
         set(newR,'enable','off'); set(keep,'enable','on');
         title(ax,'Draw Rectangle');
         DRECT = drawrectangle(ax,'deletable',false,'rotatable',true);
-        if isvalid(ax) % In case user closes while drawing
+        if isvalid(f) % Catch any scenario user closes unexpectedly
             title(ax,'When ready, make selection in context menu (right click)');
+            uiwait(f);
         end
-        uiwait(f);
     end
     function keep_inside(~,~)
         mask = make_mask();
@@ -81,6 +96,12 @@ delete(f);
         imH.CData(mask) = NaN;
         clean_region();
     end
+    function confirm_close(~,~)
+        resp = questdlg('Abort image masking (original image will be returned)?','uimaskim: Abort','Yes','Cancel','Yes');
+        if strcmp(resp,'Yes')
+            delete(f);
+        end
+    end
 
     % Helpers
     function in_mask = make_mask(~,~)
@@ -91,6 +112,7 @@ delete(f);
         in_mask = reshape(in_mask,sz);
     end
     function clean_region
+        altered = true;
         delete(DRECT);
         set(newR,'enable','on'); set(keep,'enable','off');
         title(ax,'Make selection in context menu (right click)');

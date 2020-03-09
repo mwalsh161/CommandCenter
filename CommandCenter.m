@@ -1,7 +1,15 @@
 function varargout = CommandCenter(varargin)
-% CommandCenter debug -> will start with logger visible during launch
-% CommandCenter reset -> will remove all previously loaded modules before launching
-% Any combination of the above two will also work
+% CommandCenter
+% CommandCenter [flags]
+% CommandCenter([name,value])
+% CommandCenter([flag1],[name1,value1],[flag2],[name2,value2])
+% Flags (should be char vectors and order does not matter):
+%   debug: Sets logger to DEBUG and starts logger on startup.
+%   reset: Removes any previously loaded modules.
+% Name/Value Pairs (order of pairs does not matter). Default values in parentheses:
+%   namespace: ('') Prepend char vector to namespaces for debugging purposes.
+%
+% -> Note, order of name/value pairs and flags does not matter
 % -> Note `CommandCenter string1 string2` is equivalent to `CommandCenter('string1','string2')`
 %
 % COMMANDCENTER MATLAB code for CommandCenter.fig
@@ -114,16 +122,15 @@ try
             rethrow(err);
         end
     end
-    % Parse inputs
+    % Parse inputs flags
     assert(all(cellfun(@ischar,varargin)),'All inputs provided to CommandCenter must be strings')
     [debug,varargin] = parseInput(varargin,'debug');
     [reset,varargin] = parseInput(varargin,'reset');
+    p = inputParser();
+    p.addParameter('namespace','',@ischar);
+    p.parse(varargin{:}); % p.Results has 
     % Prepare state based on inputs
     loggerStartState = 'off';
-    if ~isempty(varargin)
-        error('Invalid argument(s) provided to CommandCenter upon launching:\n  %s',...
-            strjoin(varargin,'\n  '));
-    end
     debugLevel = Base.Logger.INFO;
     if debug
         loggerStartState = 'on';
@@ -136,9 +143,10 @@ try
             rmpref('Manager');
         end
     end
+    setappdata(hObject,'namespace_prefix',p.Results.namespace);
     
     % Update path
-    warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
+    warning('off','MATLAB:dispatcher:nameConflict');  % Overloaded methods
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
     end
@@ -178,6 +186,8 @@ try
     setappdata(hObject,'ALLmodules',{})
     setappdata(hObject,'logger',handles.logger)
     set(handles.file_logger,'checked',handles.logger.visible)
+    handles.logger.log(['Using namespace prefix: "',...
+        getappdata(hObject,'namespace_prefix') '"'],handles.logger.DEBUG)
     
     % Convert panels to scrollPanels
     set(textH,'String','Making Panels'); drawnow;

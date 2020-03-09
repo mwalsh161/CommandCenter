@@ -69,7 +69,7 @@ classdef dev < Modules.Driver
         init_error = true;                  % used to unload library if loaded
         load_error = true;                  % Prevent saving partially loaded lines
         init_warnings;                      % just informative
-        namespace
+        namespace_dev
     end
 
     properties(Constant,Hidden)
@@ -160,17 +160,17 @@ classdef dev < Modules.Driver
             end
             obj.SelfTest();
             obj.init_error = false;
-            obj.namespace = [strrep(mfilename('class'),'.','_') '_' DeviceChannel];
+            obj.namespace_dev = [obj.namespace '_' DeviceChannel];
             % Initialize lines from last time
-            if ispref(obj.namespace,'OutLines')
-                p = getpref(obj.namespace,'OutLines');
+            if ispref(obj.namespace_dev,'OutLines')
+                p = getpref(obj.namespace_dev,'OutLines');
                 for i = 1:numel(p)
                     line = p(i);
                     obj.addOutLine(line.line,line.name,line.limits,line.state);
                 end
             end
-            if ispref(obj.namespace,'InLines')
-                p = getpref(obj.namespace,'InLines');
+            if ispref(obj.namespace_dev,'InLines')
+                p = getpref(obj.namespace_dev,'InLines');
                 for i = 1:numel(p)
                     line = p(i);
                     obj.addInLine(line.line,line.name);
@@ -433,8 +433,8 @@ classdef dev < Modules.Driver
                     InLineStruct.name = InLineObj.name;
                     TempInLines(end+1) = InLineStruct;
                 end
-                setpref(obj.namespace,'OutLines',TempOutLines)
-                setpref(obj.namespace,'InLines',TempInLines)
+                setpref(obj.namespace_dev,'OutLines',TempOutLines)
+                setpref(obj.namespace_dev,'InLines',TempInLines)
             end
             if ~obj.init_error
                 % clear all tasks
