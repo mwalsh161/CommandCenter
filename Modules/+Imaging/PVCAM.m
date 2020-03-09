@@ -10,8 +10,9 @@ classdef PVCAM < Modules.Imaging
        % show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
-    properties
+    properties (Hidden)
         h_cam;
+        prefs = {'gain', 'speed', 'binning', 'exposure'};
     end
     properties(GetObservable,SetObservable)
         camera_name =   Prefs.String('', 'help_text', 'Name that PVCAM gives to the camera.', 'readonly', true);
@@ -20,7 +21,8 @@ classdef PVCAM < Modules.Imaging
         temp =          Prefs.Integer(0, 'units', 'deg C', 'help_text', 'Temp that the camera thinks it is at.', 'readonly', true);
 %         ROI = Prefs.DoubleArray([1,2;3,4], 'allow_nan', false, 'min', 0, 'set', 'testSet');
         
-        gain =          Prefs.Double(1, 'min', 1, 'max', 3, 'readonly', true); % Add better limits.
+        gain =          Prefs.Integer(1, 'min', 1, 'max', 3, 'set', 'set_gain'); % Add better limits.
+        speed =          Prefs.Integer(1, 'min', 0, 'max', 1, 'set', 'set_speed', 'help', 'Readout mode; 0 = fast, 1 = slow?'); % Add better limits.
         
         binning =       Prefs.Integer(1, 'units', 'pix', 'min', 1, 'max', 2, 'help_text', 'indexed from 0');   % This is camera-dependent...
         
@@ -33,8 +35,9 @@ classdef PVCAM < Modules.Imaging
 
     methods(Access=private)
         function obj = PVCAM()
-%             obj.loadPrefs;
-%             obj.h_cam
+            obj.loadPrefs;
+            obj.path = 'camera';
+            % obj.h_cam
             
             % not input, open camera and retreive some pvcam parameters, and return a ROI structure based on the parameters.
             % some parameters
@@ -48,20 +51,26 @@ classdef PVCAM < Modules.Imaging
             pvcam_para_value = {[],[],[],[],[],[],[]};
             pvcam_para_field = {'serdim','pardim','gain','speedns','timeunit','temp','readout'};
             pvcam_par = cell2struct(pvcam_para_value, pvcam_para_field, 2);
+            
+            pvcamclose(1);
+            
             % open camera
             obj.h_cam = pvcamopen(0);
 %             obj.h_cam
             if (isempty(obj.h_cam))
 %                  disp([datestr(datetime('now')) ':could not open camera']);
                 pvcamclose(1);
+                error();
             else
 %                 disp([datestr(datetime('now')) ':camera detected']);
             end
             
-            obj.camera_name = obj.h_cam;
+            obj.camera_name = num2str(obj.h_cam);
 
-            %pvcamsetvalue(h_cam, 'PARAM_SPDTAB_INDEX', 0); % set camera to max readout speed at 0, better biniration at 1
-            pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_INDEX', 3); % set camera to max gain 
+%             pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', 0); % set camera to max readout speed at 0, better biniration at 1
+%             pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', 1); % set camera to max readout speed at 0, better biniration at 1
+%             pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_INDEX', 3); % set camera to max gain 
+%             [pvcam_par.speed, ~, ~, speedrange] = pvcamgetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX');%Speed
             
 %    [VALUE, TYPE, ACCESS, RANGE] = PVCAMGETVALUE(HCAM, ID) returns the
 %    parameter TYPE, read/write ACCESS, and all acceptable parameter values
@@ -82,15 +91,9 @@ classdef PVCAM < Modules.Imaging
 %             gainrange
             obj.temp = pvcam_par.temp;
             
-            if contains(pvcam_par.timeunit, 'One Millisecond')
-                disp([datestr(datetime('now')) ':exposure in milliseconds']);
-            else
-                 disp([datestr(datetime('now')) ':NOT in milliseconds!']);
+            if ~contains(pvcam_par.timeunit, 'One Millisecond')
+                 warning([datestr(datetime('now')) ':NOT in milliseconds!']);
             end
-
-%             roi_name = {'s1','s2','sbin','p1','p2','pbin'};
-%             roi_value = {0, pvcam_par.serdim-1, 1, 0, pvcam_par.pardim-1, 1};
-%             roi_struct = cell2struct(roi_value, roi_name, 2);
 
             obj.resolution = [obj.width, obj.height];
             obj.ROI = [0, obj.width-1; 0, obj.height-1];
@@ -108,47 +111,55 @@ classdef PVCAM < Modules.Imaging
         end
     end
     methods
+        function val = set_gain(obj, val, ~)
+            if ~isempty(obj.h_cam)
+                pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_INDEX', val);
+            end
+        end
+        function val = set_speed(obj, val, ~)
+            if ~isempty(obj.h_cam)
+                pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', val);
+            end
+        end
+        
         function delete(obj)
             if (~isempty(obj.h_cam))
                 pvcamclose(1);
             end
         end
-%         function set.ROI(obj,val)
-%             % Update ROI without going outside maxROI
-%             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>
-%             val(1,2) = min(obj.maxROI(1,2),val(1,2));
-%             val(2,1) = max(obj.maxROI(2,1),val(2,1));
-%             val(2,2) = min(obj.maxROI(2,2),val(2,2));
-%             % Now make sure no cross over
-%             val(1,2) = max(val(1,1),val(1,2));
-%             val(2,2) = max(val(2,1),val(2,2));
-%             obj.ROI = val;
-%         end
+        
+        function set.ROI(obj,val)
+            % Update ROI without going outside maxROI
+            val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>
+            val(1,2) = min(obj.maxROI(1,2),val(1,2));
+            val(2,1) = max(obj.maxROI(2,1),val(2,1));
+            val(2,2) = min(obj.maxROI(2,2),val(2,2));
+            % Now make sure no cross over
+            val(1,2) = max(val(1,1),val(1,2));
+            val(2,2) = max(val(2,1),val(2,2));
+            obj.ROI = val;
+        end
         function focus(obj,ax,stageHandle)
         end
         function im = snapImage(obj)
             ni = 1; % Number of images.
             
             roi_name = {'s1','s2','sbin','p1','p2','pbin'};
-%             roi_value = {0, pvcam_par.serdim-1, 1, 0, pvcam_par.pardim-1, 1};
             roi_value = {0, obj.width-1, obj.binning, 0, obj.height-1, obj.binning};   % Zero indexed.
             roi_struct = cell2struct(roi_value, roi_name, 2);
             
-            image_stream = pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed');
+            image_stream = int16(pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed'));
 %             disp([datestr(datetime('now')) ' picture acquired']);
-        %     image = image_stream(41:end);
-            %meta  = image_stream(1:40);
+
             w = (roi_struct.s2 - roi_struct.s1+1)/roi_struct.sbin;
             h = (roi_struct.p2 - roi_struct.p1+1)/roi_struct.pbin;
             im = reshape(image_stream, [w, h, ni]);
-%             mean(mean(image))
         end
         function snap(obj,im,continuous)
             set(im,'cdata',obj.snapImage);
         end
         
         function startVideo(obj,im)
-%             error('NotImplemented')
             obj.continuous = true;
             while obj.continuous
                 obj.snap(im,true);
@@ -156,7 +167,6 @@ classdef PVCAM < Modules.Imaging
             end
         end
         function stopVideo(obj)
-%             error('NotImplemented')
             obj.continuous = false;
         end
 
