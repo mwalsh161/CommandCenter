@@ -56,8 +56,7 @@ classdef Experiment < Base.Module
             % Verify that method was not this one
             if ~strcmp(mfilename('class'), mmc.MethodList(mask).DefiningClass.Name)
                 fn = str2func([origin '.analyze']);
-                nout = abs(nargout(fn)); % abs will get all optional ones too
-                varargout = cell(1,nout);
+                varargout = cell(1,nargout);
                 try
                     [varargout{:}] = fn(data.data,varargin{:});
                     varargout = varargout(1:nargout); % Cut down to requested number from caller
