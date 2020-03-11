@@ -27,6 +27,7 @@
 
 // inclusions
 #include "pvcamutil.h"
+#include <time.h>
 
 
 // function prototypes
@@ -221,14 +222,37 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	}
 	
 	// loop until exposure sequence is complete
+    time_t base_ms = time(NULL); 
+
 	status = -1;
-	while ((status != READOUT_COMPLETE) && (status != READOUT_NOT_ACTIVE) && (status != READOUT_FAILED)) {
+	while ((status != READOUT_COMPLETE) && (status != READOUT_NOT_ACTIVE) && (status != READOUT_FAILED) && (time(NULL) - base_ms < 1000 + exposuretime/500)) {
 		if (!pl_exp_check_status(hcam, &status, &bytes_read)) {
 			pvcam_error(hcam, "Cannot check camera status during exposure");
 			mxDestroyArray(data_struct);
 			return(empty_struct);
 		}
 	}
+    
+    // determine how exposure sequence terminated
+    // return data structure if successful
+    char str[64];
+
+    switch (status) {
+    case READOUT_COMPLETE:
+        mxDestroyArray(empty_struct);
+        return(data_struct);
+        break;
+    case READOUT_NOT_ACTIVE:
+        pvcam_error(hcam, "Camera readout never started");
+        break;
+    case READOUT_FAILED:
+        pvcam_error(hcam, "Camera readout failed");
+        break;
+    default:
+        snprintf(str, 64, "Unknown camera readout termination: %i", status);
+        pvcam_error(hcam, str);
+        break;
+    }
     
     return(data_struct);
 	
@@ -264,24 +288,6 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	if(!pl_md_release_frame_struct(pFrame)){
 		pvcam_error(hcam, "meta not released properly");
 		return(empty_struct);
-	}
-	
-	// determine how exposure sequence terminated
-	// return data structure if successful
-	switch (status) {
-	case READOUT_COMPLETE:
-		mxDestroyArray(empty_struct);
-		return(data_struct);
-		break;
-	case READOUT_NOT_ACTIVE:
-		pvcam_error(hcam, "Camera readout never started");
-		break;
-	case READOUT_FAILED:
-		pvcam_error(hcam, "Camera readout failed");
-		break;
-	default:
-		pvcam_error(hcam, "Unknown camera readout termination");
-		break;
 	}
 	mxDestroyArray(data_struct);
 	return(empty_struct);

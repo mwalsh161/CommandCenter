@@ -7,7 +7,9 @@ function stitchedClosedDAQ(managers)
 %     C.arm()
 %     C.on()
     dwl = .01;
-    WL = 406.550:dwl:406.850;
+%     460.5
+%     WL = 406.500:dwl:406.900;
+    WL = 406.500:dwl:406.900;
     
     S = Sources.msquared.SolsTiS.instance;
     
@@ -18,7 +20,7 @@ function stitchedClosedDAQ(managers)
         pause(.5)
         S.GetPercent
         
-        while abs(S.GetPercent - 50) > 5
+        while abs(S.GetPercent - 50) > 3
             S.TuneSetpoint(wl + 2*dwl);
             S.TuneSetpoint(wl + (rand-.5)*dwl/40);
             pause(.5)

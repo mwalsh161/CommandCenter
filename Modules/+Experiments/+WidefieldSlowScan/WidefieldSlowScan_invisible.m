@@ -51,6 +51,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 obj.meta.vars(i).name = obj.vars{i};
                 obj.meta.vars(i).vals = obj.(obj.vars{i});
             end
+            obj.meta.power = obj.repumpLaser.CW_power;
             obj.meta.position = managers.Stages.position; % Stage position
 
             try
