@@ -22,7 +22,8 @@ log_formatter = logging.Formatter('[%(asctime)s] %(levelname)-7.7s: %(message)s'
 try:
     rot_handler = RotatingFileHandler(logFile,maxBytes=100*1024,backupCount=5)
 except IOError:
-    with open(logFile,'w'):
+    os.mkdir(PATH)
+    with open(logFile,'w')	:
         pass
     rot_handler = RotatingFileHandler(logFile,maxBytes=100*1024,backupCount=5)
 
