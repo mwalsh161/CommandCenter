@@ -19,7 +19,13 @@ PATH = 'C:\\SpinCore\\PulseBlaster Server'
 logFile = os.path.join(PATH,'PBserver.log')
 log_formatter = logging.Formatter('[%(asctime)s] %(levelname)-7.7s: %(message)s')
 # Log to rotating file
-rot_handler = RotatingFileHandler(logFile,maxBytes=100*1024,backupCount=5)
+try:
+    rot_handler = RotatingFileHandler(logFile,maxBytes=100*1024,backupCount=5)
+except IOError:
+    with open(logFile,'w'):
+        pass
+    rot_handler = RotatingFileHandler(logFile,maxBytes=100*1024,backupCount=5)
+
 rot_handler.setFormatter(log_formatter)
 
 logger = logging.getLogger()
