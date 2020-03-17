@@ -66,7 +66,8 @@ classdef Cobolt_PB < Modules.Source
         
         function val = set_power(obj, val, ~)
             if obj.isConnected && ~isnan(val)
-                errorIfNotOK(obj.serial.com('Cobolt', 'p', val/1e3));  % Convert mW -> W
+%                 errorIfNotOK(obj.serial.com('Cobolt', 'p', val/1e3));  % Convert mW -> W
+                errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % mW
             else
                 val = NaN;
             end
@@ -75,9 +76,10 @@ classdef Cobolt_PB < Modules.Source
             if obj.isConnected()
                 if val
                     errorIfNotOK(obj.serial.com('Cobolt', '@cobas', 0));    % No autostart
-                    errorIfNotOK(obj.serial.com('Cobolt', 'l1'));           % Laser On
-                    errorIfNotOK(obj.serial.com('Cobolt', 'cp'));           % Constant Power
-%                     errorIfNotOK(obj.serial.com('Cobolt', 'eoom'));         % Enter Modulation Mode
+%                     errorIfNotOK(obj.serial.com('Cobolt', 'l1'));           % Laser On
+%                     errorIfNotOK(obj.serial.com('Cobolt', 'cp'));           % Constant Power
+                    errorIfNotOK(obj.serial.com('Cobolt', 'em'));           % Enter Modulation Mode
+                    errorIfNotOK(obj.serial.com('Cobolt', 'l1'));
                 else
                     errorIfNotOK(obj.serial.com('Cobolt', 'l0'));           % Laser off
                 end
@@ -161,16 +163,16 @@ classdef Cobolt_PB < Modules.Source
         end
         
         function on(obj)
-            obj.diode_on = true;
-%             assert(~isempty(obj.PulseBlaster), 'No IP set!')
-%             obj.PulseBlaster.lines(obj.PB_line) = true;
+%             obj.diode_on = true;
+            assert(~isempty(obj.PulseBlaster), 'No IP set!')
+            obj.PulseBlaster.lines(obj.PB_line) = true;
             obj.source_on = true; 
         end
         function off(obj)
-            obj.diode_on = false;
-%             assert(~isempty(obj.PulseBlaster), 'No IP set!')
+%             obj.diode_on = false;
+            assert(~isempty(obj.PulseBlaster), 'No IP set!')
             obj.source_on = false;
-%             obj.PulseBlaster.lines(obj.PB_line) = false;
+            obj.PulseBlaster.lines(obj.PB_line) = false;
         end
         
         function isRunning(obj,varargin)

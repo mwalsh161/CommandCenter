@@ -9,8 +9,11 @@ function stitchedClosedDAQ(managers)
     dwl = .01;
 %     460.5
 %     WL = 406.500:dwl:406.900;
-    WL = 406.500:dwl:406.900;
-    
+%     WL = 406.710:dwl:406.900;
+%     WL = [406.740:dwl:406.900 406.500:dwl:406.710];
+    WL = 406.7;
+
+
     S = Sources.msquared.SolsTiS.instance;
     
     for wl = WL
