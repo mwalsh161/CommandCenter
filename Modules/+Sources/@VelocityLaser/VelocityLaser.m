@@ -67,7 +67,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         TuneSetpointNPoints =   Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
     end
     properties(Constant)
-        wheel_choices = {'OD0', 'OD.5', 'OD1', 'OD2.5'};
+        wheel_choices = {'OD.5', 'OD1', 'OD0', 'OD2'};
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
