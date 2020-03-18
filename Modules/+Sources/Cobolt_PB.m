@@ -172,12 +172,12 @@ classdef Cobolt_PB < Modules.Source
         end
         
         function on(obj)
-            assert(~isempty(obj.PulseBlaster), 'No IP set!')
+            assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.PulseBlaster.lines(obj.PB_line) = true;
             obj.source_on = true; 
         end
         function off(obj)
-            assert(~isempty(obj.PulseBlaster), 'No IP set!')
+            assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.source_on = false;
             obj.PulseBlaster.lines(obj.PB_line) = false;
         end
