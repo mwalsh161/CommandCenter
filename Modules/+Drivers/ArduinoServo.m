@@ -44,13 +44,7 @@ classdef ArduinoServo < Modules.Driver
             obj.pin = pin;
         end
         function response = com(obj,funcname,varargin) %keep this
-            if obj.debug
-                fprintf('--> %s %s',funcname,jsonencode(varargin));
-            end
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
-            if obj.debug
-                fprintf('  <-- %s',jsonencode(response));
-            end
         end
     end
     methods
@@ -58,7 +52,7 @@ classdef ArduinoServo < Modules.Driver
             delete(obj.connection)
         end
         function val = set_angle(obj,val,~)
-            obj.com(['s ' num2str(obj.pin) ' ' num2str(obj.val)]);
+            obj.com(['s ' num2str(obj.pin) ' ' num2str(val)]);
         end
         function lock(obj)
             obj.com(['l ' num2str(obj.pin)]);

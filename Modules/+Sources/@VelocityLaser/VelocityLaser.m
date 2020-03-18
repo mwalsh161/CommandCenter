@@ -20,9 +20,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
 
     properties
         prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel',...
-                 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
+                 'wheel_ip', 'wheel_pin', 'wheel_pos', 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
         show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip',...
-            'velocity_ip','wavemeter_channel','wavemeter_ip','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
+            'velocity_ip','wavemeter_ip','wavemeter_channel','wheel_ip', 'wheel_pin', 'wheel_pos', 'TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
         cal_local = struct('THz2nm',[],'gof',[],'datetime',[],'expired',{}); %calibration data for going from nm to THz
@@ -53,9 +53,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_ip =          Prefs.String('No Server','set','set_wavemeter_ip','help','IP/hostname of computer with hwserver for wavemeter');
         wavemeter_channel =     Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
         
-        wheel_ip =              Prefs.String('No Server','set','set_wheel_ip','help','IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
-        wheel_pin =             Prefs.Integer(2,'min',2,'max',13,'allow_nan',false,'set','set_wheel_pin','help','Pin on the Arduino corresponding to the filter wheel servo.');
-        wheel_pos =             Prefs.MultipleChoice('OD0',{'OD0', 'OD.5', 'OD1', 'OD2.5'},'allow_nan',false,'set','set_wheel_pos','help','Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
+        wheel_ip =              Prefs.String('No Server', 'set','set_wheel_ip', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
+        wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
+        wheel_pos =             Prefs.MultipleChoice('OD0', 'choices', Sources.VelocityLaser.wheel_choices, 'allow_empty', false, 'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
         
         diode_on =              Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
         
@@ -65,6 +65,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         
         TuneSetpointAttempts =  Prefs.Integer(3,'min',1,'allow_nan',false);
         TuneSetpointNPoints =   Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
+    end
+    properties(Constant)
+        wheel_choices = {'OD0', 'OD.5', 'OD1', 'OD2.5'};
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
@@ -247,15 +250,17 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         function val = set_wheel_pos(obj,val,~)
-            meta = obj.get_meta_pref(obj.wheel_pos);
-            
-            mask = cellfun(@(str)(strcmp(str, val)), meta.choices);
-            x = 1:length(mask);
-            index = x(mask);
-            
-            assert(length(index) == 1);
-            
-            obj.wheel.angle = 60 * index;
+            if ~isempty(obj.wheel)
+    %             meta = obj.get_meta_pref('wheel_pos');
+
+                mask = cellfun(@(str)(strcmp(str, val)), obj.wheel_choices);
+                x = 1:length(mask);
+                index = x(mask);
+
+                assert(length(index) == 1);
+
+                obj.wheel.angle = 60 * (index-1);
+            end
         end
         
         function val = set_diode_on(obj,val,~)
