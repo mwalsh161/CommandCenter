@@ -55,11 +55,9 @@ classdef Cobolt_PB < Modules.Source
         
         function arm(obj)
             obj.diode_on = true;
-            obj.armed = true;
         end
         function blackout(obj)
             obj.diode_on = false;
-            obj.armed = false;
         end
         
         function delete(obj)
