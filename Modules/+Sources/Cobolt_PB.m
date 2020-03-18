@@ -47,21 +47,24 @@ classdef Cobolt_PB < Modules.Source
             try % If PB or line is incorrect, just eat that error
                 obj.off;
                 obj.blackout;
-                task = 'Turned PB line off';
+                task = 'Turned diode off';
             catch
-                task = 'Attempted to turn PB line off; FAILED';
+                task = 'Attempted to turn diode off; FAILED';
             end
         end
         
         function arm(obj)
             obj.diode_on = true;
+            obj.armed = true;
         end
         function blackout(obj)
             obj.diode_on = false;
+            obj.armed = false;
         end
         
         function delete(obj)
             delete(obj.listeners)
+            delete(obj.serial)
         end
         
         function val = set_power(obj, val, ~)
@@ -138,6 +141,8 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         function val = set_cobolt_host(obj,val,~) %this loads the hwserver driver
+            delete(obj.serial);
+            
             if strcmp('No Server', val)
                 obj.serial = [];
                 obj.diode_on = false;
