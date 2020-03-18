@@ -3,7 +3,7 @@ classdef Cobolt_PB < Modules.Source
     
     properties(SetObservable, GetObservable)
         cobolt_host =   Prefs.String('No Server', 'set', 'set_cobolt_host', 'help', 'IP/hostname of computer with hwserver for velocity laser');
-        CW_power =      Prefs.Double(NaN, 'set', 'set_power', 'min', 0, 'unit', 'mW');
+        power =         Prefs.Double(NaN, 'set', 'set_power', 'min', 0, 'unit', 'mW');
         diode_on =      Prefs.Boolean(false, 'set', 'set_diode_on', 'help', 'Power state of diode (on/off)');
         
         diode_sn =      Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'help', 'Serial number for the diode');
@@ -14,8 +14,8 @@ classdef Cobolt_PB < Modules.Source
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
         PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
         
-        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'CW_power', 'diode_on'};
-        show_prefs =    {'PB_host', 'PB_line', 'PB_running', 'cobolt_host', 'CW_power', 'diode_on', 'temperature', 'diode_age', 'diode_sn'};
+        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
+        show_prefs =    {'PB_host', 'PB_line', 'PB_running', 'cobolt_host', 'power', 'diode_on', 'temperature', 'diode_age', 'diode_sn'};
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
@@ -86,6 +86,9 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
+        function val = get_power(obj, ~)
+            val = obj.serial.com('Cobolt', 'glmp?');    % Get laser modulation power (mW)
+        end
         function val = get_temperature(obj, ~)
             val = obj.com('rbpt?');
         end
@@ -110,7 +113,12 @@ classdef Cobolt_PB < Modules.Source
             tf = ~strcmp('No Server', obj.cobolt_host) && strcmp('OK', obj.serial.com('Cobolt', '?'));
             
             if ~tf
-                obj.set_cobolt_host(obj,'No Server')
+                if strcmp('No Server', obj.cobolt_host)
+                    error('Host not set!');
+                end
+                host = obj.cobolt_host;
+                obj.set_cobolt_host(obj,'No Server');
+                error(['Cobolt not found at host "' host '"!']);
             end
         end
         
@@ -153,6 +161,7 @@ classdef Cobolt_PB < Modules.Source
                 obj.temperature = obj.get_temperature();
                 obj.diode_sn = obj.get_diode_sn();
                 obj.diode_age = obj.get_diode_age();
+                obj.power = obj.get_power();
             catch err
                 obj.serial = [];
                 val = 'No Server';
