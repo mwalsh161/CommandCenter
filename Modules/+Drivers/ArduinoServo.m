@@ -1,7 +1,7 @@
 classdef ArduinoServo < Modules.Driver
     %ARDUINOSERVO Connects with a hwserver Arduino and uses one pin to control a servo.
     %
-    % Call with the 1) IP of the host computer (singleton based on ip), and 2) the (integer) pin.
+    % Call with the 1) hostname of the host computer (singleton based on host), and 2) the (integer) pin.
     
     properties (Constant)
         hwname = 'Arduino';
@@ -14,33 +14,28 @@ classdef ArduinoServo < Modules.Driver
         angle = Prefs.Double(NaN, 'min', 0, 'max', 180, 'set', 'set_angle', 'allow_nan', true);
     end
     methods(Static)
-        function obj = instance(ip, pin)
+        function obj = instance(host, pin)
             mlock;
-            pin = round(pin);
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.ArduinoServo.empty(1,0);
             end
-            [~,resolvedIP] = resolvehost(ip);
+            [~,resolvedIP] = resolvehost(host);
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal(resolvedIP, {Objects(i).singleton_id, pin})
+                if isvalid(Objects(i)) && isequal({resolvedIP, pin}, Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
-            obj = Drivers.ArduinoServo(ip, pin);
+            obj = Drivers.ArduinoServo(resolvedIP, pin);
             obj.singleton_id = {resolvedIP, pin};
             Objects(end+1) = obj;
         end
     end
     methods(Access=private)
-        function obj = ArduinoServo(ip, pin)
-            obj.connection = hwserver(ip);
-            try % Init laser
-                obj.com('?')
-            catch err
-                error(err.message);
-            end
+        function obj = ArduinoServo(host, pin)
+            obj.connection = hwserver(host);
+            obj.com('?');
             obj.pin = pin;
         end
         function response = com(obj,funcname,varargin) %keep this
@@ -51,13 +46,13 @@ classdef ArduinoServo < Modules.Driver
         function delete(obj)
             delete(obj.connection)
         end
-        function val = set_angle(obj,val,~)
+        function val = set_angle(obj,val,~)     % Locks to new angle (0 -> 180 standard), then unlocks.
             obj.com(['s ' num2str(obj.pin) ' ' num2str(val)]);
         end
-        function lock(obj)
+        function lock(obj)                      % Tells the arduino to get the servo to apply electronic feedback against any force. Without the lock, the servo can spin ~freely by hand. With the lock, this is more difficult. Only works for one pin at a time at the moment.
             obj.com(['l ' num2str(obj.pin)]);
         end
-        function unlock(obj)
+        function unlock(obj)                    % Unlocks any locked pin.
             obj.com('u');
         end
     end
