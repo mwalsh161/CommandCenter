@@ -1,5 +1,14 @@
-function code = uibuild()
-% Biggest limitation now is no horizontal scrollbar
+function [code,f] = uibuild(block,varargin)
+% Module.uibuild creates a UI to help you build a module instance and
+% optionally look through its methods
+% INPUTS:
+%   (block): default false. Calls uiblock until window is closed. At that
+%       point, the code generated is returned as a char vector.
+%   All additional inputs are piped to the figure as name/value pairs.
+% OUTPUTS:
+%   code: if block=true, this will return all the code generated.
+%       Otherwise, it will be an empty char vector.
+%   f: figure handle. This will be deleted if block=true.
 
 persistent root % Cache once calculated
 if isempty(root)
@@ -7,15 +16,38 @@ if isempty(root)
     root = fullfile(root,'Modules');
 end
 
-%%% TO DO - make it grab same window without destroying "Singleton"
-%%% behavior"
-f = UseFigure('Base.Module.uibuild','numbertitle','off','name','Build Module Code',...
+if nargin < 1
+    block = false;
+end
+
+[f] = UseFigure('Base.Module.uibuild','numbertitle','off','name','Build Module Code',...
     'toolbar','none','menubar','none','units','char','handlevisibility','off',true);
+if ~isempty(varargin)
+    set(f,varargin{:});
+end
 % globals to be used once module has been built (for method creation)
+code = '';
 MODULE = '';
 MODULEVAR = '';
+METHODVAR = '';
+METHODNAME = '';
 MODULEMC = []; % metaclass
 ht = 4;
+line_ht = 2;
+
+% Setup action buttons for copying/sending. Enable once "code" ready in `done`
+hAction = ui(ht + 2*line_ht,'pushbutton','Copy',@(~,~)copyCode(),f);
+hAction.Position([1 4]) = [5 line_ht];
+hAction.Position(3) = hAction.Position(3) + 5;
+
+hAction(2) = ui(hAction(1),'pushbutton','Eval',@(~,~)evalCode());
+hAction(2).Position([1 3]) = hAction(2).Position([1 3]) + 5;
+hAction(2).Position(4) = line_ht;
+
+hAction(3) = ui(hAction(2),'pushbutton','Put in Active Editor',@(~,~)putCode());
+hAction(3).Position([1 3]) = hAction(3).Position([1 3]) + 5;
+hAction(3).Position(4) = line_ht;
+set(hAction,'enable','off')
 
 static(1) = ui(ht,'text','>> ',[],f);
 varnameH = ui(static(1),'edit','my_mod',@verify_varname);
@@ -31,8 +63,12 @@ end
 packageH(1) = ui(static(2),'popup',packages,@next,...
     'UserData',struct('ind',1,'dependent',gobjects(0)));
 
-f.Position(4) = sum(packageH(1).Position([2,4])) + 2;
+f.Position(4) = sum(packageH(1).Position([2,4])) + line_ht*3;
 uicontrol(varnameH);
+
+if block
+    uiwait(f);
+end
 
 % Nested Helper functions:
     %% This block is for module construction
@@ -101,9 +137,9 @@ uicontrol(varnameH);
             return
         end
         % Convert inputs to strings
-        input_strs = cell(1,length(h.UserData));
-        for i = 1:length(h.UserData)
-            input_strs{i} = h.UserData(i).String;
+        input_strs = cell(1,length(h.UserData.inputs));
+        for i = 1:length(h.UserData.inputs)
+            input_strs{i} = h.UserData.inputs(i).String;
         end
         % Walk back through and build code
         n = length(packageH);
@@ -112,22 +148,22 @@ uicontrol(varnameH);
             MODULE{i} = packageH(i).String{packageH(i).Value};
         end
         MODULE = strrep(strjoin(MODULE,'.'),'+','');
-        code = [MODULEVAR ' = ' MODULE '.instance(' strjoin(input_strs,', ') ')'];
+        code = [MODULEVAR ' = ' MODULE '.instance(' strjoin(input_strs,', ') ');'];
+        set(hAction,'enable','on');
         
         % Clean up everything but the carrot (static(1))
         for i = 1:length(packageH)
             delete(packageH(i).UserData.dependent);
             delete(packageH(i));
         end
-        delete(varnameH);
-        delete(static(2)); % equals sign
+        delete([varnameH, static(2)]); % equals sign
         
         h = ui(static(1),'text',code,[]);
-        ui(h,'pushbutton','Add method call',@addMethod);
+        addMethod(h);
     end
     %% Previous callbacks no longer relevant once we get here
     function addMethod(h,~) % Make new line and use methodNext callbacks
-        ht = h.Position(2) - 2;
+        ht = h.Position(2) - line_ht;
         static(1) = ui(ht,'text','>> ',[],f);
         varnameH = ui(static(1),'edit','dat_out',@verify_varname);
         static(2) = ui(varnameH,'text',[' = ' MODULEVAR '.'],[]);
@@ -152,7 +188,6 @@ uicontrol(varnameH);
         fn = ui(static(2),'popup', finalList,@methodNext,'UserData',struct('dependent',gobjects(0)));
         % Extend figure
         f.Position(4) = f.Position(4) + fn.Position(4);
-        delete(h);
     end
     function methodNext(target,~)
         val = target.String{target.Value};
@@ -162,17 +197,83 @@ uicontrol(varnameH);
         delete(temp);
         if target.Value==1; return; end % Empty choice; nothing else to do
         
+        % method names are described in the dropdown with their defining
+        % class (separated by "."). We don't need that for the actual code.
+        val = split(val,'.');
+        METHODNAME = val{end};
+        
         % Clean up dependent
         delete(target.UserData.dependent);
         
         % Get input names
-        InputNames = {'test'};
+        methodMC = MODULEMC.MethodList(ismember({MODULEMC.MethodList.Name},METHODNAME));
+        InputNames = methodMC.InputNames(...
+            ~cellfun(@(a)isempty(a)||strcmp(a,'~'),methodMC.InputNames)...
+            );
+        if ~methodMC.Static % Remove obj
+            InputNames = InputNames(2:end);
+        end
         
         h = makeInputs(target,InputNames,@methodDone);
-        target.UserData.dependent = h; % Make sure they will get cleaned up
+        % The last thing on h is the check box "finished" option
+        h(end).UserData.dependent = [h target]; % Make sure they will get cleaned up `methodDone`
+        target.UserData.dependent = h; % Make sure they will get cleaned up in `methodNext`
     end
     function methodDone(h,~)
+        % Make sure varname is all good
+        METHODVAR = varnameH.String;
+        if ~isvarname(METHODVAR)
+            errordlg(sprintf('"%s" is not a valid MATLAB variable name.',METHODVAR),'Fix variable name!')
+            return
+        end
+        % Convert inputs to strings
+        input_strs = cell(1,length(h.UserData.inputs));
+        for i = 1:length(h.UserData.inputs)
+            input_strs{i} = h.UserData(i).inputs.String;
+        end
+        % build code
+        codeln = [METHODVAR ' = ' MODULEVAR '.' METHODNAME '(' strjoin(input_strs,', ') ');'];
+        code = [code newline codeln];
         
+        % Clean up everything but the carrot (static(1))
+        
+        delete([h.UserData.dependent, ...
+                h.UserData.inputs, ...
+                varnameH, ...
+                static(2)]); % equals sign and module variable name
+        
+        ui(static(1),'text',codeln,[]);
+    end
+    %% Actions
+    function copyCode()
+        if isempty(code); return; end
+        clipboard('copy',code);
+    end
+    function evalCode()
+        if isempty(code); return; end
+        protected = {MODULEVAR, METHODVAR};
+        for i = 1:length(protected)
+            if ~isempty(protected{i}) && evalin('base',sprintf('exist(''%s'',''var'')',protected{i}))
+                resp = questdlg(sprintf('"%s" exists in base workspace. Overwrite it?',protected{i}),...
+                    'Module.uibuild','Overwrite','Cancel','Overwrite');
+                if strcmp(resp,'Cancel'); return; end
+            end
+        end
+        try
+            evalin('base',code);
+        catch err
+            errordlg(err.message,err.identifier)
+        end
+    end
+    function putCode()
+        if isempty(code); return; end
+        editor = matlab.desktop.editor.getActive;
+        cursor = editor.Selection; % line, col at end of selection
+        if ~isequal(cursor(1:2),cursor(3:4))
+            warning('MODULE:UIBUILD:selected_text','Ignoring active selection (highlighted text), and placing code after selection.');
+        end
+        % Note this won't delete any selected text first
+        editor.insertTextAtPositionInLine(code,cursor(3),cursor(4));
     end
 end
 
@@ -203,7 +304,7 @@ end
 h(end+1) = ui(h(end),'text',')',[]);
 
 h(end+1) = ui(h(end),'pushbutton','<HTML>&#10004;</HTML>',doneCallback,...
-    'foregroundcolor',[0 0.7 0],'UserData',inputs);
+    'foregroundcolor',[0 0.7 0],'UserData',struct('inputs',inputs));
 h(end).Position(3) = 5;
 
 % Make first input active

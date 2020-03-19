@@ -31,8 +31,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     end
 
     methods(Static)
-        code = uibuild();
-        [code,f] = uicode(dst);
+        [code,f] = uibuild(block,varargin)
     end
     methods(Sealed)
         function obj = Module
