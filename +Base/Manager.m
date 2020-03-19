@@ -124,13 +124,23 @@ classdef Manager < handle
         function savePrefs(obj)
             for i = 1:numel(obj.prefs)
                 try
-                    eval(sprintf('setpref(obj.namespace,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));
+                    setpref(obj.namespace,obj.prefs{i},obj.(obj.prefs{i}));
                 catch err
                     warning('MANAGER:save_prefs','%s',err.message)
                 end
             end
+            % Save loaded modules as strings
+            module_strs = obj.get_modules_str;
+            setpref(obj.namespace,'loaded_modules',module_strs)
         end
         function loadPrefs(obj)
+            % Load modules
+            if ispref(obj.namespace,'loaded_modules')
+                class_strs = getpref(obj.namespace,'loaded_modules');
+                obj.modules = obj.load_module_str(class_strs);
+            else
+                obj.modules = {};
+            end
             % Load prefs
             for i = 1:numel(obj.prefs)
                 if ispref(obj.namespace,obj.prefs{i})
@@ -419,7 +429,8 @@ classdef Manager < handle
         function obj = Manager(type,handles,panelHandle,popupHandle)
             obj.type = type;
             obj.handles = handles;
-            obj.namespace = strrep(class(obj),'.','_');
+            pre = getappdata(handles.figure1,'namespace_prefix');
+            obj.namespace = [pre strrep(class(obj),'.','_')];
             if nargin < 3 % "simple" manager
                 obj.log('%s %s Initialized (simple)',obj.type,mfilename)
                 return
@@ -446,25 +457,11 @@ classdef Manager < handle
             obj.log('%s %s Initialized',obj.type,mfilename)
             addlistener(obj,'modules','PostSet',@obj.master_modules_changed);
             addlistener(obj,'active_module','PostSet',@obj.master_active_module_changed);
-            if ispref(mfilename,type)
-                class_strs = getpref(mfilename,type);
-                obj.modules = obj.load_module_str(class_strs);
-            else
-                obj.modules = {};
-            end
         end
         % Destructor
         function delete(obj)
             obj.savePrefs;
-            % Save loaded
-            module_strs = obj.get_modules_str;
-            if isempty(module_strs)
-                if ispref(mfilename,obj.type)
-                    rmpref(mfilename,obj.type)
-                end
-            else
-                setpref(mfilename,obj.type,module_strs)
-            end
+            % Delete loaded module handles
             modulesTemp = obj.modules;
             for i = 1:numel(modulesTemp)
                 if ~isempty(modulesTemp{i})&&isobject(modulesTemp{i})&&isvalid(modulesTemp{i})

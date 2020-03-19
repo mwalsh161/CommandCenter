@@ -243,14 +243,13 @@ end
     end
     function save_data(varargin)
         save_state();
-        pref = [strrep(mfilename('class'),'.','_') '_analyze'];
         last = '';
-        if ispref(pref,'last_save')
-            last = getpref(pref,'last_save');
+        if ispref(obj.namespace,'last_save')
+            last = getpref(obj.namespace,'last_save');
         end
         [file,path] = uiputfile('*.mat','Save Analysis',last);
         if ~isequal(file,0)
-            setpref(pref,'last_save',path);
+            setpref(obj.namespace,'last_save',path);
             [~,~,ext] = fileparts(file);
             if isempty(ext) % Add extension if not specified
                 file = [file '.mat'];

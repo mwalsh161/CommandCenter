@@ -9,8 +9,10 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
     %   If there is a Constant property "visible" and it is set to false,
     %   this will prevent CommandCenter from displaying it.
     
-    properties(Access=private)
+    properties(SetAccess=private,Hidden)
         namespace                   % Namespace for saving prefs
+    end
+    properties(Access=private)
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         StructOnObject_state = 'on';% To restore after deleting
     end
@@ -36,14 +38,15 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function obj = Module
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
-            % First get namespace
-            obj.namespace = strrep(class(obj),'.','_');
-            % Second, add to global appdata if app is available
             hObject = findall(0,'name','CommandCenter');
             if isempty(hObject)
+                pre = '';
                 obj.logger = Base.Logger_console();
-                return
+            else
+                pre = getappdata(hObject,'namespace_prefix');
             end
+            obj.namespace = [pre strrep(class(obj),'.','_')];
+            if isempty(hObject); return; end
             mods = getappdata(hObject,'ALLmodules');
             obj.logger = getappdata(hObject,'logger');
             mods{end+1} = obj;
