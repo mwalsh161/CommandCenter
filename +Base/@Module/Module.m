@@ -30,6 +30,9 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
 
+    methods(Static)
+        [code,f] = uibuild(block,varargin)
+    end
     methods(Sealed)
         function obj = Module
             warnStruct = warning('off','MATLAB:structOnObject');
