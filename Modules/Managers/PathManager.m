@@ -57,7 +57,11 @@ classdef PathManager < Base.Manager
     methods
         function obj = PathManager(handles)
             obj = obj@Base.Manager('Paths',handles); % "Simple" manager
-            obj.temp_file = fullfile(fileparts(mfilename('fullpath')),'temp','transition.m');
+            base = fileparts(mfilename('fullpath'));
+            obj.temp_file = fullfile(base,'temp','PathTransition.m');
+            if ~isfolder(fullfile(base,'temp'))
+                mkdir(base,'temp');
+            end
             obj.prefs = [obj.prefs {'paths'}];
             % Grab all classes in Modules package
             [~,obj.module_types,~] = Base.GetClasses('+Modules');
@@ -211,15 +215,23 @@ classdef PathManager < Base.Manager
         function update_view(obj,hObj,~)
             % hObj -> left panel
             val = hObj.Value;
-            if obj.paths(val).alias
-                hObj.UserData.right.String = {'alias',sprintf('---> %s',obj.paths(val).instructions)};
+            if val > 0
+                if obj.paths(val).alias
+                    hObj.UserData.right.String = {'alias',sprintf('---> %s',obj.paths(val).instructions)};
+                else
+                    hObj.UserData.right.String = strsplit(obj.paths(val).instructions,newline);
+                end
             else
-                hObj.UserData.right.String = strsplit(obj.paths(val).instructions,newline);
+                hObj.UserData.right.String = '';
             end
         end
         function delete_path_view_path_CB(obj,~,~,left)
             path = obj.paths(left.Value).name;
             obj.remove_path(path);
+            if isempty(obj.paths)
+                delete(left.Parent); % Close figure (no more paths to view)
+                return
+            end
             left.String = {obj.paths.name};
             left.Value = min(length(obj.paths),left.Value); % Keep in bounds
             obj.update_view(left);
@@ -277,16 +289,18 @@ classdef PathManager < Base.Manager
             if ~isempty(varargin)&&ischar(varargin{1})
                 default_name = varargin{1};
             end
-            default_code = '';
+            code = '';
             lock_name = false;
             while true
                 % Prepare code for path
                 pre = ['% Write the relevant code to transition to relevant path.' newline,...
                        '% The function name will become the path name.', newline,...
-                       '%     You can use CommandCenter''s "**" menu to help with modules' newline];
-                [code,name] = uigetcode(obj.temp_file,default_name,pre,'',default_code,~lock_name);
-                if strcmp(name,'PATH_NAME')
-                    resp = questdlg('Did you mean to keep the "PATH_NAME" default name?','Yes','No','No');
+                       '%     You can use CommandCenter''s File->"Build Module UI" tool to help' newline];
+                [code,name] = uigetcode(obj.temp_file,default_name,pre,'',code,~lock_name);
+                if isempty(code) && strcmp(name,'PATH_NAME') % Silenty fail
+                    return
+                elseif strcmp(name,'PATH_NAME')
+                    resp = questdlg('Did you mean to keep the "PATH_NAME" default name?',mfilename,'Yes','No','No');
                     if strcmp(resp,'Yes')
                         break
                     end
