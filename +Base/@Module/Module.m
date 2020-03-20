@@ -32,20 +32,29 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
 
     methods(Static)
         [code,f] = uibuild(block,varargin)
-    end
-    methods(Sealed)
-        function obj = Module
-            warnStruct = warning('off','MATLAB:structOnObject');
-            obj.StructOnObject_state = warnStruct.state;
+        function namespace = get_namespace 
+            d = dbstack(1); %need to parse input and pass to namespace below 
+            e = Modules.Experiment.YouGotThisFar; %%REMOVE%% 
             hObject = findall(0,'name','CommandCenter');
             if isempty(hObject)
                 pre = '';
-                obj.logger = Base.Logger_console();
             else
                 pre = getappdata(hObject,'namespace_prefix');
             end
-            obj.namespace = [pre strrep(class(obj),'.','_')];
-            if isempty(hObject); return; end
+            namespace = [pre strrep(e,'.','_')];
+        end 
+    end
+    methods
+        function obj = Module 
+            warnStruct = warning('off','MATLAB:structOnObject');
+            obj.StructOnObject_state = warnStruct.state;
+            
+            obj.namespace = get_namespace; %set the namespace to value from static func
+            
+            if isempty(hObject) 
+                obj.logger = Base.Logger_console();
+                return; 
+            end
             mods = getappdata(hObject,'ALLmodules');
             obj.logger = getappdata(hObject,'logger');
             mods{end+1} = obj;
@@ -101,6 +110,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % *************************[END LEGACY]*****************************
             % ******************************************************************
         end
+    end 
+    methods(Sealed)
         function module_clean(obj,hObj,prop)
             to_remove = false(size(obj.(prop)));
             for i = 1:length(obj.(prop)) % Heterogeneous list; cant do in one line
@@ -456,4 +467,3 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         end
     end
 end
-

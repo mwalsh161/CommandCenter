@@ -259,12 +259,12 @@ end
     function save_data(varargin)
         save_state();
         last = '';
-        if ispref(obj.namespace,'last_save')
-            last = getpref(obj.namespace,'last_save');
+        if ispref(namespace,'last_save') %namespace is returned by static method get_namespace
+            last = getpref(namespace,'last_save'); 
         end
         [file,path] = uiputfile('*.mat','Save Analysis',last);
         if ~isequal(file,0)
-            setpref(obj.namespace,'last_save',path);
+            setpref(namespace,'last_save',path);
             [~,~,ext] = fileparts(file);
             if isempty(ext) % Add extension if not specified
                 file = [file '.mat'];
