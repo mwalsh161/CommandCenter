@@ -32,6 +32,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
 
     methods(Static)
         [code,f] = uibuild(block,varargin)
+    end
+    methods(Static,Sealed)
         function namespace = get_namespace 
             d = dbstack(1); %need to parse input and pass to namespace below 
             e = Modules.Experiment.YouGotThisFar; %%REMOVE%% 
@@ -42,18 +44,17 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 pre = getappdata(hObject,'namespace_prefix');
             end
             namespace = [pre strrep(e,'.','_')];
-        end 
+        end
     end
     methods
         function obj = Module 
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
             
-            obj.namespace = get_namespace; %set the namespace to value from static func
-            
+            obj.namespace = obj.get_namespace();
             if isempty(hObject) 
                 obj.logger = Base.Logger_console();
-                return; 
+                return
             end
             mods = getappdata(hObject,'ALLmodules');
             obj.logger = getappdata(hObject,'logger');

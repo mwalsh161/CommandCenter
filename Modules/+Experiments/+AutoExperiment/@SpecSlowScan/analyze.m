@@ -259,7 +259,8 @@ end
     function save_data(varargin)
         save_state();
         last = '';
-        if ispref(namespace,'last_save') %namespace is returned by static method get_namespace
+        namespace = Base.Module.get_namespace();
+        if ispref(namespace,'last_save')
             last = getpref(namespace,'last_save'); 
         end
         [file,path] = uiputfile('*.mat','Save Analysis',last);
