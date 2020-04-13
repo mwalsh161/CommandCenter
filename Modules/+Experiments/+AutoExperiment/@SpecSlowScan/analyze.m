@@ -47,7 +47,7 @@ addParameter(p,'Analysis',[],@isstruct);
 addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
 addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numeric'},{'vector'}));
 addParameter(p,'viewonly',false,@islogical);
-addParameter(p,'preanalyze',true,@islogical);
+addParameter(p,'preanalyze',false,@islogical);
 addParameter(p,'new',false,@islogical);
 parse(p,varargin{:});
 
@@ -194,15 +194,22 @@ else
 end
 
 if preanalyze
+    try
+    site_index = 1;
     progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
     setappdata(progbar,'canceling',0);
-    for site_index=1:n
+    update_all()
+    for site_index=2:n
         waitbar(site_index/n,progbar,sprintf('Analyzing site %i/%i',site_index,n));
         drawnow limitrate
-        update_analysis();
+        changeSite(site_index);
         if getappdata(progbar,'canceling')
             break
         end
+    end
+    catch err
+        delete(progbar)
+        rethrow(err)
     end
 end
 
@@ -542,10 +549,6 @@ end
             rethrow(err);
         end
         busy = false;
-    end
-    function update_analysis()
-        %updates fitting for all experiments on current site
-        
     end
     function formatSelector(selectorH,experiment,i,exp_ind,site_ind,rgb)
         if nargin < 6
