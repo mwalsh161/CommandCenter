@@ -194,21 +194,24 @@ else
 end
 
 if preanalyze
+    err = [];
     try
-    site_index = 1;
-    progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
-    setappdata(progbar,'canceling',0);
-    update_all()
-    for site_index=2:n
-        waitbar(site_index/n,progbar,sprintf('Analyzing site %i/%i',site_index,n));
-        drawnow limitrate
-        changeSite(site_index);
-        if getappdata(progbar,'canceling')
-            break
+        site_index = 1;
+        progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
+        setappdata(progbar,'canceling',0);
+        update_all()
+        for site_index=2:n
+            waitbar(site_index/n,progbar,sprintf('Analyzing site %i/%i',site_index,n));
+            drawnow limitrate
+            changeSite(site_index);
+            if getappdata(progbar,'canceling')
+                break
+            end
         end
-    end
     catch err
-        delete(progbar)
+    end
+    delete(progbar)
+    if ~isempty(err)
         rethrow(err)
     end
 end
