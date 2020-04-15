@@ -34,7 +34,8 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
         timeoutThickEtalon = 40;% mean %seconds
         wmPower_min = 0; %units?
         Eta_minSHGPower = 85; % wameter timout with set to 85; see if recurs at 100
-        maxExpTime = 800; 
+        maxExpTime = 800;
+        OPOrLambdaFloor = 10;
     end
     properties(Hidden)
         MaxEtalon = 15; % in pm %maybe step these down to 15 look a little unstable when trying to ajdust thick etalon manually with 0.025nm steps
