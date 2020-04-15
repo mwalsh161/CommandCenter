@@ -200,14 +200,15 @@ if preanalyze
         progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
         setappdata(progbar,'canceling',0);
         update_all()
-        for site_index=2:n
-            waitbar(site_index/n,progbar,sprintf('Analyzing site %i/%i',site_index,n));
+        for curr_index=2:n
+            waitbar(curr_index/n,progbar,sprintf('Analyzing site %i/%i',curr_index,n));
             drawnow limitrate
-            changeSite(site_index);
+            changeSite(curr_index);
             if getappdata(progbar,'canceling')
                 break
             end
         end
+        changeSite(1); %end by going back to first site
     catch err
     end
     delete(progbar)
