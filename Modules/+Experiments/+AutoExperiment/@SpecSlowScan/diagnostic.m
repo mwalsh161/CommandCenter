@@ -28,7 +28,7 @@ for ii = 1:size(sites,1)
     exp_inds = find(msk);
     PLE_locs = sites(ii,2).locations;
     n_peaks = length(PLE_locs);
-    if length(PL_locs) < 1
+    if sum(~isnan(PL_locs)) < 1 %Checking if there are any non-NaN PL_locs
         if sum(~isnan(PLE_locs)) > 0
             missing_spectrum_fits(end+1) = ii;
         end
@@ -50,7 +50,7 @@ for ii = 1:size(sites,1)
                 metric = abs(mean(percent_lim) - percent_vals(I))/diff(percent_lim);
                 best(kk,:) = [percent_vals(I), metric];
             end
-            assert(~isempty(best),'Have an open PLE location but failed to find open slow scan experiment!');
+            assert(~isempty(best),sprintf('Have an open PLE location but failed to find open slow scan experiment on site %i!',ii));
             [~,I] = sort(best(:,2));
             percents(peak_counter,1:length(I)) = best(I,1);
             peak_counter = peak_counter + 1;
