@@ -4,11 +4,16 @@ function varargout = analyze(data,varargin)
 %       data: data produced by GetData method
 %       [Analysis]: An analysis struct produced by this function
 %       [FitType]: "gauss", "lorentz", or "voigt" (default "gauss")
-%       [inds]: array of indices to mask full dataset (default: all data)
+%       [inds]: array of indices to mask full dataset (default: all data).
+%          This will also filter analysis if provided.
 %       [viewonly]: do not begin uifitpeaks on the axes
 %       [new]: arrow navigation will go to nearest new site (e.g. continued = 0)
 %       [preanalyze]: if true, will fit all data before opening UI
-%   Outputs: None (see below)
+%       [block]: (false) Calls uiwait internally and will return analysis
+%          when user closes figure.
+%   Outputs:
+%       (fig): Figure handle
+%       (analysis): analysis struct (use with block=true).
 %   Interactivity:
 %       click on a spot to see corresponding data
 %       [alt+] left/right arrows to change site site_index. The alt is only
@@ -49,6 +54,7 @@ addParameter(p,'inds',1:length(data.data.sites),@(n)validateattributes(n,{'numer
 addParameter(p,'viewonly',false,@islogical);
 addParameter(p,'preanalyze',false,@islogical);
 addParameter(p,'new',false,@islogical);
+addParameter(p,'block',false,@islogical);
 parse(p,varargin{:});
 
 prefs = data.meta.prefs;
@@ -57,9 +63,10 @@ data = FullData.data;
 im = data.image.image;
 sites = data.sites(p.Results.inds);
 
+
 fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
 fig.Position(3) = fig.Position(3)*2;
-file_menu = findall(gcf,'tag','figMenuFile');
+file_menu = findall(fig,'tag','figMenuFile');
 uimenu(file_menu,'Text','Go to Index','callback',@go_to,'separator','on');
 uimenu(file_menu,'Text','Save Analysis','callback',@save_data);
 uimenu(file_menu,'Text','Export Analysis','callback',@export_data);
@@ -122,6 +129,7 @@ m(2).UserData.other = m(1);
 ax(5).UIContextMenu = c;
 
 % Constants and large structures go here
+block = p.Results.block;
 n = length(sites);
 filter_new = p.Results.new;
 viewonly = p.Results.viewonly;
@@ -178,6 +186,8 @@ if isstruct(p.Results.Analysis)
         new_data = true;
         warning('Added 4th column to analysis.sites')
     end
+    % Filter with inds
+    analysis.sites = analysis.sites(p.Results.inds,:);
 else
     analysis.nm2THz = [];
     analysis.gof = [];
@@ -221,8 +231,13 @@ end
 set([fig, selector],'KeyPressFcn',@cycleSite);
 update_all(); % Bypass changeSite since we have no previous site
 
+block = p.Results.block;
+if block
+    uiwait(fig);
+end
+
 if nargout
-    varargout = {fig};
+    varargout = {fig,analysis};
 end
 
     function open_diagnostic(varargin)
@@ -274,12 +289,13 @@ end
     function save_data(varargin)
         save_state();
         last = '';
-        if ispref(obj.namespace,'last_save')
-            last = getpref(obj.namespace,'last_save');
+        namespace = Base.Module.get_namespace();
+        if ispref(namespace,'last_save')
+            last = getpref(namespace,'last_save'); 
         end
         [file,path] = uiputfile('*.mat','Save Analysis',last);
         if ~isequal(file,0)
-            setpref(obj.namespace,'last_save',path);
+            setpref(namespace,'last_save',path);
             [~,~,ext] = fileparts(file);
             if isempty(ext) % Add extension if not specified
                 file = [file '.mat'];
@@ -290,14 +306,17 @@ end
     end
 
     function closereq(~,~)
-        % Export data to workspace if analysis exists
-        try
-            if new_data
-                export_data(fig);
+        save_state();
+        if ~block % If block; we are returning data; assume no save expected
+            % Export data to workspace if analysis exists
+            try
+                if new_data
+                    export_data(fig);
+                end
+            catch err
+                delete(fig)
+                rethrow(err);
             end
-        catch err
-            delete(fig)
-            rethrow(err);
         end
         delete(fig)
     end

@@ -69,13 +69,20 @@ handles.units.Value = ind;
 handles.hardware.String = num2str(handles.channel.hardware);
 set(handles.color,'BackgroundColor',handles.channel.color)
 
-handles.ni = Drivers.NIDAQ.dev.instance('dev1');
-opts = [{''} {handles.ni.InLines.name}];
-index = find(strcmp(handles.channel.counter,opts));
-if isempty(index)
-    opts = sprintf('Error: %s not found',handles.channel.counter);
-    index = 1;
+index = 1;
+try
+    % FUTURE: get rid of hardcoded 'dev1'
+    ni = Drivers.NIDAQ.dev.instance('dev1');
+    opts = [{''} {ni.InLines().name}];
+    index = find(strcmp(handles.channel.counter,opts));
+    if isempty(index)
+        opts = sprintf('Error: %s not found',handles.channel.counter);
+    end
+catch % Turn to text input
+    opts = handles.channel.counter;
+    handles.counter.Style = 'edit';
 end
+
 handles.counter.String = opts;
 handles.counter.Value = index;
 % Update handles structure
@@ -240,9 +247,13 @@ function counter_Callback(hObject, eventdata, handles)
 % hObject    handle to counter (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-selection = get(hObject,'Value');
-opts = get(hObject,'string');
-handles.channel.counter = opts{selection};
+if strcmp(hObject.Style,'edit')
+    handles.channel.counter = get(hObject,'string');
+elseif strcmp(hObject.Style,'popup')
+    selection = get(hObject,'Value');
+    opts = get(hObject,'string');
+    handles.channel.counter = opts{selection};
+end
 
 % --- Executes during object creation, after setting all properties.
 function counter_CreateFcn(hObject, eventdata, handles)
@@ -263,5 +274,4 @@ function counter_ButtonDownFcn(hObject, eventdata, handles)
 % hObject    handle to counter (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-opts = [{''} {handles.ni.InLines.name}];
-set(hObject,'string',opts)
+% FUTURE: add updating here 
