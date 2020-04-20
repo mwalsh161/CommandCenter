@@ -672,14 +672,22 @@ end
                 analysis.sites(site_index,i-1).fit = fit_result;
                 analysis.sites(site_index,i-1).amplitudes = fitcoeffs(1:nn);
                 analysis.sites(site_index,i-1).locations = fitcoeffs(nn+1:2*nn);
-                if strcmpi(FitType,'gauss')
-                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
-                else
-                    analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                
+                % Add widths and etas to structure
+                switch lower(FitType)
+                    case 'gauss'
+                        analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn)*2*sqrt(2*log(2));
+                        analysis.sites(site_index,i-1).etas = zeros(1,nn);
+                    case 'lorentz'
+                        analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                        analysis.sites(site_index,i-1).etas = ones(1,nn);
+                    case 'voigt'
+                        analysis.sites(site_index,i-1).widths = fitcoeffs(2*nn+1:3*nn);
+                        analysis.sites(site_index,i-1).etas = fitcoeffs(3*nn+2:4*nn+1);
+                    otherwise
+                        error(sprintf('Unsupported FitType %s',FitType));
                 end
-                if strcmpi(FitType,'voigt')
-                    analysis.sites(site_index,i-1).etas = fitcoeffs(3*nn+2:4*nn+1);
-                end
+                
                 analysis.sites(site_index,i-1).background = fitcoeffs(3*nn+1);
             else
                 analysis.sites(site_index,i-1).fit = [];
