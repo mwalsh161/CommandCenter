@@ -35,7 +35,7 @@ classdef ArduinoServo < Modules.Driver
     methods(Access=private)
         function obj = ArduinoServo(host, pin)
             obj.connection = hwserver(host);
-            obj.com('?');
+            obj.com('?');   % This command pings the server for an appropriate response. If something is wrong, we will catch it here.
             obj.pin = pin;
         end
         function response = com(obj,funcname,varargin) %keep this
