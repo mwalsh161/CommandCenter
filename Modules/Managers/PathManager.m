@@ -80,7 +80,6 @@ classdef PathManager < Base.Manager
                     temp(i) = obj.update_path(temp(i));
                 end
                 obj.paths = temp;
-                obj.new_style = true;
             end
         end
         % Functional methods
