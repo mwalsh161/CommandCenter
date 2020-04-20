@@ -107,10 +107,12 @@ options.Start = [c,0,0];
 %% Plot
 fig = UseFigure(mfilename,'name',mfilename,'numbertitle','off','Visible','off',true);
 
-ax = subplot(2,3,[1,4],'parent',fig);
-ax(2) = subplot(2,3,[2,5],'parent',fig);
-ax(3) = subplot(2,3,3,'parent',fig);
-ax(4) = subplot(2,3,6,'parent',fig);
+
+ax = subplot(1,4,1,'parent',fig); %comparison of PL wavelength and PLE frequency
+ax(2) = subplot(1,4,2,'parent',fig); %histogram of percentage where PLE peak is in SlowScan.closed
+ax(3) = subplot(1,4,3,'parent',fig); %histogram of PLE linewidthes
+ax(4) = subplot(1,4,4,'parent',fig); %histogram of etas for voigt peak fits
+
 sc = scatter(ax(1),freqs.spec,freqs.open);
 hold(ax(1),'on');
 more_than_one = n_peaks_found>0;
