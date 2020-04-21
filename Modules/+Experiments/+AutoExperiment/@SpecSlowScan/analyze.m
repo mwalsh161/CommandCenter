@@ -64,7 +64,7 @@ im = data.image.image;
 sites = data.sites(p.Results.inds);
 
 
-fig = figure('name',mfilename,'numbertitle','off','CloseRequestFcn',@closereq);
+fig = figure('name',mfilename,'numbertitle','off');
 fig.Position(3) = fig.Position(3)*2;
 file_menu = findall(fig,'tag','figMenuFile');
 uimenu(file_menu,'Text','Go to Index','callback',@go_to,'separator','on');
@@ -202,7 +202,10 @@ else
         'redo',false,...
         'ignore',[]);     % indices of experiments in the fit
 end
+% Can now link closereq function (prevents losing unsaved data)
+fig.CloseRequestFcn = @closereq;
 
+% Evaluate analysis for user by cycling through sites
 if preanalyze
     err = [];
     try
