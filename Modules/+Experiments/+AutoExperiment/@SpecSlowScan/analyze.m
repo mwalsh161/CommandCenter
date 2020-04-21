@@ -512,9 +512,8 @@ end
             % A bit awkward, because we can't filter yet since even failed exps
             % need to go through formatSelector; so just hang on to this
             successful_ind = exp_inds([site.experiments(exp_inds).completed] & ~[site.experiments(exp_inds).skipped]);
-            successful_ind = find(successful_ind,1);
             if any(successful_ind)
-                sz = length(str2num(site.experiments(exp_inds(successful_ind)).prefs.x_points)); %#ok<ST2NM> (need str2num to perfrom eval)
+                sz = length(str2num(site.experiments(successful_ind(1)).prefs.x_points)); %#ok<ST2NM> (need str2num to perfrom eval)
             end
             rm = true(1,length(exp_inds)); % Remove experiments that aren't legit
             if ax(5).UIContextMenu.UserData.id == 1 % gray, side by side
