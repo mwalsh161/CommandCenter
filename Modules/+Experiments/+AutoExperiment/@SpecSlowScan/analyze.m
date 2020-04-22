@@ -212,7 +212,7 @@ if preanalyze
         site_index = 1;
         progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
         setappdata(progbar,'canceling',0);
-        update_all()
+        update_all() %call directly to bypass save_state() the first time around
         for curr_index=2:n
             waitbar(curr_index/n,progbar,sprintf('Analyzing site %i/%i',curr_index,n));
             drawnow limitrate
