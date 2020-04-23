@@ -56,6 +56,9 @@ addParameter(p,'preanalyze',false,@islogical);
 addParameter(p,'new',false,@islogical);
 addParameter(p,'block',false,@islogical);
 parse(p,varargin{:});
+if p.Results.preanalyze && p.Results.viewonly
+    error('SpecSlowScan analysis cannot run preanalysis in viewonly mode.')
+end
 
 prefs = data.meta.prefs;
 FullData = data;
@@ -134,9 +137,6 @@ n = length(sites);
 filter_new = p.Results.new;
 viewonly = p.Results.viewonly;
 preanalyze = p.Results.preanalyze;
-if preanalyze && viewonly
-    error('SpecSlowScan analysis cannot run preanalysis in viewonly mode.')
-end
 FitType = p.Results.FitType;
 wavenm_range = 299792./prefs.freq_range; % Used when plotting
 inds = p.Results.inds;
