@@ -228,14 +228,19 @@ if preanalyze
                 break
             end
         catch curr_err
-            err = {err;{site_index,getReport(curr_err)}}; %save site and error message
+            err = [err;{site_index,getReport(curr_err)}]; %save site and error message
             continue
         end
     end
     save_state()
     delete(progbar)
     if ~isempty(err)
-        %rethrow errors somehow
+        err_sites = join(cellfun(@num2str,err(:,1),'UniformOutput',false),', ');
+        msg = sprintf('Errors on sites %s:\n',err_sites{:});
+        for i=1:length(err)
+            msg = [msg,sprintf('Site %i: %s\n',err{i,1},err{i,2})];
+        end
+        error(msg)
     end
 end
 
