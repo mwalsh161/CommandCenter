@@ -214,7 +214,11 @@ if preanalyze
     site_index = 1;
     progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
     setappdata(progbar,'canceling',0);
-    update_all() %call directly to bypass save_state() the first time around
+    try %first site has to happen out of loop, needs its own try-catch
+        update_all() %call directly to bypass save_state() the first time around
+    catch curr_err
+        err = {err;{site_index,getReport(curr_err)}}; %save site and error message
+    end
     for curr_index=2:n
         try
             waitbar(curr_index/n,progbar,sprintf('Analyzing site %i/%i',curr_index,n));
