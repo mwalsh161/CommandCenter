@@ -210,14 +210,15 @@ fig.CloseRequestFcn = @closereq;
 
 % Evaluate analysis for user by cycling through sites
 if preanalyze
-    err = {};
+    err = containers.Map;
     site_index = 1;
     progbar = waitbar(site_index/n,'','Name','Analyzing all data','CreateCancelBtn','setappdata(gcbf,''canceling'',1)');
     setappdata(progbar,'canceling',0);
-    try %first site has to happen out of loop, needs its own try-catch
-        update_all() %call directly to bypass save_state() the first time around
-    catch curr_err
-        err = {err;{site_index,getReport(curr_err)}}; %save site and error message
+    try % first site has to happen out of loop, needs its own try-catch
+        update_all() % call directly to bypass save_state() the first time around
+    catch curr_err % save site and error message
+        errtxt = getReport(curr_err);
+        err(errtxt) = site_index; % Must be first error, so no need to check key
     end
     for curr_index=2:n
         try
@@ -228,19 +229,36 @@ if preanalyze
                 break
             end
         catch curr_err
-            err = [err;{site_index,getReport(curr_err)}]; %save site and error message
+            errtxt = getReport(curr_err);
+            if err.isKey(errtxt)
+                err(errtxt) = [err(errtxt), site_index];
+            else
+                err(errtxt) = site_index;
+            end
             continue
         end
     end
-    save_state()
     delete(progbar)
-    if ~isempty(err)
-        err_sites = join(cellfun(@num2str,err(:,1),'UniformOutput',false),', ');
-        msg = sprintf('Errors on sites %s:\n',err_sites{:});
-        for i=1:length(err)
-            msg = [msg,sprintf('Site %i: %s\n',err{i,1},err{i,2})];
+    save_state()
+    if err.Count % number of errors > 0
+        allsites = []; % Build up all sites to list at top
+        errtxt = err.keys(); % Cell array of all unique error reports
+        for j = 1:err.Count
+            errsites = err(errtxt{j});
+            allsites = [allsites errsites];
+            errsites = ['Sites ' sprintf('%g, ',err(errtxt{j}))]; % Format
+            errsites = errsites(1:end-2); % remove extra ", "
+            errtxt{j} = [errsites newline errtxt{j}]; % Format
         end
-        error(msg)
+        allsites = sort(allsites);
+        allsites = sprintf('%g, ', allsites); % Format
+        allsites = allsites(1:end-2); % remove extra ", "
+        delim = '---------------------------------------';
+        msg = sprintf('Errors on sites %s:\n%s\n%s',...
+            allsites, delim, strjoin(errtxt,...
+            [newline delim newline]));
+        warning(msg);
+        errordlg(sprintf('Errors on sites %s. See warning in console.',allsites));
     end
 end
 
