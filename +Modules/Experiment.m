@@ -61,9 +61,10 @@ classdef Experiment < Base.Module
                     [varargout{:}] = fn(data.data,varargin{:});
                     varargout = varargout(1:nargout); % Cut down to requested number from caller
                 catch err
-                    error(['Unable to call %s.analysis(data.data). ',...
+                    throwAsCaller(MException('MODULE:analysis',['Unable to call %s.analysis(data.data). ',...
                         'This could be due to a poorly formatted or incorrectly reassembled data struct:\n\n%s'],...
-                        origin, getReport(err));
+                        origin, getReport(err)));
+                    
                 end
             else
                 error('"%s" does not have an analysis method implemented.',origin);
