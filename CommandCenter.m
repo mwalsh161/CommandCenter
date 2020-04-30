@@ -74,7 +74,7 @@ if strcmp(hObject.Visible,'on')
     return
 end
 % Check compatibility
-if true || verLessThan('matlab','9.4') % R2018a
+if verLessThan('matlab','9.4') % R2018a
     delete(hObject);
     msg = ['You are running a MATLAB version less than R2018a (version 9.4). ',...
            'You may encounter unexpected errors due to a major update in ',...
