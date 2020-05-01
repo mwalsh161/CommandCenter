@@ -33,7 +33,7 @@ classdef Source < Base.Module
         end
         function blackout(obj)
             %this method should do whatever is necessary to completely
-            %block emissions from the source; for example, this may include
+           %block emissions from the source; for example, this may include
             %powering off a source
             warning('SOURCE:notimplemented','blackout method not implemented for %s',class(obj))
         end
