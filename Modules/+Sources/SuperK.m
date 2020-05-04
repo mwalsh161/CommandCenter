@@ -6,9 +6,10 @@ classdef SuperK < Modules.Source
 
     
     properties(SetObservable,GetObservable)
-        host = 'No Server'; % host of computer with and server
+        prefs = {'Power','Pulse_Picker','Rep_Rate','Center_Wavelength',...
+            'Bandwidth','Attenuation','Host'};
         show_prefs = {'Power','Pulse_Picker','Rep_Rate','Center_Wavelength',...
-            'Bandwidth','Attenuation','host'};
+            'Bandwidth','Attenuation','Host'};
         Power = Prefs.Double('max',100,'min',0,'units','%','allow_nan',false,...
             'tag','setPower');
         Pulse_Picker = Prefs.Integer('max',40,'min',0,'help_text','Divider of max rep rate',...
@@ -21,7 +22,8 @@ classdef SuperK < Modules.Source
             'tag','setBandwidth');
         Attenuation = Prefs.Double('max',100,'min',0,'units','%',...
             'tag','setND');
-        prefs = {'host'};
+        Host = Prefs.String('No Server','set','setHost');
+        
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
@@ -56,21 +58,24 @@ classdef SuperK < Modules.Source
         function setNum(obj,val,pref)
             obj.serial.(pref.tag.set)(val);
         end
-        function set.host(obj,val)
+        function host = setHost(obj,val,pref)
             err = [];
             if obj.comm_isvalid
                 delete(obj.comm);
             end
             if isempty(val) || strcmp(val,'No Server')
                 obj.comm = hwserver.empty;
-                obj.host = 'No Server';
+                obj.Host = 'No Server';
+                host = obj.Host;
                 return
             end
             try
                 obj.comm = Drivers.SuperK.instance(val);
-                obj.host = val;   
+                obj.Host = val;
+                host = val;
             catch err
-                obj.host = 'No Server';
+                obj.Host = 'No Server';
+                host = obj.Host;
             end
             if ~isempty(err)
                 rethrow(err)
