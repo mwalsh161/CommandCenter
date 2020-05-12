@@ -55,12 +55,12 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 while true
                     if isempty(item)
                         error('MODULE:namespace','The calling function couldn''t be found on the path.')
-                    elseif item(1) == '+'   % If it is package...
-                        name = [item(2:end) '_' name]; %#ok<AGROW> ...then we should prepend
-                    elseif item(1) == '@'   % If it is a class...
-                        name = item(2:end); % ...Take that name.
-                    else                    % Otherwise, we are out of packages to eat.
-                        break
+                    elseif item(1) == '+'               % If it is package...
+                        name = [item(2:end) '_' name];  % ...then we should prepend #ok<AGROW>
+                    elseif item(1) == '@'               % If it is a class...
+                        name = item(2:end);             % ...Take that name.
+                    else                                % Otherwise, we are out of packages to eat...
+                        break                           % ...And we should leave.
                     end
                     
                     % Go up filesystem one level
@@ -287,11 +287,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         warning('MODULE:load_prefs','Error on loadPrefs (position %i): %s',i,'Must be a string!')
                         continue
                     end
-                    obj.namespace
-                    prefs{i}
                     if ispref(obj.namespace,prefs{i})
-                        obj.namespace
-                        pref = getpref(obj.namespace,prefs{i})
+                        pref = getpref(obj.namespace,prefs{i});
                         try
                             mp = findprop(obj,prefs{i});
                             if mp.HasDefault && any(ismember([{class(mp.DefaultValue)}; superclasses(mp.DefaultValue)],...
