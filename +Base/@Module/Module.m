@@ -55,23 +55,14 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                 while true
                     if isempty(item)
                         error('MODULE:namespace','The calling function couldn''t be found on the path.')
-                    elseif any(item(1) == '+@')
-                        item = item(2:end); % Removing special chars
-                    end
-                    contents = what(pathpart);
-                    if ismember(item,contents.classes)
-                        % item must be the class name
-                        ispackageorclass = true;
-                        name = item;
-                    elseif strcmp(item, 'Modules') % We do not want to prepend `Modules_`.
-                        break
-                    elseif ismember(item,contents.packages)
-                        % item must be package name
-                        ispackageorclass = true;
-                        name = [item '_' name]; %#ok<AGROW>
-                    elseif ispackageorclass % no longer in special class/package folder
+                    elseif item(1) == '+'   % If it is package...
+                        name = [item(2:end) '_' name]; %#ok<AGROW> ...then we should prepend
+                    elseif item(1) == '@'   % If it is a class...
+                        name = item(2:end); % ...Take that name.
+                    else                    % Otherwise, we are out of packages to eat.
                         break
                     end
+                    
                     % Go up filesystem one level
                     [pathpart,item] = fileparts(pathpart);
                 end
@@ -90,7 +81,6 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function obj = Module()
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
-            class(obj)
             [obj.namespace,hObject] = obj.get_namespace();
             
             if isempty(hObject) 
