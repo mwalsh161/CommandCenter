@@ -58,9 +58,9 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                     elseif item(1) == '+'               % If it is package...
                         name = [item(2:end) '_' name];  % ...then we should prepend #ok<AGROW>
                     elseif item(1) == '@'               % If it is a class...
-                        name = item(2:end);             % ...Take that name.
+                        name = item(2:end);             % ...take that name.
                     else                                % Otherwise, we are out of packages to eat...
-                        break                           % ...And we should leave.
+                        break                           % ...and we should leave.
                     end
                     
                     % Go up filesystem one level
