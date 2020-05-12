@@ -45,11 +45,11 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % Start by inspecting the folder that contains the folder that
             % contains our file of interest, because that is the folder
             % that might signify a class/package
-            [pathpart,name] = fileparts(d(1).file);
-            % See if name is already on the path and corresponds to d(1).file
+            [pathpart,name] = fileparts(d(end).file);
+            % See if name is already on the path and corresponds to d(end).file
             % Assuming dbstack and which return path names with same 
             %   character case appropriate for file system
-            if ~strcmp(d(1).file, which(name))
+            if ~strcmp(d(end).file, which(name))
                 ispackageorclass = false;
                 [pathpart,item] = fileparts(pathpart);
                 while true
@@ -63,6 +63,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         % item must be the class name
                         ispackageorclass = true;
                         name = item;
+                    elseif strcmp(item, 'Modules') % We do not want to prepend `Modules_`.
+                        break
                     elseif ismember(item,contents.packages)
                         % item must be package name
                         ispackageorclass = true;
@@ -88,6 +90,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function obj = Module()
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
+            class(obj)
             [obj.namespace,hObject] = obj.get_namespace();
             
             if isempty(hObject) 
@@ -294,8 +297,11 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
                         warning('MODULE:load_prefs','Error on loadPrefs (position %i): %s',i,'Must be a string!')
                         continue
                     end
+                    obj.namespace
+                    prefs{i}
                     if ispref(obj.namespace,prefs{i})
-                        pref = getpref(obj.namespace,prefs{i});
+                        obj.namespace
+                        pref = getpref(obj.namespace,prefs{i})
                         try
                             mp = findprop(obj,prefs{i});
                             if mp.HasDefault && any(ismember([{class(mp.DefaultValue)}; superclasses(mp.DefaultValue)],...
