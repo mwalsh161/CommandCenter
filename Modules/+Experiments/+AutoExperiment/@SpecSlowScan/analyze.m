@@ -324,7 +324,7 @@ end
     function save_data(varargin)
         save_state();
         last = '';
-        namespace = Base.Module.get_namespace();
+        namespace = Base.Module.get_namespace(mfilename('class'));
         if ispref(namespace,'last_save')
             last = getpref(namespace,'last_save');
         end

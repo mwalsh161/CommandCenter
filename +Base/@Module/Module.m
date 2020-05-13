@@ -34,46 +34,17 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         [code,f] = uibuild(block,varargin)
     end
     methods(Static,Sealed)
-        function [namespace,CC_handle] = get_namespace()
-            % This function returns the fully-qualified name of the caller
-            % if the caller is in a class, we stop at the class-level
-            % We want an equivalent output to class(obj)
-            d = dbstack(1,'-completenames'); % used to get caller info
-            if isempty(d)
-                error('MODULE:namespace', 'This function needs to be called from within another function.');
-            end
-            % Start by inspecting the folder that contains the folder that
-            % contains our file of interest, because that is the folder
-            % that might signify a class/package
-            [pathpart,name] = fileparts(d(1).file);
-            % See if name is already on the path and corresponds to d(1).file
-            % Assuming dbstack and which return path names with same 
-            %   character case appropriate for file system
-            if ~strcmp(d(1).file, which(name))
-                ispackageorclass = false;
-                [pathpart,item] = fileparts(pathpart);
-                while true
-                    if isempty(item)
-                        error('MODULE:namespace','The calling function couldn''t be found on the path.')
-                    elseif any(item(1) == '+@')
-                        item = item(2:end); % Removing special chars
-                    end
-                    contents = what(pathpart);
-                    if ismember(item,contents.classes)
-                        % item must be the class name
-                        ispackageorclass = true;
-                        name = item;
-                    elseif ismember(item,contents.packages)
-                        % item must be package name
-                        ispackageorclass = true;
-                        name = [item '_' name]; %#ok<AGROW>
-                    elseif ispackageorclass % no longer in special class/package folder
-                        break
-                    end
-                    % Go up filesystem one level
-                    [pathpart,item] = fileparts(pathpart);
-                end
-            end
+        function [namespace,CC_handle] = get_namespace(classname)
+            % This function returns the formatted namespace string to be used with MATLAB prefs
+            % It is recommended to be called using either mfilename or class to help construct input:
+            %   ... obj.get_namespace(class(obj));
+            %   ... Base.Module.get_namespace(mfilename('class'))
+
+            % isvector takes care of non-empty too
+            assert(ischar(classname) && isvector(classname),'classname must be a non-empty character vector.')
+            % Convert periods in classname to underscores
+            name = strrep(classname,'.','_');
+            assert(isvarname(name),'converting "." to "_" was not sufficient to turn classname into a valid variable name in MATLAB.')
             
             CC_handle = findall(0,'name','CommandCenter');
             if isempty(CC_handle)
@@ -88,7 +59,7 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         function obj = Module()
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
-            [obj.namespace,hObject] = obj.get_namespace();
+            [obj.namespace,hObject] = obj.get_namespace(class(obj));
             
             if isempty(hObject) 
                 obj.logger = Base.Logger_console();
