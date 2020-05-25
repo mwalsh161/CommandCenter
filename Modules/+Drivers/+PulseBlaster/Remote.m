@@ -4,7 +4,7 @@ classdef Remote < Modules.Driver & Drivers.PulseTimer_invisible
     %
     % Call with the IP of the host computer (singleton based on ip)
     
-    properties
+    properties(Constant)
         clk = 500  % Hz
         resolution = 2;  % ns
         minDuration = 10;% Minimum duration in ns
