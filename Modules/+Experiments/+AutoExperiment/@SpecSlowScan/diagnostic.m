@@ -28,7 +28,7 @@ for ii = 1:size(sites,1)
     exp_inds = find(msk);
     PLE_locs = sites(ii,2).locations;
     n_peaks = length(PLE_locs);
-    if length(PL_locs) < 1
+    if sum(~isnan(PL_locs)) < 1 %Checking if there are any non-NaN PL_locs
         if sum(~isnan(PLE_locs)) > 0
             missing_spectrum_fits(end+1) = ii;
         end
@@ -50,7 +50,7 @@ for ii = 1:size(sites,1)
                 metric = abs(mean(percent_lim) - percent_vals(I))/diff(percent_lim);
                 best(kk,:) = [percent_vals(I), metric];
             end
-            assert(~isempty(best),'Have an open PLE location but failed to find open slow scan experiment!');
+            assert(~isempty(best),sprintf('Have an open PLE location but failed to find open slow scan experiment on site %i!',ii));
             [~,I] = sort(best(:,2));
             percents(peak_counter,1:length(I)) = best(I,1);
             peak_counter = peak_counter + 1;
@@ -107,9 +107,12 @@ options.Start = [c,0,0];
 %% Plot
 fig = UseFigure(mfilename,'name',mfilename,'numbertitle','off','Visible','off',true);
 
-ax = subplot(1,3,1,'parent',fig);
-ax(2) = subplot(1,3,2,'parent',fig);
-ax(3) = subplot(1,3,3,'parent',fig);
+
+ax = subplot(1,4,1,'parent',fig); %comparison of PL wavelength and PLE frequency
+ax(2) = subplot(1,4,2,'parent',fig); %histogram of percentage where PLE peak is in SlowScan.closed
+ax(3) = subplot(1,4,3,'parent',fig); %histogram of PLE linewidthes
+ax(4) = subplot(1,4,4,'parent',fig); %histogram of etas for voigt peak fits
+
 sc = scatter(ax(1),freqs.spec,freqs.open);
 hold(ax(1),'on');
 more_than_one = n_peaks_found>0;
@@ -137,6 +140,11 @@ histogram(ax(3),[sites(:,3).widths]*1000*1000);
 plot(ax(3),[0 0]+median(median_open_spacing)*1000*1000,get(ax(3),'ylim'),'--k');
 legend(ax(3),{'Open (coarse)','Closed','Median Step Size in Open'})
 xlabel(ax(3),'Peak Widths (MHz)')
+
+histogram(ax(4),[sites(:,2).etas]); hold(ax(4),'on');
+histogram(ax(4),[sites(:,3).etas]); hold(ax(4),'off');
+legend(ax(4),{'Open (coarse)','Closed'})
+xlabel(ax(4),'Voigt \eta (0 is Gaussian, 1 is Lorentzian)')
 
 fig.Visible = 'on';
 

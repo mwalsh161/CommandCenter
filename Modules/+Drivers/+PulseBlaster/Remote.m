@@ -1,11 +1,14 @@
-classdef Remote < Modules.Driver
+classdef Remote < Modules.Driver & Drivers.PulseTimer_invisible
     %INTERPRETERCLIENT Connects with server.py on host machine to control
     % the PulseBlaster via the interpreter program. Port 36576.
     %
     % Call with the IP of the host computer (singleton based on ip)
     
-    properties
+    properties(Constant)
         clk = 500  % Hz
+        resolution = 2;  % ns
+        minDuration = 10;% Minimum duration in ns
+        maxRepeats = 2^20;  % positive integer value
     end
     properties(SetAccess=private)
         connection
