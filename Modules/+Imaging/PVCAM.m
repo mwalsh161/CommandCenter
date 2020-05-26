@@ -5,20 +5,16 @@ classdef PVCAM < Modules.Imaging
 
     properties
         maxROI = [-1 1; -1 1];
-        % NOTE: my_string should be added at end as setting, but not saved like pref
-        %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
-       % show_prefs = {'fyi','my_integer','my_double'};
-       % readonly_prefs = {''} % Should result in deprecation warning if used
     end
     properties (Hidden)
         h_cam;
         prefs = {'gain', 'speed', 'binning', 'exposure'};
     end
     properties(GetObservable,SetObservable)
-        camera_name =   Prefs.String('', 'help_text', 'Name that PVCAM gives to the camera.', 'readonly', true);
+        camera_name =   Prefs.String('', 'help_text', 'Camera name assigned by PVCAM.', 'readonly', true);
         width =         Prefs.Integer(0, 'units', 'pix', 'help_text', 'Width that the camera thinks it has.', 'readonly', true);
         height =        Prefs.Integer(0, 'units', 'pix', 'help_text', 'Height that the camera thinks it has.', 'readonly', true);
-        temp =          Prefs.Integer(0, 'units', 'deg C', 'help_text', 'Temp that the camera thinks it is at.', 'readonly', true);
+        temp =          Prefs.Double(0,  'units', 'C',   'help_text', 'Temp that the camera thinks it is at.', 'readonly', true);
 %         ROI = Prefs.DoubleArray([1,2;3,4], 'allow_nan', false, 'min', 0, 'set', 'testSet');
         
         gain =          Prefs.Integer(1, 'min', 1, 'max', 3, 'set', 'set_gain'); % Add better limits.
@@ -89,7 +85,7 @@ classdef PVCAM < Modules.Imaging
             obj.height = pvcam_par.pardim;
             obj.gain = pvcam_par.gain;
 %             gainrange
-            obj.temp = pvcam_par.temp;
+            obj.temp = pvcam_par.temp/100;
             
             if ~contains(pvcam_par.timeunit, 'One Millisecond')
                  warning([datestr(datetime('now')) ':NOT in milliseconds!']);

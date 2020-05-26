@@ -1,6 +1,6 @@
 /* PVCAMACQ - acquire image sequence from PVCAM device
 
-      DATA = PVCAMACQ(HCAM, NI, ROI, EXPTIME, EXPMODE) acquires an image
+	  DATA = PVCAMACQ(HCAM, NI, ROI, EXPTIME, EXPMODE) acquires an image
 	  sequence of NI images over the CCD region(s) specified by the structure
 	  array ROI from the camera specified by HCAM.  The exposure time is
 	  specified by EXPTIME; the units depend on the PARAM_EXP_RES and the
@@ -56,8 +56,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 
 	// validate arguments
 	if ((nrhs != 5) || (nlhs > 1)) {
-        mexErrMsgTxt("type 'help pvcamacq' for syntax");
-    }
+		mexErrMsgTxt("type 'help pvcamacq' for syntax");
+	}
 
 	// obtain camera handle
 	if (!mxIsNumeric(prhs[0])) {
@@ -222,46 +222,49 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	}
 	
 	// loop until exposure sequence is complete
-    time_t base_ms = time(NULL); 
+	time_t base_ms = time(NULL); 
 
 	status = -1;
-	while ((status != READOUT_COMPLETE) && (status != READOUT_NOT_ACTIVE) && (status != READOUT_FAILED) && (time(NULL) - base_ms < 1000 + exposuretime/500)) {
+	while (	(status != READOUT_COMPLETE) && 
+			(status != READOUT_NOT_ACTIVE) && 
+			(status != READOUT_FAILED) && 
+			(time(NULL) - base_ms < 1000 + 2*exptime)) {		// Time since start must be less than 2*exposure + 1 sec.
 		if (!pl_exp_check_status(hcam, &status, &bytes_read)) {
 			pvcam_error(hcam, "Cannot check camera status during exposure");
 			mxDestroyArray(data_struct);
 			return(empty_struct);
 		}
 	}
-    
-    // determine how exposure sequence terminated
-    // return data structure if successful
-    char str[64];
+	
+	// determine how exposure sequence terminated
+	// return data structure if successful
+	char str[64];
 
-    switch (status) {
-    case READOUT_COMPLETE:
-        mxDestroyArray(empty_struct);
-        return(data_struct);
-        break;
-    case READOUT_NOT_ACTIVE:
-        pvcam_error(hcam, "Camera readout never started");
-        break;
-    case READOUT_FAILED:
-        pvcam_error(hcam, "Camera readout failed");
-        break;
-    default:
-        snprintf(str, 64, "Unknown camera readout termination: %i", status);
-        pvcam_error(hcam, str);
-        break;
-    }
-    
-    return(data_struct);
+	switch (status) {
+		case READOUT_COMPLETE:
+			mxDestroyArray(empty_struct);
+			return(data_struct);
+		case READOUT_NOT_ACTIVE:
+			pvcam_error(hcam, "Camera readout never started");
+			break;
+		case READOUT_FAILED:
+			pvcam_error(hcam, "Camera readout failed");
+			break;
+		default:
+			snprintf(str, 64, "Unknown camera readout termination: %i", status);
+			pvcam_error(hcam, str);
+			break;
+	}
+	
+	mxDestroyArray(data_struct);	// If we errored, return blank.
+	return(empty_struct);
 	
 /* 	// uninitialize exposure sequence
 	if (!pl_exp_uninit_seq()) {
 		pvcam_error(hcam, "Cannot uninitialize exposure sequence");
 		mxDestroyArray(data_struct);
 		return(empty_struct);
-	} */
+	} 
 	// uninitialize exposure sequence
 	if (!pl_exp_finish_seq(hcam, data_ptr, 0)) {
 		pvcam_error(hcam, "Cannot uninitialize exposure sequence");
@@ -291,6 +294,7 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	}
 	mxDestroyArray(data_struct);
 	return(empty_struct);
+	*/
 }
 
 
