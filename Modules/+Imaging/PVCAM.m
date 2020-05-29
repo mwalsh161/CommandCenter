@@ -15,8 +15,7 @@ classdef PVCAM < Modules.Imaging
         width =         Prefs.Integer(0, 'units', 'pix', 'help_text', 'Width that the camera thinks it has.', 'readonly', true);
         height =        Prefs.Integer(0, 'units', 'pix', 'help_text', 'Height that the camera thinks it has.', 'readonly', true);
         temp =          Prefs.Double(0,  'units', 'C',   'help_text', 'Temp that the camera thinks it is at.', 'readonly', true);
-%         ROI = Prefs.DoubleArray([1,2;3,4], 'allow_nan', false, 'min', 0, 'set', 'testSet');
-        
+
         gain =          Prefs.Integer(1, 'min', 1, 'max', 3, 'set', 'set_gain'); % Add better limits.
         speed =          Prefs.Integer(1, 'min', 0, 'max', 1, 'set', 'set_speed', 'help', 'Readout mode; 0 = fast, 1 = slow?'); % Add better limits.
         
@@ -31,7 +30,10 @@ classdef PVCAM < Modules.Imaging
 
     methods(Access=private)
         function obj = PVCAM()
-            obj.loadPrefs;
+            obj.open();
+        end
+        function open(obj)
+            camnum = 0;
             obj.path = 'camera';
             % obj.h_cam
             
@@ -48,30 +50,23 @@ classdef PVCAM < Modules.Imaging
             pvcam_para_field = {'serdim','pardim','gain','speedns','timeunit','temp','readout'};
             pvcam_par = cell2struct(pvcam_para_value, pvcam_para_field, 2);
             
-            pvcamclose(1);
-            
             % open camera
-            obj.h_cam = pvcamopen(0);
-%             obj.h_cam
+            obj.h_cam = pvcamopen(camnum);
+            
             if (isempty(obj.h_cam))
-%                  disp([datestr(datetime('now')) ':could not open camera']);
-                pvcamclose(1);
-                error();
-            else
-%                 disp([datestr(datetime('now')) ':camera detected']);
+                try
+                    pvcamclose(camnum);
+                    obj.h_cam = pvcamopen(camnum);
+                    
+                    if (isempty(obj.h_cam))
+                        error('Could not open PVCAM');
+                    end
+                catch
+                    error('Could not open PVCAM');
+                end
             end
             
             obj.camera_name = num2str(obj.h_cam);
-
-%             pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', 0); % set camera to max readout speed at 0, better biniration at 1
-%             pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', 1); % set camera to max readout speed at 0, better biniration at 1
-%             pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_INDEX', 3); % set camera to max gain 
-%             [pvcam_par.speed, ~, ~, speedrange] = pvcamgetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX');%Speed
-            
-%    [VALUE, TYPE, ACCESS, RANGE] = PVCAMGETVALUE(HCAM, ID) returns the
-%    parameter TYPE, read/write ACCESS, and all acceptable parameter values
-%    in RANGE.  RANGE is two element vector if ID is numeric, a cell array
-%    of strings if ID is enumerated, and is 'string' if ID is a string.
             
             pvcam_par.serdim   = pvcamgetvalue(obj.h_cam, pvcam_getpar{4});%CCDpixelser
             pvcam_par.pardim   = pvcamgetvalue(obj.h_cam, pvcam_getpar{3});%CCDpixelpar
@@ -79,7 +74,7 @@ classdef PVCAM < Modules.Imaging
             pvcam_par.speedns  = pvcamgetvalue(obj.h_cam, pvcam_getpar{8});%CCDpixtime
             pvcam_par.timeunit = pvcamgetvalue(obj.h_cam, pvcam_getpar{9});%CameraResolution
             pvcam_par.temp     = pvcamgetvalue(obj.h_cam, pvcam_getpar{6});%temperature
-            pvcam_par.readout  = pvcamgetvalue(obj.h_cam, pvcam_getpar{10});%readout rate 50 means 20MHz, 100 mens 10MHz
+            pvcam_par.readout  = pvcamgetvalue(obj.h_cam, pvcam_getpar{10});%readout rate 50 means 20MHz, 100 means 10MHz
             
             obj.width = pvcam_par.serdim;
             obj.height = pvcam_par.pardim;
@@ -94,6 +89,14 @@ classdef PVCAM < Modules.Imaging
             obj.resolution = [obj.width, obj.height];
             obj.ROI = [0, obj.width-1; 0, obj.height-1];
             obj.maxROI = obj.ROI;
+            
+            obj.loadPrefs;
+        end
+        function close(obj)
+            if (~isempty(obj.h_cam))
+                pvcamclose(0);
+                obj.h_cam = [];
+            end
         end
     end
     methods(Static)
@@ -119,9 +122,7 @@ classdef PVCAM < Modules.Imaging
         end
         
         function delete(obj)
-            if (~isempty(obj.h_cam))
-                pvcamclose(1);
-            end
+            obj.close();
         end
         
         function set.ROI(obj,val)
@@ -144,12 +145,35 @@ classdef PVCAM < Modules.Imaging
             roi_value = {0, obj.width-1, obj.binning, 0, obj.height-1, obj.binning};   % Zero indexed.
             roi_struct = cell2struct(roi_value, roi_name, 2);
             
-            image_stream = int16(pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed'));
-%             disp([datestr(datetime('now')) ' picture acquired']);
-
             w = (roi_struct.s2 - roi_struct.s1+1)/roi_struct.sbin;
             h = (roi_struct.p2 - roi_struct.p1+1)/roi_struct.pbin;
-            im = reshape(image_stream, [w, h, ni]);
+            
+            im = NaN([w, h, ni]);
+            
+            tries = 1;
+            while tries <= 3
+                image_stream = int16(pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed'));
+                
+                if ~isempty(image_stream)
+                    im = reshape(image_stream, [w, h, ni]);
+                    break;
+                else
+                    warning('PVCAM returned empty data. Resetting and retrying.');
+                    resettries = 1;
+                    while resettries <= 3
+                        pause(2^resettries)
+                        try
+                            obj.close();
+                            obj.open();
+                        catch err
+                            disp(getReport(err, 'extended', 'hyperlinks', 'on'));
+                        end
+                        resettries = resettries + 1;
+                    end
+                end
+                
+                tries = tries + 1;
+            end
         end
         function snap(obj,im,continuous)
             set(im,'cdata',obj.snapImage);
@@ -158,8 +182,12 @@ classdef PVCAM < Modules.Imaging
         function startVideo(obj,im)
             obj.continuous = true;
             while obj.continuous
-                obj.snap(im,true);
-                drawnow;
+                try
+                    obj.snap(im,true);
+                    drawnow;
+                catch err
+                    obj.continuous = false;
+                end
             end
         end
         function stopVideo(obj)

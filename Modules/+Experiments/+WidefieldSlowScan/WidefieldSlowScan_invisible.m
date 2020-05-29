@@ -51,7 +51,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 obj.meta.vars(i).name = obj.vars{i};
                 obj.meta.vars(i).vals = obj.(obj.vars{i});
             end
-            obj.meta.power = obj.repumpLaser.CW_power;
+            obj.meta.power = obj.repumpLaser.power;
             obj.meta.position = managers.Stages.position; % Stage position
 
             try
@@ -126,7 +126,19 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         
         function setLaser(obj, scan_point)
             if scan_point ~= 0  % Intentional for ClosedDAQ overload
-                obj.resLaser.TuneSetpoint(scan_point);
+                tries = 3;
+                while tries > 0
+                    try
+                        obj.resLaser.TuneSetpoint(scan_point);
+                        break;
+                    catch
+                        warning(['Laser failed to tune to ' num2str(scan_point) ' THz.'])
+                    end
+                    tries = tries - 1;
+                end
+                if tries == 0
+                    error(['Laser failed thrice to tune to ' num2str(scan_point) ' THz. Stopping run.'])
+                end
             end
         end
         

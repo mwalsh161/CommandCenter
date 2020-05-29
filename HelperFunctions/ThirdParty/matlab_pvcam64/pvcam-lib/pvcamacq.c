@@ -28,6 +28,7 @@
 // inclusions
 #include "pvcamutil.h"
 #include <time.h>
+// #include <chrono>
 
 
 // function prototypes
@@ -199,9 +200,10 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	long64   exposuretime;
 	md_frame *pFrame; // frame struct
 	
+
 	// create empty mxArray for error output
 	empty_struct = mxCreateNumericMatrix(0, 0, mxUINT16_CLASS, mxREAL);
-	
+
 	// load exposure sequence
 	// obtain number of bytes needed to store images
 	if (!pl_exp_setup_seq(hcam, nimage, nregion, region, expmode, exptime, &image_size)) {
@@ -222,24 +224,31 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	}
 	
 	// loop until exposure sequence is complete
-	time_t base_ms = time(NULL); 
+	char str[64];
+	int base_ms = (int)((double)clock() * 1000 / CLOCKS_PER_SEC);
 
 	status = -1;
 	while (	(status != READOUT_COMPLETE) && 
 			(status != READOUT_NOT_ACTIVE) && 
-			(status != READOUT_FAILED) && 
-			(time(NULL) - base_ms < 1000 + 2*exptime)) {		// Time since start must be less than 2*exposure + 1 sec.
+			(status != READOUT_FAILED)) {
+		
+		int cur_ms = (int)((double)clock() * 1000 / CLOCKS_PER_SEC);
+
+		if (cur_ms - base_ms > 1000 + 2*exptime) {		// Time since start must be less than 2*exposure + 1 sec.
+			pvcam_error(hcam, "Exposure timed out.");
+			mxDestroyArray(data_struct);
+			return(empty_struct);
+		}
+
 		if (!pl_exp_check_status(hcam, &status, &bytes_read)) {
 			pvcam_error(hcam, "Cannot check camera status during exposure");
 			mxDestroyArray(data_struct);
 			return(empty_struct);
 		}
 	}
-	
+
 	// determine how exposure sequence terminated
 	// return data structure if successful
-	char str[64];
-
 	switch (status) {
 		case READOUT_COMPLETE:
 			mxDestroyArray(empty_struct);
@@ -255,7 +264,7 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 			pvcam_error(hcam, str);
 			break;
 	}
-	
+
 	mxDestroyArray(data_struct);	// If we errored, return blank.
 	return(empty_struct);
 	

@@ -39,7 +39,7 @@ void pvcam_destroy_array(char **char_array, int nstring) {
 
 // open PVCAM camera
 rs_bool pvcam_open(int16 ncamera, int16 *hcam) {
-	
+
 	// declarations
 	char	cam_name[CAM_NAME_LEN];
 	int16	total_cameras;
@@ -73,7 +73,7 @@ rs_bool pvcam_open(int16 ncamera, int16 *hcam) {
 		pvcam_error(*hcam, "Cannot open specified camera");
 		return(0);
 	}
-	
+
 	return(1);
 }
 
@@ -93,6 +93,8 @@ void pvcam_error(int16 hcam, const char *err_msg) {
 	// declarations
 	char	*final_msg;
 	char	*pvcam_msg;
+
+	mexWarnMsgTxt("PVCAM Error!");
 
 	// display message from user
 	// only display PVCAM message if error code set
@@ -116,10 +118,10 @@ void pvcam_error(int16 hcam, const char *err_msg) {
 
 // return access type string
 char *pvcam_access_string(int16 hcam, uns16 access_id) {
-	
+
 	// declarations
 	char	*access_string;
-	
+
 	// allocate space for return string
 	access_string = (char *) mxCalloc((size_t) ACCESS_STR_LEN, sizeof(char));
 
@@ -149,7 +151,7 @@ char *pvcam_access_string(int16 hcam, uns16 access_id) {
 
 // return data type string
 char *pvcam_type_string(int16 hcam, uns16 type_id) {
-	
+
 	// declarations
 	char	*type_string;
 
@@ -260,7 +262,7 @@ rs_bool pvcam_param_value(int16 hcam, uns32 param_id, int16 param_attrib,
 		pvcam_error(hcam, "Invalid data type for numeric parameter");
 		break;
 	}
-	
+
 	// check for error & return value
 	if (!status) {
 		pvcam_error(hcam, "Error obtaining numeric parameter value");
@@ -271,7 +273,7 @@ rs_bool pvcam_param_value(int16 hcam, uns32 param_id, int16 param_attrib,
 
 // return selected PVCAM parameter ID
 rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
-	
+
 	// declarations
 	char	*err_msg;
 
@@ -293,7 +295,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_DD_TIMEOUT") == 0) {
 		*param_id = PARAM_DD_TIMEOUT;
 	}
-	
+
 	// class 2 (sensor clearing)
 	else if (strcmp(param_name, "PARAM_CLEAR_CYCLES") == 0) {
 		*param_id = PARAM_CLEAR_CYCLES;
@@ -301,11 +303,11 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_CLEAR_MODE") == 0) {
 		*param_id = PARAM_CLEAR_MODE;
 	}
-	
+
 	// class 2 (temperature control)
 	else if (strcmp(param_name, "PARAM_COOLING_MODE") == 0) {
 		*param_id = PARAM_COOLING_MODE;
-	}	
+	}
 	else if (strcmp(param_name, "PARAM_TEMP") == 0) {
 		*param_id = PARAM_TEMP;
 	}
@@ -315,7 +317,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_FAN_SPEED_SETPOINT") == 0) {
 		*param_id = PARAM_FAN_SPEED_SETPOINT;
 	}
-	
+
 	// class 2 (gain)
 	else if (strcmp(param_name, "PARAM_GAIN_INDEX") == 0) {
 		*param_id = PARAM_GAIN_INDEX;
@@ -338,7 +340,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_ACTUAL_GAIN") == 0) {
 		*param_id = PARAM_ACTUAL_GAIN;
 	}
-	
+
 	// class 2 (shutter)
 	else if (strcmp(param_name, "PARAM_SHTR_CLOSE_DELAY") == 0) {
 		*param_id = PARAM_SHTR_CLOSE_DELAY;
@@ -352,7 +354,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_SHTR_STATUS") == 0) {
 		*param_id = PARAM_SHTR_STATUS;
 	}
-	
+
 	// class 2 (Capabilities)
 	else if (strcmp(param_name, "PARAM_ACCUM_CAPABLE") == 0) {
 		*param_id = PARAM_ACCUM_CAPABLE;
@@ -362,8 +364,8 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	}
 	else if (strcmp(param_name, "PARAM_MPP_CAPABLE") == 0) {
 		*param_id = PARAM_MPP_CAPABLE;
-	}	
-	
+	}
+
 	// class 2 (I/O)
 	else if (strcmp(param_name, "PARAM_IO_ADDR") == 0) {
 		*param_id = PARAM_IO_ADDR;
@@ -395,19 +397,19 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	}
 	else if (strcmp(param_name, "PARAM_PP_PARAM") == 0) {
 		*param_id = PARAM_PP_PARAM;
-	}	
+	}
 	else if (strcmp(param_name, "PARAM_PP_FEAT_ID") == 0) {
 		*param_id = PARAM_PP_FEAT_ID;
 	}
 	else if (strcmp(param_name, "PARAM_PP_PARAM_ID") == 0) {
 		*param_id = PARAM_PP_PARAM_ID;
-	}	
-	
-	
+	}
+
+
 	// class 2 (sensor physical attributes)
 	else if (strcmp(param_name, "PARAM_COLOR_MODE") == 0) {
 		*param_id = PARAM_COLOR_MODE;
-	}	
+	}
 	else if (strcmp(param_name, "PARAM_FWELL_CAPACITY") == 0) {
 		*param_id = PARAM_FWELL_CAPACITY;
 	}
@@ -447,7 +449,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
     else if (strcmp(param_name, "PARAM_SUMMING_WELL") == 0) {
 		*param_id = PARAM_SUMMING_WELL;
 	}
-	
+
 	// class 2 (sensor readout)
     else if (strcmp(param_name, "PARAM_PMODE") == 0) {
 		*param_id = PARAM_PMODE;
@@ -464,7 +466,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_EXPOSE_OUT_MODE") == 0) {
 		*param_id = PARAM_EXPOSE_OUT_MODE;
 	}
-	
+
 	// class 2 (ADC attributes)
 	else if (strcmp(param_name, "PARAM_ADC_OFFSET") == 0) {
 		*param_id = PARAM_ADC_OFFSET;
@@ -475,7 +477,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_SPDTAB_INDEX") == 0) {
 		*param_id = PARAM_SPDTAB_INDEX;
 	}
-	
+
 	// class 2 (S.M.A.R.T Streaming)
 	else if (strcmp(param_name, "PARAM_SMART_STREAM_MODE_ENABLED") == 0) {
 		*param_id = PARAM_SMART_STREAM_MODE_ENABLED;
@@ -486,7 +488,7 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_SMART_STREAM_EXP_PARAMS") == 0) {
 		*param_id = PARAM_SMART_STREAM_EXP_PARAMS;
 	}
-	
+
 	// class 2 (Others)
 	else if (strcmp(param_name, "PARAM_CAM_FW_VERSION") == 0) {
 		*param_id = PARAM_CAM_FW_VERSION;
@@ -515,8 +517,8 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_READ_NOISE") == 0) {
 		*param_id = PARAM_READ_NOISE;
 	}
-	
-	
+
+
 	// class 3 (acquisition)
 	else if (strcmp(param_name, "PARAM_BOF_EOF_CLR") == 0) {
 		*param_id = PARAM_BOF_EOF_CLR;
@@ -566,14 +568,16 @@ rs_bool pvcam_param_id(int16 hcam, const char *param_name, uns32 *param_id) {
 	else if (strcmp(param_name, "PARAM_BINNING_PAR") == 0) {
 		*param_id = PARAM_BINNING_PAR;
 	}
-	
-	
+
+
 	// Misc
 	else if (strcmp(param_name, "PARAM_CIRC_BUFFER") == 0) {
 		*param_id = PARAM_CIRC_BUFFER;
 	}
-	
 
+    else if (strcmp(param_name, "") == 0) {
+        *param_id = PP_FEATURE_DENOISING;
+    }
 	// generate error message if parameter not found
 	else {
 		err_msg = (char *) mxCalloc(strlen(param_name) + ERROR_MSG, sizeof(char));

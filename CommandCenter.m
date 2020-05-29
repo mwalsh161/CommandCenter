@@ -90,12 +90,16 @@ key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam
 if exist(fullfile(path,'.lock'),'file')
     lock = fullfile(path,'.lock');
     
-    answer = questdlg(sprintf('Found a lock file, are you sure there is no other CommandCenter instance running?\n%s', lock),...
-                                '.lock File Found', 'Continue With This Instance', 'Oops, An Instance Exists', 'Oops, An Instance Exists');
+    cont = 'Continue With This New Instance';
+    oops = 'Oops, An Instance Already Exists';
+    
+    answer = questdlg(sprintf('Found a lock file, are you sure there is no other CommandCenter instance running, in addition to the new CommandCenter just opened?\n%s', lock),...
+                                '.lock File Found', cont, oops, oops);  % Oops is default.
                             
     switch answer
-        case 'Continue With This Instance'
-        case 'Oops, An Instance Exists'
+        case cont
+            % All is good; do nothing.
+        case oops
             delete(hObject);
             error('Truly, one CommandCenter is more than enough.')
     end
