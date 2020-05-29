@@ -5,7 +5,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %   course and fine tuning/scanning of laser.
     %
     %   The on/off state of laser is controlled by the PulseBlaster (loaded
-    %   in set_ip).  Note this state can switch to unknown if another
+    %   in set_host).  Note this state can switch to unknown if another
     %   module takes over the PulseBlaster program.
     %
     %   Power to the laser can be controlled through the serial object
@@ -19,10 +19,10 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %   setting
 
     properties
-        prefs = {'PBline','pb_ip','velocity_ip','wavemeter_ip','wavemeter_channel',...
-                 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
-        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_ip',...
-            'velocity_ip','wavemeter_channel','wavemeter_ip','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
+        prefs = {'PBline','pb_host','velocity_host','wavemeter_host','wavemeter_channel',...
+                 'wheel_host', 'wheel_pin', 'wheel_pos', 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
+        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_host',...
+            'velocity_host','wavemeter_host','wavemeter_channel','wheel_host', 'wheel_pin', 'wheel_pos', 'TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
         cal_local = struct('THz2nm',[],'gof',[],'datetime',[],'expired',{}); %calibration data for going from nm to THz
@@ -41,19 +41,33 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         resolution = 0.01; %frequency tuning resolution in THz
     end
     properties(SetObservable,GetObservable)
-        tuning = Prefs.Boolean(false,'readonly',true);
-        debug = Prefs.Boolean(false);
-        TuningTimeout = Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
-        pb_ip = Prefs.String('No Server','set','set_pb_ip','help','IP/hostname of computer with PB server');
-        PBline = Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
-        velocity_ip = Prefs.String('No Server','set','set_velocity_ip','help','IP/hostname of computer with hwserver for velocity laser');
-        wavemeter_ip = Prefs.String('No Server','set','set_wavemeter_ip','help','IP/hostname of computer with hwserver for wavemeter');
-        wavemeter_channel = Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
-        diode_on = Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
-        wavemeter_active = Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
-        percent_setpoint = Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
-        TuneSetpointAttempts = Prefs.Integer(3,'min',1,'allow_nan',false);
-        TuneSetpointNPoints = Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
+        tuning =                Prefs.Boolean(false,'readonly',true);
+        debug =                 Prefs.Boolean(false);
+        TuningTimeout =         Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
+        
+        pb_host =               Prefs.String('No Server','set','set_pb_host','help','IP/hostname of computer with PB server');
+        PBline =                Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
+        
+        velocity_host =         Prefs.String('No Server','set','set_velocity_host','help','IP/hostname of computer with hwserver for velocity laser');
+        
+        wavemeter_host =        Prefs.String('No Server','set','set_wavemeter_host','help','IP/hostname of computer with hwserver for wavemeter');
+        wavemeter_channel =     Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
+        
+        wheel_host =              Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
+        wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
+        wheel_pos =             Prefs.MultipleChoice('OD0', 'choices', Sources.VelocityLaser.wheel_choices, 'allow_empty', false, 'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
+        
+        diode_on =              Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
+        
+        wavemeter_active =      Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
+        
+        percent_setpoint =      Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
+        
+        TuneSetpointAttempts =  Prefs.Integer(3,'min',1,'allow_nan',false);
+        TuneSetpointNPoints =   Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
+    end
+    properties(Constant)
+        wheel_choices = {'OD.5', 'OD1', 'OD0', 'OD2'};
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
@@ -71,6 +85,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         PulseBlaster %hardware handle
         serial
         wavemeter
+        wheel
     end
     methods(Access=protected)
         function obj = VelocityLaser()
@@ -118,7 +133,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 catch err
                     errs{end+1} = err.message;
                 end
-            elseif ~strcmp(obj.wavemeter_ip,'No Server')
+            elseif ~strcmp(obj.wavemeter_host,'No Server')
                 warning('Wavemeter IP set, but not connected!');
             end
             if ~isempty(obj.serial)
@@ -127,7 +142,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 catch err
                     errs{end+1} = err.message;
                 end
-            elseif ~strcmp(obj.velocity_ip,'No Server')
+            elseif ~strcmp(obj.velocity_host,'No Server')
                 warning('Velocity IP set, but not connected!');
             end
             if ~isempty(errs)
@@ -153,10 +168,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
         end
-        function val = set_velocity_ip(obj,val,~)
+        
+        function val = set_velocity_host(obj,val,~)
             err = obj.connect_driver('serial','VelocityLaser',val);
             if isempty(obj.serial) %#ok<*MCSUP>
-                obj.velocity_ip = 'No Server';
+                obj.velocity_host = 'No Server';
                 obj.diode_on = NaN;
                 if ~isempty(err)
                     rethrow(err)
@@ -168,11 +184,12 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
             obj.diode_on = obj.serial.getDiodeState;
         end
-        function val = set_pb_ip(obj,val,~)
+        
+        function val = set_pb_host(obj,val,~)
             err = obj.connect_driver('PulseBlaster','PulseBlaster.StaticLines',val);
             obj.isRunning;
             if isempty(obj.PulseBlaster)
-                obj.pb_ip = 'No Server';
+                obj.pb_host = 'No Server';
                 if ~isempty(err)
                     rethrow(err)
                 end
@@ -190,7 +207,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 obj.source_on = obj.PulseBlaster.lines(val);
             end
         end
-        function val = set_wavemeter_ip(obj,val,~)
+        
+        function val = set_wavemeter_host(obj,val,~)
             err = obj.connect_driver('wavemeter','Wavemeter',val,obj.wavemeter_channel);
             if isempty(obj.wavemeter)
                 if ~isempty(err)
@@ -206,17 +224,45 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.wavemeter_active = obj.wavemeter.GetSwitcherSignalState;
         end
         function val = set_wavemeter_channel(obj,val,~)
-            err = obj.connect_driver('wavemeter','Wavemeter',obj.wavemeter_ip,val);
+            err = obj.connect_driver('wavemeter','Wavemeter',obj.wavemeter_host,val);
             if ~isempty(err)
                 rethrow(err)
             end
         end
+        
+        function val = set_wheel_host(obj,val,~)
+            err = obj.connect_driver('wheel', 'ArduinoServo', val, obj.wheel_pin);
+            if isempty(obj.wheel)
+                if ~isempty(err)
+                    rethrow(err)
+                end
+                val = 'No Server';
+                return
+            end
+            if ~isempty(err)
+                rethrow(err)
+            end
+        end
+        function val = set_wheel_pin(obj,val,~)
+            err = obj.connect_driver('wheel', 'ArduinoServo', obj.wheel_host, val);
+            if ~isempty(err)
+                rethrow(err)
+            end
+        end
+        function val = set_wheel_pos(obj,val,~)
+            if ~isempty(obj.wheel)
+                index = find(ismember(obj.wheel_choices, val));
+
+                obj.wheel.angle = 60 * (index-1);
+            end
+        end
+        
         function val = set_diode_on(obj,val,~)
             if isnan(val);val = false;return;end %short-circuit if set to nan but keep false for settings method
             assert(~isempty(obj.serial),'No Velocity Laser connected');
             % This requires some time, so have msgbox appear
             st = dbstack(1);
-            if ~any(strcmpi({st.name},'VelocityLaser.set_velocity_ip'))
+            if ~any(strcmpi({st.name},'VelocityLaser.set_velocity_host'))
                 if val
                     f = msgbox('Turning laser diode on, please wait...');
                     obj.serial.on;
@@ -230,7 +276,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if isnan(val);val=false;return;end %short-circuit if set to nan but keep false for settings method
             assert(~isempty(obj.wavemeter),'No wavemeter connected');
             st = dbstack(1);
-            if ~any(strcmpi({st.name},'VelocityLaser.set_wavemeter_ip'))
+            if ~any(strcmpi({st.name},'VelocityLaser.set_wavemeter_host'))
                 obj.wavemeter.SetSwitcherSignalState(val);
             end
             val = obj.wavemeter.GetSwitcherSignalState;
@@ -240,6 +286,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             cal = obj.calibration.THz2nm;
             range = sort(cal.a./(obj.c./obj.range-cal.c)+cal.b);
         end
+        
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             if ~obj.diode_on
@@ -265,6 +312,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 obj.deactivate;
             end
         end
+        
         function val = getFrequency(obj)
             val = obj.wavemeter.getFrequency();
         end
@@ -280,7 +328,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
         end
-        function calibrate(obj,ax) 
+        
+        function calibrate(obj,ax)
             %calibrates the frequency as read by the wavemeter to the 
             %wavelength as set by the diode motor
             if ~obj.diode_on || ~obj.wavemeter_active
@@ -389,6 +438,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         function resetCalibration(obj)
             obj.cal_local = [];
         end
+        
         function setMotorFrequency(obj,val)
             %internal method for setting the frequency using the motor;
             %talks to the driver and uses the internal calibration function
