@@ -64,7 +64,18 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             rangeTHz = (obj.V2GHz * obj.Vrange / 1e3);
             stepPercent = 100 * stepTHz / rangeTHz;               % Convert step to percentage
             
-            scan_percents = obj.from:stepPercent:obj.to;    
+            if obj.to > obj.from    % We are ascending
+                stepPercent =  abs(stepPercent);
+            else                    % We are descending
+                stepPercent = -abs(stepPercent);
+            end
+            
+            
+%             stepPercent
+%             obj.from
+%             obj.to
+            
+            scan_percents = (obj.from:stepPercent:obj.to);    
             if scan_percents(end) ~= obj.to                 % If to isn't present...
                 scan_percents(end + 1) = obj.to;            % ...add it.
             end
@@ -73,7 +84,8 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             
             obj.scan_points = (scan_percents - base_percent) * obj.Vrange / 100;            % And calculate the cooresponding voltages.
         end
-        
+    end
+    methods
         function THz = percent2THz(obj, percent)
             if isempty(obj.resLaser)
                 base_percent = NaN;
@@ -81,10 +93,17 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
                 base_percent = obj.resLaser.GetPercent;
             end
             
-            THz = obj.resLaser.getFrequency + obj.V2GHz * obj.Vrange * (percent - base_percent) / 100 / 1e3;
+            THz = obj.resLaser.getFrequency - obj.V2GHz * obj.Vrange * (percent - base_percent) / 1e5;
         end
-    end
-    methods
+        function percent = THz2percent(obj, THz)
+            if isempty(obj.resLaser)
+                base_percent = NaN;
+            else
+                base_percent = obj.resLaser.GetPercent;
+            end
+            
+            percent = - 1e5 * (THz - obj.resLaser.getFrequency) / (obj.V2GHz * obj.Vrange) + base_percent;
+        end
         function PreRun(obj, ~, managers, ax)
             PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
             
@@ -97,10 +116,15 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             obj.resLaser.WavelengthLock(false);
 %             obj.resLaser.etalon_lock = false;
             
-            obj.dev = Drivers.NIDAQ.dev.instance(obj.DAQ_dev);
+            obj.loadDAQ();
             obj.setLaser(obj.overshoot_voltage)
         end
-        
+        function loadDAQ(obj)
+%             if ~isempty(obj.dev)
+%                 delete(obj.dev)
+%             end
+            obj.dev = Drivers.NIDAQ.dev.instance(obj.DAQ_dev);
+        end
         function setLaser(obj, scan_point)
             obj.dev.WriteAOLines(obj.DAQ_line, scan_point);
         end

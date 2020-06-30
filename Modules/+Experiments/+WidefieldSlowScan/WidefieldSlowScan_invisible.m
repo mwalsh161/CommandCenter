@@ -52,6 +52,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 obj.meta.vars(i).vals = obj.(obj.vars{i});
             end
             obj.meta.power = obj.repumpLaser.power;
+            obj.meta.exposure = obj.imaging.exposure;
             obj.meta.position = managers.Stages.position; % Stage position
 
             try
@@ -60,42 +61,59 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 for freqIndex = 1:length(obj.scan_points)
 %                     'frame'
 %                     tic
+                    obj.data.experiment_time(freqIndex) = now;
+            
                     status.String = sprintf('Progress (%i/%i pts):\n  Setting laser', freqIndex, length(obj.scan_points));
-                    drawnow
 %                     toc
                     
                     if ~obj.only_get_freq
+                        drawnow
                         if ~obj.repump_always_on
                             obj.repumpLaser.on
                         end
                     end
                     
-%                     tic
-                    obj.setLaser(obj.scan_points(freqIndex));
-%                     toc
+                    try
+                        if obj.abort_request
+                            break;
+                        end
                     
-%                     tic
-                    if obj.save_freq
-                        obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
-                    end
-%                     toc
+                        tic
+                        obj.setLaser(obj.scan_points(freqIndex));
+                        obj.data.freqs_time(freqIndex) = toc;
                     
-                    
-                    
-                    if ~obj.only_get_freq
-                        if ~obj.repump_always_on
-                            obj.repumpLaser.off
+                        if obj.save_freq
+                            obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
                         end
                         
-%                         tic
-                        status.String = sprintf('Progress (%i/%i pts):\n  Snapping image', freqIndex, length(obj.scan_points));
-                        drawnow
-%                         toc
+                        if obj.abort_request
+                            break;
+                        end
 
-%                         tic
-                        obj.data.images(:,:,freqIndex) = obj.imaging.snapImage;
-                        ax.UserData.CData = obj.data.images(:,:,freqIndex);
-%                         toc
+                        if obj.only_get_freq
+                            status.String = sprintf('Progress (%i/%i pts):\n  Laser set %f (laser at %f)', freqIndex, length(obj.scan_points), obj.scan_points(freqIndex), obj.data.freqs_measured(freqIndex));
+                            drawnow
+                        else
+                            if ~obj.repump_always_on
+                                obj.repumpLaser.off
+                            end
+
+                            if obj.save_freq
+                                status.String = sprintf('Progress (%i/%i pts):\n  Snapping image (laser at %f)', freqIndex, length(obj.scan_points), obj.data.freqs_measured(freqIndex));
+                            else
+                                status.String = sprintf('Progress (%i/%i pts):\n  Snapping image', freqIndex, length(obj.scan_points));
+                            end
+                            drawnow
+                            
+                            obj.data.images(:,:,freqIndex) = obj.imaging.snapImage;
+                            ax.UserData.CData = obj.data.images(:,:,freqIndex);
+                        end
+                    
+                        if obj.save_freq
+                            obj.data.freqs_measured_after(freqIndex) = obj.resLaser.getFrequency();
+                        end
+                    catch err
+                        warning(err.message)
                     end
                     
                     if obj.abort_request
@@ -104,6 +122,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 end
 
             catch err
+                warning(err.message)
             end
             
             obj.setLaser(0);
@@ -143,7 +162,12 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         end
         
         function PreRun(obj,~,managers,ax)
+            obj.data.scan_points = obj.scan_points;
             obj.data.freqs_measured = NaN(1, length(obj.scan_points));
+            obj.data.freqs_measured_after = NaN(1, length(obj.scan_points));
+            obj.data.freqs_time = NaN(1, length(obj.scan_points));
+            
+            obj.data.experiment_time = NaN(1, length(obj.scan_points));
             
             w = obj.imaging.width;
             h = obj.imaging.height;

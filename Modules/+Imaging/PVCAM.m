@@ -117,6 +117,7 @@ classdef PVCAM < Modules.Imaging
         end
         function val = set_speed(obj, val, ~)
             if ~isempty(obj.h_cam)
+                val
                 pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', val);
             end
         end
@@ -152,7 +153,11 @@ classdef PVCAM < Modules.Imaging
             
             tries = 1;
             while tries <= 3
-                image_stream = int16(pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed'));
+%                 img = pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed')
+%                 class(img)
+%                 min(min(img))
+%                 max(max(img))
+                image_stream = uint16(pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed'));
                 
                 if ~isempty(image_stream)
                     im = reshape(image_stream, [w, h, ni]);
@@ -176,7 +181,7 @@ classdef PVCAM < Modules.Imaging
             end
         end
         function snap(obj,im,continuous)
-            set(im,'cdata',obj.snapImage);
+            set(im,'cdata',double(obj.snapImage));
         end
         
         function startVideo(obj,im)

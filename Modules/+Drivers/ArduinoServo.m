@@ -38,6 +38,8 @@ classdef ArduinoServo < Modules.Driver
             obj.com('?');   % This command pings the server for an appropriate response. If something is wrong, we will catch it here.
             obj.pin = pin;
         end
+    end
+    methods
         function response = com(obj,funcname,varargin) %keep this
             response = obj.connection.com(obj.hwname,funcname,varargin{:});
         end
@@ -47,13 +49,22 @@ classdef ArduinoServo < Modules.Driver
             delete(obj.connection)
         end
         function val = set_angle(obj,val,~)     % Locks to new angle (0 -> 180 standard), then unlocks.
-            obj.com(['s ' num2str(obj.pin) ' ' num2str(val)]);
+            try
+                errorIfNotOK(obj.com(['s ' num2str(obj.pin) ' ' num2str(val)]));
+            catch   % If fail, reload and try again.
+                obj.connection.reload('Arduino');
+                errorIfNotOK(obj.com(['s ' num2str(obj.pin) ' ' num2str(val)]));
+            end
         end
         function lock(obj)                      % Tells the arduino to get the servo to apply electronic feedback against any force. Without the lock, the servo can spin ~freely by hand. With the lock, this is more difficult. Only works for one pin at a time at the moment.
-            obj.com(['l ' num2str(obj.pin)]);
+            errorIfNotOK(obj.com(['l ' num2str(obj.pin)]));
         end
         function unlock(obj)                    % Unlocks any locked pin.
-            obj.com('u');
+            errorIfNotOK(obj.com('u'));
         end
     end
+end
+
+function errorIfNotOK(str)
+    assert(strcmp(str, 'OK'), ['Arduino Error: ' str]);
 end

@@ -251,7 +251,7 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 	// return data structure if successful
 	switch (status) {
 		case READOUT_COMPLETE:
-			mxDestroyArray(empty_struct);
+			//mxDestroyArray(empty_struct);
 			return(data_struct);
 		case READOUT_NOT_ACTIVE:
 			pvcam_error(hcam, "Camera readout never started");

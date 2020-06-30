@@ -1,4 +1,4 @@
-function flag = pvcamsetvalue(h_cam, param_id, param_value);
+function flag = pvcamsetvalue(h_cam, param_id, param_value)
 
 % PVCAMSETVALUE - sets parameter value on PVCAM camera
 %
@@ -21,10 +21,10 @@ if (nargin ~= 3)
 elseif (~isscalar(h_cam))
     warning('HCAM must be a scalar');
     return
-elseif (~ischar(param_id) | isempty(param_id))
+elseif (~ischar(param_id) || isempty(param_id))
     warning('ID must be a string');
     return
-elseif ((~ischar(param_value) & ~isscalar(param_value)) | isempty(param_value))
+elseif ((~ischar(param_value) && ~isscalar(param_value)) || isempty(param_value))
     warning('VALUE must be a string or a scalar');
     return
 end
@@ -42,7 +42,7 @@ switch (param_type)
     
     case 'string'
         % check parameter value is string
-        if (~ischar(param_value) | isempty(param_value))
+        if (~ischar(param_value) || isempty(param_value))
             warning(sprintf('%s type is %s, VALUE must be a string', param_id, param_type));
         else
             flag = pvcamset(h_cam, param_id, param_value);

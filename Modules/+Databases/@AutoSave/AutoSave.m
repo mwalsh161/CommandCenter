@@ -143,10 +143,19 @@ classdef AutoSave < Modules.Database
             if ~(length(path)>1 && path(2)==':')
                 path = fullfile(pwd,path);
             end
+            
             drive = path(1:2);
             [~,cmdout] = system(sprintf('net use %s',drive));
             remoteName = 'local'; status = 'OK';
+            
             % Parse system output
+            key2 = '''net'' is not recognized as an internal or external command';
+            if (length(cmdout)>=length(key2) && strcmp(cmdout(1:length(key2)),key2))
+                remoteName = '';
+                warning(['Database.AutoSave.checkNetwork(): ' newline cmdout])
+                return
+            end
+            
             key = 'The network connection could not be found.';
             if ~(length(cmdout)>=length(key) && strcmp(cmdout(1:length(key)),key))
                 lines = split(cmdout,newline);

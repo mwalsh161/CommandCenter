@@ -73,7 +73,7 @@ classdef EMM < Sources.msquared.common_invisible
                 obj.hwserver_host = obj.no_server;
                 obj.updateStatus();
                 if contains(err.message,'driver is already instantiated')
-                    error('solstis driver already instantiated. Likely due to an active SolsTiS source; please close it and retry.')
+                    error('SolsTiS driver already instantiated. Likely due to an active SolsTiS source; please close it and retry.')
                 end
                 rethrow(err)
             end
@@ -84,7 +84,7 @@ classdef EMM < Sources.msquared.common_invisible
                 obj.updateStatus();
                 delete(obj.solstisHandle);
                 obj.solstisHandle = [];
-                error('solstis loaded, but EMM failed. Solstis handle destroyed:\n%s',err.message);
+                error('SolsTiS loaded, but EMM failed. SolsTiS handle destroyed:\n%s',err.message);
             end
             % Can only get here if both successful
             obj.updateStatus();
@@ -126,7 +126,7 @@ classdef EMM < Sources.msquared.common_invisible
             try
                 textH.String = 'Launching MITM, please wait...'; drawnow;
                 obj.emmHandle.ready()
-                textH.String = 'Please wait while EMM tunes to taget wavelength.'; drawnow;
+                textH.String = 'Please wait while EMM tunes to target wavelength.'; drawnow;
                 obj.emmHandle.set_wavelength(target);
                 obj.target_wavelength = target;
                 obj.trackFrequency(obj.c/target); % Will block until obj.tuning = false (calling obj.getFrequency)
