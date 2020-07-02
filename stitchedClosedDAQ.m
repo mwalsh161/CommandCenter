@@ -6,7 +6,7 @@ function stitchedClosedDAQ(managers)
 %     
 %     C.arm()
 %     C.on()
-    dwl = .01;
+    dwl = .0075;
     
     % SiV
 %     460.5
@@ -14,7 +14,13 @@ function stitchedClosedDAQ(managers)
 %     WL = 406.710:dwl:406.900;
 %     WL = [406.740:dwl:406.900 406.500:dwl:406.710];
 %     WL = 406.7;
-    WL = 470.31:dwl:470.41;
+
+    % NV
+%     WL = 470.31:dwl:470.41;
+
+    % GeV
+%     WL = [497:(dwl*20):499 497.5:dwl:498.5];
+    WL = [497.5:dwl:498];
 
 
 %     S0 = Sources.msquared.SolsTiS.instance;
@@ -22,8 +28,17 @@ function stitchedClosedDAQ(managers)
     S = Sources.msquared.EMM.instance;
 %     S.WavelengthLock(false);
 %     S.set_etalon_lock(false)
+
     
-    for wl = WL
+    cam = Imaging.PVCAM.instance;
+    C = Sources.Cobolt_PB.instance;
+    wheel = Drivers.ArduinoServo.instance('localhost', 2); % Which weaves as it wills.
+
+    cam.exposure = 300;
+    C.power = 10;
+    wheel.angle  = 45;
+    
+    for wl = WL(18:end) %18:end added at 10:03 on 7/2 by EBersin to continue experiment
         wl
 %         S.WavelengthLock(true);
         try
@@ -34,7 +49,7 @@ function stitchedClosedDAQ(managers)
         pause(.5)
         S.GetPercent
         
-        while abs(S.GetPercent - 50) > 4
+        while abs(S.GetPercent - 50) > 5
             try
                 S.TuneSetpoint(wl + 2*dwl);
                 S.TuneSetpoint(wl + (rand-.5)*dwl/40);
@@ -43,16 +58,17 @@ function stitchedClosedDAQ(managers)
             pause(.5)
             S.GetPercent
         end
+        
+        if abs(S.getFrequency() - wl) > 10*dwl
+            disp(S.getFrequency())
+            disp(wl)
+            error('Laser is freaking out.')
+        end
 
         managers.Experiment.run()
+                
+        if managers.Experiment.aborted
+            error('User aborted.');
+        end
     end
-% g
-%     E = Experiments.WidefieldSlowScan.Closed.instance;
-%     E.repump_always_on = false;
-%     
-%     for g = GG(end:-1:1)
-%         C.CW_power = g;
-% 
-%         managers.Experiment.run()
-%     end
 end
