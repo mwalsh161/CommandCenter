@@ -42,19 +42,6 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             status.String = 'Experiment started';
             drawnow;
 
-            if ~obj.only_get_freq
-                obj.data.images = zeros([obj.imaging.width, obj.imaging.height, length(obj.scan_points)], 'int16');
-            end
-
-            obj.meta.prefs = obj.prefs2struct;
-            for i = 1:length(obj.vars)
-                obj.meta.vars(i).name = obj.vars{i};
-                obj.meta.vars(i).vals = obj.(obj.vars{i});
-            end
-            obj.meta.power = obj.repumpLaser.power;
-            obj.meta.exposure = obj.imaging.exposure;
-            obj.meta.position = managers.Stages.position; % Stage position
-
             try
                 obj.PreRun(status,managers,ax);
                 
@@ -162,14 +149,6 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         end
         
         function PreRun(obj,~,managers,ax)
-            obj.data.scan_points = obj.scan_points;
-            
-            obj.data.freqs_measured = NaN(1, length(obj.scan_points));
-            obj.data.freqs_measured_after = NaN(1, length(obj.scan_points));
-            obj.data.freqs_time = NaN(1, length(obj.scan_points));
-            
-            obj.data.experiment_time = NaN(1, length(obj.scan_points));
-            
             w = obj.imaging.width;
             h = obj.imaging.height;
             
@@ -179,18 +158,43 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             xlabel(ax, '$x$ [pix]', 'interpreter', 'latex');
             ylabel(ax, '$y$ [pix]', 'interpreter', 'latex');
             
+            if ~obj.only_get_freq
+                obj.data.images = zeros([w, h, length(obj.scan_points)], 'int16');
+            end
+
+            obj.meta.prefs = obj.prefs2struct;
+            for i = 1:length(obj.vars)
+                obj.meta.vars(i).name = obj.vars{i};
+                obj.meta.vars(i).vals = obj.(obj.vars{i});
+            end
+            obj.data.repumpPower = obj.repumpLaser.power;
+            obj.meta.exposure = obj.imaging.exposure;
+            obj.meta.position = managers.Stages.position; % Stage position
+            
+            obj.data.scan_points = obj.scan_points;
+            
+            obj.data.freqs_measured = NaN(1, length(obj.scan_points));
+            obj.data.freqs_measured_after = NaN(1, length(obj.scan_points));
+            obj.data.freqs_time = NaN(1, length(obj.scan_points));
+            
+            obj.data.experiment_time = NaN(1, length(obj.scan_points));
+            
             pm = Drivers.PM100.instance();
+            wheel = Drivers.ArduinoServo.instance('localhost', 2);
+            
+            obj.meta.resAngle = wheel.angle;
             
             obj.resLaser.on
+            obj.repumpLaser.off
             
             obj.setLaser(0);
-            pause(.25)
+            pause(1)
             obj.data.freq_center = obj.resLaser.getFrequency();
-            [obj.data.resPowerCenter, obj.data.resPowerCenter] =    pm.get_power('units', 'mW', 'samples', 10);
+            [obj.data.resPowerCenter, obj.data.resPowerStdCenter] =    pm.get_power('units', 'mW', 'samples', 10);
             
             obj.setLaser(obj.scan_points(1));
-            pause(.25)
-            [obj.data.resPowerStart, obj.data.resPowerStart] =      pm.get_power('units', 'mW', 'samples', 10);
+            pause(1)
+            [obj.data.resPowerStart, obj.data.resPowerStdStart] =      pm.get_power('units', 'mW', 'samples', 10);
             
             obj.data.resPowerAfter = NaN;
             obj.data.resPowerStdAfter = NaN;

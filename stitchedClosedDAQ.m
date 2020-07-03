@@ -1,12 +1,5 @@
 function stitchedClosedDAQ(managers)
-%     GG = 10.^(-2:.5:1.5);
-% %     GG = 10.^(1.5:1:1.5);
-%     
-%     C = Sources.Cobolt_PB.instance;
-%     
-%     C.arm()
-%     C.on()
-    dwl = .0075;
+    dthz = .0075;
     
     % SiV
 %     460.5
@@ -20,29 +13,25 @@ function stitchedClosedDAQ(managers)
 
     % GeV
 %     WL = [497:(dwl*20):499 497.5:dwl:498.5];
-    WL = [497.5:dwl:498];
+    THZ = [497.5:dthz:498];
 
-
-%     S0 = Sources.msquared.SolsTiS.instance;
-%     S0.lock_wavelength("off")
     S = Sources.msquared.EMM.instance;
-%     S.WavelengthLock(false);
-%     S.set_etalon_lock(false)
 
-    
+    pm = Drivers.PM100.instance();
     cam = Imaging.PVCAM.instance;
     C = Sources.Cobolt_PB.instance;
     wheel = Drivers.ArduinoServo.instance('localhost', 2); % Which weaves as it wills.
 
     cam.exposure = 300;
     C.power = 10;
+    C.arm();
+    C.on();
     wheel.angle  = 45;
     
-    for wl = WL(18:end) %18:end added at 10:03 on 7/2 by EBersin to continue experiment
-        wl
-%         S.WavelengthLock(true);
+    for thz = THZ 
+        thz
         try
-            S.TuneSetpoint(wl);
+            S.TuneSetpoint(thz);
         catch
             
         end
@@ -51,24 +40,49 @@ function stitchedClosedDAQ(managers)
         
         while abs(S.GetPercent - 50) > 5
             try
-                S.TuneSetpoint(wl + 2*dwl);
-                S.TuneSetpoint(wl + (rand-.5)*dwl/40);
+                S.TuneSetpoint(thz + 2*dthz);
+                S.TuneSetpoint(thz + (rand-.5)*dthz/40);
             catch
             end
             pause(.5)
             S.GetPercent
         end
         
-        if abs(S.getFrequency() - wl) > 10*dwl
+        if abs(S.getFrequency() - thz) > 10*dthz
             disp(S.getFrequency())
-            disp(wl)
+            disp(thz)
             error('Laser is freaking out.')
         end
 
+        C.off
+        
+        try
+            lockPower(0.01, pm, wheel); % lock power to 10 uW
+        catch
+            disp('Power setting failed; proceeding anyway.');
+        end
+        
         managers.Experiment.run()
                 
         if managers.Experiment.aborted
             error('User aborted.');
         end
     end
+end
+
+function lockPower(target,pm,wheel)
+    P = 70;            % P for PID (no I or D because laziness)    
+    timeout = 30;       % Timeout after X seconds
+    tol = 0.02*target;  % Must be within X% of target
+    
+    currPow = pm.get_power('samples', 10, 'units', 'mW');
+    clk = tic;
+    
+    while (toc(clk) < timeout && abs(currPow(end)-target) > tol) || toc(clk) < timeout/2
+        wheel.angle = max(min(wheel.angle-P*(log10(currPow(end))-log10(target)), 180), 0); %/sqrt(length(currPow));
+        [currPow(end+1), powstd] = pm.get_power('samples', 10, 'units', 'mW');
+        fprintf('Angle at %.2f, power at %.2f +/- %.2f uW\n', wheel.angle, currPow(end)*1e3, powstd*1e3)
+    end
+    
+    assert(abs(currPow(end)-target) < tol + powstd, 'Unable to lock power to target')
 end

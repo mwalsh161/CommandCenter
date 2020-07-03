@@ -105,18 +105,15 @@ classdef ClosedDAQ < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
             percent = - 1e5 * (THz - obj.resLaser.getFrequency) / (obj.V2GHz * obj.Vrange) + base_percent;
         end
         function PreRun(obj, ~, managers, ax)
-            PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
-            
             obj.get_scan_points();
+            obj.loadDAQ();
             
-%             obj.resLaser.wavelength_lock = true;
             obj.resLaser.WavelengthLock(true);
             pause(.5);
-%             obj.resLaser.wavelength_lock = false;
             obj.resLaser.WavelengthLock(false);
-%             obj.resLaser.etalon_lock = false;
             
-            obj.loadDAQ();
+            PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
+            
             obj.setLaser(obj.overshoot_voltage)
         end
         function loadDAQ(obj)
