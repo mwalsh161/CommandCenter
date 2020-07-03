@@ -125,7 +125,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 warning(err.message)
             end
             
-            obj.setLaser(0);
+            obj.PostRun();
             
             if exist('err','var')
                 rethrow(err)
@@ -163,6 +163,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         
         function PreRun(obj,~,managers,ax)
             obj.data.scan_points = obj.scan_points;
+            
             obj.data.freqs_measured = NaN(1, length(obj.scan_points));
             obj.data.freqs_measured_after = NaN(1, length(obj.scan_points));
             obj.data.freqs_time = NaN(1, length(obj.scan_points));
@@ -178,8 +179,35 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             xlabel(ax, '$x$ [pix]', 'interpreter', 'latex');
             ylabel(ax, '$y$ [pix]', 'interpreter', 'latex');
             
-            obj.repumpLaser.on
+            pm = Drivers.PM100.instance();
+            
             obj.resLaser.on
+            
+            obj.setLaser(0);
+            pause(.25)
+            obj.data.freq_center = obj.resLaser.getFrequency();
+            [obj.data.resPowerCenter, obj.data.resPowerCenter] =    pm.get_power('units', 'mW', 'samples', 10);
+            
+            obj.setLaser(obj.scan_points(1));
+            pause(.25)
+            [obj.data.resPowerStart, obj.data.resPowerStart] =      pm.get_power('units', 'mW', 'samples', 10);
+            
+            obj.data.resPowerAfter = NaN;
+            obj.data.resPowerStdAfter = NaN;
+            
+            obj.repumpLaser.on
+        end
+        
+        function PostRun(obj)
+            obj.repumpLaser.off
+            
+            pm = Drivers.PM100.instance();
+            
+            pause(.25)
+            [obj.data.resPowerAfter, obj.data.resPowerStdAfter] =   pm.get_power('units', 'mW', 'samples', 10);
+            
+            obj.setLaser(0);
+            obj.resLaser.off
         end
     end
 end
