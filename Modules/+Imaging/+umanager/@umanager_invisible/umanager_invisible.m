@@ -17,10 +17,11 @@ classdef umanager_invisible < Modules.Imaging
     
     properties(Abstract) % Used in init
         dev           % Device label for camera (from the cfg file)
-        config_file   % Config file full path or relative to classdef
+        config_file;  % Config file full path or relative to classdef
     end
     properties(SetObservable,GetObservable)
-        exposure = Prefs.Double('min',0,'units','ms','set','set_exposure');
+        exposure = Prefs.Double('min',0,'units','ms','set','set_exposure',...
+            'help_text', 'How long each frame is integrated for.');
         binning = Prefs.Integer(1,'min',1,'units','px','set','set_binning',...
             'help_text','Not all integers will be available for your camera.');
     end
@@ -44,7 +45,7 @@ classdef umanager_invisible < Modules.Imaging
     properties(Hidden)
         focusPeaks;             % Stores relative pos of "significant" peaks in contrast detection
     end
-    properties(Access=private)
+    properties%(Access=private)
         core            % The Micro-Manager core utility (java); Access through mmc method
         videoTimer       % Handle to video timer object for capturing frames
     end
@@ -53,7 +54,7 @@ classdef umanager_invisible < Modules.Imaging
             obj.path = 'camera';
         end
     end
-    methods(Sealed,Access=protected)
+    methods%(Sealed,Access=protected)
         function varargout = mmc(obj,function_name,varargin)
             % Provide access to obj.core (micromanager core interface)
             assert(obj.initialized,'UMANAGER:not_initialized','"%s" has not initialized the core yet.',class(obj))
@@ -67,8 +68,14 @@ classdef umanager_invisible < Modules.Imaging
         function init(obj)
             % Initialize Java Core
             obj.initializing = true;
-            import mmcorej.*;
-            obj.core = CMMCore;
+            try
+                import mmcorej.*;
+                obj.core = CMMCore;
+            catch err
+                warning(['Follow the instructions (for the correct version; this has been tested to work for 1.4) at https://micro-manager.org/wiki/Matlab_Configuration to install Micromananger for MATLAB!' 13 ...
+                        '    This process asks you to append to MATLAB files such as librarypath.txt. You might not have adminstrative privledges to save these files directly; try modifying externally and move and replace as a workaround.']);
+                rethrow(err);
+            end
             config_file_full = obj.config_file;
             if ~(  (length(obj.config_file)>1 && obj.config_file(2) == ':') ||... % PC
                    (~isempty(obj.config_file) && obj.config_file(1) == '/')  )    % Unix-based
@@ -176,13 +183,21 @@ classdef umanager_invisible < Modules.Imaging
                 obj.binning = binning;
             end
             % Take Image
+            1
             obj.mmc('snapImage');
+            2
             dat = obj.mmc('getImage');
+            3
             width = obj.mmc('getImageWidth');
+            4
             height = obj.mmc('getImageHeight');
+            5
             dat = typecast(dat, obj.pixelType);
+            6
             dat = reshape(dat, [width, height]);
+            7
             im = transpose(dat);  % make column-major order for MATLAB
+            8
             if wasRunning
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end

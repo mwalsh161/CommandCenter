@@ -6,7 +6,7 @@ classdef Camera < Imaging.umanager.umanager_invisible
     properties(SetObservable,GetObservable)
         dev = Prefs.String('help_text',...
             'This is the Device label for the Camera from the config file.');
-        config_file = Prefs.String('help_text','Path to the .cfg file.');
+        config_file = Prefs.File('filter_spec', '*.cfg', 'help_text', 'Path to MicroManager .cfg file.');
         reload = Prefs.Boolean(false,'set','reload_toggle',...
             'help_text','Toggle this to reload core.')
     end

@@ -17,7 +17,7 @@ classdef QR
     
     properties(Constant)
         % Bit definitions
-        length = 25;    % Total lenght of code
+        length = 25;    % Total length of code
         pad = [1 5]; % Pad locations of bits (indexed from 1)
         padVal = 1; % Pad logical value
         vb = 4;   % Version bits

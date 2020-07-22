@@ -42,7 +42,7 @@ classdef (Sealed) PiezoControl < Modules.Driver
     methods(Static)
         function obj = instance()
             mlock;
-            port = Base.GetPorts(Drivers.PiezoControl.FriendlyName);
+            port = GetPorts(Drivers.PiezoControl.FriendlyName);
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.PiezoControl.empty(1,0);
@@ -69,7 +69,7 @@ classdef (Sealed) PiezoControl < Modules.Driver
         
         % Initialize the channel by finding the FriendlyName in the registry
         function init_channel(obj)
-            com = Base.GetPorts(obj.FriendlyName);
+            com = GetPorts(obj.FriendlyName);
             if isempty(com)
                 error('No COM port found installed with name %s.',obj.FriendlyName)
             end

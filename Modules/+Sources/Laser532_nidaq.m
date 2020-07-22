@@ -1,4 +1,4 @@
-classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
+classdef Laser532_nidaq < Modules.Source
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
     
@@ -39,12 +39,12 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
         end
     end
     methods
-        function tasks = inactive(obj)
-            tasks = inactive@Sources.Verdi_invisible(obj);
-        end
-        function arm(obj)
-            arm@Sources.Verdi_invisible(obj);
-        end
+%         function tasks = inactive(obj)
+%             tasks = inactive@Sources.Verdi_invisible(obj);
+%         end
+%         function arm(obj)
+%             arm@Sources.Verdi_invisible(obj);
+%         end
         function delete(obj)
             delete(obj.listeners)
         end

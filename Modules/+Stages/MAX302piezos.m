@@ -70,16 +70,16 @@ classdef MAX302piezos < Modules.Stage
             pos(2) = pos(2)*cal(2)+min(obj.yRange);
             pos(3) = pos(3)*cal(3)+min(obj.zRange);
         end
-        function set.calibration(obj,val)
-            switch numel(val)
-                case 1
-                    obj.calibration = [val val val];
-                case 3
-                    obj.calibration = val;
-                otherwise
-                    error('Calibration needs to be an array of 1 or 3 arguments.')
-            end
-        end
+%         function set.calibration(obj,val)
+%             switch numel(val)
+%                 case 1
+%                     obj.calibration = [val val val];
+%                 case 3
+%                     obj.calibration = val;
+%                 otherwise
+%                     error('Calibration needs to be an array of 1 or 3 arguments.')
+%             end
+%         end
 
         function move(obj,x,y,z)
             cal = obj.calibration;

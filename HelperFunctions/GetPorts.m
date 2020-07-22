@@ -30,6 +30,7 @@ for i = 1:numel(vals)
 end
 %% Compare friendly name entries with connected ports and generate output
 devs = {};
+coms
 for i = 1:numel(coms)
   match = strfind(out,[coms{i},')']);
   ind = 0;
