@@ -5,7 +5,7 @@ classdef AndorEMCCD < Imaging.Camera.Micromanager_camera_invisible
     properties
         data_name = 'Widefield';  % For diamondbase (via ImagingManager)
         data_type = 'General';    % For diamondbase (via ImagingManager)
-        device_path='C:\Program Files\Micro-Manager-1.4';
+        device_path='C:\Program Files\Micro-Manager-2.0gamma';
         CamCenterCoord = [0,0]
         offset = 100; %dc offset
     end

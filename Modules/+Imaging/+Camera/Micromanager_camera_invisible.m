@@ -355,7 +355,7 @@ classdef Micromanager_camera_invisible < Imaging.Camera.Cameras_invisible
                 try
                     dat = obj.snap;
                 catch
-                    error('Camera failed to return the expected number of images.Possibly missed a trigger.')
+                    error('Camera failed to return the expected number of images.Possibly missed a trigger. At frame %d', frame)
                 end
                 dat_matrix(:,:,frame)=dat;
             end

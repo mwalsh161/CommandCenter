@@ -118,7 +118,7 @@ try
         
         obj.PB.stop;
         obj.PB.start;
-        pause(experimentTime + 1)
+        pause(experimentTime + 3)
         
         dat_matrix = obj.camera.stopSequenceAcquisition(obj.nImages);
         
