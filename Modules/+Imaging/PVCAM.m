@@ -8,7 +8,7 @@ classdef PVCAM < Modules.Imaging
     end
     properties (Hidden)
         h_cam;
-        prefs = {'gain', 'speed', 'binning', 'exposure'};
+        prefs = {'gain', 'speed', 'binning', 'exposure', 'frames'};
     end
     properties(GetObservable,SetObservable)
         camera_name =   Prefs.String('', 'help_text', 'Camera name assigned by PVCAM.', 'readonly', true);
@@ -16,12 +16,12 @@ classdef PVCAM < Modules.Imaging
         height =        Prefs.Integer(0, 'units', 'pix', 'help_text', 'Height that the camera thinks it has.', 'readonly', true);
         temp =          Prefs.Double(0,  'units', 'C',   'help_text', 'Temp that the camera thinks it is at.', 'readonly', true);
 
-        gain =          Prefs.Integer(1, 'min', 1, 'max', 3, 'set', 'set_gain'); % Add better limits.
-        speed =          Prefs.Integer(1, 'min', 0, 'max', 1, 'set', 'set_speed', 'help', 'Readout mode; 0 = fast, 1 = slow?'); % Add better limits.
+        gain =          Prefs.MultipleChoice(3, 'choices', {1, 2, 3},   'allow_empty', false, 'set', 'set_gain',    'help', 'EM (electron multipying) gain. Higher levels imply more gain.'); % Add description
+        speed =         Prefs.MultipleChoice(0, 'choices', {0},         'allow_empty', false, 'set', 'set_speed',   'help', 'Readout mode; 0 = fast?');
         
-        binning =       Prefs.Integer(1, 'units', 'pix', 'min', 1, 'max', 2, 'help_text', 'indexed from 0');   % This is camera-dependent...
-        
-        exposure =      Prefs.Double(1000, 'units', 'ms', 'min', 0); % Add better limits.
+        binning =       Prefs.MultipleChoice(1, 'choices', {1, 2},      'allow_empty', false, 'units', 'pix',       'help_text', 'Binning N =/= 1 will cause the camera to aquire data in N x N superpixels. High N means faster readout, but also reduced resolution.');   % This is camera-dependent...
+        exposure =      Prefs.Double(1000, 'min', 0, 'units', 'ms', 'help_text', 'Integration time for each frame.'); % Add better limits.
+        frames =        Prefs.Integer(1,   'min', 0, 'units', '#',  'help_text', 'Number of 2D frames snapped per cycle. Frames > 1 will allow the camera to aquire data faster.');
         
         resolution = [128 128];                 % Pixels
         ROI = [-1 1; -1 1];
@@ -35,20 +35,6 @@ classdef PVCAM < Modules.Imaging
         function open(obj)
             camnum = 0;
             obj.path = 'camera';
-            % obj.h_cam
-            
-            % not input, open camera and retreive some pvcam parameters, and return a ROI structure based on the parameters.
-            % some parameters
-            pvcam_getpar = {'PARAM_BIT_DEPTH', 'PARAM_CHIP_NAME', ...
-                'PARAM_PAR_SIZE', 'PARAM_SER_SIZE', 'PARAM_PREMASK', 'PARAM_TEMP', 'PARAM_GAIN_INDEX',...
-                'PARAM_PIX_TIME','PARAM_EXP_RES','PARAM_PIX_TIME'};
-            pvcam_setpar = {'PARAM_CLEAR_MODE', 'PARAM_CLEAR_CYCLES', 'PARAM_GAIN_INDEX', ...
-                'PARAM_PMODE', 'PARAM_SHTR_OPEN_MODE', 'PARAM_SHTR_CLOSE_DELAY', 'PARAM_SHTR_OPEN_DELAY', ...
-                'PARAM_SPDTAB_INDEX', 'PARAM_TEMP_SETPOINT','PARAM_PIX_TIME'};
-
-            pvcam_para_value = {[],[],[],[],[],[],[]};
-            pvcam_para_field = {'serdim','pardim','gain','speedns','timeunit','temp','readout'};
-            pvcam_par = cell2struct(pvcam_para_value, pvcam_para_field, 2);
             
             % open camera
             obj.h_cam = pvcamopen(camnum);
@@ -66,7 +52,24 @@ classdef PVCAM < Modules.Imaging
                 end
             end
             
+            obj.getParams();
+            
             obj.camera_name = num2str(obj.h_cam);
+            
+            obj.loadPrefs;
+        end
+        function getParams(obj)
+            % some parameters
+            pvcam_getpar = {'PARAM_BIT_DEPTH', 'PARAM_CHIP_NAME', ...
+                'PARAM_PAR_SIZE', 'PARAM_SER_SIZE', 'PARAM_PREMASK', 'PARAM_TEMP', 'PARAM_GAIN_INDEX',...
+                'PARAM_PIX_TIME','PARAM_EXP_RES','PARAM_PIX_TIME'};
+            pvcam_setpar = {'PARAM_CLEAR_MODE', 'PARAM_CLEAR_CYCLES', 'PARAM_GAIN_INDEX', ...
+                'PARAM_PMODE', 'PARAM_SHTR_OPEN_MODE', 'PARAM_SHTR_CLOSE_DELAY', 'PARAM_SHTR_OPEN_DELAY', ...
+                'PARAM_SPDTAB_INDEX', 'PARAM_TEMP_SETPOINT','PARAM_PIX_TIME'};
+
+            pvcam_para_value = {[],[],[],[],[],[],[]};
+            pvcam_para_field = {'serdim','pardim','gain','speedns','timeunit','temp','readout'};
+            pvcam_par = cell2struct(pvcam_para_value, pvcam_para_field, 2);
             
             pvcam_par.serdim   = pvcamgetvalue(obj.h_cam, pvcam_getpar{4});%CCDpixelser
             pvcam_par.pardim   = pvcamgetvalue(obj.h_cam, pvcam_getpar{3});%CCDpixelpar
@@ -78,19 +81,16 @@ classdef PVCAM < Modules.Imaging
             
             obj.width = pvcam_par.serdim;
             obj.height = pvcam_par.pardim;
+            obj.resolution = [obj.width, obj.height];
+            obj.ROI = [0, obj.width-1; 0, obj.height-1];
+            obj.maxROI = obj.ROI;
+            
             obj.gain = pvcam_par.gain;
-%             gainrange
             obj.temp = pvcam_par.temp/100;
             
             if ~contains(pvcam_par.timeunit, 'One Millisecond')
                  warning([datestr(datetime('now')) ':NOT in milliseconds!']);
             end
-
-            obj.resolution = [obj.width, obj.height];
-            obj.ROI = [0, obj.width-1; 0, obj.height-1];
-            obj.maxROI = obj.ROI;
-            
-            obj.loadPrefs;
         end
         function close(obj)
             if (~isempty(obj.h_cam))
@@ -117,7 +117,6 @@ classdef PVCAM < Modules.Imaging
         end
         function val = set_speed(obj, val, ~)
             if ~isempty(obj.h_cam)
-                val
                 pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', val);
             end
         end
@@ -140,7 +139,7 @@ classdef PVCAM < Modules.Imaging
         function focus(obj,ax,stageHandle)
         end
         function im = snapImage(obj)
-            ni = 1; % Number of images.
+            ni = obj.frames; % Number of images.
             
             roi_name = {'s1','s2','sbin','p1','p2','pbin'};
             roi_value = {0, obj.width-1, obj.binning, 0, obj.height-1, obj.binning};   % Zero indexed.
@@ -181,7 +180,8 @@ classdef PVCAM < Modules.Imaging
             end
         end
         function snap(obj,im,continuous)
-            set(im,'cdata',double(obj.snapImage));
+            img = obj.snapImage();
+            set(im,'cdata',double(img(:,:,1)));
         end
         
         function startVideo(obj,im)

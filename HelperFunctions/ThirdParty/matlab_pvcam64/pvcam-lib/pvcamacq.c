@@ -234,7 +234,7 @@ mxArray *pvcam_acquire(int16 hcam, uns16 nimage, uns16 nregion, rgn_type *region
 		
 		int cur_ms = (int)((double)clock() * 1000 / CLOCKS_PER_SEC);
 
-		if (cur_ms - base_ms > 1000 + 2*exptime) {		// Time since start must be less than 2*exposure + 1 sec.
+		if (cur_ms - base_ms > 1000 + 2*exptime*nimage) {		// Time since start must be less than 2*exposure + 1 sec.
 			pvcam_error(hcam, "Exposure timed out.");
 			mxDestroyArray(data_struct);
 			return(empty_struct);

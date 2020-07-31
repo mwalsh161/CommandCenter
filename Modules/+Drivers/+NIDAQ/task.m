@@ -228,20 +228,45 @@ classdef task < handle
         end
         
         %% Configure
-        function ConfigureStartTrigger(obj,lineName,type)
+        function ConfigureStartTrigger(obj,lineName,edgetype)
             % Given a timing task (e.g. PulseTrainOut), make it start on a
             % digital rising or falling edge (note this can be another
             % nidaq task or digital input)
+            % https://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcfgdigedgestarttrig/
             if nargin < 3
-                type = 'rising';
+                edgetype = 'rising';
             end
-            % Capitalize (as defined in dev constants)
-            type = lower(type); type(1) = upper(type(1));
-            assert(ismember(type,{'Rising','Falling'}),'type must be rising or falling')
-            line = obj.dev.getLines(lineName,obj.dev.OutLines);
-            obj.LibraryFunction('DAQmxCfgDigEdgeStartTrig',obj,line.line,obj.dev.(['DAQmx_Val_', type]));
+            line = obj.dev.getLines(lineName, obj.dev.OutLines);
+            obj.LibraryFunction('DAQmxCfgDigEdgeStartTrig', obj, line.line, obj.dev.interpretEdgeType(edgetype));
             obj.Verify;
         end
+%         function ConfigureDigitalEdgeAdvancedTrigger(obj, lineName, edgetype)
+%             warning('Seemingly unsupported by nidaqmx')
+%             
+%             % Advance a scan (e.g. analog or digital output) by one tick
+%             % for every trigger.
+%             % https://zone.ni.com/reference/en-XX/help/370471AM-01/daqmxcfunc/daqmxcfgdigedgeadvtrig/
+%             if nargin < 3
+%                 edgetype = 'rising';
+%             end
+%             line = obj.dev.getLines(lineName, obj.dev.InLines);
+%             obj.LibraryFunction('DAQmxCfgDigEdgeAdvTrig', obj, line.line, obj.dev.interpretEdgeType(edgetype));
+%             obj.Verify;
+%         end
+%         function ConfigurePulseTrainIn(obj, lineName, maxfrequency, edgetype)
+%             if nargin < 3
+%                 edgetype = 'rising';
+%             end
+%             line = obj.dev.getLines(lineName, obj.dev.InLines);
+%             obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, line.line, maxfrequency, obj.dev.interpretEdgeType(edgetype), obj.dev.DAQmx_Val_FiniteSamps, NVoltagesPerLine);
+%             
+%             AutoStart = 0; % wait until user starts task
+%             obj.LibraryFunction('DAQmxWriteAnalogF64',obj,NVoltagesPerLine, AutoStart, obj.dev.WriteTimeout, obj.dev.DAQmx_Val_GroupByChannel, voltages, [],[]);
+%             obj.clock = struct('src',clkLine,'freq','ext');
+%             % Allow regeneration of samples (e.g. dont clear FIFO)
+% %             obj.LibraryFunction('DAQmxSetWriteRegenMode',obj,obj.dev.DAQmx_Val_AllowRegen);
+%             obj.Verify
+%         end
         function ConfigurePulseTrainOut(obj,lineName,frequency,NSamples,DutyCycle,delay)
             % If no lineName is specfied (isempty) then it will leave the default line for that counter
             if nargin < 4
@@ -275,7 +300,30 @@ classdef task < handle
             obj.clock = struct('src',line,'freq',frequency);         % Update task frequency for any application interested.
             obj.Verify
         end
-        function ConfigureVoltageOut(obj,lineNames,Voltages,ClkTask,continuous)
+        function ConfigureVoltageOut(obj, lineNames, voltages)
+            s = size(voltages);
+            assert(s(2)==length(lineNames), 'Voltages should be of size samples X nlines = N x %i, received %i x %i', length(lineNames), s(1), s(2))
+            NVoltagesPerLine = s(1);
+            lines_ = obj.dev.getLines(lineNames,obj.dev.OutLines); %#ok<*PROP>
+            % Make sure we are within voltage limits
+            for i = 1:numel(lines_)
+                vs = voltages(:,i);
+                assert(min(vs) >= min(lines_(i).limits), 'Trying to write %g on line %s is forbidden since its lower limit is %g', min(vs),lines_(i).name,min(lines_(i).limits))
+                assert(max(vs) <= max(lines_(i).limits), 'Trying to write %g on line %s is forbidden since its upper limit is %g', max(vs),lines_(i).name,max(lines_(i).limits))
+            end
+            
+            % When the task starts and completes, we can set to NaN then the last set value
+            obj.VoltageOutEndVals = struct('line', lineNames, 'endval', num2cell(voltages(end,:)));
+            
+            voltages = voltages(:);   % Make voltages linear
+            
+            % create analog out voltage channel(s)
+            obj.CreateChannels('DAQmxCreateAOVoltageChan', lines_, '', min(voltages), max(voltages), obj.dev.DAQmx_Val_Volts, []);
+            
+            AutoStart = 0; % wait until user starts task
+            obj.LibraryFunction('DAQmxWriteAnalogF64',obj, NVoltagesPerLine, AutoStart, obj.dev.WriteTimeout, obj.dev.DAQmx_Val_GroupByChannel, voltages, [],[]);
+        end
+        function ConfigureVoltageOutClkTiming(obj, lineNames, voltages, ClkTask, continuous)
             if nargin < 5
                 continuous = false;
             end
@@ -290,32 +338,83 @@ classdef task < handle
             else
                 mode = obj.dev.DAQmx_Val_FiniteSamps;
             end
-            s = size(Voltages);
+            s = size(voltages);
             assert(s(2)==length(lineNames),'Voltages should be size samples X nlines, received %i x %i',s(1),s(2))
             NVoltagesPerLine = s(1);
             lines = obj.dev.getLines(lineNames,obj.dev.OutLines); %#ok<*PROP>
             % Make sure we are within voltage limits
             for i = 1:numel(lines)
-                vs = Voltages(:,i);
+                vs = voltages(:,i);
                 assert(min(vs) >= min(lines(i).limits),'Trying to write %g on line %s is forbidden since its lower limit is %g',min(vs),lines(i).name,min(lines(i).limits))
                 assert(max(vs) <= max(lines(i).limits),'Trying to write %g on line %s is forbidden since its higher limit is %g',max(vs),lines(i).name,max(lines(i).limits))
             end
             
             % When the task starts and completes, we can set to NaN then the last set value
-            obj.VoltageOutEndVals = struct('line',lineNames,'endval',num2cell(Voltages(end,:)));
+            obj.VoltageOutEndVals = struct('line',lineNames,'endval',num2cell(voltages(end,:)));
             
             clkLine = ClkTask.clock.src;
             % Set the frequency of this guy slightly above the expected clock frequency
             Freq = 1.1*ClkTask.clock.freq;
-            Voltages = Voltages(:);   % Make voltages linear
+            voltages = voltages(:);   % Make voltages linear
             
             % create analog out voltage channel(s)
-            obj.CreateChannels('DAQmxCreateAOVoltageChan',lines,'',min(Voltages),max(Voltages),obj.dev.DAQmx_Val_Volts ,[]);
+            obj.CreateChannels('DAQmxCreateAOVoltageChan',lines,'',min(voltages),max(voltages),obj.dev.DAQmx_Val_Volts ,[]);
             obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkLine, Freq, obj.dev.DAQmx_Val_Rising, mode ,NVoltagesPerLine);
             
             AutoStart = 0; % wait until user starts task
-            obj.LibraryFunction('DAQmxWriteAnalogF64',obj,NVoltagesPerLine, AutoStart, obj.dev.WriteTimeout, obj.dev.DAQmx_Val_GroupByChannel, Voltages, [],[]);
+            obj.LibraryFunction('DAQmxWriteAnalogF64',obj,NVoltagesPerLine, AutoStart, obj.dev.WriteTimeout, obj.dev.DAQmx_Val_GroupByChannel, voltages, [],[]);
             obj.clock = struct('src',clkLine,'freq','ext');
+            % Allow regeneration of samples (e.g. dont clear FIFO)
+            obj.LibraryFunction('DAQmxSetWriteRegenMode',obj,obj.dev.DAQmx_Val_AllowRegen);
+            obj.Verify
+        end
+        function ConfigureVoltageOutExtTiming(obj, lineNames, voltages, extLine, edgetype, maxfrequency)
+            if nargin < 5
+                edgetype = 'rising';
+            end
+            if nargin < 6
+                maxfrequency = 900e3; % 900e3 max
+            end
+            
+%             if ~isa(ClkTask.clock.src,'Drivers.NIDAQ.out')
+%                 error('ClkTask requires DAQout object for clock.src')
+%             end
+            if ~iscell(lineNames)
+                lineNames = {lineNames};
+            end
+%             if continuous
+%                 mode = obj.dev.DAQmx_Val_ContSamps;
+%             else
+%                 mode = obj.dev.DAQmx_Val_FiniteSamps;
+%             end
+            s = size(voltages);
+            assert(s(2)==length(lineNames), 'Voltages should be of size samples X nlines = N x %i, received %i x %i', length(lineNames), s(1), s(2))
+            NVoltagesPerLine = s(1);
+            lines_ = obj.dev.getLines(lineNames,obj.dev.OutLines); %#ok<*PROP>
+            % Make sure we are within voltage limits
+            for i = 1:numel(lines_)
+                vs = voltages(:,i);
+                assert(min(vs) >= min(lines_(i).limits),'Trying to write %g on line %s is forbidden since its lower limit is %g',min(vs),lines_(i).name,min(lines_(i).limits))
+                assert(max(vs) <= max(lines_(i).limits),'Trying to write %g on line %s is forbidden since its higher limit is %g',max(vs),lines_(i).name,max(lines_(i).limits))
+            end
+            
+            % When the task starts and completes, we can set to NaN then the last set value
+            obj.VoltageOutEndVals = struct('line',lineNames,'endval',num2cell(voltages(end,:)));
+            
+%             clkLine = ClkTask.clock.src;
+%             % Set the frequency of this guy slightly above the expected clock frequency
+%             Freq = 1.1*ClkTask.clock.freq;
+            voltages = voltages(:);   % Make voltages linear
+            
+            clkline = obj.dev.getLines(extLine, obj.dev.InLines);
+            
+            % create analog out voltage channel(s)
+            obj.CreateChannels('DAQmxCreateAOVoltageChan',lines_,'',min(voltages),max(voltages),obj.dev.DAQmx_Val_Volts ,[]);
+            obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkline.line, maxfrequency, obj.dev.interpretEdgeType(edgetype), obj.dev.DAQmx_Val_FiniteSamps, NVoltagesPerLine);
+            
+            AutoStart = 0; % wait until user starts task
+            obj.LibraryFunction('DAQmxWriteAnalogF64',obj,NVoltagesPerLine, AutoStart, obj.dev.WriteTimeout, obj.dev.DAQmx_Val_GroupByChannel, voltages, [],[]);
+            obj.clock = struct('src',clkline.line,'freq','ext');
             % Allow regeneration of samples (e.g. dont clear FIFO)
             obj.LibraryFunction('DAQmxSetWriteRegenMode',obj,obj.dev.DAQmx_Val_AllowRegen);
             obj.Verify
@@ -355,6 +454,7 @@ classdef task < handle
             obj.LibraryFunction('DAQmxSetWriteRegenMode',obj,obj.dev.DAQmx_Val_AllowRegen);
             obj.Verify
         end
+        
         
         function ConfigureCounterIn(obj,lineName,NSamples,ClkTask,continuous)
             % The last input is optional, if true NSamples is used to determine the buffer size.

@@ -47,7 +47,7 @@ function run( obj,status,managers,ax )
         SweepCLK.ConfigureStartTrigger(trigger_line);
 
         sweep = ni.CreateTask('Sweep Fun');
-        sweep.ConfigureVoltageOut({AO_line},sweep_vals,SweepCLK);
+        sweep.ConfigureVoltageOutClkTiming({AO_line},sweep_vals,SweepCLK);
         
         % Arm tasks (CLKs will wait for trigger)
         MeasCLK.Start; counter.Start;

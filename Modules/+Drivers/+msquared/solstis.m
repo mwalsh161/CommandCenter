@@ -42,7 +42,9 @@ classdef solstis < Modules.Driver
             singleton_id = {resolvedIP,moduleName};
             for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(singleton_id,Objects(i).singleton_id)
-                    error('%s driver is already instantiated!',mfilename)
+                    obj = Objects(i);
+                    return
+%                     error('%s driver is already instantiated!',mfilename)
                 end
             end
             obj = Drivers.msquared.solstis(host, moduleName);

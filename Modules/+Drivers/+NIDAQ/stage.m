@@ -212,11 +212,11 @@ classdef stage < Modules.Driver
             obj.taskScan = obj.nidaq.CreateTask('GalvoScan');
             try
                 if isempty(xVals)
-                	obj.taskScan.ConfigureVoltageOut({obj.y_line},voltages,obj.taskPulseTrain);
+                	obj.taskScan.ConfigureVoltageOutClkTiming({obj.y_line},voltages,obj.taskPulseTrain);
                 elseif isempty(yVals)
-                    obj.taskScan.ConfigureVoltageOut({obj.x_line},voltages,obj.taskPulseTrain);
+                    obj.taskScan.ConfigureVoltageOutClkTiming({obj.x_line},voltages,obj.taskPulseTrain);
                 else
-                    obj.taskScan.ConfigureVoltageOut({obj.x_line,obj.y_line},voltages,obj.taskPulseTrain);
+                    obj.taskScan.ConfigureVoltageOutClkTiming({obj.x_line,obj.y_line},voltages,obj.taskPulseTrain);
                 end
             catch err
                 obj.taskPulseTrain.Clear

@@ -144,6 +144,14 @@ classdef dev < Modules.Driver
                 error('No line with name "%s".',name)
             end
         end
+        function edgetypeDAQmx = interpretEdgeType(edgetype)
+            switch lower(edgetype)
+                case {'rising', Drivers.NIDAQ.dev.DAQmx_Val_Rising}
+                    edgetypeDAQmx = Drivers.NIDAQ.dev.DAQmx_Val_Rising;
+                case {'falling', Drivers.NIDAQ.dev.DAQmx_Val_Falling}
+                    edgetypeDAQmx = Drivers.NIDAQ.dev.DAQmx_Val_Falling;
+            end
+        end
     end
     methods(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.task})
         function obj = dev(DeviceChannel)
@@ -644,9 +652,9 @@ classdef dev < Modules.Driver
             % create an analog in voltage channel
             err = NaN;
             try
-                task.CreateChannels('DAQmxCreateAIVoltageChan',line,'',obj.DAQmx_Val_Cfg_Default,MinVal, MaxVal,obj.DAQmx_Val_Volts ,[]);
+                task.CreateChannels('DAQmxCreateAIVoltageChan', line, '', obj.DAQmx_Val_Cfg_Default, MinVal, MaxVal, obj.DAQmx_Val_Volts, []);
                 task.Start;
-                [~,voltage] = task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, voltage,[]);
+                [~,voltage] = task.LibraryFunction('DAQmxReadAnalogScalarF64', task, obj.ReadTimeout, voltage, []);
             catch err
             end
             task.Clear;
@@ -655,6 +663,9 @@ classdef dev < Modules.Driver
         function state = ReadDILine(obj,name)
             TaskName = 'DigitalRead';
             line = obj.getLine(name,obj.InLines);
+            state = libpointer('uint8Ptr',0);
+            sampsPerChanRead = libpointer('int32Ptr',0);
+            numBytesPerSamp =  libpointer('int32Ptr',0);
             
             % create a new task
             task = obj.CreateTask(TaskName);
@@ -662,10 +673,9 @@ classdef dev < Modules.Driver
             % create a digital in channel
             err = NaN;
             try
-                task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
+                task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines);
                 task.Start
-                warning('Not implemented yet')
-                state = 0;
+                [~,state] = task.LibraryFunction('DAQmxReadDigitalLines', task, 1, obj.ReadTimeout, obj.DAQmx_Val_GroupByChannel, state, 1, sampsPerChanRead, numBytesPerSamp, []);
             catch err
             end
             task.Clear

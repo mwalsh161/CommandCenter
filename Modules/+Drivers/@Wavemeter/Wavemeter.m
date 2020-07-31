@@ -126,14 +126,33 @@ classdef Wavemeter < Modules.Driver
                 output = obj.com(cmd,obj.channel,0);
             end
             if output <= 0
-                if output == -1
-                    msg = 'Low signal';
-                elseif output == -2
-                    msg = 'High signal';
-                elseif output == -3
-                    msg = 'Out of Range';
-                else
-                    msg = sprintf('Unknown error code: %g',output);
+                switch output
+                    case 0
+                        msg = 'No value';
+                    case -1
+                        msg = 'No signal';
+                    case -2
+                        msg = 'Bad signal';
+                    case -3
+                        msg = 'Low signal (underexposed)';
+                    case -4
+                        msg = 'Big signal (overexposed)';
+                    case -5
+                        msg = 'WLM missing';
+                    case -6
+                        msg = 'Not available';
+                    case -7
+                        msg = 'Inf nothing changed';
+                    case -8
+                        msg = 'No pulse';
+                    case -13
+                        msg = 'Divide by zero';
+                    case -14
+                        msg = 'Out of range';
+                    case -15
+                        msg = 'Not available';
+                    otherwise
+                        msg = sprintf('Unknown error code: %g',output);
                 end
                 ME = MException('WAVEMETER:read','wavemeter timeout on measurement: %s',msg);
                 throwAsCaller(ME);

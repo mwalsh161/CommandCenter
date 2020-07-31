@@ -14,7 +14,7 @@ end
 % Set Voltage out to galvos
 obj.task.Galvos = obj.ni.CreateTask('LithoPositions');
 try
-    obj.task.Galvos.ConfigureVoltageOut({obj.x,obj.y,obj.z},voltages,obj.task.PulseTrain);
+    obj.task.Galvos.ConfigureVoltageOutClkTiming({obj.x,obj.y,obj.z},voltages,obj.task.PulseTrain);
 catch err
     obj.task.PulseTrain.Clear
     obj.task.Galvos.Clear

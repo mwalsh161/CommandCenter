@@ -6,27 +6,32 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     end
     properties
         resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
-        prefs = {'hwserver_host','PBline','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
-        show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
-            'etalon_percent','etalon_voltage','hwserver_host','moduleName','PBline','pb_host','resonator_tune_speed','calibrateRes'};
+        prefs = {'hwserver_host','PBline','pb_host','resonator_speed','resVolt2Percent','moduleName'};
+        show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock',...
+            'etalon_percent','etalon_voltage','resonator_percent','resonator_voltage','resonator_speed','calibrateRes','hwserver_host','moduleName','PBline','pb_host'};
     end
     properties(SetObservable,GetObservable)
-        moduleName = Prefs.MultipleChoice('set','set_moduleName','help_text','Modules will be loaded when a hwserver hostname is supplied.');
-        calibrateRes = Prefs.Boolean(false,'set','set_calibrateRes',...
-            'help_text','Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
-        tuning = Prefs.Boolean(false,'readonly',true);
-        hwserver_host = Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_hwserver_host');
-        etalon_percent = Prefs.Double(NaN,'units','%','help_text','Set etalon percent. This will change the etalon_voltage that is read.');  % Settable
-        etalon_voltage = Prefs.Double(NaN,'units','V','readonly',true);  % Readable
-        etalon_lock = Prefs.Boolean(false,'set','set_etalon_lock');  % Settable
-        resonator_percent = Prefs.Double(NaN,'units','%','min',0,'max',100,'set','set_resonator_percent',...
-            'help_text','Set resonator percent. This will change the resonator_voltage that is read.');  % Settable
-        resonator_voltage = Prefs.Double(NaN,'units','V','readonly',true);  % Readable
-        target_wavelength = Prefs.Double(NaN,'units','nm','set','set_target_wavelength'); % nm settable
-        wavelength_lock = Prefs.Boolean(false,'set','set_wavelength_lock'); % Settable
-        PBline = Prefs.Integer(1,'min',1,'set','set_PBline','help_text','Indexed from 1.');
-        pb_host = Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_pb_host');
-        resonator_tune_speed = Prefs.Double(2,'units','%/step','min',0,'allow_nan',false,'help_text','Maximum % per step allowed. Lower numbers will take longer to tune.');
+        moduleName = Prefs.MultipleChoice('set', 'set_moduleName', 'help_text', 'Modules will be loaded when a hwserver hostname is supplied.');
+        hwserver_host = Prefs.String(Sources.msquared.common_invisible.no_server, 'set', 'set_hwserver_host');
+        
+        tuning =            Prefs.Boolean(false,'readonly',true);
+        target_wavelength = Prefs.Double(NaN,   'units','nm','set','set_target_wavelength'); % nm settable
+        wavelength_lock =   Prefs.Boolean(false,'set','set_wavelength_lock'); % Settable
+        
+        etalon_lock =       Prefs.Boolean(false,'set','set_etalon_lock');  % Settable
+        etalon_percent =    Prefs.Double(NaN,   'units','%','set','set_etalon_percent','help_text','Set etalon percent. This will change the etalon_voltage that is read.');  % Settable
+        etalon_voltage =    Prefs.Double(NaN,   'units','V','readonly',true);  % Readable
+        
+        resonator_percent = Prefs.Double(NaN,   'units','%','min',0,'max',100,'set','set_resonator_percent',...
+                                                    'help_text','Set resonator percent. This will change the resonator_voltage that is read.');  % Settable
+        resonator_voltage = Prefs.Double(NaN,  'units','V','readonly',true);  % Readable
+        resonator_speed =   Prefs.Double(2,     'units','%/step','min',0,'allow_nan',false,...
+                                                    'help_text','Maximum % per step allowed. Lower numbers will take longer to tune.');
+        calibrateRes =      Prefs.Boolean(false,'set','set_calibrateRes',...
+                                                    'help_text','Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
+        
+        PBline =            Prefs.Integer(1,'min',1,'set','set_PBline','help_text','Indexed from 1.');
+        pb_host =           Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_pb_host');
     end
     properties(Access=protected)
         timeout = 30   % Ignore errors within this timeout on wavelength read (getWavelength)
@@ -101,9 +106,10 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             % Put resonator at zero percent and wait to settle just in case
             obj.solstisHandle.set_resonator_percent(0);
             pause(0.5);
+            
             % Calls will go to driver directly since no assumptions on
             % calibration being there or accurate yet
-            n = 101;
+            n = 51; %101;
             voltages = NaN(n,1);
             percents = linspace(0,100,n)';
             f = UseFigure('SolsTiS.calibrate_voltageToPercent',true);
@@ -114,29 +120,54 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             xlabel(ax,'Voltage (V)');
             tH = title(ax,'Starting Calibration');
             for i = 1:n
-                tH.String = sprintf('Calibrating: %i/%i',i,n);
-                obj.solstisHandle.set_resonator_percent(percents(i));
-                pause(1);
-                reply = obj.solstisHandle.getStatus();
-                voltages(i) = reply.resonator_voltage;
-                lnH.XData(i) = voltages(i);
-                drawnow limitrate;
+                if isvalid(lnH)
+                    tH.String = sprintf('Calibrating: %i/%i',i,n);
+                    obj.solstisHandle.set_resonator_percent(percents(i));
+                    
+                    v0 = NaN;
+                    if i > 1
+                        v0 = voltages(i-1);
+                    end
+                    
+                    for tries = 1:10
+                        pause(.1);
+                        reply = obj.solstisHandle.getStatus();
+                        v = reply.resonator_voltage;
+                        voltages(i) = v;
+                        
+                        if abs(v - v0) > 200 / n / 10
+                            break;
+                        end
+                    end
+                    
+                    if isvalid(lnH)
+                        lnH.XData(i) = voltages(i);
+                        drawnow limitrate;
+                    end
+                else
+                    disp('Calibration aborted')
+                    return;
+                end
             end
+            
             [ft,gof] = fit(voltages,percents,'poly2');
             tH.String = sprintf('adjR^2: %g',gof.adjrsquare);
             plotV = linspace(min(voltages),max(voltages),1001);
             fitbounds = predint(ft,plotV,0.95,'functional','on'); %get confidence bounds on fit
             errorfill(plotV,ft(plotV),[abs(ft(plotV)'-fitbounds(:,1)');abs(fitbounds(:,2)'-ft(plotV)')],'parent',ax);
+            
             subplot(2,1,1,ax);
             ax_resid = subplot(2,1,2,'parent',f);
             plot(ax_resid,voltages,percents-ft(voltages),'-o');
             ylabel(ax_resid,'Percent (%)');
             xlabel(ax_resid,'Voltage (V)');
             title(ax_resid,'Residuals');
+            
             answer = questdlg('Calibration satisfactory?','SolsTiS Resonator Calibration Verification','Yes','No, abort','Yes');
             if strcmp(answer,'No, abort')
                 error('Failed SolsTiS resonator calibration validation.')
             end
+            
             obj.resVolt2Percent.fcn = ft;
             obj.resVolt2Percent.gof = gof;
             obj.resVolt2Percent.datetime = datetime;
@@ -219,15 +250,17 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         function TunePercent(obj,target)
             % This is the solstis resonator
             assert(~isempty(obj.solstisHandle)&&isobject(obj.solstisHandle) && isvalid(obj.solstisHandle),'no solstisHandle, check hwserver_host')
-            assert(target>=0&&target<=100,'Target must be a percentage')
+            assert(target >= 0 && target <= 100, 'Target must be a percentage')
             % tune at a limited rate per step
             currentPercent = obj.GetPercent;
-            numberSteps = floor(abs(currentPercent-target)/obj.resonator_tune_speed);
+            numberSteps = floor(abs(currentPercent-target)/obj.resonator_speed);
             direction = sign(target-currentPercent);
+            
             for i = 1:numberSteps
-                obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_tune_speed);
+                obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_speed);
             end
             obj.solstisHandle.set_resonator_percent(target);
+            
             obj.updatingVal = true;
                 obj.resonator_percent = target;
             obj.updatingVal = false;
@@ -238,8 +271,8 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     methods % Set methods
         function val = set_calibrateRes(obj,~,~)
             % Check mark used to call calibration method
-            obj.calibrate_voltageToPercent();
             val = false;
+            obj.calibrate_voltageToPercent();
         end
         function val = set_moduleName(obj,val,~)
             obj.loadLaser();

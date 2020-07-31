@@ -90,7 +90,7 @@ classdef interferometer_visibility < Modules.Experiment
             end
             Scan = obj.ni.CreateTask('LaserScan');
             try
-                Scan.ConfigureVoltageOut('LaserFreq',voltages,PulseTrain,true);
+                Scan.ConfigureVoltageOutClkTiming('LaserFreq',voltages,PulseTrain,true);
             catch err
                 PulseTrain.Clear;
                 Scan.Clear;

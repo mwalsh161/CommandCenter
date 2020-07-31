@@ -9,12 +9,13 @@ import json, requests, sys, base64
 #    and makes parsing in MATLAB cleaner)
 
 def send(url,payload):
-    payload = payload.replace('%','&amp;').replace('<','&lt;').replace('>','&gt;')
+    #print(payload)
+    #payload = payload.replace('%','&amp;').replace('<','&lt;').replace('>','&gt;')
     r = requests.post(url,data=payload,headers={'Content-Type':'application/json'})
     if r.status_code != 200:
-        payload = payload.replace('%','&amp;').replace('<','&lt;').replace('>','&gt;')
+        #payload = payload.replace('%','&amp;').replace('<','&lt;').replace('>','&gt;')
         pretty = json.dumps(json.loads(payload),indent=4) # json expects double quotes to load
-        print 'Request to slack returned an error %s:\n  %s\nPayload:\n%s'%(r.status_code,r.text,pretty)
+        print('Request to slack returned an error %s:\n  %s\nPayload:\n%s'%(r.status_code,r.text,pretty))
 
 if __name__ == '__main__':
     try:

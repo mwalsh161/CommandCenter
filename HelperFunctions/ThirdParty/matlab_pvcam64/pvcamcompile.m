@@ -1,4 +1,5 @@
 function pvcamcompile
+    assert(exist('HelperFunctions', 'dir') == 7, 'Should be called from CommandCenter directory');
     old = cd(['HelperFunctions' filesep 'ThirdParty' filesep 'matlab_pvcam64' filesep 'pvcam-lib']);
         
     try

@@ -129,8 +129,11 @@ classdef EMM < Modules.Driver
         end
         function set_wavelength(obj,val)
             out = obj.com_blocking('set_wavelength',val,obj.blocking_timeout);
+            
+            out
+            
             if out{2}.report == 1
-                error('Tuning failed')
+                error('Tuning failed, laser returned `out{2}.report == 1` in drivers.msquared.EMM.set_wavelength(obj,val)')
             end
         end
         function abort_tune(obj)
