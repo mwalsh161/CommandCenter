@@ -69,14 +69,18 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     end
     methods
         function on(obj)
-            assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-            obj.PulseBlaster.lines(obj.PBline) = true;
+%             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
+            if ~isempty(obj.PulseBlaster)
+                obj.PulseBlaster.lines(obj.PBline) = true;
+            end
             obj.source_on = true;
         end
         function off(obj)
-            assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
+%             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline) = false;
+            if ~isempty(obj.PulseBlaster)
+                obj.PulseBlaster.lines(obj.PBline) = false;
+            end
         end
 
         function updateStatus(obj)

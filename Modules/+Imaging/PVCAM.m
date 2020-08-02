@@ -52,11 +52,11 @@ classdef PVCAM < Modules.Imaging
                 end
             end
             
-            obj.getParams();
-            
             obj.camera_name = num2str(obj.h_cam);
             
             obj.loadPrefs;
+            
+            obj.getParams();
         end
         function getParams(obj)
             % some parameters
@@ -152,10 +152,6 @@ classdef PVCAM < Modules.Imaging
             
             tries = 1;
             while tries <= 3
-%                 img = pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed')
-%                 class(img)
-%                 min(min(img))
-%                 max(max(img))
                 image_stream = uint16(pvcamacq(obj.h_cam, ni, roi_struct, obj.exposure, 'timed'));
                 
                 if ~isempty(image_stream)
