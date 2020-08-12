@@ -73,6 +73,7 @@ labR = max(p.min_radius,sampleR)/scale;  % Take into account min_radius when goi
 honedC = NaN(size(labC));
 honedR = NaN(size(labR));
 outstruct = struct('f',[],'gof',[],'output',cell(size(labR)));
+errored = false(size(labR));
 imcomp = double(imcomplement(im));  % Use this for GaussFit2D (fits positive (bright) things)
 
 x = linspace(xlim(1),xlim(2),size(im,2));
@@ -92,10 +93,25 @@ parfor (i = 1:size(labC,1), nworkers)
     [~,yIND(1)] = min(abs(y-(labC(i,2)-labR(i)*n_radius_crop)));
     [~,yIND(2)] = min(abs(y-(labC(i,2)+labR(i)*n_radius_crop)));
     % Fit
+    try
     [honedC(i,:),honedR(i),outstruct(i)] = gaussfit2D(x(xIND(1):xIND(2)),...
                                    y(yIND(1):yIND(2)),...
                                    imcomp(yIND(1):yIND(2),xIND(1):xIND(2)),labR(i)/2);
+    catch
+        errored(i) = true;
+    end
 end
+if any(errored)
+    warning('%i errored in fitting',sum(errored));
+end
+% Remove points that errored
+outstruct(errored) = [];
+honedC(errored,:) = [];
+labC(errored,:) = [];
+sampleC(errored,:) = [];
+honedR(errored) = [];
+labR(errored) = [];
+sampleR(errored) = [];
 % moved less than object radius (QR coords)
 labRact = sampleR/scale; % Not including the min_radius
 stayedclose = sqrt(sum((honedC - labC).^2,2)) < labRact*p.r_move_thresh;
@@ -153,7 +169,7 @@ end
 mask = stayedclose & goodfit;
 honedC = honedC(mask,:);
 sampleC = sampleC(mask,:);
-im2QRT = fitgeotrans(honedC,sampleC,'nonreflectivesimilarity');
+im2QRT = fitgeotrans(honedC,sampleC,'similarity');
 % Calculate position and error in control points
 markers_theory = transformPointsForward(im2QRT, honedC);
 err = sqrt(mean((markers_theory-sampleC).^2)); % std in x and y

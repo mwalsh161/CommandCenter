@@ -152,7 +152,7 @@ classdef node < handle
             switch obj.type
                 case 'transition'
                     y = [0 1] + obj.data.pltOffset;
-                    p = plot(ax,[1 1]*obj.t,y,'color',obj.data.color,'linewidth',2,'tag',obj.data.label);
+                    p = plot(ax,[1 1]*obj.t,y,'color',obj.data.color,'linewidth',2,'tag',obj.data.label,'UserData',obj);
                     if ~isempty(obj.dependent)
                         x = obj.t;
                         y = obj.data.pltOffset + 1.1;
@@ -172,7 +172,7 @@ classdef node < handle
                          x = obj.t - x;
                          text(max(x),max(y),sprintf('%i',obj.data),'parent',ax)
                     end
-                    p = plot(ax,x,y,'color','k','linewidth',2,'tag','loop');
+                    p = plot(ax,x,y,'color','k','linewidth',2,'tag','loop','UserData',obj);
                 case 'null'
                     y = get(ax,'ylim');
                     % Don't use p here because we don't want callbacks
@@ -183,7 +183,6 @@ classdef node < handle
             end
             if ~isempty(p) && callbacks
                 obj.lineH = p;
-                p.UserData = obj;  % Easier for inspector callback
                 set(p,'ButtonDownFcn',@(n,eventdata)n.UserData.highlight(true,eventdata));
                 iptSetPointerBehavior(p,@(fig,~)set(fig,'pointer','hand'))
                 c = uicontextmenu(ax.Parent);

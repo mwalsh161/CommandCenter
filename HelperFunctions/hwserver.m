@@ -34,39 +34,23 @@ classdef hwserver < handle
             end
             module = urlencode(module);
             handshake = urlencode(jsonencode(struct('name',['_reload_' module])));
-            fopen(obj.connection);
-            try
-                fprintf(obj.connection,'%s\n',handshake);
-                response = obj.receive; % Error handling in method
-            catch err
-                fclose(obj.connection);
-                rethrow(err)
-            end
-            fclose(obj.connection);
+            response = obj.basic_com(handshake);
         end
         function response = help(obj)
             handshake = urlencode(jsonencode(struct('name','_help')));
-            fopen(obj.connection);
-            try
-                fprintf(obj.connection,'%s\n',handshake);
-                response = obj.receive; % Error handling in method
-            catch err
-                fclose(obj.connection);
-                rethrow(err)
-            end
-            fclose(obj.connection);
+            response = obj.basic_com(handshake);
         end
         function response = ping(obj)
             handshake = urlencode(jsonencode(struct('name','_ping')));
-            fopen(obj.connection);
-            try
-                fprintf(obj.connection,'%s\n',handshake);
-                response = obj.receive; % Error handling in method
-            catch err
-                fclose(obj.connection);
-                rethrow(err)
+            response = obj.basic_com(handshake);
+        end
+        function response = get_modules(obj,prefix)
+            name = '_get_modules';
+            if nargin == 2
+                name = [name '.' prefix];
             end
-            fclose(obj.connection);
+            handshake = urlencode(jsonencode(struct('name',name)));
+            response = obj.basic_com(handshake);
         end
         function response = com(obj,hwname,funcname,varargin)
             % Server always replies and always closes connection after msg
@@ -85,8 +69,16 @@ classdef hwserver < handle
             fopen(obj.connection);
             err = [];
             try
-                fprintf(obj.connection,'%s\n',handshake);
-                obj.receive; % Error handling in method
+                try
+                    fprintf(obj.connection,'%s\n',handshake);
+                    obj.receive; % Error handling in method
+                catch handshake_err
+                    if strcmp(handshake_err.identifier, 'HWSERVER:empty')
+                        error('HWSERVER:failed_handshake', ['Failed handshake: ' handshake_err.message])
+                    else
+                        rethrow(handshake_err)
+                    end
+                end
                 fprintf(obj.connection,'%s\n',msg);
                 response = obj.receive;
             catch err
@@ -103,6 +95,19 @@ classdef hwserver < handle
         
     end
     methods(Access=protected)
+        function response = basic_com(obj, handshake)
+            % This is a special method to invoke server replies directly by
+            % an appropriate handshake
+            fopen(obj.connection);
+            try
+                fprintf(obj.connection,'%s\n',handshake);
+                response = obj.receive; % Error handling in method
+            catch err
+                fclose(obj.connection);
+                rethrow(err)
+            end
+            fclose(obj.connection);
+        end
         function response = receive(obj)
             % Read until timeout or newline character; utility of this is
             % if the response is larger than the buffer

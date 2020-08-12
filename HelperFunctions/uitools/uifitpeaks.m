@@ -5,8 +5,8 @@ function varargout = uifitpeaks(ax,varargin)
 %   Inputs (optional):
 %       [Init]: Struct with initial peak guesses. Same format as FITPEAKS
 %           returns for vals/init (each field must be same length). You can
-%           choose to supply a "background" field of length one in addition.
-%       [FitType]: "gauss" or "lorentz" (default "guass")
+%           choose to supply a scalar "background" field in addition.
+%       [FitType]: "gauss", "lorentz", or "voigt" (default "guass")
 %       [Bounds]: How tight to make bounds on fit; [lower,upper] = Bounds*initial guess
 %       [StepSize]: Pixels to increment when moving guess with arrows
 %       [InitWidth]: Pixel width to make newly clicked peaks
@@ -48,7 +48,7 @@ if isempty(p) % Avoid having to rebuild on each function call
     p = inputParser();
     p.KeepUnmatched = true;
     addParameter(p,'Init',[],@isstruct);
-    addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+    addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
     addParameter(p,'Bounds',[0,2],@(x) isnumeric(x) && ismatrix(x) && length(x)==2);
     addParameter(p,'StepSize',10,@(x) isnumeric(x) && numel(x)==1);
     addParameter(p,'InitWidth',5,@(x) isnumeric(x) && numel(x)==1);
@@ -56,9 +56,11 @@ end
 parse(p,varargin{:});
 fittype = lower(p.Results.FitType);
 
+try
 x = [];
 y = [];
 children = [findobj(ax,'type','line') findobj(ax,'type','scatter')];
+HitTestOff = gobjects(0);
 for i = 1:length(children)
     if ~strcmp(get(children(i),'tag'),mfilename)
         x = [x; children(i).XData'];
@@ -68,9 +70,10 @@ for i = 1:length(children)
         while target.Parent ~= ax
             target = target.Parent;
         end
-        set([target;allchild(target)],'HitTest','off');
+        HitTestOff = [HitTestOff;target;allchild(target)];
     end
 end
+set(HitTestOff,'HitTest','off');
 
 bg = median(y);
 if isempty(p.Results.Init)
@@ -90,8 +93,8 @@ if isempty(p.Results.Init)
     init.widths = init.widths(1:n);
 else
     if isfield(p.Results.Init,'background') &&...
-            ~any(isnan(p.Results.Init.background)) &&...
-            ~isempty(p.Results.Init.background)
+            isscalar(p.Results.Init.background) &&...
+            isfinite(p.Results.Init.background)
         bg = p.Results.Init.background;
     end
     init = p.Results.Init;
@@ -102,11 +105,10 @@ else
         [length(init.locations),length(init.widths),length(init.amplitudes)]),...
         'init.locations, init.amplitudes, and init.widths must all be the same length.');
 end
-        
+
 % Prepare graphics
 xfit = linspace(min(x),max(x),1001);
 pFit = plot(ax,xfit,ones(size(xfit))*bg,'r','linewidth',1,'tag',mfilename);
-pFit.UserData = [];
 pnt = addPoint(ax,(max(x)+min(x))/2,bg,false,[0 0 0]);
 pnt.UserData.ind = NaN;
 pnt.UserData.desc = 0; % desc=0 -> background
@@ -127,6 +129,8 @@ switch fittype
         handles.fit_function = @gaussfit;
     case 'lorentz'
         handles.fit_function = @lorentzfit;
+    case 'voigt'
+        handles.fit_function = @voigtfit;
 end
 handles.guesses = struct('gobs',{});
 handles.colors = lines;
@@ -158,13 +162,16 @@ handles.old_buttondownfcn = get(ax,'buttondownfcn');
 set(ax,'buttondownfcn',@ax_clicked);
 ax.UserData = handles;
 ax.UserData.original_color = ax.Color;
-iptPointerManager(f, 'enable');
 addlistener(pFit,'ObjectBeingDestroyed',@clean_up);
 % Init GUI state
 selected(handles.background);
 refit(ax);
 if nargout
     varargout = {pFit};
+end
+catch err
+    clean_up();
+    rethrow(err);
 end
 end
 
@@ -220,7 +227,7 @@ if isnan(fitconfs(end)) % Background
 else
     handles.background.Marker = 'o';
 end
-if any(isnan(fitconfs))
+if any(isnan(fitconfs(1:3*n)))
     set(ax,'Color',[1 0.8 0.8]);
 else
     set(ax,'Color',[1 1 1]);
@@ -249,6 +256,7 @@ if f.UserData.([mfilename '_count'])==0
     set(f,'keypressfcn',f.UserData.old_keypressfcn,...
                 'keyreleasefcn',f.UserData.old_keyreleasefcn);
 end
+ax.UserData.([mfilename '_enabled']) = false;
 end
 
 function selected(hObj,~)

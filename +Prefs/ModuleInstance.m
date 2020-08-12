@@ -3,6 +3,18 @@ classdef ModuleInstance < Base.pref
     %   NOTE: The UI will interpret whatever array size as an Nx1 when displaying
     %   If remove_on_delete is set to true, then the actual data value will 
     %   get reshaped so single entries can be removed.
+    %
+    %   Optional settings (as property, value pairs)
+    %       inherits: cell array of class names that should be returned by
+    %           SUPERCLASSES upon validation.
+    %       ignore_inherits_on_empty: If ISEMPTY, ignore the superclasses
+    %           of the empty vector upon validation. Useful because some
+    %           superclasses won't allow an empty set because they
+    %           are/contain Abstract entities.
+    %       n: The maximum number of simultaneously instantiated Module
+    %          instances
+    %       empty_val: The value displayed is the dropdown menu when no
+    %           module instances exist.
     
     properties(Hidden) % Satisfy abstract
         default = Base.Module.empty(0);
@@ -11,6 +23,8 @@ classdef ModuleInstance < Base.pref
     properties % Settings
         % Superclasses required for these modules as cell array of char vectors
         inherits = {{}, @(a)true};
+        % Ignore "inherits" property if the value being set satisfies ISEMPTY
+        ignore_inherits_on_empty = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % Number of allowed instances simultaneously (n > 0)
         n = {1, @(a)validateattributes(a,{'numeric'},{'scalar','positive'})};
         % Value displayed for empty option
@@ -53,6 +67,9 @@ classdef ModuleInstance < Base.pref
                 sz = num2str(size(val),'%ix'); sz(end) = []; % Remove trailing x
                 error('MODULE:too_many','%s "%s" exceeds the maximum allowed instances of %i.',...
                     sz, class(val), obj.n)
+            end
+            if obj.ignore_inherits_on_empty && isempty(val)
+                return
             end
             supers = [{class(val)}; superclasses(val)];  % class(val) in case of empty placeholder
             if ~all(ismember(obj.inherits, supers))
