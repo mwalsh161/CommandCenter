@@ -78,6 +78,10 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         end
         
         function response = load(obj, program, clock)
+            if iscell(program)  % Process cell array of strings for backwards compatibility.
+                program = strjoin(program, newline);
+            end
+            
             assert(ischar(program))
             assert(~isempty(program))
             if nargin == 2
@@ -88,7 +92,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             end
         end
         function response = getProgram(obj)
-            response = obj.com('stop');
+            response = obj.com('getProgram');
         end
         
         function response = isStatic(obj)

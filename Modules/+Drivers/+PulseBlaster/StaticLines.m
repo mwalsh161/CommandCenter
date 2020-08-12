@@ -25,6 +25,7 @@ classdef StaticLines < Modules.Driver
     
     methods(Static)
         function obj = instance(host_ip,interactive)
+            warning("Drivers.PulseBlaser.StaticLines is decrepitated and should be replaced with Drivers.PulseBlaster")
             if nargin < 2
                 interactive = true;
             end
