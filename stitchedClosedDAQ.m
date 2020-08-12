@@ -35,6 +35,7 @@ function stitchedClosedDAQ(managers)
     wheel = Drivers.ArduinoServo.instance('localhost', 2); % Which weaves as it wills.
 
     cam.exposure = 300;
+    cam.frames = 1;
     C.power = 10;
     C.arm();
     C.on();

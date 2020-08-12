@@ -52,9 +52,11 @@ classdef Attos < Modules.Driver
     end
     properties (SetAccess=immutable)
         port;
+    end
+    properties
         lines;
     end
-    properties %(Access=private)
+    properties (Access=private)
         s;
     end
     properties (GetObservable, SetObservable)
@@ -63,7 +65,7 @@ classdef Attos < Modules.Driver
     end
     methods(Static)
         function obj = instance(port)
-%             mlock;
+            mlock;
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.Attos.empty(1,0);
@@ -79,7 +81,7 @@ classdef Attos < Modules.Driver
             Objects(end+1) = obj;
         end
     end
-    methods %(Access=private)
+    methods (Access=private)
         function obj = Attos(port)
             assert(~isempty(port));
             assert(ischar(port));
@@ -87,15 +89,20 @@ classdef Attos < Modules.Driver
             obj.s = serial(port);
             obj.s.Timeout = 1;
             fopen(obj.s);
+            obj.getInfo();
             obj.spawnLines();
         end
         function spawnLines(obj)
             for ii = 1:7    % Max number of possible lines according to manual
                 try         % Try to make a line; an expected error will occur if the line does not exist.
                     obj.lines = [obj.lines Drivers.Attos.Line.instance(obj, ii)];
-                catch
+                catch        % Do something error-specfic?
                     % Do nothing.
                 end
+            end
+            
+            if isempty(obj.lines)
+                warning(['Could not find any lines in Drivers.Attos(''' obj.port ''').'])
             end
         end
         function killLines(obj)
@@ -110,9 +117,12 @@ classdef Attos < Modules.Driver
                 if ischar(varargin{2}) && strcmp(varargin{2}, 'c')
                     warning('Continuous mode is dangerous and disabled in this MATLAB interface. Truncating to maxsteps.')
                     varargin{2} = Drivers.Attos.maxsteps;
-                elseif isnumeric(varargin{2}) && varargin{2} > Drivers.Attos.maxsteps
-                    warning([num2str(varargin{2}) ' steps is greater than maxsteps = ' num2str(Drivers.Attos.maxsteps) '. Truncating to maxsteps.'])
-                    varargin{2} = Drivers.Attos.maxsteps;
+                elseif isnumeric(varargin{2}) 
+                    assert(varargin{2} > 0, ['Expected positive integer steps. Received ' num2str(varargin{2})])
+                    if varargin{2} > Drivers.Attos.maxsteps
+                        warning([num2str(varargin{2}) ' steps is greater than maxsteps = ' num2str(Drivers.Attos.maxsteps) '. Truncating to maxsteps.'])
+                        varargin{2} = Drivers.Attos.maxsteps;
+                    end
                 end
             end
             
@@ -123,7 +133,8 @@ classdef Attos < Modules.Driver
                 elseif isnumeric(arg{1}) || islogical(arg{1})
                     command = [command ' ' num2str(arg{1})]; %#ok<AGROW>
                 else
-                    error(arg{1})
+                    disp(arg{1})
+                    error('Could not parse argument. Arguments to Dtivers.Atto must be string or numeric.')
                 end
             end
             
@@ -136,6 +147,7 @@ classdef Attos < Modules.Driver
             endcode = sprintf('OK\r\n');
             errcode = sprintf('ERROR\r\n');
             
+            echo = fscanf(obj.s);   % First line is echo. Turn echo off? This will break if echo is turned off.
             line = fscanf(obj.s);
             
             while ~isempty(line) && ~strcmp(line, endcode) && ~strcmp(line, errcode)
@@ -143,13 +155,15 @@ classdef Attos < Modules.Driver
                 line = fscanf(obj.s);
             end
             
-            response(end-1:end) = [];
+            if ~isempty(response)
+                response(end-1:end) = [];
+            end
             
             % Decide if the command succeeded and error otherwise.
             if ~isempty(line) && strcmp(line, endcode)
                 % Do nothing.
             else
-                error(response)
+                error([echo response])
             end
             
             % If the user wants a numeric values also
@@ -167,14 +181,16 @@ classdef Attos < Modules.Driver
                             case {'1', 'on'}
                                 numeric = true;
                             otherwise
-                                error(['Logical value string not recognized in "' rlines{end} '"'])
+                                numeric = NaN;
+                                warning(['Logical value string not recognized in "' rlines{end} '"'])
                         end
                     case 4  % 'NAME = NUMERIC UNIT'
                         % name = result{1};
                         numeric = str2double(result{3});
                         % unit = result{4};
                     otherwise
-                        error(['Value string not recognized in "' rlines{end} '"'])
+                        numeric = NaN;
+                        warning(['Value string not recognized in "' rlines{end} '"'])
                 end
             end
         end

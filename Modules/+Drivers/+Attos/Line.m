@@ -1,26 +1,28 @@
 classdef Line < Modules.Driver
     %Drivers.Attos.Line is a wrapper for the knobs contained in an attocube axis
     
-    properties(SetObservable,GetObservable)
-        serial =    Prefs.String('', 'read_only', true);
+    properties(SetObservable, GetObservable)
+        serial =    Prefs.String('', 'readonly', true);
         
-%         mode =      Prefs.MultipleChoice('gnd', 'choices', {'gnd', 'inp', 'cap', 'stp', 'off', 'step+', 'step-'},...
+%         mode =      Prefs.MultipleChoice('gnd', 'choices', {'gnd', 'inp', 'cap', 'stp', 'off', 'stp+', 'stp-'},...
 %                                             'help', 'Various operation modes available to each line. See manual for details.');
         
         % Maximum values are from manual. Might be hardware-dependent.
-        frequency = Prefs.Integer(0,    'min', 0, 'max', 1e4, 'units', 'Hz',...
+        frequency = Prefs.Integer(0,    'min', 0, 'max', 1e4, 'set', 'set_frequency',   'units', 'Hz',...
                                             'help', 'Frequency at which steps occur for multi-step operations.');
-        amplitude = Prefs.Double(0,     'min', 0, 'max', 150, 'units', 'V',...
+        amplitude = Prefs.Double(0,     'min', 0, 'max', 150, 'set', 'set_amplitude',   'units', 'V',...
                                             'help', 'Step edge voltage.');
-        steps =     Prefs.Integer(1,    'min', 1, 'max', Drivers.Attos.maxstep, 'units', '#',...
+        steps =     Prefs.Integer(1,    'min', 1, 'max', Drivers.Attos.maxsteps,        'units', '#',...
                                             'help', 'Default number of steps for a multi-step operation.');
         
-        offset =    Prefs.Double(0,     'min', 0, 'max', 150, 'set', 'set_dc_in', 'units', 'V',...
+        offset =    Prefs.Double(0,     'min', 0, 'max', 150, 'set', 'set_offset',      'units', 'V',...
                                             'help', 'Voltage that is added to the step waveform for a fine offset.');
-        dc_in =     Prefs.Boolean(false,    'help', 'Whether an external voltage is enabled on the DC-IN port.')
+        dc_in =     Prefs.Boolean(false, 'set', 'set_dc_in',    'help', 'Whether an external voltage is enabled on the DC-IN port.')
     end
-    properties(SetAccess=immutable,Hidden)
+    properties(SetAccess=immutable, Hidden)
         parent; % Handle to Drivers.Attos parent
+    end
+    properties(SetAccess=immutable)
         line;   % Index of the physical line of the parent that this D.A.Line controls.
     end
     
@@ -50,14 +52,20 @@ classdef Line < Modules.Driver
             obj.parent = parent;
             obj.line = line;
             
-            obj.com('setm', 'step+');   % Default; eventually change this to give the user more freedom.
+            obj.com('setm', 'stp+');   % Default; eventually change this to give the user more freedom.
+            
+            obj.getInfo();
 
             addlistener(obj.parent,'ObjectBeingDestroyed',@(~,~)obj.delete);
         end
     end
     methods
-        function com(obj, command, varargin)
-            obj.parent.com(command, obj.line, varargin{:});
+        function [response, numeric] = com(obj, command, varargin)
+            if nargout == 2
+                [response, numeric] = obj.parent.com(command, obj.line, varargin{:});
+            else
+                response = obj.parent.com(command, obj.line, varargin{:});
+            end
         end
         function delete(obj)
             % Do nothing.
@@ -89,9 +97,9 @@ classdef Line < Modules.Driver
         end
         function val = set_dc_in(obj, val, ~)
             if val
-                obj.com('setdci', obj, 'on');
+                obj.com('setdci', 'on');
             else
-                obj.com('setdci', obj, 'off');
+                obj.com('setdci', 'off');
             end
         end
         
