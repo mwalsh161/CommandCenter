@@ -44,6 +44,16 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
 
             try
                 obj.PreRun(status,managers,ax);
+            
+                wm6 = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 6, true);
+                wm7 = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 7, true);
+
+                wm6.SetSwitcherSignalState(1);
+                wm7.SetSwitcherSignalState(1);
+
+    %             obj.data.freq_center = obj.resLaser.getFrequency();
+                obj.data.freq_center_IR =   wm6.getFrequency();
+                obj.data.freq_center =      wm7.getFrequency();
                 
                 for freqIndex = 1:length(obj.scan_points)
 %                     'frame'
@@ -70,14 +80,18 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                         obj.data.freqs_time(freqIndex) = toc;
                     
                         if obj.save_freq
-                            obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
+%                             obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
+                            wm6.SetSwitcherSignalState(1);
+                            wm7.SetSwitcherSignalState(1);
+                            obj.data.freqs_measured_IR(freqIndex) =    wm6.getFrequency();
+                            obj.data.freqs_measured(freqIndex) =       wm7.getFrequency();
                         end
                         
                         if obj.abort_request
                             break;
                         end
 
-                        if obj.only_get_freq
+                        if obj.only_get_freq && obj.save_freq
                             status.String = sprintf('Progress (%i/%i pts):\n  Laser set %f (laser at %f)', freqIndex, length(obj.scan_points), obj.scan_points(freqIndex), obj.data.freqs_measured(freqIndex));
                             drawnow
                         else
@@ -97,7 +111,11 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                         end
                     
                         if obj.save_freq
-                            obj.data.freqs_measured_after(freqIndex) = obj.resLaser.getFrequency();
+%                             obj.data.freqs_measured_after(freqIndex) = obj.resLaser.getFrequency();
+                            wm6.SetSwitcherSignalState(1);
+                            wm7.SetSwitcherSignalState(1);
+                            obj.data.freqs_measured_IR_after(freqIndex) =    wm6.getFrequency();
+                            obj.data.freqs_measured_after(freqIndex) =       wm7.getFrequency();
                         end
                     catch err
                         warning(err.message)
@@ -175,6 +193,8 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             
             obj.data.freqs_measured = NaN(1, length(obj.scan_points));
             obj.data.freqs_measured_after = NaN(1, length(obj.scan_points));
+            obj.data.freqs_measured_IR = NaN(1, length(obj.scan_points));
+            obj.data.freqs_measured_IR_after = NaN(1, length(obj.scan_points));
             obj.data.freqs_time = NaN(1, length(obj.scan_points));
             
             obj.data.experiment_time = NaN(1, length(obj.scan_points));
@@ -189,7 +209,6 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             
             obj.setLaser(0);
             pause(1)
-            obj.data.freq_center = obj.resLaser.getFrequency();
             [obj.data.resPowerCenter, obj.data.resPowerStdCenter] =    pm.get_power('units', 'mW', 'samples', 10);
             
             obj.setLaser(obj.scan_points(1));
@@ -198,6 +217,9 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             
             obj.data.resPowerAfter = NaN;
             obj.data.resPowerStdAfter = NaN;
+            
+            obj.setLaser(0);
+            pause(1)
             
             obj.repumpLaser.on
         end

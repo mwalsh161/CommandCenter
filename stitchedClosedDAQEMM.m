@@ -28,25 +28,9 @@ function stitchedClosedDAQ(managers)
     THZ = [497.5:dthz:498 498.5:dthz:499 498:dthz:498.5];   % AB, CD, gap, ichr 8/11
 %     THZ = [497.5751:dthz:498 498.5:dthz:499 498:dthz:498.5];   % restart of above, ebersin 8/12
 
-    offset = -153.7248;  % Offset between SolsTiS and EMM. Equivalent to fiber laser frequency.
+%    fiberLaser = 153.7248
 
-
-    S = Sources.msquared.SolsTiS.instance;
-    delete(S);  % Make sure SolsTiS is not loaded.
-    
-    pause(2) %MS8.13 1->2 
-    
-    
-    E = Sources.msquared.EMM.instance;
-    pause(1);
-    E.TuneSetpoint(mean(THZ));              % Set the position of the PPLN and prism to be ~optimal for our tuning range.
-%     E.optimizePower();
-    pause(1)
-    delete(E);                              % Kill the EMM handle and... this is what needs addressing. deleting(E) turns off EMM completely. Same happens when
-    %unloading EMM manually from CC interface. Will require rewriting EMM
-    %and solstis protocols to get this working.... -ms 
-    pause(1)
-    S = Sources.msquared.SolsTiS.instance;  % Move to the SolsTiS which is more relaible to commune with.
+    S = Sources.msquared.EMM.instance;
 
     pm = Drivers.PM100.instance();
     pm.set_wavelength(602)
@@ -71,8 +55,8 @@ function stitchedClosedDAQ(managers)
     for thz = THZ 
         fprintf('Frequency = %.3f THz!\n', thz)
         try
-            S.TuneSetpoint(thz + offset);
-            pause(1);
+            S.TuneSetpoint(thz);
+            pause(3);
         catch err
             warning(err.message)
         end
@@ -81,9 +65,9 @@ function stitchedClosedDAQ(managers)
         
         while abs(S.GetPercent - 50) > 5
             try
-                S.TuneSetpoint(thz + offset + 2*dthz);
+                S.TuneSetpoint(thz + 2*dthz);
                 pause(3);
-                S.TuneSetpoint(thz + offset + (rand-.5)*dthz/40);
+                S.TuneSetpoint(thz + (rand-.5)*dthz/40);
                 pause(3);
             catch err
                 warning(err.message)
@@ -94,7 +78,6 @@ function stitchedClosedDAQ(managers)
             if abs(S.GetPercent - 50) > 5 && abs(S.GetPercent - 50) < 10
                 try
                     fprintf('        Percent close enough to 50%% to attempt to TunePercent.\n')
-                    S.lock_wavelength("off")
                     S.TunePercent(50);
                 	pause(3);
                     fprintf('    Percent = %.3f%%!\n', S.GetPercent)    
@@ -111,15 +94,15 @@ function stitchedClosedDAQ(managers)
         
             if abs(cur - thz) > 10*dthz    %  This should catch inf issues??
                 disp('++++Trying to fix error?');
-%                 S.ready
-%                 S.updateStatus  % Try to fix the error.
-%                 S.ready
+                S.ready
+                S.updateStatus  % Try to fix the error.
+                S.ready
                 pause(.5)
                 
                 try
-                    S.TuneSetpoint(thz + offset + 2*dthz);
+                    S.TuneSetpoint(thz + 2*dthz);
                     pause(3);
-                    S.TuneSetpoint(thz + offset + (rand-.5)*dthz/40);
+                    S.TuneSetpoint(thz + (rand-.5)*dthz/40);
                     pause(3);
                 catch err
                     warning(err.message)
@@ -145,16 +128,14 @@ function stitchedClosedDAQ(managers)
         end
 
         C.off
-        exp.resLaser = S;
         
         try
             exp.resLaser.on;
-            lockPower(0.0015, pm, wheel); % lock power to ~1.5 uW
+            lockPower(0.0015, pm, wheel); % lock power to 1.5 uW
         catch
             disp('Power setting failed; proceeding anyway.');
         end
         
-        S.lock_wavelength("off")
         managers.Experiment.run()
                 
         if managers.Experiment.aborted

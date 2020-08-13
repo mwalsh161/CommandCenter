@@ -80,7 +80,10 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
                 base_percent = obj.resLaser.GetPercent;
             end
             
-            THz = obj.resLaser.getFrequency - obj.V2GHz * obj.Vrange * (percent - base_percent) / 1e5;
+            wm7 = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 7, true);
+            wm7.SetSwitcherSignalState(1);
+            
+            THz = wm7.getFrequency - obj.V2GHz * obj.Vrange * (percent - base_percent) / 1e5;
         end
         function percent = THz2percent(obj, THz)
             if isempty(obj.resLaser)
@@ -89,7 +92,10 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
                 base_percent = obj.resLaser.GetPercent;
             end
             
-            percent = - 1e5 * (THz - obj.resLaser.getFrequency) / (obj.V2GHz * obj.Vrange) + base_percent;
+            wm7 = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 7, true);
+            wm7.SetSwitcherSignalState(1);
+            
+            percent = - 1e5 * (THz -wm7.getFrequency) / (obj.V2GHz * obj.Vrange) + base_percent;
         end
         function PreRun(obj, ~, managers, ax)
             obj.get_scan_points();
@@ -101,7 +107,7 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
             
             PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
             
-            obj.setLaser(obj.overshoot_voltage)
+%             obj.setLaser(obj.overshoot_voltage)
         end
         function loadDAQ(obj)
             obj.dev = Drivers.NIDAQ.dev.instance(obj.DAQ_dev);

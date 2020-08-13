@@ -106,7 +106,8 @@ classdef EMM < Modules.Driver
             err = [];
             try  % Might not be a good IP, so try only
                 % Give control back to solstis ICE BLOC
-                obj.com('set_wavelength',800,false,'infrared');
+                obj.com('set_wavelength', 880, false, 'infrared');
+%                 obj.com('set_wavelength', 299792 / (obj.solstisHandle.getFrequency - 153.7248), false, 'infrared');    % 153 THz is fiber laser frequency. This will keep the SolsTiS at roughly the same setpoint.
                 obj.com('close');
             catch err
             end
@@ -130,7 +131,8 @@ classdef EMM < Modules.Driver
         function set_wavelength(obj,val)
             out = obj.com_blocking('set_wavelength',val,obj.blocking_timeout);
             
-            out
+            out{1}
+            out{2}
             
             if out{2}.report == 1
                 error('Tuning failed, laser returned `out{2}.report == 1` in drivers.msquared.EMM.set_wavelength(obj,val)')

@@ -131,8 +131,10 @@ classdef Cobolt_PB < Modules.Source
             end
             err = [];
             try
-                obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
+%                 obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
+%                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
+                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
 %                 delete(obj.listeners)
 %                 obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
 %                 obj.isRunning;

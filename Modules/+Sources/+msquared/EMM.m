@@ -64,9 +64,9 @@ classdef EMM < Sources.msquared.common_invisible
     end
     methods(Hidden)
         function host = loadLaser(obj)
-            host = obj.hwserver_host;
-            modName = obj.moduleName;
-            if isempty(host)||isempty(modName); return; end
+            host = obj.hwserver_host
+            modName = obj.moduleName
+            if isempty(host)||isempty(modName); warning('Module name not filled. Cannot load laser.'); return; end
             % solstis
             err = obj.connect_driver('solstisHandle','msquared.solstis',host,modName);
             if ~isempty(err)
@@ -148,6 +148,10 @@ classdef EMM < Sources.msquared.common_invisible
             obj.updatingVal = false;
         end
 
+        function optimizePower(obj)
+            obj.emmHandle.optimize_power;
+        end
+        
         function delete(obj)
             errs = {};
             try
