@@ -118,6 +118,7 @@ function stitchedClosedDAQ(managers)
         C.off
         
         try
+            S.on();
             lockPower(0.0015, pm, wheel); % lock power to 1.5 uW
         catch
             disp('Power setting failed; proceeding anyway.');
