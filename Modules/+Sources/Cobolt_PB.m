@@ -186,13 +186,13 @@ classdef Cobolt_PB < Modules.Source
         % and I don't want to update hwserver until new PB commit is accepted.
         function on(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
-            obj.PulseBlaster.lines(obj.PB_line) = true;
+            obj.PulseBlaster.lines(obj.PB_line).state = true;
             obj.source_on = true; 
         end
         function off(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PB_line) = false;
+            obj.PulseBlaster.lines(obj.PB_line).state = false;
         end
 %         function isRunning(obj,varargin)
 %             obj.PB_running = obj.PulseBlaster.running;

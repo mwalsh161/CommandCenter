@@ -82,6 +82,7 @@ function stitchedClosedDAQ(managers)
             fprintf('    [getFrequency = %.3f THz ?= %.3f THz] == %i because abs(dif) == %.3f > %.3f!\n', cur, thz, abs(cur - thz) <= 10*dthz, abs(cur - thz), 10*dthz)
         
             if abs(cur - thz) > 10*dthz    %  This should catch inf issues??
+                keyboard();
                 disp('++++Trying to fix error?');
                 S.ready
                 S.updateStatus  % Try to fix the error.
