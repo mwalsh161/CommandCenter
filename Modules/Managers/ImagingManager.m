@@ -219,7 +219,7 @@ classdef ImagingManager < Base.Manager
             end
             try
                 if ~isempty(obj.active_module.path) %if path defined, select path
-                    obj.handles.Managers.Path.select_path(obj.active_module.path);
+                    %obj.handles.Managers.Path.select_path(obj.active_module.path);
                 end
                 obj.sandboxed_function({obj.active_module,'snap'},temp);
                 imPixels = get(temp,'cdata');
@@ -299,7 +299,7 @@ classdef ImagingManager < Base.Manager
                 set(obj.handles.axImage,'clim',[low high])
             end
             if ~isempty(obj.active_module.path) %if path defined, select path
-                obj.handles.Managers.Path.select_path(obj.active_module.path);
+                %obj.handles.Managers.Path.select_path(obj.active_module.path);
             end
             obj.log('%s starting video.',class(obj.active_module))
             obj.sandboxed_function({obj.active_module,'startVideo'},hImage);

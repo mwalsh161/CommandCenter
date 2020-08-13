@@ -43,17 +43,17 @@ classdef Verdi_invisible < handle
             obj.Secret_Key_path = val;
         end
         function set.enabled(obj,val)
-            if isempty(obj.Secret_Key_path)
-                err.message = 'Secret Key path not set!';
-                err.identifier = 'VERDI:secret_key';
-                error(err)
-            end
+%             if isempty(obj.Secret_Key_path)
+%                 err.message = 'Secret Key path not set!';
+%                 err.identifier = 'VERDI:secret_key';
+%                 error(err)
+%             end
             if ~islogical(val)
                 err.message = 'enabled must be a logical';
                 err.identifier = 'VERDI:wrong_inputs';
                 error(err)
             end
-            checkoutlaser(val,obj.Secret_Key_path)
+            %checkoutlaser(val,obj.Secret_Key_path)
             obj.enabled = val;
         end
     end
