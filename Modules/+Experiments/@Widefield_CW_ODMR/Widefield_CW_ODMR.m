@@ -59,10 +59,10 @@ classdef Widefield_CW_ODMR < Modules.Experiment
             obj.freq_list = str2num(val)*1e9;
         end
         function val = set_x_pixel(obj,val,pref)
-            obj.pixel_x = str2num(val)*1e9;
+            obj.pixel_x = str2num(val);
         end
         function val = set_y_pixel(obj,val,pref)
-            obj.pixel_y = str2num(val)*1e9;
+            obj.pixel_y = str2num(val);
         end
         function validate_pixel(obj,val,pref)
             val = str2num(val);
