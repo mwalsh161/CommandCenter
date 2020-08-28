@@ -1,9 +1,9 @@
-classdef RIGOL_PB_switch < Sources.Signal_Generator.MW_PB_switch_invisible
+classdef RIGOL_PB_switch < Sources.SignalGenerators.MW_PB_switch_invisible
     %RIGOL serial source class
     
     properties
         piezoStage
-        prefs = {'MWFrequency','ip','MWPower','MW_switch_on','MW_switch_PB_line','SG_trig_PB_line','visaAddress'};
+        %prefs = {prefs{:},'ip','MW_switch_on','MW_switch_PB_line','SG_trig_PB_line','visaAddress'};
     end
     
     properties(SetObservable)
@@ -50,7 +50,7 @@ classdef RIGOL_PB_switch < Sources.Signal_Generator.MW_PB_switch_invisible
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Sources.Signal_Generator.RIGOL.RIGOL_PB_switch();
+                Object = Sources.SignalGenerators.RIGOL.RIGOL_PB_switch();
             end
             obj = Object;
         end

@@ -1,8 +1,8 @@
-classdef RIGOL_none < Sources.Signal_Generator.SG_Source_invisible
+classdef RIGOL_none < Sources.SignalGenerators.SG_Source_invisible
     %RIGOL serial source class
     
     properties
-        prefs = {'MWFrequency','MWPower','visaAddress'};
+        %prefs = {'MWFrequency','MWPower','visaAddress'};
     end
     
     properties(SetObservable)
@@ -48,7 +48,7 @@ classdef RIGOL_none < Sources.Signal_Generator.SG_Source_invisible
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Sources.Signal_Generator.RIGOL.RIGOL_none();
+                Object = Sources.SignalGenerators.RIGOL.RIGOL_none();
             end
             obj = Object;
         end
