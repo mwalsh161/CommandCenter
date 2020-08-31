@@ -5,8 +5,8 @@ classdef MW_PB_switch_invisible < Sources.SignalGenerators.SG_Source_invisible
         running
     end
     
-    properties(SetObservable)
-        MW_switch_on = {'yes','no'};
+    properties(GetObservable, SetObservable)
+        MW_switch_on = Prefs.MultipleChoice('No', 'allow_empty',false, 'choices',{'Yes','No'}, 'help_text','MW switch on or off', 'set','set_MW_switch_on');
         MW_switch_PB_line = 1; %pulseblaster hardware line (indexed from 1) for mw_switch
         SG_trig_PB_line = 2;   %pulseblaster hardware line (indexed from 1) for SG_trigger
         ip = 'localhost';      %ip address for the pulseblaster
@@ -57,7 +57,7 @@ classdef MW_PB_switch_invisible < Sources.SignalGenerators.SG_Source_invisible
             end
         end
        
-        function set.MW_switch_on(obj,val)
+        function val = set_MW_switch_on(obj,val,pref)
             if iscell(val)
                 return
             end
@@ -67,21 +67,20 @@ classdef MW_PB_switch_invisible < Sources.SignalGenerators.SG_Source_invisible
                 %if no server is detected then mw switch is off.
                 message = 'No server found. MW switch will be set to off. Connect a server to set MW switch to on. ';
                 warndlg(message);
-                obj.MW_switch_on = 'no';
+                obj.MW_switch_on = 'No';
                 return
             end
             
             switch lower(val)
                 case {'yes','on'}
                     obj.pb_on;
-                    val = 'yes';
+                    val = 'Yes';
                 case {'no','off'}
                     obj.pb_off;
-                    val = 'no';
+                    val = 'No';
                 otherwise
                     error('Unknown MW_switch_on state.')
             end
-            obj.MW_switch_on = val;
         end
         
         function isRunning(obj,varargin)
