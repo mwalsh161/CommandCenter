@@ -1,0 +1,212 @@
+classdef Conex_CC < Modules.Driver
+    
+    properties(SetObservable, GetObservable)
+        host =          Prefs.String('COM?',    'set', 'set_host',      'help', 'COM (USB) port that is connected to the micrometer.');
+        address =       1; %Prefs.Integer(1,        'set', 'set_address',   'help', 'COM (USB) port that is connected to the micrometer.');
+        
+        identifier =    Prefs.String('', 'readonly', true);
+        state =         Prefs.String('UNKNOWN', 'readonly', true);
+        
+        position =      Prefs.Double(NaN, 'unit', 'mm',     'min', 0, 'max', 25,        'allow_nan', true, 'set', 'set_position',       'help', 'Positon of the micrometer.');
+        velocity =      Prefs.Double(NaN, 'unit', 'mm/s',   'min', 0,        'allow_nan', true, 'set', 'set_velocity',       'help', 'Velocity of the micrometer.');
+        acceleration =  Prefs.Double(NaN, 'unit', 'mm/s^2', 'min', 1e-6, 'max', 1e12,   'allow_nan', true, 'set', 'set_acceleration',   'help', 'Acceleration of the micrometer.');
+    end
+    properties % (Access=private)
+        s;      % Handle to serial connection
+    end
+    methods(Access=protected)
+        function obj = Conex_CC()
+            obj.loadPrefs; % note that this calls set.host
+        end
+    end
+    methods(Static)
+        function obj = instance()
+            mlock;
+            persistent Object
+            if isempty(Object) || ~isvalid(Object)
+                Object = Drivers.Conex_CC();
+            end
+            obj = Object;
+        end
+    end
+    methods
+        function delete(obj)
+            if ~isempty(obj.s)
+                fclose(obj.s);
+                delete(obj.s);
+            end
+        end
+%         
+%         function val = set_power(obj, val, ~)
+%             if obj.isConnected && ~isnan(val)
+%                 errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
+%             else
+%                 val = NaN;
+%             end
+%         end
+        
+        function val = get_identifier(obj, ~)
+            obj.com('ID?');    % Get laser modulation power (mW)
+            
+            val = fscanf(obj.s);
+        end
+        function val = get_position(obj, ~)
+            obj.com('TH');    % Current postion
+            val = obj.recv();
+        end
+        function val = get_setpoint(obj, ~)
+            obj.com('PA?');    % Current postion
+            val = obj.recv();
+        end
+        function val = set_position(obj, val, ~)
+            obj.com('ST');                  % Stop any current movement
+            
+            obj.get_state()
+            
+            t = tic;
+            while strcmp(obj.get_raw_state(), '28') && toc(t) < 1; pause(.01); end    % Wait while decellerating.
+            
+            obj.get_state()
+            
+%             obj.com(['SE' num2str(val)]);   % Tell the axes to goto the desired position.
+%             fprintf(obj.s, 'SE');               
+            obj.com(['PA' num2str(val)]);   % Tell the axes to goto the desired position.
+        end
+        function val = set_velocity(obj, val, ~)
+            obj.com(['VA' num2str(val)]);   % Tell the axes to goto the desired position.
+            val = get_velocity(obj);
+        end
+        function val = get_velocity(obj, ~)
+            obj.com('VA?');  val = obj.recv();
+        end
+        function val = set_acceleration(obj, val, ~)
+            obj.com(['AC' num2str(val)]);   % Tell the axes to goto the desired position.
+            val = get_acceleration(obj);
+        end
+        function val = get_acceleration(obj, ~)
+            obj.com('AC?'); val = obj.recv();
+        end
+        function [state, err] = get_raw_state(obj, ~)
+            obj.com('TS');   % Tell the axes to goto the desired position.
+            str = fscanf(obj.s);
+            str
+%             err = str(1:4);
+%             state = str(5:6);
+            err = str(4:7);
+            state = str(8:9);
+            
+            if ~strcmp(err, '0000')
+                warning(['Error code: ' err]);
+            end
+        end
+        function state = get_state(obj, ~)
+            [raw, ~] = get_raw_state(obj, 0);
+            
+%             switch raw
+%                 case '0A'; state = 'RESET -> NOT REFERENCED';
+%                 case '0B'; state = 'HOMING -> NOT REFERENCED';
+%                 case '0C'; state = 'CONFIGURATION -> NOT REFERENCED';
+%                 case '0D'; state = 'DISABLE -> NOT REFERENCED';
+%                 case '0E'; state = 'READY -> NOT REFERENCED';
+%                 case '0F'; state = 'MOVING -> NOT REFERENCED';
+%                 case '10'; state = 'NO PARAMETERS IN MEMORY -> NOT REFERENCED';
+%                 case '14'; state = 'CONFIGURATION';
+%                 case '1E'; state = 'HOMING';
+%                 case '28'; state = 'MOVING';
+%                 case '32'; state = 'HOMING -> READY';
+%                 case '33'; state = 'MOVING -> READY';
+%                 case '34'; state = 'DISABLE -> READY';
+%                 case '36'; state = 'READY -> READY T';
+%                 case '37'; state = 'TRACKING -> READY T';
+%                 case '38'; state = 'DISABLE T -> READY T';
+%                 case '3C'; state = 'READY -> DISABLE';
+%                 case '3D'; state = 'MOVING -> DISABLE';
+%                 case '3E'; state = 'TRACKING -> DISABLE';
+%                 case '3F'; state = 'READY T -> DISABLE';
+%                 case '46'; state = 'READY T -> TRACKING';
+%                 case '47'; state = 'TRACKING';
+%                 otherwise; state = 'UNKNOWN';
+%             end
+            
+            switch raw
+                case {'0A','0B','0C','0D','0E','0F','10'}
+                    state = 'NOT REFERENCED';
+                case '14'
+                    state = 'CONFIGURATION';
+                case '1E'
+                    state = 'HOMING';
+                case '28'
+                    state = 'MOVING';
+                case {'32','33','34'}
+                    state = 'READY';
+                case {'36','37','38'}
+                    state = 'READY T';
+                case {'3C','3D','3E','3F'}
+                    state = 'DISABLE';
+                case {'46','47'}
+                    state = 'TRACKING';
+                otherwise
+                    state = 'UNKNOWN';
+            end
+            
+            obj.state = state;
+        end
+            
+        function com(obj, str, varargin)
+%             if obj.isConnected()
+            fprintf(obj.s, [num2str(obj.address) str]);
+%             else
+%                 val = NaN;
+%             end
+        end
+        function val = recv(obj)
+            str = fscanf(obj.s);
+            val = str2double(str(4:end));
+        end
+%         function tf = isConnected(obj)
+%             tf = ~strcmp('No Server', obj.host) && strcmp('OK', obj.serial.com('Cobolt', '?'));
+%             
+%             if ~tf
+%                 if strcmp('No Server', obj.cobolt_host)
+%                     error('Host not set!');
+%                 end
+%                 host = obj.cobolt_host;
+%                 obj.set_cobolt_host(obj,'No Server');
+%                 error(['Cobolt not found at host "' host '"!']);
+%             end
+%         end
+        
+        function val = set_host(obj, val, ~) %this loads the hwserver driver
+            val
+            
+            delete(obj.s);
+            
+            if strcmp('COM?', val)
+                obj.s = [];
+                obj.diode_on = false;
+                return
+            end
+            err = [];
+            try
+                obj.s = serial(val); %#ok<*MCSUP>
+                set(obj.s, 'BaudRate', 921600, 'DataBits', 8, 'Parity', 'none', 'StopBits', 1, ...
+                    'FlowControl', 'software', 'Terminator', 'CR/LF');
+                fopen(obj.s);
+                
+                obj.identifier =    obj.get_identifier();
+                obj.position =      obj.get_position();
+                obj.velocity =      obj.get_velocity();
+                obj.acceleration =  obj.get_acceleration();
+%                 obj.power = obj.get_power();
+            catch err
+                obj.s = [];
+                val = 'COM?';
+            end
+            if ~isempty(err)
+                rethrow(err)
+            end
+        end
+        
+    end
+end
+
