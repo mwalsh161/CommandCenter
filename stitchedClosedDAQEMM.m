@@ -1,4 +1,4 @@
-function stitchedClosedDAQ(managers)
+function stitchedClosedDAQEMM(managers)
     dthz = .0075;
     
     % SiV
@@ -26,7 +26,12 @@ function stitchedClosedDAQ(managers)
 %     THZ = [497.527:dthz:499.25]; %2020_07_08 ichr
 %     THZ = [497.25:dthz:499.25]; %2020_07_09 ichr
     THZ = [497.5:dthz:498 498.5:dthz:499 498:dthz:498.5];   % AB, CD, gap, ichr 8/11
-%     THZ = [497.5751:dthz:498 498.5:dthz:499 498:dthz:498.5];   % restart of above, ebersin 8/12
+%    THZ = [497.5225:dthz:498 498.5:dthz:499 498:dthz:498.5];   % ebersin restart of above, 8/23 midnight
+%    THZ = [497.5503:dthz:498 498.5:dthz:499 498:dthz:498.5];   % ebersin restart of above, 8/24 am
+%    THZ = [497.5503:dthz:498 498.5:dthz:499 498:dthz:498.5];   % ebersin restart of above, 8/24 am
+    THZ = [497.74:dthz:497.79 498.905:dthz:499 498:dthz:498.5];   % ebersin restart of above, 8/28 am
+    THZ = [498.275:dthz:498.5];   % ebersin restart of above, 8/31 am
+    THZ = [498.32:dthz:498.5, 497.94:dthz:497.99, 498.1:dthz:498.18, 498.79:dthz:498.9];   % ebersin restart of above, 8/31 pm
 
 %    fiberLaser = 153.7248
 
@@ -49,6 +54,7 @@ function stitchedClosedDAQ(managers)
     C.arm();
     C.on();
     wheel.angle  = 45;
+    powerSetpoint = 0.0015;
     
 %     url = 'https://hooks.slack.com/services/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';
     
@@ -93,6 +99,7 @@ function stitchedClosedDAQ(managers)
             fprintf('    [getFrequency = %.3f THz ?= %.3f THz] == %i because abs(dif) == %.3f > %.3f!\n', cur, thz, abs(cur - thz) <= 10*dthz, abs(cur - thz), 10*dthz)
         
             if abs(cur - thz) > 10*dthz    %  This should catch inf issues??
+                keyboard();
                 disp('++++Trying to fix error?');
                 S.ready
                 S.updateStatus  % Try to fix the error.
@@ -131,9 +138,13 @@ function stitchedClosedDAQ(managers)
         
         try
             exp.resLaser.on;
-            lockPower(0.0015, pm, wheel); % lock power to 1.5 uW
+            lockPower(powerSetpoint, pm, wheel); % lock power to 1.5 uW
         catch
-            disp('Power setting failed; proceeding anyway.');
+            if pm.get_power('samples', 10, 'units', 'mW') < powerSetpoint
+                keyboard(); %laser likely failed/dead
+            else
+                disp('Power setting failed; proceeding anyway.');
+            end
         end
         
         managers.Experiment.run()

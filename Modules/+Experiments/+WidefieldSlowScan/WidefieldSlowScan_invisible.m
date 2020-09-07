@@ -119,6 +119,8 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                         end
                     catch err
                         warning(err.message)
+                        fprintf('Attempting to fix the above error by turning WM7 on.\n')
+                        wm7.SetSwitcherSignalState(1);
                     end
                     
                     if obj.abort_request
