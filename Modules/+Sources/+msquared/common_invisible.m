@@ -65,13 +65,13 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     methods
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-            obj.PulseBlaster.lines(obj.PBline) = true;
+            obj.PulseBlaster.lines(obj.PBline).state = true;
             obj.source_on = true;
         end
         function off(obj)
             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline) = false;
+            obj.PulseBlaster.lines(obj.PBline).state = false;
         end
 
         function updateStatus(obj)
@@ -302,16 +302,16 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
 
         function val = set_PBline(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline);
+                obj.source_on = obj.PulseBlaster.lines(obj.PBline).state;
             end
         end
         function host = set_pb_host(obj,host,~)
-            err = obj.connect_driver('PulseBlaster','PulseBlaster.StaticLines',host);
+            err = obj.connect_driver('PulseBlaster','PulseBlaster',host);
             if isempty(obj.PulseBlaster)
                 host = obj.no_server;
                 obj.pb_host = host; % Set explicitly because might error below if we got here
             else
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline);
+                obj.source_on = obj.PulseBlaster.lines(obj.PBline).state;
             end
             if ~isempty(err)
                 rethrow(err)
