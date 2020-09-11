@@ -1,12 +1,12 @@
 classdef Meas < matlab.mixin.Heterogeneous
     properties
-        name    = '';
-        units   = '';
+        size    = [1 1];    % Size of numeric data returned by this Meas.
         
-        size    = [1 1];
+        name    = '';
+        unit    = '';
         
         dims    = {};
-        scans   = {};
+        scns    = {};
     end
     
     methods
@@ -68,6 +68,15 @@ classdef Meas < matlab.mixin.Heterogeneous
                 rethrow(err);
             end
             obj.initialized = true;
+        end
+        
+        function md = metadata(obj)
+            md = struct('size', obj.size,...
+                        'name', obj.name,...
+                        'unit', obj.unit,...
+                        'dims', obj.dims,...
+                        'scns', obj.scns,...
+            )
         end
     end
 end

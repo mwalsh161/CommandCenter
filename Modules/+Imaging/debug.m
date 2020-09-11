@@ -33,7 +33,7 @@ classdef debug < Modules.Imaging
         ROI = [-1 1;-1 1];
         continuous = false;
         
-        image = Base.Meas([120 120], 'name', 'Image', 'units', 'cts');
+        image = Base.Meas([120 120], 'name', 'Image', 'unit', 'cts');
     end
 
     methods(Access=private)

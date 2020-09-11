@@ -1,6 +1,6 @@
 classdef Pref < matlab.mixin.Heterogeneous % value class
     %PREF Superclass for Pref properties.
-    %    Pref(default,property1,value1,property2,value2,...);
+    %    Pref(DEFAULT_VALUE,property1,value1,property2,value2,...);
     %    Pref(property1,value1,...,'default',DEFAULT_VALUE,...);
     %    Pref(property1,value1,property2,value2,...); default will then
     %       be up to the subclass
