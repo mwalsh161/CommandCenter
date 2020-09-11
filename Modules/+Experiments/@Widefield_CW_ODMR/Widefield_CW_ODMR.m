@@ -10,7 +10,7 @@ classdef Widefield_CW_ODMR < Modules.Experiment
         SignalGenerator = Prefs.ModuleInstance('help_text','Signal generator used to produce ODMR MW frequency');
         MW_freqs_GHz = Prefs.String('linspace(2.85,2.91,101)', 'help_text','List of MW frequencies to be used in ODMR experiment specified as a Matlab evaluatable string', 'units','GHz', 'set','set_MW_freqs_GHz');
         MW_Power = Prefs.Double(-30, 'help_text', 'Signal generator MW power', 'units', 'dBm');
-        MW_freq_norm = Prefs.Double(2, 'help_text', 'Frequency used to normalise fluorescence. Should be far off resonance. If set to <=0, MW will be turned off for normalisation period', 'units', 'dBm');
+        MW_freq_norm = Prefs.Double(2, 'help_text', 'Frequency used to normalise fluorescence. Should be far off resonance. If set to <=0, MW will be turned off for normalisation period', 'units', 'GHz');
         Pixel_of_Interest_x = Prefs.String('', 'help_text', 'x-coordinate of pixel of interest to plot during experiment', 'set','set_x_pixel', 'custom_validate','validate_pixel');
         Pixel_of_Interest_y = Prefs.String('', 'help_text', 'y-coordinate of pixel of interest to plot during experiment', 'set','set_y_pixel', 'custom_validate','validate_pixel');
 
