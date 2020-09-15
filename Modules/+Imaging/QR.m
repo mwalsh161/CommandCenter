@@ -114,7 +114,7 @@ classdef QR < Modules.Imaging
             
 %             a.Children
             
-            if isempty(obj.graphics)% ~continuous || length(a.Children) == 1
+            if isempty(obj.graphics) || ~isvalid(obj.graphics.figure) % ~continuous || length(a.Children) == 1
 %                 delete(obj.graphics)
 %                 t = text(a, NaN, NaN, '', 'g');
 %                 hold(a, 'on')
