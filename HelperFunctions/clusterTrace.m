@@ -103,7 +103,7 @@ ClusterNums = cluster(Z, 'Cutoff', inp.Thr, 'criterion', 'distance');
 
 %Create plots
 switch inp.Show
-    case 'all'
+    case 'all' %Plot dendrogram and spectra
         ax = subplot(2,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram(Z, Ntraces, 'ColorThreshold', inp.Thr);
@@ -113,31 +113,35 @@ switch inp.Show
         H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
         ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
-    case 'allBlurred'
+    case 'allBlurred' %Plot dendrogram and blurred spectra
         ax = subplot(2,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         ylabel(ax, 'Distance')
         ax = subplot(2,1,2,'Parent',inp.Parent);
         H.axes(end+1) = ax;
-        H.image(end+1)= imagesc(ax, 1:Ntraces, inp.Vals, filtTraces(I,:)');
+        H.image(end+1)= imagesc(ax, 1:Ntraces, inp.Vals( ...
+            inp.Vals>inp.Limits(1) & inp.Vals<inp.Limits(2)), ...
+            filtTraces(I,:)');
         ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
-    case 'spec'
+    case 'spec' %Plot only spectra
         ax = subplot(1,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
         H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
         ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
-    case 'specBlurred'
+    case 'specBlurred' %Plot only blurred spectra
         ax = subplot(1,1,1,'Parent',inp.Parent);
         H.axes(end+1) = ax;
         [H.lines,~,I] = dendrogram( Z, Ntraces, 'ColorThreshold', inp.Thr);
-        H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals, Traces(I,:)' );
+        H.image(end+1) = imagesc(ax, 1:Ntraces, inp.Vals( ...
+            inp.Vals>inp.Limits(1) & inp.Vals<inp.Limits(2)), ...
+            filtTraces(I,:)' );
         ylabel(ax, inp.ValLabel)
         xlabel(ax, 'Site #')
-    case 'clusters'
+    case 'clusters' %Plot dendrogram, spectra and mean of all clusters
         Nclus = max(ClusterNums);
         NrowPlots = max( [Nclus 2] );
         

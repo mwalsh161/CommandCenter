@@ -11,7 +11,6 @@ classdef ImagingManager < Base.Manager
         ROI                          % ROI of imaging device in real units
     end
     properties(Hidden)
-        prefs = {'set_colormap','open_im_path','climLock','climLow','climHigh','dumbimage'};
         open_im_path = '.';
         climLock = false;
         climLow = 0;
@@ -28,6 +27,7 @@ classdef ImagingManager < Base.Manager
     methods
         function obj = ImagingManager(handles)
             obj = obj@Base.Manager(Modules.Imaging.modules_package,handles,handles.panelImage,handles.image_select);
+            obj.prefs = [obj.prefs {'set_colormap','open_im_path','climLock','climLow','climHigh','dumbimage'}];
             obj.loadPrefs;
             obj.blockOnLoad = handles.menu_imaging;
             set(handles.image_snap,'callback',@(~,~)obj.snap);
@@ -48,9 +48,6 @@ classdef ImagingManager < Base.Manager
         function delete(obj)
             if ~isempty(obj.active_module)&&obj.active_module.continuous
                 obj.stopVideo;
-            end
-            for i = 1:numel(obj.prefs)
-                eval(sprintf('setpref(mfilename,''%s'',obj.%s);',obj.prefs{i},obj.prefs{i}));
             end
         end
         function cal = get_cal(obj)
@@ -107,7 +104,7 @@ classdef ImagingManager < Base.Manager
                      '4. Continue with the current average calibration value or repeat'};
             uiwait(msgbox(strjoin(instr,'\n'),'Calibration Instructions','Help','modal'))
             % Open new window with image
-            f = figure('units','normalized','position',[0 0 1 1]);
+            f = figure('WindowState','fullscreen');
             ax = axes('parent',f);
             im = findall(obj.handles.axImage,'type','Image');
             if isempty(im)
@@ -181,9 +178,21 @@ classdef ImagingManager < Base.Manager
             end
             end
         end
-        
+        function success = validate_frame(obj)
+            success = true;
+            try
+                assert(~isempty(obj.active_module),'No module loaded.')
+                validateattributes(obj.active_module.resolution,{'numeric'},{'integer','size',[1,2]},'snap','module resolution')
+                validateattributes(obj.ROI,{'numeric'},{'nonnan','size',[2,2]},'snap','module ROI')
+            catch err
+                obj.error(err.message);
+                success = false;
+            end
+        end
         function info = snap(obj,quietly)
-            assert(~isempty(obj.active_module),'No module loaded.')
+            if ~obj.validate_frame()
+                return
+            end
             % quietly will silence the notification (preventing DBManager)
             if nargin < 2
                 quietly = false;
@@ -257,7 +266,9 @@ classdef ImagingManager < Base.Manager
             obj.snap;
         end
         function startVideo(obj,varargin)
-            assert(~isempty(obj.active_module),'No module loaded.')
+            if ~obj.validate_frame()
+                return
+            end
             % This counts as activitiy (override sandboxed_function)
             timerH = obj.handles.inactivity_timer;
             managers = timerH.UserData;
@@ -286,6 +297,9 @@ classdef ImagingManager < Base.Manager
                 low = str2double(get(obj.handles.clim_low,'string'));
                 high = str2double(get(obj.handles.clim_high,'string'));
                 set(obj.handles.axImage,'clim',[low high])
+            end
+            if ~isempty(obj.active_module.path) %if path defined, select path
+                obj.handles.Managers.Path.select_path(obj.active_module.path);
             end
             obj.log('%s starting video.',class(obj.active_module))
             obj.sandboxed_function({obj.active_module,'startVideo'},hImage);
@@ -318,10 +332,17 @@ classdef ImagingManager < Base.Manager
                 end
             end
         end
-        function scrolled(obj,hObject,event)
-            stage = obj.handles.Managers.Stages;
-            if ~stage.moving
-                stage.jog([0 0 event.VerticalScrollCount*0.5])
+        function scrolled(obj,~,event)
+            C = get(obj.handles.axImage,'currentpoint');
+            xlim = get(obj.handles.axImage,'xlim');
+            ylim = get(obj.handles.axImage,'ylim');
+            outX = any(diff([xlim(1) C(1,1) xlim(2)])<0);
+            outY = any(diff([ylim(1) C(1,2) ylim(2)])<0);
+            if ~(outX || outY)
+                stage = obj.handles.Managers.Stages;
+                if ~stage.moving
+                    stage.jog([0 0 event.VerticalScrollCount*0.5])
+                end
             end
         end
         function varargout = autofocus(obj,varargin)

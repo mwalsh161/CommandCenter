@@ -2,9 +2,12 @@ function [ prefix,classes,packages ] = GetClasses( varargin )
 %GETCLASSES Returns all .m files and @folders in a directory.
 target = fullfile(varargin{:});
 files=what(target);
-%check to see if the target is in our current directory
-if any(arrayfun(@(d)strcmpi(fullfile(d.folder,d.name),target),dir))
-    files(1) = []; %assume first entry is the present working directory  and is thus redundant
+if ~(~isempty(target) && target(1) == '/' || ... % unix fullpath
+        length(target)>1 && target(2) == ':')    % windows fullpath
+    %check to see if the target is in our current directory
+    if any(arrayfun(@(d)strcmpi(fullfile(d.folder,d.name),target),dir))
+        files(1) = []; %assume first entry is the present working directory  and is thus redundant
+    end
 end
 assert(length(files)==1,sprintf('Did not find a single match for %s - found %i',target,length(files)))
 

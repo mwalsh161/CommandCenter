@@ -89,7 +89,7 @@ classdef SmartImage < handle
                     tempModule = source.modules{i};
                     sources(i).ModuleInfo = obj.extractModuleSettings(tempModule);
                 end
-                info.sources = stages;
+                info.sources = sources;
                 info.ROI = imager.ROI;
                 info.ModuleInfo = obj.extractModuleSettings(imager.active_module);
                 obj.info = info;
@@ -157,7 +157,7 @@ classdef SmartImage < handle
             
             % Add listeners
             obj.listeners(2) = addlistener(imager,'ROI','PostSet',@obj.updateROI);
-            obj.listeners(3) = addlistener(stage,'position','PostSet',@obj.updatePos);
+            obj.listeners(3) = addlistener(stage,'newPosition',@obj.updatePos);
             % Set up remaining contextmenus (note obj.contextmenu = axes, parent = imrect stuff)
             obj.ROIMenu = uimenu(obj.contextmenu,'Label','ROI Visible','Callback',@obj.visCallback,'checked','on','UserData','ROI','tag','smartimage');
             obj.crosshairMenu = uimenu(obj.contextmenu,'Label','CrossHair Visible','Callback',@obj.visCallback,'checked','on','UserData','crosshair','tag','smartimage');
@@ -282,21 +282,19 @@ classdef SmartImage < handle
         end
         % Callbacks
         function popout(obj,varargin)
+            % handle saving (need to get DBManager)
+            [~,fig] = gcbo;
+            managers = fig.UserData;
             % Need to move handles to new object
             newFig = figure('numbertitle','off','HandleVisibility','off');
             set(newFig,'name',sprintf('SmartImage %i',newFig.Number))
             NewAx = axes('parent',newFig);
             colormap(newFig,colormap(obj.ax))
-            im = Base.SmartImage(obj.info,NewAx,obj.stage,obj.imager);
-            % handle saving (need to get DBManager)
-            [~,fig] = gcbo;
-            if strcmp(fig.Name,'CommandCenter')
-                Managers = fig.UserData;  % Legacy :(
-            else
-                Managers = fig.UserData.Managers;
-            end
-            newFig.UserData.Managers = Managers; % For popout in new figure
-            db = Managers.DB;
+            Base.SmartImage(obj.info,NewAx,managers.Stages,...
+                                           managers.Sources,...
+                                           managers.Imaging);
+            newFig.UserData.Managers = managers; % For popout in new figure
+            db = managers.DB;
             delete(findall(newFig,'tag','figMenuFileSaveAs'))
             set(findall(newFig,'tag','figMenuFileSave'),'callback',@(hObj,eventdata)db.imSave(false,hObj,eventdata))
             set(findall(newFig,'tag','Standard.SaveFigure'),'ClickedCallback',@(hObj,eventdata)db.imSave(false,hObj,eventdata))
@@ -324,12 +322,11 @@ classdef SmartImage < handle
                     activeStages = obj.stage.get_modules_str;
                     if ~isequal(imStages,activeStages)
                         imStages = strjoin(imStages,', ');
-                        activeStages = strjoin(activeStages,', ')
+                        activeStages = strjoin(activeStages,', ');
                         errordlg(sprintf('Image was taken with stages:\n%s\n\nCurrent stages:\n%s\n\nCannot perform this move.',imStages,activeStages))
                         return
                     end
-                    currentZ = obj.stage.position(3);
-                    obj.stage.move([newPos currentZ])
+                    obj.stage.move([newPos NaN]);
                 end
             end
         end

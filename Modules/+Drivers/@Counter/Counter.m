@@ -13,6 +13,9 @@ classdef Counter < Modules.Driver
         PulseTrainH             % NIDAQ task PulseTrain
         CounterH                % NIDAQ task Counter
     end
+    properties(SetAccess=private,SetObservable)
+        running = false;
+    end
     properties(SetAccess=private,Hidden)
         callback                % Callback function for counter stream
         fig                     % Handle to viewer figure
@@ -56,6 +59,7 @@ classdef Counter < Modules.Driver
                 obj.CounterH.Clear;
                 obj.PulseTrainH.Clear;
                 obj.callback = [];
+                obj.running = false;
             end
         end
         function cps(obj,varargin)
@@ -196,6 +200,7 @@ classdef Counter < Modules.Driver
             obj.PulseTrainH.Start;
             obj.CounterH.Start;
             start(obj.timerH)
+            obj.running = true;
         end
         
         function stop(obj)

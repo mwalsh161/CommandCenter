@@ -1,26 +1,31 @@
 function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,varargin)
-%FITPEAKS Takes in x, y pair and fits peaks optimizing r^2_adj and \chi^2_red
+%FITPEAKS Takes in x, y pair and fits n peaks or optimizes some metric.
+% The metrics can be r^2_adj, \chi^2_red or a simple prominence threshold
 % r^2_adj == adjrsquared == r == adjusted R squared
 % \chi^2_red == redchisquared == chi == reduced Chi squared
 % Inputs; brackets indicate name,value optional pair:
 %   x: vector of x values Nx1
 %   y: vector of y values Nx1
-%   [FitType]: "gauss" or "lorentz" (default "gauss")
+%   [FitType]: "gauss", "lorentz", or "voigt" (default "gauss")
 %   [Span]: The span of the moving average used to calculate "init" (default 5)
 %   [Width]: FWHM width limits to impose on the fitted peak properties.
 %       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
-%   [Locations]: Location limits in x to impose on the fitted peak properties.
+%   [Location]: Location limits in x to impose on the fitted peak properties.
 %       Default: [min(x) max(x)]
 %   [ConfLevel]: confidence interval level (default 0.95)
-%   [n]: fit exactly n peaks (n > 0). This setting will supersede StopMetric.
+%   [n]: fit exactly n peaks (n > 0). Not compatible with AmplitudeSensitivity or StopMetric.
+%   [AmplitudeSensitivity]: Number of standard deviations above median prominence.
+%       Specifying a prominence threshold will fit the number of peaks > than
+%       the calculated threshold. Not compatible with n or StopMetric.
 %   [StopMetric]: a string indicating what metric to check for stopping options (case insensitive):
 %       r: only use rsquared (this means there can't be a test for no peaks
 %       chi: only use chisquared (assuming poisson noise)
 %       rANDchi (default): use both rsquared or chisquared at every step
 %       FirstChi: use chisquared to check the first peak against no peaks,
 %          then rsquared for the rest
+%       Not compatible with AmplitudeSensitivity or n.
 %   [NoiseModel]: a function handle that takes inputs: x, y, modeled_y
 %       where are of the current fit. Output must be a vector in the same shape of y.
 %       Or one of the default built-ins named as a string (this is used in calculating \chi^2_red):
@@ -70,24 +75,27 @@ yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
 dx = min(diff(xp));
 assert(dx>0,'dx calculated to be <= 0');
 
-addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'Width',[2*dx, (max(x)-min(x))],validLimit);
 addParameter(p,'Amplitude',[0 Inf],validLimit);
 addParameter(p,'Location',[min(x) max(x)],validLimit);
 addParameter(p,'ConfLevel',0.95,@(x)numel(x)==1 && x < 1 && x > 0);
 addParameter(p,'n',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
+addParameter(p,'AmplitudeSensitivity',1,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'StopMetric','rANDchi',@(x)any(validatestring(x,{'r','chi','firstchi','randchi'})));
 addParameter(p,'NoiseModel','empirical');
 parse(p,x,y,varargin{:});
-% Validate n
-usingN = false;
-if ~ismember('n',p.UsingDefaults)
-    if ~ismember('StopMetric',p.UsingDefaults)
-        error('Cannot specify ''StopMetric'' when also specifying ''n''.')
-    end
-    usingN = true;
+% Validate compatibility
+not_compatible = {'n','StopMetric','AmplitudeSensitivity'};
+pSpecified = setdiff(p.Parameters,p.UsingDefaults); % Get parameters specified
+mask = ismember(not_compatible, pSpecified);
+if sum(mask) > 1
+    not_compatible = not_compatible(mask);
+    fmted = cellfun(@(a)sprintf('''%s''',a),not_compatible,'uniformoutput',false);
+    error('Cannot specify %s and %s together.',strjoin(fmted(1:end-1),', '),fmted{end});
 end
+
 p = p.Results;
 % Further validation
 assert(length(x)==length(y),'x and y must be same length');
@@ -113,16 +121,32 @@ switch lower(p.FitType)
         fit_function = @gaussfit;
     case 'lorentz'
         fit_function = @lorentzfit;
+    case 'voigt'
+        fit_function = @voigtfit;
 end
 
-yp = smooth(yp,p.Span);
-xp = [x(1)-dx; xp; x(end)+dx];
-yp = [min(yp); yp; min(yp)];
-[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp,xp);
+yp_smooth = smooth(yp,p.Span);
+xp_extend = [x(1)-dx; xp; x(end)+dx];
+yp_extend = [min(yp_smooth); yp_smooth; min(yp_smooth)];
+[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp_extend,xp_extend);
 [init.amplitudes,I] = sort(init.amplitudes,'descend');
 init.locations = init.locations(I);
 init.widths = init.widths(I);
 init.background = median(y);
+
+usingN = ismember('n',pSpecified);
+if ismember('AmplitudeSensitivity',pSpecified)
+    usingN = true;
+    % Calculate n
+    [~, ~, ~, proms] = findpeaks(yp,xp); %get list of prominences
+    [f,xi] = ksdensity(proms);
+    [~, prom_locs, prom_wids, prom_proms] = findpeaks(f,xi); %find most prominent prominences
+    [~,I] = sort(prom_proms,'descend');
+    sortwids = prom_wids(I);
+    sortlocs = prom_locs(I);
+    thresh = sortlocs(1)+p.AmplitudeSensitivity *sortwids(1); %assume most prominent prominence corresponds to noise
+    p.n = sum(init.amplitudes >= thresh);
+end
 
 fit_results = {[]};
 % Initial gof will be the case of just an offset and no peaks (a flat line whose best estimator is median(y))
@@ -135,6 +159,11 @@ gofs = struct('sse',sum(se),'redchisquare',sum(se./noise)/dfe,'dfe',dfe,...
 if usingN
     stop_condition = NaN;
     n = p.n;
+    if n == 0 % No peaks
+        vals = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        confs = struct('amplitudes',[],'locations',[],'widths',[],'SNRs',[]);
+        return
+    end
     [f,new_gof,output] = fit_function(x, y, n, init, limits);
     noise = noise_model(x,y,f(x),p.NoiseModel);
     new_gof.redchisquare = sum(output.residuals.^2./noise)/new_gof.dfe; % Assume shot noise
@@ -176,6 +205,9 @@ fitcoeffs = coeffvalues(fit_result);
 vals.amplitudes = fitcoeffs(1:n);
 vals.locations = fitcoeffs(n+1:2*n);
 vals.widths = fitcoeffs(2*n+1:3*n);
+if strcmp(p.FitType,'voigt')
+    vals.etas = fitcoeffs(3*n+2:4*n+1); %extra +1 to account for offset d
+end
 vals.SNRs = vals.amplitudes./noise;
 
 fitconfs = diff(confint(fit_result,p.ConfLevel))/2;

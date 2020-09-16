@@ -15,40 +15,48 @@ classdef UIscrollPanel < handle
         scroll_listener             % Listen to scroll wheel
     end
     properties(SetAccess=immutable,Hidden)
+        minimizable                 % Determine if allowed to be minimized
         concealer                   % Handle to concealer panel to preserve asthetics of base panel. Do not adjust size of this manually!
     end
     methods
         % Constructor
-        function [ obj ] = UIscrollPanel( base )
+        function [ obj ] = UIscrollPanel( base, minimizable )
             %UISCROLLPANEL Create scroll panel out of uipanel
             %   There are three panels involved. Children of the input panel are moved
             %   to a new panel that has no boundry lines that is placed inside the
             %   original panel. There is a third panel that masks the new panel.
             %
             %   uipanel <-- uipanel_concealer <-- uipanel_content
+            if nargin < 2
+                minimizable = true;
+            end
+            obj.minimizable = minimizable;
+            
             children = allchild(base);
             tag = get(base,'tag');
             tempBase = get(base,'units');
             set(base,'tag',[tag '_Base'],'units','characters');
             set(base,'deleteFcn',@(~,~)obj.delete)
             set(base,'sizeChangedFcn',@obj.resizeBase)
-            set(base,'buttonDownFcn',@obj.clicked)
-            obj.base = base;
-            pos = get(obj.base,'position');
-            % Configure pointer
             fig = Base.getParentFigure(base);
             iptPointerManager(fig)
-            iptSetPointerBehavior(base,@obj.pointerHover)
+            if obj.minimizable
+                set(base,'buttonDownFcn',@obj.clicked)
+                % Configure pointer
+                iptSetPointerBehavior(base,@obj.pointerHover)
+            end
+            obj.base = base;
+            pos = get(obj.base,'position');
             
             % Make concealer (do not resize manually!)
             obj.concealer = uipanel(base,'tag',[tag '_concealer'],'BorderType','None',...
-                'units','characters','position',[0 0 pos(3) pos(4)-1]);
+                'units','characters','position',[0 0 pos(3) pos(4)-1],'visible','off');
             iptSetPointerBehavior(obj.concealer,struct('enterFcn',@obj.pointerEnter,'exitFcn',@obj.pointerExit,'traverseFcn',''));
             
             % Make content
             obj.content = uipanel(obj.concealer,'tag',tag,'BorderType','none',...
                 'units','characters','position',[0 0 pos(3) pos(4)-1],...
-                'sizeChangedFcn',@obj.local_resizeCallback);
+                'sizeChangedFcn',@obj.local_resizeCallback,'visible','off');
             obj.home = get(obj.content,'position');
             
             % Move children
@@ -60,7 +68,7 @@ classdef UIscrollPanel < handle
                 'units','characters',...
                 'SliderStep',[.01 .1],...
                 'position',[pos(3)-3.5 0 3 pos(4)-1.5],...
-                'callback',@obj.SlideCallBack);
+                'callback',@obj.SlideCallBack,'visible','off');
             iptSetPointerBehavior(obj.sld,@(hObj,~)set(hObj,'pointer','arrow'))
             % Fix width now that we have hte slider
             obj.concealer.Position(3) = pos(3) - obj.sld.Position(3);
@@ -69,6 +77,7 @@ classdef UIscrollPanel < handle
             obj.local_resizeCallback;
             obj.scroll_listener = addlistener(fig,'WindowScrollWheel',@obj.scroll);
             obj.scroll_listener.Enabled = false;
+            set([obj.concealer, obj.content],'visible','on'); % obj.sld controled in callback
         end
         function delete(obj)
             delete(obj.scroll_listener);
@@ -82,7 +91,7 @@ classdef UIscrollPanel < handle
         end
         function scroll(obj,hObj,eventdata)
             dir = -sign(eventdata.VerticalScrollCount);
-            step = obj.sld.SliderStep(1); % Small step size
+            step = obj.sld.SliderStep(1)*(obj.sld.Max-obj.sld.Min); % Small step size
             for i = 1:abs(eventdata.VerticalScrollCount)
                 obj.sld.Value = min(0,max(obj.sld.Min,obj.sld.Value + dir*step));
                 obj.SlideCallBack;
