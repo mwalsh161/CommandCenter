@@ -107,7 +107,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         function response = setLine(obj, index, value)      % Pass a single index to change.
             response = obj.com('setLines', index, value)';
         end
-        function response = blink(obj, indices, rate)  % Pass a list of indices to change
+        function response = blink(obj, indices, rate)  % Blinks the listed lines at `rate` Hz.
             s = sequence('Blink');
             s.repeat = Inf;
             
@@ -122,13 +122,13 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             n = s.StartNode;
             
             for jj = 1:2
-                t = jj*1e6/rate;
+                t = jj*1e6/rate/2;
                 for ii = indices
                     node(n, ch(ii), 'units', 'us', 'delta', t);
                 end
             end
             
-            obj.load(s.compile());
+            response = obj.load(s.compile());
             obj.start();
         end
         function response = getLines(obj)

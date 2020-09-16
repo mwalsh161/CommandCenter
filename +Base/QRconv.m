@@ -1,6 +1,6 @@
 function [cx, cy, CX, CY, flat, conv, convH, convV, bw] = QRconv(img, ang0, r, l)
     % Convolutional QR detection
-
+    
     flat = flatten(img);
     [conv, convH, convV] = doConv(flat, ang0, r, l);
     bw = threshold(flat);
@@ -62,6 +62,10 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     
     convH = convH(X + invx*ly, Y + invy*lx);
     convV = convV(X + (~invy)*lx, Y + invx*ly);
+    
+%     invx*ly
+%     invy*lx
+%     (~invy)*lx, Y + invx*ly);
     
     conv = convH.*convH.*convH + convV.*convV.*convV;
     
@@ -182,6 +186,10 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
     CY(~isQR) = [];
     cx(~isQR) = [];
     cy(~isQR) = [];
+    
+    CX
+    
+    
 end
 
 function [CX, CY, version, checksum0] = interpretQR(m)

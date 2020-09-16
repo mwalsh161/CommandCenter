@@ -42,13 +42,13 @@ classdef channel < handle
             setpref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware),val);
         end
         function val = get.offset(obj)
-            if ispref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware))
-                val = getpref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware));
-            else
-                warning('This computer does not have a this channel initialized. Setting offset to [0,0].')
-                setpref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware),[0,0]);
+%             if ispref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware))
+%                 val = getpref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware));
+%             else
+%                 warning('This computer does not have a this channel initialized. Setting offset to [0,0].')
+%                 setpref(strrep(class(obj),'.','_'),sprintf('hardware%i',obj.hardware),[0,0]);
                 val = [0,0];
-            end
+%             end
         end
         function set.units(obj,val)
             after = strcmpi(val,obj.allowedUnits);

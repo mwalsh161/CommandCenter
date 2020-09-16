@@ -183,21 +183,13 @@ classdef umanager_invisible < Modules.Imaging
                 obj.binning = binning;
             end
             % Take Image
-            1
             obj.mmc('snapImage');
-            2
             dat = obj.mmc('getImage');
-            3
             width = obj.mmc('getImageWidth');
-            4
             height = obj.mmc('getImageHeight');
-            5
             dat = typecast(dat, obj.pixelType);
-            6
             dat = reshape(dat, [width, height]);
-            7
             im = transpose(dat);  % make column-major order for MATLAB
-            8
             if wasRunning
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end

@@ -16,7 +16,7 @@ classdef QR < Modules.Imaging
         QR_rad = Prefs.Double(.3,   'unit', 'um', 'readonly', true);
         QR_ang = Prefs.Double(0,    'unit', 'deg');
         
-        imager = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_imager');
+        image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image');
 %         imager = Modules.Imaging.empty;
         
         flip =   Prefs.Boolean();
@@ -50,9 +50,9 @@ classdef QR < Modules.Imaging
         end
     end
     methods
-        function imager = set_imager(obj, imager, ~)
-            obj.maxROI = imager.maxROI;
-            obj.ROI = imager.ROI;
+        function image = set_image(obj, image, ~)
+            obj.maxROI = image.maxROI;
+            obj.ROI = image.ROI;
         end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
@@ -68,14 +68,14 @@ classdef QR < Modules.Imaging
         function focus(obj,ax,stageHandle)
         end
         function img = snapImage(obj)
-            img = obj.imager.snapImage();
+            img = obj.image.snapImage();
         end
         function snap(obj,im,continuous)
             if nargin < 3
                 continuous = false;
             end
             
-            img = obj.imager.snapImage();
+            img = obj.image.snapImage();
             
             if obj.flip
                 img = flipud(img);
@@ -92,6 +92,8 @@ classdef QR < Modules.Imaging
                      
             cx = (cx + obj.ROI(1,1)) * obj.calibration;
             cy = (cy + obj.ROI(2,1)) * obj.calibration;
+            
+            
                                 
             switch obj.display
                 case Imaging.QR.displaytypes{1}
