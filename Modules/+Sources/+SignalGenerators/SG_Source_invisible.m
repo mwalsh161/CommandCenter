@@ -1,19 +1,21 @@
 classdef SG_Source_invisible < Modules.Source 
     %SuperClass for serial sources
-    
-    properties
-        serial; 
-        show_prefs = {'MWFrequency','MWPower'};
-        prefs = {};
-    end
   
     properties (SetObservable)
-       MWFrequency = 3e9; %MW frequency 
-       MWPower = -30; %dBm of SG
+        frequency =     Prefs.Double(3e9, 'units', 'GHz', 'set', 'set_frequency');
+        power =         Prefs.Double(-30, 'units', 'dBm', 'set', 'set_power');
+        
+        PB_host =       Prefs.String(SG_Source_invisible.noserver, 'set', 'set_PB_host', 'help', 'IP/hostname of computer with PB server');
+        PB_line =       Prefs.Integer(1, 'min', 1, 'allow_nan', false, 'set', 'set_PB_line', 'help', 'Indexed from 1');
     end
     
-    properties(SetAccess=private, SetObservable, AbortSet)
-        source_on=false;
+    properties (Constant)
+        noserver = 'No Server'
+    end
+    
+    properties
+        serial
+        pb
     end
    
     methods
@@ -22,34 +24,68 @@ classdef SG_Source_invisible < Modules.Source
     end
     
     methods
-        function set.MWFrequency(obj,val)
-            assert(isnumeric(val),'MWFrequency must be of dataType numeric.')
+        function val = set_frequency(obj, val, ~)
             obj.serial.setFreqCW(val);
-            obj.MWFrequency = obj.serial.getFreqCW;
+            val = obj.serial.getFreqCW;     % This probably doubles the response time. Remove? Or make asyncronous?
         end
-        
-        function set.MWPower(obj,val)
-            assert(isnumeric(val),'MWPower must be of dataType numeric.')
+        function val = set_power(obj, val, ~)
             obj.serial.setPowerCW(val);
-            obj.MWPower = obj.serial.getPowerCW;
+            val = obj.serial.getPowerCW;    % This probably doubles the response time. Remove? Or make asyncronous?
         end
-        
+    end
+    
+    methods
         function delete(obj)
             if ~isempty(obj.serial) % Could be empty if error constructing
                 obj.serial.delete;
             end
         end
-
-        function on(obj,~)
-            obj.serial.on;
-            obj.source_on=1;
+        
+        function val = set_source_on(obj, val, ~)
+            if obj.PB_enabled()     % If there is a PulseBlaster connected, then use on/off for this.
+                obj.pb.line(obj.PB_line) = val;
+            else                    % Otherwise, turn toggle arm (the source's RF on/off)
+                obj.armed = val;    % This is normally dangerous, but because set_armed doesn't reference source_on, it's okay.
+            end
+        end
+        function val = set_armed(obj, val, ~)
+            if val
+                obj.serial.on;
+            else
+                obj.serial.off;
+            end
         end
         
-        function off(obj)
-            obj.serial.off;
-            obj.source_on=0;
+        function val = set_PB_host(obj,val,~)
+            err = [];
+            
+            try
+                obj.pb = Drivers.PulseBlaster.StaticLines.instance(val);
+            catch err
+                
+            end
+            
+            if isempty(obj.pb)
+                obj.PB_host = Sources.VelocityLaser.noserver;
+                if ~isempty(err)
+                    rethrow(err)
+                end
+                return
+            end
+            if ~isempty(err)
+                rethrow(err)
+            end
+            
+            obj.source_on = obj.pb.lines(obj.PB_line);
         end
-        
+        function tf = PB_enabled(obj)
+            switch obj.PB_host
+                case obj.noserver
+                    tf = false;
+                otherwise
+                    tf = true;
+            end
+        end
     end
 end
 

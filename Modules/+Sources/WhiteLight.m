@@ -6,9 +6,6 @@ classdef WhiteLight < Modules.Source
         intensity = 100;               % Intenisty 0-100 (0-5 V)
         prefs = {'intensity'};
     end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-    end
     properties(Access=private)
         listeners
         status                       % Text object reflecting running
@@ -70,11 +67,12 @@ classdef WhiteLight < Modules.Source
                 rethrow(err)
             end
         end
-        function on(obj)
-            obj.ni.WriteAOLines('LED',obj.intensity/20)
-        end
-        function off(obj)
-            obj.ni.WriteAOLines('LED',0)
+        function val = set_source_on(obj, val, ~)
+            if val
+                obj.ni.WriteAOLines('LED',obj.intensity/20)
+            else
+                obj.ni.WriteAOLines('LED',0)
+            end
         end
         
         % Settings and Callbacks

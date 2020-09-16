@@ -1,11 +1,9 @@
 classdef Source < Base.Module
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties. For future use.
-    properties(Abstract,SetAccess=private,SetObservable)
-        source_on   % Boolean representing if the source is illuminating area of interest.
-    end
-    properties(Access=private)
-        armed=false;
+    properties(GetObservable,SetObservable)
+        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true);   % Boolean representing if the source is illuminating area of interest.
+        armed =     Prefs.Boolean(false, 'display_only', true, 'allow_nan', true);
     end
     properties(SetAccess={?SourcesManager},GetAccess=private)
         % CC_dropdown.h = Handle to dropdown in CommandCenter
@@ -16,13 +14,28 @@ classdef Source < Base.Module
         modules_package = 'Sources';
     end
     
-    methods(Abstract)
-        on(obj)     % Turn source on
-        off(obj)    % Turn source off
-    end
     methods
         function obj = Source
             addlistener(obj,'source_on','PostSet',@obj.updateCommandCenter);
+        end
+    end
+    
+    methods(Abstract)
+        val = set_source_on(obj, val, ~)
+    end
+    
+    methods
+        function on(obj)     % Turn source on
+            obj.source_on = true;
+        end
+        function off(obj)    % Turn source off
+            obj.source_on = false;
+        end
+    end
+    
+    methods
+        function val = set_armed(obj, val, ~)
+            % For the user to set.
         end
         function arm(obj)
             %this method should "arm" the source, doing whatever is
@@ -52,6 +65,13 @@ classdef Source < Base.Module
                 obj.armed = false;
             end
         end
+%         function val = set_armed(obj, val, ~)
+%             if val
+%                 obj.arm();
+%             else
+%                 obj.blackout();
+%             end
+%         end
     end
     methods(Access=private)
         function updateCommandCenter(obj,~,~)

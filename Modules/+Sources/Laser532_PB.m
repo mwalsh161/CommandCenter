@@ -8,7 +8,6 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
         readonly_prefs = {'running'};
     end
     properties(SetObservable,SetAccess=private)
-        source_on = false;
         running = false;          % Boolean specifying if StaticLines program running
     end
     properties(Access=private)
@@ -70,15 +69,8 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
                 rethrow(err)
             end
         end
-        function on(obj)
-            assert(~isempty(obj.PulseBlaster),'No IP set!')
-            obj.PulseBlaster.lines(obj.PBline) = true;
-            obj.source_on = true;
-        end
-        function off(obj)
-            assert(~isempty(obj.PulseBlaster),'No IP set!')
-            obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline) = false;
+        function val = set_source_on(obj, val, ~)
+            obj.PulseBlaster.lines(obj.PBline) = val;
         end
         
         function isRunning(obj,varargin)
