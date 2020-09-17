@@ -1,8 +1,14 @@
 classdef Source < Base.Module
-    %MODULE Abstract Class for Modules.
-    %   Simply enforces required properties. For future use.
+    % SOURCE abstracts hardware objects that emit signal.
+    
     properties(GetObservable,SetObservable)
-        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_source_on');   % Boolean representing if the source is illuminating area of interest.
+        % source_on is usually the 'fast' method for modulating the source such as an AOM. If no 
+        %    fast method exists, this usually wraps armed. The user must define the Abstract method
+        %    set_source_on to interface with the hardware. Is wrapped by on()/off().
+        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_source_on');
+        
+        % armed prepares the source for fast modulation such as turning the diode on. If armed is 
+        %    false, the source should not emit signal at all. Is wrapped by arm()/blackout().
         armed =     Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_armed');
     end
     properties(SetAccess={?SourcesManager},GetAccess=private)
@@ -24,7 +30,7 @@ classdef Source < Base.Module
         val = set_source_on(obj, val, ~)
     end
     
-    methods
+    methods % Methods for backwards compatibility with code that uses the old on() and off() methods. Now simply wraps source_on
         function on(obj)     % Turn source on
             obj.source_on = true;
         end
@@ -35,7 +41,7 @@ classdef Source < Base.Module
     
     methods
         function val = set_armed(obj, val, ~)
-            % For the user to set.
+            % For the user to set to interface with the hardware.
         end
         function arm(obj)
             %this method should "arm" the source, doing whatever is
@@ -65,13 +71,6 @@ classdef Source < Base.Module
                 obj.armed = false;
             end
         end
-%         function val = set_armed(obj, val, ~)
-%             if val
-%                 obj.arm();
-%             else
-%                 obj.blackout();
-%             end
-%         end
     end
     methods(Access=private)
         function updateCommandCenter(obj,~,~)
@@ -89,4 +88,3 @@ classdef Source < Base.Module
     end
     
 end
-
