@@ -86,7 +86,7 @@ classdef SG_Source_invisible < Modules.Source
             err = [];
             
             try
-                obj.pb = Drivers.PulseBlaster.StaticLines.instance(val);
+                obj.pb = Drivers.PulseBlaster.instance(val);
             catch err
                 
             end
@@ -102,11 +102,11 @@ classdef SG_Source_invisible < Modules.Source
                 rethrow(err)
             end
             
-            obj.source_on = obj.pb.lines(obj.PB_line);
+            obj.source_on = obj.pb.lines(obj.PB_line).state;
         end
         function val = set_PB_line(obj,val,~)
             if ~isempty(obj.pb)
-                obj.source_on = obj.pb.lines(val);
+                obj.source_on = obj.pb.lines(val).state;
             end
         end
         function tf = PB_enabled(obj)
@@ -119,4 +119,3 @@ classdef SG_Source_invisible < Modules.Source
         end
     end
 end
-

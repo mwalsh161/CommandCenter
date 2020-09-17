@@ -18,9 +18,6 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     properties(SetAccess=immutable)
         host = '';
     end
-%     properties(SetObservable,GetObservable,AbortSet)
-%         host = Prefs.String();
-%     end
     
     methods(Static)
         function obj = instance(host_ip)
@@ -42,9 +39,16 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         end
     end
     methods(Access=private)
-        function obj = PulseBlaster(ip)
-            obj.host = ip;
-            obj.connection = hwserver(ip);
+        function obj = PulseBlaster(host_)
+            obj.host = host_;
+            try
+                obj.connection = hwserver(host_);
+            catch err
+                warning([   'Could not connect to an instance of hwserver at host "' host_ '". ' ...
+                            'Are you sure hwserver is installed there? The hwserver repository is ' ...
+                            'located at https://github.mit.edu/mpwalsh/hwserver/.']);
+                rethrow(err);
+            end
             obj.spawnLines();
         end
         function spawnLines(obj)

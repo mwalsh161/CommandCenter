@@ -21,7 +21,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     properties
         prefs = {'PB_line','PB_host','velocity_host','wavemeter_host','wavemeter_channel',...
                  'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
-        show_prefs = {'PB_status','tuning','armed','wavemeter_active','PB_line','PB_host',...
+        show_prefs = {'tuning','armed','wavemeter_active','PB_line','PB_host',...
             'velocity_host','wavemeter_channel','wavemeter_host','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
@@ -47,8 +47,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         
         PB_host =               Prefs.String(Sources.VelocityLaser.noserver,'set','set_PB_host','help','IP/hostname of computer with PB server');
         PB_line =               Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PB_line','help','Indexed from 1');
-        PB_status =             Prefs.String('Unknown','readonly',true);
-        running =               Prefs.Boolean(false,'help','Boolean specifying if StaticLines program running');
         
         velocity_host =         Prefs.String(Sources.VelocityLaser.noserver,'set','set_velocity_host','help','IP/hostname of computer with hwserver for velocity laser');
         
@@ -64,7 +62,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     end
     properties(Access=private)
         calibration_timeout_override = false; %if user chooses to ignore, ignore until inactive
-        listeners
         path_button
     end
     properties(SetAccess=private)
@@ -135,7 +132,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         function delete(obj)
-            delete(obj.listeners)
             obj.deactivate; % Close up
         end
         
@@ -171,7 +167,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.armed = obj.serial.getDiodeState;
         end
         function val = set_PB_host(obj,val,~)
-            err = obj.connect_driver('PulseBlaster','PulseBlaster.StaticLines',val);
+            err = obj.connect_driver('PulseBlaster','PulseBlaster',val);
             obj.isRunning;
             if isempty(obj.PulseBlaster)
                 obj.PB_host = Sources.VelocityLaser.noserver;
@@ -183,13 +179,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~isempty(err)
                 rethrow(err)
             end
-            obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
-            delete(obj.listeners);
-            obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
+            obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
         end
         function val = set_PB_line(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-                obj.source_on = obj.PulseBlaster.lines(val);
+                obj.source_on = obj.PulseBlaster.lines(val).state;
             end
         end
         function val = set_wavemeter_host(obj,val,~)
@@ -244,13 +238,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         
         function val = set_source_on(obj, val, ~)
-            if val
-                assert(~isempty(obj.PulseBlaster),'No IP set!')
-                obj.PulseBlaster.lines(obj.PB_line) = true;
-            else
-                assert(~isempty(obj.PulseBlaster),'No IP set!')
-                obj.PulseBlaster.lines(obj.PB_line) = false;
-            end
+            assert(~isempty(obj.PulseBlaster),'No IP set!')
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
         
         function arm(obj)
@@ -268,18 +257,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         
         function val = getFrequency(obj)
             val = obj.wavemeter.getFrequency();
-        end
-        function isRunning(obj,varargin)
-            if isempty(obj.PulseBlaster)
-                obj.PB_status = 'Not Connected';
-            else
-                obj.running = obj.PulseBlaster.running;
-                if obj.running
-                    obj.PB_status = 'Running';
-                else
-                    obj.PB_status = 'Unknown State, to update, change state.';
-                end
-            end
         end
         
         function calibrate(obj,ax)

@@ -3,23 +3,16 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
     %   Detailed explanation goes here
     
     properties(SetObservable)
-        PBline = 1;               % Pulse Blaster flag bit (indexed from 1)
-        ip = 'No Server';         % ip of host computer (with PB)
-        readonly_prefs = {'running'};
-    end
-    properties(SetObservable,SetAccess=private)
-        running = false;          % Boolean specifying if StaticLines program running
-    end
-    properties(Access=private)
-        listeners
+        PB_line = 1;               % Pulse Blaster flag bit (indexed from 1)
+        PB_host = 'No Server';         % ip of host computer (with PB)
     end
     properties(SetAccess=private)
         PulseBlaster                 % Hardware handle
     end
     methods(Access=protected)
         function obj = Laser532_PB()
-            obj.prefs = [{'PBline','ip'} obj.prefs];
-            obj.show_prefs = [{'running','PBline','ip'} obj.show_prefs];
+            obj.prefs = [{'PB_line','PB_host'} obj.prefs];
+            obj.show_prefs = [{'PB_line','PB_host'} obj.show_prefs];
             obj.loadPrefs; % note that this calls set.ip
         end
     end
@@ -40,28 +33,20 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
         function arm(obj)
             arm@Sources.Verdi_invisible(obj);
         end
-        function delete(obj)
-            delete(obj.listeners)
-        end
         function set.ip(obj,val) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
                 obj.source_on = 0;
                 obj.ip = val;
                 return
             end
             err = [];
             try
-                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline);
-                delete(obj.listeners)
-                obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
+                obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
                 obj.ip = val;
-                obj.isRunning;
             catch err
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
                 obj.source_on = 0;
                 obj.ip = 'No Server';
             end
@@ -70,11 +55,7 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
             end
         end
         function val = set_source_on(obj, val, ~)
-            obj.PulseBlaster.lines(obj.PBline) = val;
-        end
-        
-        function isRunning(obj,varargin)
-            obj.running = obj.PulseBlaster.running;
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
     end
 end

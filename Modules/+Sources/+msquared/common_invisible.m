@@ -3,9 +3,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
 
     properties
         resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
-        prefs = {'hwserver_host','PBline','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
+        prefs = {'hwserver_host','PB_line','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
-            'etalon_percent','etalon_voltage','hwserver_host','moduleName','PBline','pb_host','resonator_tune_speed','calibrateRes'};
+            'etalon_percent','etalon_voltage','hwserver_host','moduleName','PB_line','pb_host','resonator_tune_speed','calibrateRes'};
     end
     properties(SetObservable,GetObservable)
         moduleName = Prefs.MultipleChoice('set','set_moduleName','help_text','Modules will be loaded when a hwserver hostname is supplied.');
@@ -21,7 +21,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         resonator_voltage = Prefs.Double(NaN,'units','V','readonly',true);  % Readable
         target_wavelength = Prefs.Double(NaN,'units','nm','set','set_target_wavelength'); % nm settable
         wavelength_lock = Prefs.Boolean(false,'set','set_wavelength_lock'); % Settable
-        PBline = Prefs.Integer(1,'min',1,'set','set_PBline','help_text','Indexed from 1.');
+        PB_line = Prefs.Integer(1,'min',1,'set','set_PBline','help_text','Indexed from 1.');
         pb_host = Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_pb_host');
         resonator_tune_speed = Prefs.Double(2,'units','%/step','min',0,'allow_nan',false,'help_text','Maximum % per step allowed. Lower numbers will take longer to tune.');
     end
@@ -62,7 +62,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     methods
         function val = set_source_on(obj, val, ~)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
-            obj.PulseBlaster.lines(obj.PBline) = val;
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
 
         function updateStatus(obj)
@@ -293,7 +293,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
 
         function val = set_PBline(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline).state;
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             end
         end
         function host = set_pb_host(obj,host,~)
@@ -302,7 +302,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                 host = obj.no_server;
                 obj.pb_host = host; % Set explicitly because might error below if we got here
             else
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline).state;
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             end
             if ~isempty(err)
                 rethrow(err)

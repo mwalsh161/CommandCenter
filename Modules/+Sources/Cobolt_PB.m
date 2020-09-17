@@ -11,10 +11,6 @@ classdef Cobolt_PB < Modules.Source
         
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
-        PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
-    end
-    properties(Access=private)
-        listeners
     end
     properties(SetAccess=private)
         serial                      % hwserver handle
@@ -54,7 +50,6 @@ classdef Cobolt_PB < Modules.Source
         end
         
         function delete(obj)
-            delete(obj.listeners)
             delete(obj.serial)
         end
         
@@ -118,7 +113,6 @@ classdef Cobolt_PB < Modules.Source
         function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
                 obj.source_on = false;
                 return
             end
@@ -126,12 +120,8 @@ classdef Cobolt_PB < Modules.Source
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
-%                 delete(obj.listeners)
-%                 obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
-%                 obj.isRunning;
             catch err
                 obj.PulseBlaster = [];
-%                 delete(obj.listeners)
                 obj.source_on = false;
                 val = 'No Server';
             end
@@ -164,25 +154,9 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
-<<<<<<< HEAD
         function val = set_source_on(obj, val, ~)
-            obj.PulseBlaster.lines(obj.PB_line) = val;
-=======
-        function on(obj)
-            assert(~isempty(obj.PulseBlaster), 'No host set!')
-            obj.PulseBlaster.lines(obj.PB_line).state = true;
-            obj.source_on = true; 
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
-        function off(obj)
-            assert(~isempty(obj.PulseBlaster), 'No host set!')
-            obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PB_line).state = false;
->>>>>>> 05292e5751f9b11b9601d1cc42abedc4d54c1b52
-        end
-        
-%         function isRunning(obj,varargin)
-%             obj.PB_running = obj.PulseBlaster.running;
-%         end
     end
 end
         

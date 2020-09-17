@@ -12,12 +12,8 @@ classdef SuperK < Modules.Source
         ip = 'Deprecated Use';         % IP of computer with and server
         prefs = {'ip'};
     end
-    properties(SetObservable,SetAccess=private)
-        running                      % Boolean specifying if StaticLines program running
-    end
     properties(SetAccess=private,Hidden)
         listeners
-        status                       % Text object reflecting running
         path_button
         serial
     end
