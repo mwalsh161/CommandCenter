@@ -60,21 +60,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         host = loadLaser(obj);
     end
     methods
-<<<<<<< HEAD
-        function on(obj)
-            assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-            obj.PulseBlaster.lines(obj.PBline).state = true;
-            obj.source_on = true;
-        end
-        function off(obj)
-            assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-            obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline).state = false;
-=======
         function val = set_source_on(obj, val, ~)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             obj.PulseBlaster.lines(obj.PBline) = val;
->>>>>>> f9dffac692836587ccf50e52092a25065de8404c
         end
 
         function updateStatus(obj)
@@ -237,7 +225,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             obj.updateStatus(); % Get voltage of resonator
         end
     end
-    
+
     methods % Set methods
         function val = set_calibrateRes(obj,~,~)
             % Check mark used to call calibration method

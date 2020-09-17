@@ -1,27 +1,17 @@
 classdef Cobolt_PB < Modules.Source
     % Cobolt_PB controls the Cobolt via USB and fast diode modulation via pulseblaster
-    
+
     properties(SetObservable, GetObservable)
         cobolt_host =   Prefs.String('No Server', 'set', 'set_cobolt_host', 'help', 'IP/hostname of computer with hwserver for velocity laser');
         power =         Prefs.Double(NaN, 'set', 'set_power', 'min', 0, 'unit', 'mW');
-        
+
         diode_sn =      Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'help', 'Serial number for the diode');
         diode_age =     Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'hrs', 'help', 'Recorded on-time for the diode');
         temperature =   Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'C', 'help', 'Baseplate temperature');
-        
+
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
-<<<<<<< HEAD
-%         PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
-        
-        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
-        show_prefs =    {'PB_host', 'PB_line', 'PB_running', 'cobolt_host', 'power', 'diode_on', 'temperature', 'diode_age', 'diode_sn'};
-    end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-=======
         PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
->>>>>>> f9dffac692836587ccf50e52092a25065de8404c
     end
     properties(Access=private)
         listeners
@@ -55,19 +45,19 @@ classdef Cobolt_PB < Modules.Source
                 task = 'Attempted to turn diode off; FAILED';
             end
         end
-        
+
         function arm(obj)
             obj.armed = true;
         end
         function blackout(obj)
             obj.armed = false;
         end
-        
+
         function delete(obj)
             delete(obj.listeners)
             delete(obj.serial)
         end
-        
+
         function val = set_power(obj, val, ~)
             if obj.isConnected && ~isnan(val)
                 errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
@@ -88,7 +78,7 @@ classdef Cobolt_PB < Modules.Source
                 val = NaN;
             end
         end
-        
+
         function val = get_power(obj, ~)
             val = obj.serial.com('Cobolt', 'glmp?');    % Get laser modulation power (mW)
         end
@@ -104,7 +94,7 @@ classdef Cobolt_PB < Modules.Source
         function val = get_diode_age(obj, ~)
             val = obj.com('hrs?');
         end
-        
+
         function val = com(obj, str, varargin)
             if obj.isConnected()
                 val = obj.serial.com('Cobolt', str);
@@ -114,7 +104,7 @@ classdef Cobolt_PB < Modules.Source
         end
         function tf = isConnected(obj)
             tf = ~strcmp('No Server', obj.cobolt_host) && strcmp('OK', obj.serial.com('Cobolt', '?'));
-            
+
             if ~tf
                 if strcmp('No Server', obj.cobolt_host)
                     error('Host not set!');
@@ -124,7 +114,7 @@ classdef Cobolt_PB < Modules.Source
                 error(['Cobolt not found at host "' host '"!']);
             end
         end
-        
+
         function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
@@ -151,7 +141,7 @@ classdef Cobolt_PB < Modules.Source
         end
         function val = set_cobolt_host(obj,val,~) %this loads the hwserver driver
             delete(obj.serial);
-            
+
             if strcmp('No Server', val)
                 obj.serial = [];
                 obj.diode_on = false;
@@ -160,7 +150,7 @@ classdef Cobolt_PB < Modules.Source
             err = [];
             try
                 obj.serial = hwserver(val); %#ok<*MCSUP>
-                
+
                 obj.temperature = obj.get_temperature();
                 obj.diode_sn = obj.get_diode_sn();
                 obj.diode_age = obj.get_diode_age();
@@ -173,12 +163,12 @@ classdef Cobolt_PB < Modules.Source
                 rethrow(err)
             end
         end
-        
+
 <<<<<<< HEAD
         function on(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.PulseBlaster.lines(obj.PB_line).state = true;
-            obj.source_on = true; 
+            obj.source_on = true;
         end
         function off(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
@@ -189,13 +179,13 @@ classdef Cobolt_PB < Modules.Source
             obj.PulseBlaster.lines(obj.PB_line) = val;
 >>>>>>> f9dffac692836587ccf50e52092a25065de8404c
         end
-        
+
 %         function isRunning(obj,varargin)
 %             obj.PB_running = obj.PulseBlaster.running;
 %         end
     end
 end
-        
+
 function errorIfNotOK(str)
     assert(strcmp(str, 'OK'), ['Cobolt Error: ' str]);
 end
