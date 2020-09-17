@@ -5,10 +5,7 @@ classdef Hewlett_Packard < Sources.SignalGenerators.SG_Source_invisible
         function obj = Hewlett_Packard()
             obj.serial = Drivers.SignalGenerators.Hewlett_Packard.instance('SG');
             
-            obj.loadPrefs;
-            
-            obj.frequency = obj.serial.getFreqCW;
-            obj.power =     obj.serial.getPowerCW;
+            obj.init();
         end
     end
     

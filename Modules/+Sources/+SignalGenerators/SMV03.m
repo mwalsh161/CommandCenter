@@ -5,10 +5,7 @@ classdef SMV03 < Sources.SignalGenerators.SG_Source_invisible
         function obj = SMV03()
             obj.serial =    Drivers.SignalGenerators.SMV03.instance('SG');
             
-            obj.loadPrefs;
-            
-            obj.frequency = obj.serial.getFreqCW;
-            obj.power =     obj.serial.getPowerCW;
+            obj.init();
         end
     end
     

@@ -4,6 +4,8 @@ classdef SMIQ06B < Sources.SignalGenerators.SG_Source_invisible
     methods(Access=protected)
         function obj = SMIQ06B()
             obj.serial = Drivers.SignalGenerators.SMIQ06B.instance('SG');
+            
+            obj.init();
         end
     end
     
