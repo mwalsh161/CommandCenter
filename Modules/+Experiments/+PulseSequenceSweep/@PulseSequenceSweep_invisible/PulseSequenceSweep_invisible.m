@@ -74,7 +74,7 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
                 obj.pbH = [];
             end
             try
-                obj.pbH = Drivers.PulseBlaster.Remote.instance(val);
+                obj.pbH = Drivers.PulseBlaster.instance(val);
             catch err
                 obj.pbH = [];
                 obj.pb_IP = 'None Set';

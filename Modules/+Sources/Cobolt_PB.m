@@ -124,14 +124,14 @@ classdef Cobolt_PB < Modules.Source
             end
             err = [];
             try
-                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
-                delete(obj.listeners)
-                obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
-                obj.isRunning;
+                obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
+%                 delete(obj.listeners)
+%                 obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
+%                 obj.isRunning;
             catch err
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
+%                 delete(obj.listeners)
                 obj.source_on = false;
                 val = 'No Server';
             end
@@ -164,13 +164,25 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
+<<<<<<< HEAD
         function val = set_source_on(obj, val, ~)
             obj.PulseBlaster.lines(obj.PB_line) = val;
+=======
+        function on(obj)
+            assert(~isempty(obj.PulseBlaster), 'No host set!')
+            obj.PulseBlaster.lines(obj.PB_line).state = true;
+            obj.source_on = true; 
+        end
+        function off(obj)
+            assert(~isempty(obj.PulseBlaster), 'No host set!')
+            obj.source_on = false;
+            obj.PulseBlaster.lines(obj.PB_line).state = false;
+>>>>>>> 05292e5751f9b11b9601d1cc42abedc4d54c1b52
         end
         
-        function isRunning(obj,varargin)
-            obj.PB_running = obj.PulseBlaster.running;
-        end
+%         function isRunning(obj,varargin)
+%             obj.PB_running = obj.PulseBlaster.running;
+%         end
     end
 end
         
