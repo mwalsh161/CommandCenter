@@ -2,14 +2,15 @@ classdef Source < Base.Module
     % SOURCE abstracts hardware objects that emit signal.
     
     properties(GetObservable,SetObservable)
-        % source_on is usually the 'fast' method for modulating the source such as an AOM. If no 
-        %    fast method exists, this usually wraps armed. The user must define the Abstract method
-        %    set_source_on to interface with the hardware. Is wrapped by on()/off().
-        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_source_on');
-        
-        % armed prepares the source for fast modulation such as turning the diode on. If armed is 
-        %    false, the source should not emit signal at all. Is wrapped by arm()/blackout().
-        armed =     Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_armed');
+        % display_only means the Prefs will not be saved (or accidentally loaded at startup).
+        %    This is important for the prevention of unscheduled explosions.
+        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_source_on', ...
+                        'help', ['source_on is usually the "fast" method for modulating the source, such as an AOM. ' ...
+                                'If no fast method exists, this usually simply wraps armed. The user must define the ' ...
+                                'Abstract method set_source_on to interface with the hardware. Is wrapped by on()/off().']);
+        armed =     Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_armed', ...
+                        'help', 'armed prepares the source for fast modulation such as turning the diode on. If armed is ' ...
+                                'false, the source should not emit signal at all. Is wrapped by arm()/blackout().');
     end
     properties(SetAccess={?SourcesManager},GetAccess=private)
         % CC_dropdown.h = Handle to dropdown in CommandCenter

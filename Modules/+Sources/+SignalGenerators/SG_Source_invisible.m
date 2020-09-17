@@ -1,12 +1,19 @@
 classdef SG_Source_invisible < Modules.Source 
-    %SuperClass for serial sources
+    % SG_SOURCE_INVISIBLE SuperClass for serial signal generators.
   
     properties (GetObservable, SetObservable)
-        frequency =     Prefs.Double(1e9/Sources.SignalGenerators.SG_Source_invisible.freqUnit2Hz, 'units', Sources.SignalGenerators.SG_Source_invisible.freqUnit, 'set', 'set_frequency');
-        power =         Prefs.Double(-30, 'units', 'dBm', 'set', 'set_power');
+        frequency =     Prefs.Double(1e9/Sources.SignalGenerators.SG_Source_invisible.freqUnit2Hz, ...
+                                    'units', Sources.SignalGenerators.SG_Source_invisible.freqUnit, ...
+                                    'set', 'set_frequency', ...
+                                    'help', 'The frquency tone that the signal generator is set at');
+        power =         Prefs.Double(-30, 'units', 'dBm', 'set', 'set_power', ...
+                                    'help', ['The power that the signal generator outputs. dBm stands ' ...
+                                            'for "dB mW", i.e. 30 dBm == 1 W.']);
         
-        PB_host =       Prefs.String(Sources.SignalGenerators.SG_Source_invisible.noserver, 'set', 'set_PB_host', 'help', 'IP/hostname of computer with PB server');
-        PB_line =       Prefs.Integer(1, 'min', 1, 'allow_nan', false, 'set', 'set_PB_line', 'help', 'Indexed from 1');
+        PB_host =       Prefs.String(Sources.SignalGenerators.SG_Source_invisible.noserver, 'set', 'set_PB_host', ...
+                                    'help', 'IP/hostname of computer with PB server');
+        PB_line =       Prefs.Integer(1, 'min', 1, 'allow_nan', false, 'set', 'set_PB_line', ...
+                                    'help', 'Indexed from 1');
     end
     
     properties (Constant, Hidden)
@@ -49,7 +56,7 @@ classdef SG_Source_invisible < Modules.Source
             end
         end
         
-        function init(obj)
+        function init(obj)  % Called by signal generators after instantiation to load prefs and current hardware freq/power.
             obj.loadPrefs;
             
             obj.frequency = obj.get_frequency();
@@ -70,7 +77,9 @@ classdef SG_Source_invisible < Modules.Source
                 obj.serial.off;
             end
             
-            % Below is disabled because source_on calls obj.armed, which would break things.
+            % Below is disabled because source_on can call obj.armed, thus, set_armed cannot reference 
+            %    source_on because it would be in mid-pref-double switch. Keeping around in hopes that
+            %    behavior will be possible in the future.
 %             if ~obj.PB_enabled()
 %                 obj.source_on = val;
 %             end
