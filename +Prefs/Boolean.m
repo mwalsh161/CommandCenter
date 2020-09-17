@@ -5,16 +5,25 @@ classdef Boolean < Base.pref
         default = false;
         ui = Prefs.Inputs.BooleanField;
     end
+    properties
+        allow_nan = {true, @(a)validateattributes(a,{'logical'},{'scalar'})};
+    end
     
     methods
         function obj = Boolean(varargin)
             obj = obj@Base.pref(varargin{:});
         end
         function validate(obj,val)
-            validateattributes(val,{'numeric','logical'},{'binary','scalar'})
+            if isnan(val)
+                assert(obj.allow_nan, 'Attempted to set NaN. allow_nan is set to false.')
+            else
+                validateattributes(val,{'numeric','logical'},{'binary','scalar'})
+            end
         end
         function val = clean(obj,val)
-            val = logical(val);
+            if ~isnan(val)
+                val = logical(val);
+            end
         end
     end
     

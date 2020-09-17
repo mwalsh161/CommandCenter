@@ -74,9 +74,9 @@ choice = defOption;
 %units of pixels
 numOptions = numel(dlgOptions);
 Pos(1) = 900;
-Pos(2) = 600;
+Pos(2) = 300;
 Pos(3) = 200;
-Pos(4) = (numOptions - 1)*55;
+Pos(4) = (numOptions - 1)*75;
 maxHeight = 450;
 minHeight = 150;
 if Pos(4) > maxHeight
@@ -85,6 +85,8 @@ end
 if  Pos(4) < minHeight
     Pos(4) = minHeight;
 end
+
+Pos(4)
 %%  create figure window
 
 figWindow = figure('Visible','off','Units','pixels');
@@ -104,9 +106,9 @@ p.Position(3) = scroll.content.Position(3);
 %% 
 dlgOptions = flip(dlgOptions); %flip so that they are shown in the right order.
 Callback = @choiceSelection;
-pad = 1;
-edge = 1.5;
-buttonSize = 3;
+pad = .5;
+edge = 1;
+buttonSize = 2;
 vertHeight = edge;
 scrollwheelbuffer = 6;
 maxChars = 20;

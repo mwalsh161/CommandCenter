@@ -11,11 +11,15 @@ classdef BooleanField < Prefs.Inputs.LabelControlBasic
             if isnan(val)
                 obj.ui.Value = false;
                 obj.ui.Style = obj.nanuistyle;
-                obj.ui.Enabled = false;
+                obj.ui.Enable = 'off';
             else
                 obj.ui.Value = logical(val);
                 obj.ui.Style = obj.uistyle;
-                obj.ui.Enabled = obj.ui.UserData;
+                if obj.ui.UserData
+                    obj.ui.Enable = 'on';
+                else
+                    obj.ui.Enable = 'off';
+                end
             end
         end
         function val = get_value(obj)

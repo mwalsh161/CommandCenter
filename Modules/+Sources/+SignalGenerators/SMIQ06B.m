@@ -1,14 +1,9 @@
-classdef SMIQ06B < Sources.SignalGenerators.MW_PB_switch_invisible
+classdef SMIQ06B < Sources.SignalGenerators.SG_Source_invisible
     %SMIQ serial source class
 
     methods(Access=protected)
         function obj = SMIQ06B()
             obj.serial = Drivers.SignalGenerators.SMIQ06B.instance('SG');
-            
-            obj.loadPrefs;
-            
-            obj.frequency = obj.serial.getFreqCW;
-            obj.power =     obj.serial.getPowerCW;
         end
     end
     

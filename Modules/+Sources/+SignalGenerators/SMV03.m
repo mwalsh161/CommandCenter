@@ -1,4 +1,4 @@
-classdef SMV03 < Sources.SignalGenerators.SG_invisible
+classdef SMV03 < Sources.SignalGenerators.SG_Source_invisible
     % SMV03 serial source class
     
     methods(Access=protected)

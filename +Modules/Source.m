@@ -2,8 +2,8 @@ classdef Source < Base.Module
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties. For future use.
     properties(GetObservable,SetObservable)
-        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true);   % Boolean representing if the source is illuminating area of interest.
-        armed =     Prefs.Boolean(false, 'display_only', true, 'allow_nan', true);
+        source_on = Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_source_on');   % Boolean representing if the source is illuminating area of interest.
+        armed =     Prefs.Boolean(false, 'display_only', true, 'allow_nan', true, 'set', 'set_armed');
     end
     properties(SetAccess={?SourcesManager},GetAccess=private)
         % CC_dropdown.h = Handle to dropdown in CommandCenter

@@ -1,4 +1,4 @@
-classdef Hewlett_Packard < Sources.SignalGenerators.MW_PB_switch_invisible
+classdef Hewlett_Packard < Sources.SignalGenerators.SG_Source_invisible
     %Hewlett Packard serial source class
     
     methods(Access=protected)

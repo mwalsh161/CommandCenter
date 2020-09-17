@@ -95,7 +95,7 @@ classdef SMV03 < Drivers.SignalGenerators.SignalGenerator
         
         function setFreqCW(obj,Freq)
             obj.setFreqMode('CW');
-            string = sprintf(':FREQuency:FIXed %f',Freq);
+            string = sprintf(':FREQuency:FIXed %f', Freq);  % Hz
             obj.writeOnly(string);
         end
         
@@ -140,7 +140,7 @@ classdef SMV03 < Drivers.SignalGenerators.SignalGenerator
         end
         
         function  [Freq]=getFreqCW(obj)
-            string = sprintf('FREQ?');
+            string = sprintf('FREQ?');  % Hz
             s = obj.writeRead(string);
             Freq = str2double(s);
         end

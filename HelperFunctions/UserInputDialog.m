@@ -71,7 +71,7 @@ Answer = DefAns;
 numPrompts = numel(Prompt);
 
 Pos(1) = 800;
-Pos(2) = 500;
+Pos(2) = 300;
 Pos(3) = 250;
 Pos(4) = (numPrompts - 1)*100;
 maxHeight = 400;
