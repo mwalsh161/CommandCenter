@@ -2,9 +2,9 @@ function ps = setup_PB_sequence(obj)
 %SETUP_PB_SEQUENCE Generate sequence object
 
 % Account for annoying line indexing in sources
-ResLaserLine = obj.Res_LaserH.PBline - 1;
-MWLine = obj.MW_SourceH.MW_switch_PB_line - 1;
-RepumpLaserLine = obj.Repump_LaserH.PBline - 1;
+ResLaserLine = obj.Res_LaserH.PB_line - 1;
+MWLine = obj.MW_SourceH.PB_line - 1;
+RepumpLaserLine = obj.Repump_LaserH.PB_line - 1;
 APDLine = obj.APD_line;
 
 cRepump = channel('Repump','color','g','hardware',RepumpLaserLine);

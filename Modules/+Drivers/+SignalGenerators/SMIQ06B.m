@@ -100,7 +100,7 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
         end
         
         function  setFreqCW(obj,Freq)
-            string = sprintf(':FREQuency:FIXed %f',Freq);
+            string = sprintf(':FREQuency:FIXed %f', Freq);  % Hz
             obj.writeOnly(string);
         end
         
@@ -154,7 +154,7 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
         end
         
         function  [Freq]=getFreqCW(obj)
-            string = sprintf('FREQ?');
+            string = sprintf('FREQ?');  % Hz
             s = obj.writeRead(string);
             Freq = str2double(s);
         end
@@ -230,7 +230,11 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
         end
         
         function delete(obj)
-            obj.reset;
+            try
+                obj.reset;
+            catch
+                
+            end
             fclose(obj.comObject);
             delete(obj.comObject);
         end

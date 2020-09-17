@@ -49,8 +49,8 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             end
             
             % Set SignalGenerator
-            obj.SignalGenerator.MWFrequency = obj.MW_freq_GHz*1e9;
-            obj.SignalGenerator.MWPower = obj.MW_Power_dBm;
+            obj.SignalGenerator.frequency = obj.MW_freq_GHz*1e9 / obj.SignalGenerator.freqUnit2Hz;
+            obj.SignalGenerator.power = obj.MW_Power_dBm;
             obj.SignalGenerator.on;
             
             % Prepare axes for plotting

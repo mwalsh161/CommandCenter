@@ -2,9 +2,6 @@ classdef Laser532_nidaq < Modules.Source
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-    end
     properties(Access=private)
         listeners
         status                       % Text object reflecting running
@@ -48,11 +45,8 @@ classdef Laser532_nidaq < Modules.Source
         function delete(obj)
             delete(obj.listeners)
         end
-        function on(obj)
-            obj.ni.WriteDOLines('532 Laser',1)
-        end
-        function off(obj)
-            obj.ni.WriteDOLines('532 Laser',0)
+        function val = set_source_on(obj, val, ~)
+            obj.ni.WriteDOLines('532 Laser', val)
         end
         
         % Settings and Callbacks

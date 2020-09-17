@@ -13,7 +13,6 @@ classdef SuperK < Modules.Source
         prefs = {'ip'};
     end
     properties(SetObservable,SetAccess=private)
-        source_on = false;
         running                      % Boolean specifying if StaticLines program running
     end
     properties(SetAccess=private,Hidden)
@@ -57,13 +56,14 @@ classdef SuperK < Modules.Source
                 rethrow(err)
             end
         end
-        function on(obj)
-            obj.serial.on();
-            obj.source_on = true;
-        end
-        function off(obj)
-            obj.serial.off();
-            obj.source_on = false;
+        function val = set_source_on(obj, val, ~)
+            if val
+                assert(~isempty(obj.serial),'Not Connected!')
+                obj.serial.on()
+            else
+                assert(~isempty(obj.serial),'Not Connected!')
+                obj.serial.off();
+            end
         end
         
         % Settings and Callbacks

@@ -47,8 +47,8 @@ classdef Rabi_opticalPolarization < Experiments.PulseSequenceSweep.PulseSequence
             %save resLaser frequency at the beginning
 %             obj.meta.resFreq = obj.resLaser.getFrequency;
             %set SignalGenerator
-            obj.SignalGenerator.MWFrequency = obj.freq_GHz*1e9;
-            obj.SignalGenerator.MWPower = obj.MW_power_dBm;
+            obj.SignalGenerator.frequency = obj.freq_GHz*1e9 / obj.SignalGenerator.freqUnit2Hz;
+            obj.SignalGenerator.power = obj.MW_power_dBm;
             obj.SignalGenerator.on;
     
             

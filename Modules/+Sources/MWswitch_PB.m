@@ -9,7 +9,6 @@ classdef MWswitch_PB < Modules.Source
         prefs = {'PBline','ip'};
     end
     properties(SetObservable,SetAccess=private)
-        source_on = false;
         running                      % Boolean specifying if StaticLines program running
     end
     properties(Access=private)
@@ -69,13 +68,8 @@ classdef MWswitch_PB < Modules.Source
                 rethrow(err)
             end
         end
-        function on(obj)
-            obj.PulseBlaster.lines(obj.PBline) = true;
-            obj.source_on = true;
-        end
-        function off(obj)
-            obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline) = false;
+        function val = set_source_on(obj, val, ~)
+            obj.PulseBlaster.lines(obj.PBline) = val
         end
         
         % Settings and Callbacks

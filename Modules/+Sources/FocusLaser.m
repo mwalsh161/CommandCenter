@@ -2,9 +2,6 @@ classdef FocusLaser < Modules.Source
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-    end
     properties(Access=private)
         listeners
         status                       % Text object reflecting running
@@ -42,11 +39,8 @@ classdef FocusLaser < Modules.Source
         function delete(obj)
             delete(obj.listeners)
         end
-        function on(obj)
-            obj.ni.WriteDOLines('Focusing Laser',1)
-        end
-        function off(obj)
-            obj.ni.WriteDOLines('Focusing Laser',0)
+        function val = set_source_on(obj, val, ~)
+            obj.ni.WriteDOLines('Focusing Laser', val);
         end
         
         % Settings and Callbacks

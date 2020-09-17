@@ -9,6 +9,11 @@ classdef SignalGenerator < Modules.Driver
         function SG_init(obj)
             % Call this on subclasses during instatiation
             obj.loadPrefs;
+            
+            if ~isstruct(obj.comObjectInfo)
+                obj.comObjectInfo = struct('comType','','comAddress','','comProperties','');
+            end
+            
             % Note fopen(obj.comObject) can error if incorrect address supplied
             if isempty(obj.comObjectInfo.comType)&& isempty(obj.comObjectInfo.comAddress)&& isempty(obj.comObjectInfo.comProperties)
                 %first time connecting should run the helper function
@@ -33,6 +38,9 @@ classdef SignalGenerator < Modules.Driver
                 end
             end
             obj.reset; %set the SG to a known state
+            
+            
+%                 obj.comObjectInfo = struct('comType','','comAddress','','comProperties','');
         end
         
         function setUnitPower(obj)

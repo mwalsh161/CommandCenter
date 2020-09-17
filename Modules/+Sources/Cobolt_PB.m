@@ -4,7 +4,6 @@ classdef Cobolt_PB < Modules.Source
     properties(SetObservable, GetObservable)
         cobolt_host =   Prefs.String('No Server', 'set', 'set_cobolt_host', 'help', 'IP/hostname of computer with hwserver for velocity laser');
         power =         Prefs.Double(NaN, 'set', 'set_power', 'min', 0, 'unit', 'mW');
-        diode_on =      Prefs.Boolean(false, 'set', 'set_diode_on', 'help', 'Power state of diode (on/off)');
         
         diode_sn =      Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'help', 'Serial number for the diode');
         diode_age =     Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'unit', 'hrs', 'help', 'Recorded on-time for the diode');
@@ -12,6 +11,7 @@ classdef Cobolt_PB < Modules.Source
         
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
+<<<<<<< HEAD
 %         PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
         
         prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
@@ -19,13 +19,16 @@ classdef Cobolt_PB < Modules.Source
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
+=======
+        PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
+>>>>>>> f9dffac692836587ccf50e52092a25065de8404c
     end
     properties(Access=private)
         listeners
     end
     properties(SetAccess=private)
         serial                      % hwserver handle
-        PulseBlaster                % Hardware handle
+        PulseBlaster                % pulseblaster handle
     end
     methods(Access=protected)
         function obj = Cobolt_PB()
@@ -54,10 +57,10 @@ classdef Cobolt_PB < Modules.Source
         end
         
         function arm(obj)
-            obj.diode_on = true;
+            obj.armed = true;
         end
         function blackout(obj)
-            obj.diode_on = false;
+            obj.armed = false;
         end
         
         function delete(obj)
@@ -72,7 +75,7 @@ classdef Cobolt_PB < Modules.Source
                 val = NaN;
             end
         end
-        function val = set_diode_on(obj, val, ~)
+        function val = set_armed(obj, val, ~)   % Turn the diode on or off.
             if obj.isConnected()
                 if val
                     errorIfNotOK(obj.serial.com('Cobolt', '@cobas', 0));    % No autostart
@@ -82,7 +85,7 @@ classdef Cobolt_PB < Modules.Source
                     errorIfNotOK(obj.serial.com('Cobolt', 'l0'));           % Laser off
                 end
             else
-                val = false;
+                val = NaN;
             end
         end
         
@@ -171,6 +174,7 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
+<<<<<<< HEAD
         function on(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.PulseBlaster.lines(obj.PB_line).state = true;
@@ -180,6 +184,10 @@ classdef Cobolt_PB < Modules.Source
             assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.source_on = false;
             obj.PulseBlaster.lines(obj.PB_line).state = false;
+=======
+        function val = set_source_on(obj, val, ~)
+            obj.PulseBlaster.lines(obj.PB_line) = val;
+>>>>>>> f9dffac692836587ccf50e52092a25065de8404c
         end
         
 %         function isRunning(obj,varargin)

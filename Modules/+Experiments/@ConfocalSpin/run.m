@@ -35,8 +35,8 @@ function run( obj,status,managers,ax )
     obj.Res_LaserH.LaserSetpoint(obj.OpticalFreq_THz); % lock
     status.String = sprintf('Setting MW source to %0.4f GHz, %0.2f dBm',obj.MWfreq_GHz,obj.MWpower_dBm); drawnow;
     obj.MW_SourceH.serial.reset;
-    obj.MW_SourceH.MWPower = obj.MWpower_dBm;
-    obj.MW_SourceH.MWFrequency = obj.MWfreq_GHz;
+    obj.MW_SourceH.power = obj.MWpower_dBm;
+    obj.MW_SourceH.frequency = obj.MWfreq_GHz * 1e9 / obj.SignalGenerator.freqUnit2Hz;
     obj.MW_SourceH.on;
     
     status.String = 'Generating Pulse Sequence'; drawnow;

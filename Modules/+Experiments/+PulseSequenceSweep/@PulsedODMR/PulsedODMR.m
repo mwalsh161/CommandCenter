@@ -68,7 +68,7 @@ classdef PulsedODMR < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisibl
                 obj.meta.resFreq = obj.resLaser.getFrequency;
             end
             %set SignalGenerator
-            obj.SignalGenerator.MWPower = obj.MW_power_dBm;
+            obj.SignalGenerator.power = obj.MW_power_dBm;
             obj.SignalGenerator.on;
             %prepare axes for plotting
             hold(ax,'on');

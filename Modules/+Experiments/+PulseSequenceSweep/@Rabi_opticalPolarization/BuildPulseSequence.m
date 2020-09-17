@@ -15,10 +15,10 @@ MWbufferTime = obj.MW_buffer_time_us;
 sweepTime = obj.tauTimes(tauIndex);
 samples = obj.samples;
 
-repumpLine = obj.repumpLaser.PBline-1;% need to  fix 532_PB
-resLine = obj.resLaser.PBline-1;
+repumpLine = obj.repumpLaser.PB_line-1;% need to  fix 532_PB
+resLine = obj.resLaser.PB_line-1;
 APDline = obj.APDline-1;
-MWline = obj.SignalGenerator.MW_switch_PB_line-1;
+MWline = obj.SignalGenerator.PB_line-1;
 
 s = sequence('Rabi_opticalPolarization');
 repumpChannel = channel('repump','color','g','hardware',repumpLine);

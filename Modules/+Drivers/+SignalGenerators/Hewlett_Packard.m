@@ -173,7 +173,7 @@ classdef Hewlett_Packard < Drivers.SignalGenerators.SignalGenerator
         end
         
         function  setFreqCW(obj,Freq)
-            string = sprintf(':SOURCE:FREQUENCY:CW %f',Freq);
+            string = sprintf(':SOURCE:FREQUENCY:CW %f', Freq);  % Hz
             obj.writeOnly(string);
         end
         
@@ -194,7 +194,7 @@ classdef Hewlett_Packard < Drivers.SignalGenerators.SignalGenerator
             end
             string = sprintf('FREQ?');
             s = obj.writeRead(string);
-            Freq = str2double(s(2:end-1));
+            Freq = str2double(s(2:end-1));  % Hz
         end
         
         

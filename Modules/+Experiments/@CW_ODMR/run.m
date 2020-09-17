@@ -16,8 +16,8 @@ function run( obj,status,managers,ax )
 
     ctr = Drivers.Counter.instance(obj.APD_line, obj.APD_Sync_line);
     obj.Laser.arm;
-    obj.SignalGenerator.MWPower = obj.MW_Power_dBm;
-    obj.SignalGenerator.MWFrequency = obj.freq_list(1); % Just init to first point even though redundant
+    obj.SignalGenerator.power = obj.MW_Power_dBm;
+    obj.SignalGenerator.frequency = obj.freq_list(1) / obj.SignalGenerator.freqUnit2Hz; % Just init to first point even though redundant
     % Pre-allocate obj.data
     n = length(obj.freq_list);
     obj.data = NaN(obj.averages,n,2);
@@ -51,7 +51,7 @@ function run( obj,status,managers,ax )
                 drawnow; assert(~obj.abort_request,'User aborted.');
                 % Normalization
                 if obj.MW_freq_norm_GHz > 0
-                    obj.SignalGenerator.MWFrequency = obj.MW_freq_norm_GHz*1e9;
+                    obj.SignalGenerator.frequency = obj.MW_freq_norm_GHz*1e9 / obj.SignalGenerator.freqUnit2Hz;
                     obj.data(j,i,1) = ctr.singleShot(obj.Exposure_ms, 1);
                 else
                     obj.SignalGenerator.off;
@@ -59,7 +59,7 @@ function run( obj,status,managers,ax )
                     obj.SignalGenerator.on;
                 end
                 % Signal
-                obj.SignalGenerator.MWFrequency = obj.freq_list(i); % Just init to first point
+                obj.SignalGenerator.frequency = obj.freq_list(i) / obj.SignalGenerator.freqUnit2Hz; % Just init to first point
                 obj.data(j,i,2) = ctr.singleShot(obj.Exposure_ms, 1);
 
                 % Update plot

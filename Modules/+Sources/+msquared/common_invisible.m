@@ -1,9 +1,6 @@
 classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invisible
     % Code and methods shared by EMM and SolsTiS will be inherited from this class
 
-    properties(SetObservable,SetAccess=private)
-        source_on = false;  % Always assume on (cant be changed here)
-    end
     properties
         resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
         prefs = {'hwserver_host','PBline','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
@@ -63,6 +60,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         host = loadLaser(obj);
     end
     methods
+<<<<<<< HEAD
         function on(obj)
             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
             obj.PulseBlaster.lines(obj.PBline).state = true;
@@ -72,6 +70,11 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
             obj.source_on = false;
             obj.PulseBlaster.lines(obj.PBline).state = false;
+=======
+        function val = set_source_on(obj, val, ~)
+            assert(~isempty(obj.PulseBlaster),'No IP set!')
+            obj.PulseBlaster.lines(obj.PBline) = val;
+>>>>>>> f9dffac692836587ccf50e52092a25065de8404c
         end
 
         function updateStatus(obj)

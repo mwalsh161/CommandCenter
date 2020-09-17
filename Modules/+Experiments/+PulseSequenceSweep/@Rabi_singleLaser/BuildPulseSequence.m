@@ -5,9 +5,9 @@ assert(obj.APD_Time_us <= obj.Laser_Time_us,'APD Time must be <= Laser Time');
 MW_time_us = obj.MW_Times(ind);
 s = sequence('Rabi_singleLaser');
 
-laserChannel =  channel('laser',    'color', 'g', 'hardware', obj.Laser.PBline-1);
+laserChannel =  channel('laser',    'color', 'g', 'hardware', obj.Laser.PB_line-1);
 APDchannel =    channel('APDgate',  'color', 'k', 'hardware', obj.APD_Gate_line-1, 'counter', obj.APD_line);
-MWchannel =     channel('MW',       'color', 'b', 'hardware', obj.SignalGenerator.MW_switch_PB_line-1);
+MWchannel =     channel('MW',       'color', 'b', 'hardware', obj.SignalGenerator.PB_line-1);
 
 s.channelOrder = [laserChannel, APDchannel, MWchannel];
 
