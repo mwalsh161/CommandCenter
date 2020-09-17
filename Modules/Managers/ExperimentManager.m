@@ -31,7 +31,7 @@ classdef ExperimentManager < Base.Manager
             err = [];
             try
                 if ~isempty(obj.active_module.path) %if path defined, select path
-                    obj.handles.Managers.Path.select_path(obj.active_module.path);
+                    %obj.handles.Managers.Path.select_path(obj.active_module.path);
                 end
                 if isvalid(obj.handles.axExp)
                     cla(obj.handles.axExp,'reset')
