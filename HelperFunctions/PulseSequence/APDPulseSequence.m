@@ -98,30 +98,10 @@ classdef APDPulseSequence < handle
                 obj.tasks(i).Start;
             end
             try
-                [program,s] = obj.seq.compile(overrideMinDuration);
+                [program, ~, ~, obj.time] = obj.seq.compile(overrideMinDuration);
                 
-                N = length(s);
-                times = NaN(1,N);
-                
-                for ii = 1:N
-                    if strcmp(s(ii).node.units, 'ns')
-                        times(ii) = s(ii).t / 1e9;
-                    elseif strcmp(s(ii).node.units, 'us')
-                        times(ii) = s(ii).t / 1e6;
-                    elseif strcmp(s(ii).node.units, 'ms')
-                        times(ii) = s(ii).t / 1e3;
-                    else
-                        error(['Units ' num2str(s(1).node.units) ' not recognized.'])
-                    end
-                end
-                
-                obj.time = (max(times) - min(times)) * obj.seq.repeat;
                 obj.timeout = 1.5*obj.time + 1;
                 
-                disp(obj.time)
-                disp(obj.timeout)
-                
-%                 obj.pb.open;
                 obj.pb.load(program);
                 obj.pb.start;
             catch err

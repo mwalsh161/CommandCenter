@@ -394,7 +394,7 @@ classdef sequence < handle
             end
             
         end
-        function [instructionSet,seqOut,instInfo] = compile(obj,overrideMinDuration)
+        function [instructionSet,seqOut,instInfo,time] = compile(obj,overrideMinDuration)
             % repeat puts a loop around the full thing. If Inf, a branch
             % statement is used instead. If more than a single command can
             % handle, nested loops will be used
@@ -578,6 +578,25 @@ classdef sequence < handle
             end
             assert(numel(instructionSet) <= 4096,...
                 sprintf('Can only handle 4096 instructions, have %i currently.',numel(instructionSet)))
+            
+            % Calculate expected time for this sequence to take.
+            N = length(seqOut);
+            times = NaN(1,N);
+
+            for ii = 1:N    % Iterate through every node in the sequence (probably could convert to array function but meh).
+                switch seqOut(ii).node.units
+                    case 'ns'
+                        times(ii) = seqOut(ii).t / 1e9;
+                    case 'us'
+                        times(ii) = seqOut(ii).t / 1e6;
+                    case 'ms'
+                        times(ii) = seqOut(ii).t / 1e3;
+                    otherwise
+                        error(['Units ' num2str(seqOut(ii).node.units) ' not recognized.'])
+                end
+            end
+
+            time = (max(times) - min(times)) * obj.repeat;  % Multiply time difference between first and last instructions by the number of repeats.
         end
         
         function simulate(obj,seq,ax)
