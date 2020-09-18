@@ -11,36 +11,53 @@ classdef AutoExperiment_invisible < Modules.Experiment
     % It is safe for subclasses to add any meta data to obj.meta. This
     % property is programmed to be immutable to subclasses. This can be
     % done in pre/post/patch functions (or anything with access to obj).
+    %
+    % This set of experiments takes an optional analysis mat file. The file
+    % contents should have the following form at the minimum:
+    %    sites <- struct of shape N x m where N is number of sites, and m
+    %    sites(N,m).redo <- boolean specifying if that experiment should be
+    %                       redone upon a continue experiment run
+    %    Upon loading, this will be obj.analysis.sites
+    % The file can have anything else within sites or outside of the sites
+    % field. Reference the subclass documentation for more info.
+    % A subclass can define "validate_analysis(obj)" that errors
+    % if the analysis is not formatted for that particular experiment. This
+    % is called after validating the above condition.
+    %   This is only called if the user supplied the file and is the first
+    %   thing called in the run method.
     
     properties
-        prefs = {'run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','repeat'};
-        show_prefs = {'experiments','run_type','site_selection','tracking_threshold','min_tracking_seconds','max_tracking_seconds','imaging_source','continue_experiment','repeat'};
-        readonly_prefs = {'experiments'};
+        prefs = {'run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
+        show_prefs = {'analysis_file','continue_experiment','experiments','run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
     end
     properties(Abstract)
-        patch_functions %cell array of method names in subclass definition that take input (emitter,prefs). Run before experiment group.
+        patch_functions %cell array of method names in subclass definition that take input (site,site_index). Run before experiment group.
         prerun_functions %cell array of method names in subclass definition that take input (experiment). Run immediately before experiment's run method
     end
     properties(SetAccess=protected,Hidden)
-        data = [] % Useful for saving data from run method
+        data = [] % struct with fields: sites (1xN struct), image (1 struct)
         meta = struct() % Useful to store meta data in run method [THIS IS IMMUTABLE in that once a field is set it can't be changed]
         tracker = zeros(1,6); %array of (# experiments)*(# sites) by 6 --> (dx,dy,dz,tracking metric,datenum time,site index)
         abort_request = false; % Flag that will be set to true upon abort
         err_thresh = 10; %if have err_thresh many errors during run, experiment overall will error and quit
         fatal_flag = false; % if true, an error becomes fatal
-    end
-    properties(SetObservable, AbortSet)
-        experiments = Modules.Experiment.empty(0); %array of experiment handles
-        run_type = {Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
-                    Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST};
-        site_selection = {'Peak finder','Grid','Manual sites','Load from file'};
-        imaging_source = Modules.Source.empty(1,0);
-        tracking_threshold = 0.9; %tracking metric will be normalized to 1
-        min_tracking_seconds = 0; %in seconds; tracker won't run twice within this amount of time
-        max_tracking_seconds = Inf; %in seconds; if tracking_threshold isn't hit, tracker will still run after this amount of time
         current_experiment = []; %this will be a copy of the handle to the current experiment, to be used for passing things like aborts between experiments
-        repeat = 1;
-        continue_experiment = false;
+        analysis = [];
+    end
+    properties(SetObservable, GetObservable)
+        experiments = Prefs.ModuleInstance(Modules.Experiment.empty(0),'n',Inf,'inherits',{'Modules.Experiment'},'readonly',true);
+        run_type = Prefs.MultipleChoice(Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
+                    'choices',{Experiments.AutoExperiment.AutoExperiment_invisible.SITES_FIRST,...
+                               Experiments.AutoExperiment.AutoExperiment_invisible.EXPERIMENTS_FIRST});
+        site_selection = Prefs.MultipleChoice('Peak finder','choices',{'Peak finder','Grid','Manual sites','Load from file'});
+        imaging_source = Prefs.ModuleInstance(Modules.Source.empty(0),'inherits',{'Modules.Source'});
+        tracking_threshold = Prefs.Double(Inf,'min',0,'help','tracking metric will be normalized to 1');
+        min_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','tracker won''t run twice within this amount of time');
+        max_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
+        repeat = Prefs.Integer(1,'min',1,'allow_nan',false);
+        continue_experiment = Prefs.Boolean(false,'set','set_continue_experiment');
+        analysis_file = Prefs.File('filter_spec','*.mat','help','Used in patch functions instead of fitting last result. This also ignores SpecPeakThresh.',...
+                                     'custom_validate','validate_file');
     end
     properties(Constant,Hidden)
         SITES_FIRST = 'All Sites First';
@@ -159,6 +176,9 @@ classdef AutoExperiment_invisible < Modules.Experiment
             obj.meta = struct();
         end
     end
+    methods(Abstract)
+        sites = AcquireSites(obj,managers)
+    end
     methods
         function obj = AutoExperiment_invisible()
             obj.run_type = obj.SITES_FIRST;
@@ -173,29 +193,14 @@ classdef AutoExperiment_invisible < Modules.Experiment
             delete(obj.experiments);
         end
         function abort(obj)
+            obj.fatal_flag = true;
             obj.abort_request = true;
             if ~isempty(obj.current_experiment)
                 obj.current_experiment.abort;
             end
             obj.logger.log('Abort requested');
         end
-        function pause(obj,~,~)
-            obj.pause_request = true;
-            obj.logger.log('Pause requested');
-        end
-        function dat = GetData(obj,~,~)
-            % Callback for saving methods
-            dat.data = obj.data;
-            dat.meta = obj.meta;
-        end
-        function LoadData(obj,data)
-            % Not grabbing the meta data as that will be re-assigned
-            assert(isfield(data,'data'),'No field "data"; likely wrong experiment');
-            assert(isfield(data.data,'image'),'No field "data.image"; likely wrong experiment');
-            assert(isfield(data.data,'sites'),'No field "data.sites"; likely wrong experiment');
-            assert(~isempty(data.data.sites),'No sites data in loaded experiment');
-            obj.data = data.data;
-            obj.continue_experiment = true;
+        function validate_analysis(obj)
         end
         function PreRun(obj,status,managers,ax)
         end
@@ -231,12 +236,36 @@ classdef AutoExperiment_invisible < Modules.Experiment
             % Now that there weren't errors, update meta
             obj.meta = val;
         end
-        function set.run_type(obj,val)
-            obj.run_type = validatestring(val,{obj.SITES_FIRST,obj.EXPERIMENTS_FIRST});
+    end
+    methods(Sealed)
+        function dat = GetData(obj,~,~)
+            % Callback for saving methods
+            dat.data = obj.data;
+            dat.meta = obj.meta;
         end
-        function set.continue_experiment(obj,val)
+        function LoadData(obj,data)
+            % Not grabbing the meta data as that will be re-assigned
+            assert(isfield(data,'data'),'No field "data"; likely wrong experiment');
+            assert(isfield(data.data,'image'),'No field "data.image"; likely wrong experiment');
+            assert(isfield(data.data,'sites'),'No field "data.sites"; likely wrong experiment');
+            assert(~isempty(data.data.sites),'No sites data in loaded experiment');
+            obj.data = data.data;
+            obj.continue_experiment = true;
+        end
+        function primary_validate_analysis(obj)
+            % Already checked (on load):
+            %   "sites" exists as a field
+            %   Number of experiments in sites is good
+            % Now that obj.data should be loaded, can check lengths
+            n_analysis_sites = size(obj.analysis.sites,1);
+            n_data_sites = length(obj.data.sites);
+            assert(n_analysis_sites==n_data_sites,...
+                    sprintf('Found %i analysis entries, but %i sites. These should be equal.',...
+                    	n_analysis_sites,n_data_sites));
+            obj.validate_analysis();
+        end
+        function val = set_continue_experiment(~,val,~)
             %val is boolean; true = continue experiment, false = start anew
-            obj.continue_experiment = val;
             pan = get(gcbo,'parent'); %grab handle to settings panel
             site_sel = findobj(pan,'tag','site_selection');
             if isempty(site_sel) || ~isvalid(site_sel)
@@ -248,8 +277,31 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 set(site_sel,'enable','on');
             end
         end
-    end
-    methods(Abstract)
-        sites = AcquireSites(obj,managers)
+        function validate_file(obj,val,~)
+            % We will validate and set the analysis prop here
+            if ~isempty(val)
+                flag = exist(val,'file');
+                if flag == 0
+                    error('Could not find "%s"!',val)
+                end
+                if flag ~= 2
+                    error('File "%s" must be a mat file!',val)
+                end
+                dat = load(val);
+                names = fieldnames(dat);
+                if ~ismember('sites',names)
+                    error('Loaded mat file should have at least a "sites" field; found\n%s',strjoin(names,', '));
+                end
+                if ~isfield(dat.sites,'redo')
+                    error('The struct "sites" should have a "redo" field.');
+                end
+                if ~isstruct(dat.sites) || size(dat.sites,2) ~= length(obj.experiments)
+                    error('Loaded variable from file should be an Nx%i struct.',length(obj.experiments));
+                end
+                obj.analysis = dat;
+            else
+                obj.analysis = [];
+            end
+        end
     end
 end

@@ -38,7 +38,7 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
                 s = obj.sequence;
             else
                 s = sequence('SlowScan'); %#ok<CPROPLC> Calling HelperFunction
-                repumpChannel = channel('Repump','color','g','hardware',obj.repumpLaser.PBline-1);
+                repumpChannel = channel('Repump','color','g','hardware',obj.repumpLaser.PB_line-1);
                 resChannel = channel('Resonant','color','r','hardware',obj.resLaser.PBline-1);
                 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
                 s.channelOrder = [repumpChannel, resChannel, APDchannel];

@@ -11,6 +11,9 @@ function [pos,readInfo,f_debug] = reader(im,varargin)
 %       input to ttest2.
 %   [leg_len_thresh]: (0.05) 1 - ratio of length of each leg
 %   [angle_thresh]: (0.1) Error from pi/2 between legs
+%   [invert]: (0) Invert around specified axis. 0: dont invert, 1: x, 2: y
+%       Note, the axis should not matter for decoding correctly - simply
+%       supplying true here will work just fine.
 %   [debug]: (false) Creates a figure with relevant graphics at each step
 % Outputs:
 %   pos: The estimated position of the image's (0,0) coordinate in
@@ -50,17 +53,34 @@ function [pos,readInfo,f_debug] = reader(im,varargin)
 %   QR: The "sample" coordinates. Generated from decoding QR
 %       code and knowledge of QR positioning.
 assert(size(im.image,3)==1,'Image must be gray scale.')
-x = im.ROI(1,:);
-y = im.ROI(2,:);
-im = double(im.image); % Necessary for some filter operations
+assert(isequal(size(im.ROI),[2,2]),'ROI must be 2x2!');
+
 p = inputParser;
 addParameter(p,'sensitivity',5,@(a)validateattributes(a,{'numeric'},{'scalar','nonnegative'}));
 addParameter(p,'significance',0.05,@(a)validateattributes(a,{'numeric'},{'scalar','>',0,'<',1}));
 addParameter(p,'leg_len_thresh',0.05,@(a)validateattributes(a,{'numeric'},{'scalar','nonnegative'}));
 addParameter(p,'angle_thresh',0.1,@(a)validateattributes(a,{'numeric'},{'scalar','nonnegative'}));
+addParameter(p,'invert',false,@(a)validateattributes(a,{'numeric','logical'},{'scalar','nonnegative','<=',2}));
 addParameter(p,'debug',false,@(a)validateattributes(a,{'logical'},{'scalar'}));
 parse(p,varargin{:});
 p = p.Results;
+
+if p.invert
+    im.ROI(p.invert,:) = -im.ROI(p.invert,:);
+end
+
+% Fix inversions
+if im.ROI(1,1) > im.ROI(1,2) % invert in x
+    im.ROI(1,:) = [im.ROI(1,2) im.ROI(1,1)];
+    im.image = fliplr(im.image);
+end
+if im.ROI(2,1) > im.ROI(2,2) % invert in y
+    im.ROI(2,:) = [im.ROI(2,2) im.ROI(2,1)];
+    im.image = flipud(im.image);
+end
+x = im.ROI(1,:);
+y = im.ROI(2,:);
+im = double(im.image); % Necessary for some filter operations
 
 ax_debug = gobjects(1,4);
 f_debug = gobjects(1);
@@ -78,7 +98,11 @@ if p.debug
     end
     set(ax_debug,'ydir','normal');
     imagesc(ax_debug(1),x,y,im);
-    title(ax_debug(1),sprintf('Original (%i x %i)',size(im,2),size(im,1)))
+    if p.invert
+        title(ax_debug(1),sprintf('Original (%i x %i)\nInverted %i axis.',size(im,2),size(im,1),p.invert))
+    else
+        title(ax_debug(1),sprintf('Original (%i x %i)',size(im,2),size(im,1)))
+    end
 end
 
 % Resize to square px
@@ -147,15 +171,15 @@ for i = 1:nQRs
     end
 end
 % Get overall image transform
-mask = ~isnan(markersQRAct);
+mask = ~isnan(markersQRAct(1,1,:));
 npoints = 0;
 im2QRT = affine2d.empty();
 pos = NaN(1,2);
 err = NaN(1,2);
-if any(mask)
+if any(mask(:))
     % Remvoing instead of keeping retains array shape (3x2xN)
-    markersImAct(~mask) = [];
-    markersQRAct(~mask) = [];
+    markersImAct = markersImAct(:,:,mask);
+    markersQRAct = markersQRAct(:,:,mask);
     % 1) shiftdim:  2xNx3; to get x,y dim first
     % 2) reshape:   2x3N ; grouped by marker first, then QR index
     % 3) transpose: 3Nx2 ; dim fitgeotrans wants
@@ -170,6 +194,9 @@ if any(mask)
 end
 % Prepare output
 readInfo = struct('qrInfo',qrInfo,'tform',im2QRT,'std',err,'npoints',npoints);
+if p.invert
+    readInfo = Base.QR.invertReadInfo(readInfo,p.invert);
+end
 end
 
 

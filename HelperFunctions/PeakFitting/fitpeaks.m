@@ -6,13 +6,13 @@ function [vals,confs,fit_results,gofs,init,stop_condition] = fitpeaks(x,y,vararg
 % Inputs; brackets indicate name,value optional pair:
 %   x: vector of x values Nx1
 %   y: vector of y values Nx1
-%   [FitType]: "gauss" or "lorentz" (default "gauss")
+%   [FitType]: "gauss", "lorentz", or "voigt" (default "gauss")
 %   [Span]: The span of the moving average used to calculate "init" (default 5)
 %   [Width]: FWHM width limits to impose on the fitted peak properties.
 %       Default [2.*min(diff(x)), (max(x)-min(x))] (min FWHM spanning 3 points)
 %   [Amplitude]: Amplitude limits to impose on the fitted peak properties.
 %       Default: [0, Inf].
-%   [Locations]: Location limits in x to impose on the fitted peak properties.
+%   [Location]: Location limits in x to impose on the fitted peak properties.
 %       Default: [min(x) max(x)]
 %   [ConfLevel]: confidence interval level (default 0.95)
 %   [n]: fit exactly n peaks (n > 0). Not compatible with AmplitudeSensitivity or StopMetric.
@@ -75,7 +75,7 @@ yp = accumarray(idx,y,[],@mean); % Mean of duplicate points in x
 dx = min(diff(xp));
 assert(dx>0,'dx calculated to be <= 0');
 
-addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz'})));
+addParameter(p,'FitType','gauss',@(x)any(validatestring(x,{'gauss','lorentz','voigt'})));
 addParameter(p,'Span',5,@(x)isnumeric(x) && isscalar(x) && (x >= 0));
 addParameter(p,'Width',[2*dx, (max(x)-min(x))],validLimit);
 addParameter(p,'Amplitude',[0 Inf],validLimit);
@@ -121,12 +121,14 @@ switch lower(p.FitType)
         fit_function = @gaussfit;
     case 'lorentz'
         fit_function = @lorentzfit;
+    case 'voigt'
+        fit_function = @voigtfit;
 end
 
-yp = smooth(yp,p.Span);
-xp = [x(1)-dx; xp; x(end)+dx];
-yp = [min(yp); yp; min(yp)];
-[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp,xp);
+yp_smooth = smooth(yp,p.Span);
+xp_extend = [x(1)-dx; xp; x(end)+dx];
+yp_extend = [min(yp_smooth); yp_smooth; min(yp_smooth)];
+[~, init.locations, init.widths, init.amplitudes] = findpeaks(yp_extend,xp_extend);
 [init.amplitudes,I] = sort(init.amplitudes,'descend');
 init.locations = init.locations(I);
 init.widths = init.widths(I);
@@ -136,7 +138,7 @@ usingN = ismember('n',pSpecified);
 if ismember('AmplitudeSensitivity',pSpecified)
     usingN = true;
     % Calculate n
-    [~, ~, ~, proms] = findpeaks(y,x); %get list of prominences
+    [~, ~, ~, proms] = findpeaks(yp,xp); %get list of prominences
     [f,xi] = ksdensity(proms);
     [~, prom_locs, prom_wids, prom_proms] = findpeaks(f,xi); %find most prominent prominences
     [~,I] = sort(prom_proms,'descend');
@@ -203,6 +205,9 @@ fitcoeffs = coeffvalues(fit_result);
 vals.amplitudes = fitcoeffs(1:n);
 vals.locations = fitcoeffs(n+1:2*n);
 vals.widths = fitcoeffs(2*n+1:3*n);
+if strcmp(p.FitType,'voigt')
+    vals.etas = fitcoeffs(3*n+2:4*n+1); %extra +1 to account for offset d
+end
 vals.SNRs = vals.amplitudes./noise;
 
 fitconfs = diff(confint(fit_result,p.ConfLevel))/2;

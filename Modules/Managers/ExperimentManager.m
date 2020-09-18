@@ -35,6 +35,7 @@ classdef ExperimentManager < Base.Manager
                 end
                 if isvalid(obj.handles.axExp)
                     cla(obj.handles.axExp,'reset')
+                    subplot(1,1,1,obj.handles.axExp); % Re-center
                 else % Clean up and reset axes
                     delete(allchild(obj.handles.panel_exp));  % Potential memory leak if user doesn't have delete callback to clean up listeners
                     obj.handles.axExp = axes('parent',obj.handles.panel_exp,'tag','axExp');

@@ -138,17 +138,19 @@ classdef MAX302motors < Modules.Stage
         end
         
         % Settings and Callback
-        function settings(obj,panelH)
-            settings@Modules.Stage(obj,panelH); % Add in prefs
-            % Adjust for pref space usage
+        function  settings(obj,panelH,varargin)
+            settings@Modules.Stage(obj,panelH,varargin{:}); % Add in prefs
+            % Adjust for pref space usage (use character units)
             start = 0;
             children = allchild(panelH);
+            set(children,'units','characters');
             for i = 1:length(children)
                 h = sum(children(i).Position([2 4]));
                 if h > start
                     start = h;
                 end
             end
+            start = start + 1; % Give a bit of space between
             spacing = 1.5;
             num_lines = 3;
             line = 1;
@@ -161,7 +163,7 @@ classdef MAX302motors < Modules.Stage
             uicontrol(panelH,'style','PushButton','string','Z Settings','callback',@obj.motorSettings,...
                 'units','characters','position',[0 start+spacing*(num_lines-line) 18 1.25],'UserData',3);
         end
-        function motorSettings(obj,hObj,~)
+        function motorSettings(obj,hObj,~,~)
             axis = hObj.UserData;
             if ~isempty(obj.motors{axis})&&isobject(obj.motors{axis}) && isvalid(obj.motors{axis})
                 obj.motors{axis}.settings;

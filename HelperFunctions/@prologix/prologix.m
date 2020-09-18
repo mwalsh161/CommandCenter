@@ -90,7 +90,7 @@ classdef prologix < handle
     methods(Static)
         function string = escapeString(string)
             % escape character: ESC (ASCII 27)
-            % special characters: CR (ASCII 13), LF (ASCII 10), ESC (ASCII 27), ‘+’ (ASCII 43)
+            % special characters: CR (ASCII 13), LF (ASCII 10), ESC (ASCII 27), â€˜+â€™ (ASCII 43)
             % For strings, we don't want to escape newline characters
             for s = [27 43]  % ESC has to be first!
                 string = strrep(string,char(s),[char(27) char(s)]);
@@ -98,7 +98,7 @@ classdef prologix < handle
         end
         function A = escapeBinary(A)
             % escape character: ESC (ASCII 27)
-            % special characters: CR (ASCII 13), LF (ASCII 10), ESC (ASCII 27), ‘+’ (ASCII 43)
+            % special characters: CR (ASCII 13), LF (ASCII 10), ESC (ASCII 27), â€˜+â€™ (ASCII 43)
             
             % Need to consider: obj.ByteOrder
             % How matlab converts to precision (especially ones that 32 or 64 bit, like long)
@@ -401,9 +401,9 @@ classdef prologix < handle
             varargout = {A,count};
         end
         function varargout = query(obj,varargin)  % Special behavior
-            fprintf(obj.serial,'++auto 1');tic
+            fprintf(obj.serial,'++auto 1');
             [out,count,err] = query(obj.serial,varargin{:});
-            fprintf(obj.serial,'++auto 0');toc
+            fprintf(obj.serial,'++auto 0');
             varargout = {out,count,err};
         end
         function varargout = scanstr(obj,varargin)  % Special behavior

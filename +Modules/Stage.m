@@ -19,15 +19,13 @@ classdef Stage < Base.Module
         yRange                  % Range in um of x axis
         zRange                  % Range in um of x axis
     end
-    properties(Access=private)
-        namespace
-    end
     properties(Constant,Hidden)
         modules_package = 'Stages';
     end
     
     methods(Abstract)
-        % Move to position x,y,z. If feedback is true, make sure to query posHandle
+        % Move to position x,y,z (note this is different call syntax than the manager)
+        % The method should be callable with any of x,y,z as an empty array
         move(obj,x,y,z)
         
         % Return stage to its home. This also resets tracking for many stages.
@@ -40,14 +38,6 @@ classdef Stage < Base.Module
     end
     methods
         function obj = Stage()
-%             d = dbstack('-completenames');
-%             if numel(d) > 1
-%                 name = strsplit(d(2).name,'.');
-%                 name = name{1};
-%             else
-%                 name = mfilename;
-%             end
-            obj.namespace = strrep(class(obj),'.','_');
             if ispref(obj.namespace,'calibration')
                 obj.calibration = getpref(obj.namespace,'calibration');
             end

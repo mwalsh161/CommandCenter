@@ -35,6 +35,6 @@ try
 catch err
     error('Failed to evaluate subsref for type %s: \n%s.',class(a),err.message);
 end
-starts_with = isequal(sub_a,b);
+starts_with = isequaln(sub_a,b);
 end
 

@@ -361,6 +361,15 @@ classdef WinSpec < Modules.Driver
                 rethrow(err)
             end
         end
+        function set_calibration(obj,cfit_obj,gof)
+            assert(isa(cfit_obj,'cfit'),...
+                    sprintf('analysis.nm2THz should be a cfit, not "%s"',class(cfit_obj)));
+            obj.cal_local.nm2THz = cfit_obj;
+            obj.cal_local.gof = gof;
+            obj.cal_local.datetime = datetime;
+            obj.cal_local.source = 'Manually set';
+            
+        end
         
         function cal = calibration(obj,varargin)
             %get the calibration of the spectrometer; this is stored as 
