@@ -2,9 +2,6 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-    end
     properties(Access=private)
         listeners
         status                       % Text object reflecting running
@@ -42,28 +39,17 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
         function tasks = inactive(obj)
             tasks = inactive@Sources.Verdi_invisible(obj);
         end
-        function arm(obj)
-            arm@Sources.Verdi_invisible(obj);
-        end
         function delete(obj)
             delete(obj.listeners)
         end
-        function on(obj)
-            obj.ni.WriteDOLines('532 Laser',1)
-        end
-        function off(obj)
-            obj.ni.WriteDOLines('532 Laser',0)
+        function val = set_source_on(obj, val, ~)
+            obj.ni.WriteDOLines('532 Laser', val)
         end
         
         % Settings and Callbacks
         function update(obj,varargin)
             line = obj.ni.getLines('532 Laser','out');
             obj.source_on = boolean(line.state);
-            if obj.source_on
-                obj.on;
-            else
-                obj.off;
-            end
         end
     end
 end
