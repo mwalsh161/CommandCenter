@@ -2,7 +2,7 @@ classdef SG_Source_invisible < Modules.Source
     % SG_SOURCE_INVISIBLE SuperClass for serial signal generators.
   
     properties (GetObservable, SetObservable)
-        frequency =     Prefs.Double(1e9/Sources.SignalGenerators.SG_Source_invisible.freqUnit2Hz, ...
+        frequency =     Prefs.Double(1e9/Sources.SignalGenerators.SG_Source_invisible.freqUnit2Hz, ... % Default of 1 GHz is immeditely overwritten by hardware.
                                     'units', Sources.SignalGenerators.SG_Source_invisible.freqUnit, ...
                                     'set', 'set_frequency', ...
                                     'help', 'The frquency tone that the signal generator is set at');
@@ -19,7 +19,7 @@ classdef SG_Source_invisible < Modules.Source
     properties (Constant, Hidden)
         noserver = 'No Server';
         freqUnit = 'MHz';
-        freqUnit2Hz = 1e6;
+        freqUnit2Hz = 1e6;  % Convertsion between the frequency unit (this case MHz) and Hz.
     end
     
     properties
@@ -86,25 +86,18 @@ classdef SG_Source_invisible < Modules.Source
         end
         
         function val = set_PB_host(obj,val,~)
-            err = [];
-            
-            try
-                obj.pb = Drivers.PulseBlaster.instance(val);
-            catch err
-                
+            switch val
+                case {'', obj.noserver}     % Allow the user to remove the current PB.
+                    delete(obj.pb);
+                    obj.pb = [];
+                    val = obj.noserver;
+                    obj.source_on = obj.armed;
+                    return
+                otherwise
+                    % Proceed.
             end
             
-            if isempty(obj.pb)
-                obj.PB_host = obj.noserver;
-                if ~isempty(err)
-                    rethrow(err)
-                end
-                return
-            end
-            if ~isempty(err)
-                rethrow(err)
-            end
-            
+            obj.pb = Drivers.PulseBlaster.instance(val);    % This will error if val is an invalid server.
             obj.source_on = obj.pb.lines(obj.PB_line).state;
         end
         function val = set_PB_line(obj,val,~)
@@ -114,7 +107,7 @@ classdef SG_Source_invisible < Modules.Source
         end
         function tf = PB_enabled(obj)
             switch obj.PB_host
-                case obj.noserver
+                case {'', obj.noserver} % Empty should not be possible though.
                     tf = false;
                 otherwise
                     tf = true;
