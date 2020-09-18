@@ -5,7 +5,7 @@ classdef Line < Modules.Driver
         state = Prefs.Boolean(false, 'set', 'set', 'help', 'A line of a PulseBlaster.')
     end
     properties(SetAccess=immutable,Hidden)
-        PB;     % Handle to Drivers.PulseBlaster parent
+        pb;     % Handle to Drivers.PulseBlaster parent
         line;   % Index of the physical line of the parent that this D.PB.Line controls.
     end
     
@@ -31,12 +31,12 @@ classdef Line < Modules.Driver
     end
     methods(Access=private)
         function obj = Line(parent, line)
-            obj.PB = parent;
+            obj.pb = parent;
             obj.line = line;
             p = obj.get_meta_pref('state');
             p.help_text = ['Line ' num2str(line) ' of the PulseBlaster at ' parent.host];
             obj.set_meta_pref('state', p);
-            addlistener(obj.PB,'ObjectBeingDestroyed',@(~,~)obj.delete);
+            addlistener(obj.pb,'ObjectBeingDestroyed',@(~,~)obj.delete);
             %addlistener(obj.PB,'running','PostSet',@(~,~)obj.updateRunning);
         end
     end
@@ -45,11 +45,11 @@ classdef Line < Modules.Driver
             % Do nothing.
         end
         function val = get(obj, ~, ~)
-            lines = obj.PB.getLines();
+            lines = obj.pb.getLines();
             val = lines(obj.line);
         end
         function val = set(obj, val, ~)
-            obj.PB.setLines(obj.line, val);
+            obj.pb.setLines(obj.line, val);     % This will stop a currently-running program and revert to staticLines state.
         end
     end
 end
