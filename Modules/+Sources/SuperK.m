@@ -53,11 +53,10 @@ classdef SuperK < Modules.Source
             end
         end
         function val = set_source_on(obj, val, ~)
+            assert(~isempty(obj.serial),'Not Connected!')
             if val
-                assert(~isempty(obj.serial),'Not Connected!')
                 obj.serial.on()
             else
-                assert(~isempty(obj.serial),'Not Connected!')
                 obj.serial.off();
             end
         end

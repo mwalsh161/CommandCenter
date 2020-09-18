@@ -39,9 +39,6 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
         function tasks = inactive(obj)
             tasks = inactive@Sources.Verdi_invisible(obj);
         end
-        function arm(obj)
-            arm@Sources.Verdi_invisible(obj);
-        end
         function delete(obj)
             delete(obj.listeners)
         end
@@ -53,11 +50,6 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
         function update(obj,varargin)
             line = obj.ni.getLines('532 Laser','out');
             obj.source_on = boolean(line.state);
-            if obj.source_on
-                obj.on;
-            else
-                obj.off;
-            end
         end
     end
 end

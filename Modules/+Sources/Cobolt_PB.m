@@ -42,23 +42,12 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
-        function arm(obj)
-            obj.armed = true;
-        end
-        function blackout(obj)
-            obj.armed = false;
-        end
-        
         function delete(obj)
             delete(obj.serial)
         end
         
-        function val = set_power(obj, val, ~)
-            if obj.isConnected && ~isnan(val)
-                errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
-            else
-                val = NaN;
-            end
+        function val = set_source_on(obj, val, ~)
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
         function val = set_armed(obj, val, ~)   % Turn the diode on or off.
             if obj.isConnected()
@@ -69,6 +58,13 @@ classdef Cobolt_PB < Modules.Source
                 else
                     errorIfNotOK(obj.serial.com('Cobolt', 'l0'));           % Laser off
                 end
+            else
+                val = NaN;
+            end
+        end
+        function val = set_power(obj, val, ~)
+            if obj.isConnected && ~isnan(val)
+                errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
             else
                 val = NaN;
             end
@@ -152,10 +148,6 @@ classdef Cobolt_PB < Modules.Source
             if ~isempty(err)
                 rethrow(err)
             end
-        end
-        
-        function val = set_source_on(obj, val, ~)
-            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
     end
 end

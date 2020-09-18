@@ -30,25 +30,22 @@ classdef Laser532_PB < Modules.Source & Sources.Verdi_invisible
         function tasks = inactive(obj)
             tasks = inactive@Sources.Verdi_invisible(obj);
         end
-        function arm(obj)
-            arm@Sources.Verdi_invisible(obj);
-        end
-        function set.ip(obj,val) %this loads the pulseblaster driver
+        function set.PB_host(obj,val) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
                 obj.source_on = 0;
-                obj.ip = val;
+                obj.PB_host = val;
                 return
             end
             err = [];
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
-                obj.ip = val;
+                obj.PB_host = val;
             catch err
                 obj.PulseBlaster = [];
                 obj.source_on = 0;
-                obj.ip = 'No Server';
+                obj.PB_host = 'No Server';
             end
             if ~isempty(err)
                 rethrow(err)

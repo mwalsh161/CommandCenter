@@ -65,7 +65,7 @@ classdef SG_Source_invisible < Modules.Source
         
         function val = set_source_on(obj, val, ~)
             if obj.PB_enabled()     % If there is a PulseBlaster connected, then use on/off for this.
-                obj.pb.line(obj.PB_line) = val;
+                obj.pb.lines(obj.PB_line).state = val;
             else                    % Otherwise, turn toggle arm (the source's RF on/off)
                 obj.armed = val;    % This is normally dangerous, but because set_armed doesn't reference source_on, it's okay.
             end
@@ -83,12 +83,6 @@ classdef SG_Source_invisible < Modules.Source
 %             if ~obj.PB_enabled()
 %                 obj.source_on = val;
 %             end
-        end
-        function arm(obj)
-            obj.armed = true;
-        end
-        function blackout(obj)
-            obj.armed = false;
         end
         
         function val = set_PB_host(obj,val,~)

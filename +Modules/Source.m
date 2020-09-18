@@ -31,9 +31,10 @@ classdef Source < Base.Module
     methods(Abstract)   % For the user to set to interface with the "fast" hardware.
         val = set_source_on(obj, val, ~)
     end
-    methods             % Methods for backwards compatibility with code that uses the old on() and off() methods. Now simply wraps source_on.
+    methods(Sealed)     % Methods for backwards compatibility with code that uses the old on() and off() methods. Now simply wraps source_on.
         function on(obj)     % Turn source on
             obj.source_on = true;
+            % Don't arm in case one is just testing modulation without light.
         end
         function off(obj)    % Turn source off
             obj.source_on = false;
@@ -70,12 +71,13 @@ classdef Source < Base.Module
             end
         end
     end
-    methods             % Methods for backwards compatibility with code that uses the old arm() and blackout() methods. Now simply wraps armed.
+    methods(Sealed)     % Methods for backwards compatibility with code that uses the old arm() and blackout() methods. Now simply wraps armed.
         function arm(obj)
             obj.armed = true;
         end
         function blackout(obj)
             obj.armed = false;
+            obj.source_on = false;      % Also turn fast modulation off so GUI is red.
         end
     end
     
