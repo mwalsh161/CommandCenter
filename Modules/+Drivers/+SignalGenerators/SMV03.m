@@ -1,5 +1,5 @@
-classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator 
-    % Matlab Object Class implementing control for SMIQ06B Signal Generator
+classdef SMV03 < Drivers.SignalGenerators.SignalGenerator 
+    % Matlab Object Class implementing control for SMV03 Signal Generator
     %
     %
     % Primary purpose of this is to control the SG
@@ -25,7 +25,7 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
             mlock;
             persistent Objects
             if isempty(Objects)
-                Objects = Drivers.SignalGenerators.SMIQ06B.empty(1,0);
+                Objects = Drivers.SignalGenerators.SMV03.empty(1,0);
             end
             for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(name,Objects(i).singleton_id)
@@ -33,7 +33,7 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
                     return
                 end
             end
-            obj = Drivers.SignalGenerators.SMIQ06B();
+            obj = Drivers.SignalGenerators.SMV03();
             obj.singleton_id = name;
             Objects(end+1) = obj;
         end
@@ -41,37 +41,31 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
     end
     
     methods(Access=private)
-        function [obj] = SMIQ06B()
+        function [obj] = SMV03()
             obj.SG_init;
         end
     end
     
     methods(Access=private)
-        function DeleteListFreq(obj)
-            string  = sprintf('LIST:DELete:FREQ');
-            obj.writeOnly(string);
-        end
-        
-        function DeleteListPower(obj)
-            string  = sprintf('LIST:DELete:POWer');
-            obj.writeOnly(string);
-        end
-        
-        function  ListLearn(obj)
-            string = sprintf('SOURCE:LIST:LEARN');
-            obj.writeOnly(string);
-        end
         
         function writeOnly(obj,string)
             fprintf(obj.comObject,string);
+            err = obj.getError;
+            if ~isempty(err)
+                warning(err)
+            end
         end
         
         function [output] = writeRead(obj,string)
             output = query(obj.comObject,string);
+            err = obj.getError;
+            if ~isempty(err)
+                warning(err)
+            end
         end
         
         function  setListTrig(obj,ListTrig)
-            string = sprintf('TRIGGER:LIST:SOURCE %s',ListTrig);
+            string = sprintf('TRIGGER:SWEEP:SOURCE %s',ListTrig);
             obj.writeOnly(string);
         end
         
@@ -80,8 +74,8 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
                 case {'FIX','CW'}
                     obj.writeOnly('SOUR:FREQ:MODE FIX');
                 case {'LIST'}
-                    obj.writeOnly('SOURCE:FREQUENCY:MODE LIST');
-                    obj.writeOnly('SOURCE:LIST:MODE STEP');     %Only STEP modes can be used
+                    obj.writeOnly('SOURCE:FREQUENCY:MODE SWEEP');
+                    obj.writeOnly('SOURCE:SWEEP:MODE STEP');     %Only STEP modes can be used
                 otherwise
                     warning('No frequency mode was set');
             end
@@ -99,7 +93,8 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
             obj.writeOnly('UNIT:POWER DBM');
         end
         
-        function  setFreqCW(obj,Freq)
+        function setFreqCW(obj,Freq)
+            obj.setFreqMode('CW');
             string = sprintf(':FREQuency:FIXed %f', Freq);  % Hz
             obj.writeOnly(string);
         end
@@ -110,40 +105,31 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
         end
         
         function  setFreqList(obj,FreqList)
-            
-            obj.DeleteListFreq();
-            
-            obj.writeOnly('*WAI');
-            
-            NumberOfPoints = length(FreqList);
-            
-            clear string;
-            
-            if NumberOfPoints > 0
-                string = sprintf('%f,' ,FreqList);
-                string = string(1:end-1); % strip final comma
-                string = [':LIST:FREQUENCY ',string];
-                obj.writeOnly(string);
+            % In Hz
+            step = diff(FreqList);
+            if all(step(1)~=step)
+                warning('%s can only do fixed spacing sweeps. Continuing with start, stop and npoints.')
             end
-            obj.writeOnly('*WAI');
+            start = FreqList(1);
+            stop = FreqList(end);
+            if length(FreqList)==1
+                step = 0;
+            else
+                step = (stop-start)/(length(FreqList)-1);
+            end
+            if step > 3e9
+                error('%s can only step between 0 and 3 GHZ',mfilename);
+            end
+            string = sprintf(':SOURCE:FREQUENCY:START %f HZ',start);
+            obj.writeOnly(string);
+            string = sprintf(':SOURCE:FREQUENCY:STOP %f HZ',stop);
+            obj.writeOnly(string);
+            string = sprintf(':SOURCE:SWEEP:FREQUENCY:STEP:LINEAR %f HZ',step);
+            obj.writeOnly(string);
         end
         
         function  setPowerList(obj,PowerList)
-            
-            obj.DeleteListPower();
-            
-            obj.writeOnly('*WAI');
-            NumberOfPoints = length(PowerList);
-            
-            clear string;
-            
-            if NumberOfPoints > 0
-                string = sprintf('%f,' ,PowerList);
-                string = string(1:end-1); % strip final comma
-                string = ['SOURCE:LIST:POWER ',string];
-                obj.writeOnly(string);
-            end
-            obj.writeOnly('*WAI');
+            error('does not exist for %s',mfilename);
         end
         
         %%
@@ -177,18 +163,6 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
             PowerMode = strrep(s,newline,''); %remove excess carriage returns;
         end
         
-        function  [FreqList]=getFreqList(obj)
-            string = sprintf('LIST:FREQ?');
-            s = obj.writeRead(string);
-            FreqList = str2double(s);
-        end
-        
-        function  [PowerList]=getPowerList(obj)
-            string = sprintf('LIST:POWer?');
-            s = obj.writeRead(string);
-            PowerList = str2double(s);
-        end
-        
         function  [MWstate]=getMWstate(obj)
             string = sprintf('OUTPUT:STATE?');
             s = obj.writeRead(string);
@@ -199,23 +173,18 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
             end
         end
         
-        function program_list(obj,freq_list,power_list)
+        function program_list(obj,freq_list,power)
             obj.reset;
-            obj.on;
-            obj.setFreqMode('CW');
-            obj.setPowerMode('CW');
-            obj.select_list('LIST1')
-            obj.setFreqList(freq_list);
-            obj.setPowerList(power_list);
-            obj.ListLearn;
             obj.setFreqMode('LIST');
-            obj.setPowerMode('LIST');
             obj.setListTrig('EXT');
+            obj.setFreqList(freq_list);
+            assert(all(power(1)==power),'All powers must be same')
+            obj.setPowerCW(power(1));
+            obj.on;
         end
         
         function select_list(obj,listname)
-            assert(ischar(listname),'SMIQ list name must be a string.')
-            obj.writeOnly(['SOUR:LIST:SEL ''' listname ''''])
+            error('Not implemented')
         end
         
         %% 
@@ -230,11 +199,6 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
         end
         
         function delete(obj)
-            try
-                obj.reset;
-            catch
-                
-            end
             fclose(obj.comObject);
             delete(obj.comObject);
         end
@@ -242,6 +206,20 @@ classdef SMIQ06B < Drivers.SignalGenerators.SignalGenerator
         function  reset(obj)
             string = sprintf('*RST');
             obj.writeOnly(string);
+        end
+        
+        function errs = getError(obj)
+            % Grab errors, but timeout after 1 second
+            t = tic;
+            errs  = {};
+            while toc(t) < 1
+                err = strip(query(obj.comObject,'SYSTEM:ERROR?'));
+                if contains(err,'No error')
+                    break
+                end
+                errs{end+1} = err;
+            end
+            errs = strjoin(errs,newline);
         end
         
     end
