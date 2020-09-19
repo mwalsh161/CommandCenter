@@ -4,6 +4,8 @@ classdef Button < Base.pref
     properties(Hidden)
         default = false;    % Completely unused.
         ui = Prefs.Inputs.ButtonField;
+    end
+    properties
         string = {'', @(a)validateattributes(a,{'char'},{'vector'})};   % String to display on the button
     end
     

@@ -116,7 +116,7 @@ classdef SG_Source_invisible < Modules.Source
             end
         end
         
-        function set_reset_serial(obj, ~, ~)
+        function val = set_reset_serial(obj, ~, ~)
             obj.serial.comObjectInfo = [];
             obj.serial.savePrefs();
             delete(obj);    % Suicide.
