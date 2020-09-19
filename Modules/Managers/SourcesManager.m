@@ -77,7 +77,7 @@ classdef SourcesManager < Base.Manager
                 obj.modules{i}.updateCommandCenter(obj, 0, 0);  % Update empty strings to be correct.
             end
             
-            h.Value = numel(obj.modules);                       % Always go to the newly-added module.
+            drawnow expose;
         end
     end
 
