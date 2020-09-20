@@ -1,10 +1,12 @@
 classdef Hewlett_Packard < Sources.SignalGenerators.SG_Source_invisible
     %Hewlett Packard serial source class
     
+    properties(GetObservable, SetObservable)
+        serial = Prefs.ComObject([], 'driver_instantiation', @(comObject,comObjectInfo)Drivers.SignalGenerators.Hewlett_Packard.instance('SG',comObject,comObjectInfo));
+    end
+    
     methods(Access=protected)
         function obj = Hewlett_Packard()
-            obj.serial = Drivers.SignalGenerators.Hewlett_Packard.instance('SG');
-            
             obj.init();
         end
     end

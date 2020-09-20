@@ -6,37 +6,11 @@ classdef SignalGenerator < Modules.Driver
     end
     
     methods
-        function SG_init(obj)
+        function SG_init(obj, comObject, comObjectInfo)
             % Call this on subclasses during instatiation
             obj.loadPrefs;
-            
-            if ~isstruct(obj.comObjectInfo)
-                obj.comObjectInfo = struct('comType','','comAddress','','comProperties','');
-            end
-            
-            % Note fopen(obj.comObject) can error if incorrect address supplied
-            if isempty(obj.comObjectInfo.comType)&& isempty(obj.comObjectInfo.comAddress)&& isempty(obj.comObjectInfo.comProperties)
-                %first time connecting should run the helper function
-                %Connect_Device to establish your connection
-                [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = Connect_Device;
-                fopen(obj.comObject);
-            else
-                try
-                    %this is used for connecting every time after the first
-                    %time
-                    [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] = ...
-                        Connect_Device(obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties);
-                    fopen(obj.comObject);
-                catch
-                    %this is only called if you change a device property
-                    %after the initial connection (ex: change GPIB
-                    %address). This allows you to establish a new
-                    %connection.
-                    [obj.comObject,obj.comObjectInfo.comType,obj.comObjectInfo.comAddress,obj.comObjectInfo.comProperties] ...
-                        = Connect_Device;
-                    fopen(obj.comObject);
-                end
-            end
+            obj.comObject = comObject;
+            obj.comObjectInfo = comObjectInfo;
             obj.reset; %set the SG to a known state
         end
         

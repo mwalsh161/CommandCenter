@@ -14,9 +14,8 @@ classdef SG_Source_invisible < Modules.Source
                                     'help', 'IP/hostname of computer with PB server');
         PB_line =       Prefs.Integer(1, 'min', 1, 'allow_nan', false, 'set', 'set_PB_line', ...
                                     'help', 'Indexed from 1');
-                                
-        reset_serial =  Prefs.Button('string', 'Reset', 'set', 'set_reset_serial', ...
-                                    'help', 'Push this to kill the current comport (serial, gpib, ...) and be able to reset it upon restart. Future: make this less terrible.')
+        %reset_serial =  Prefs.Button('string', 'Reset', 'set', 'set_reset_serial', ...
+        %                            'help', 'Push this to kill the current comport (serial, gpib, ...) and be able to reset it upon restart. Future: make this less terrible.')
     end
     
     properties (Constant, Hidden)
@@ -26,8 +25,11 @@ classdef SG_Source_invisible < Modules.Source
     end
     
     properties
-        serial;
         pb;
+    end
+    
+    properties (Abstract)
+        serial;
     end
    
     methods
@@ -60,7 +62,7 @@ classdef SG_Source_invisible < Modules.Source
         
         function init(obj)  % Called by signal generators after instantiation to load prefs and current hardware freq/power.
             obj.loadPrefs;
-            
+            obj.serial = true; % Just used to trigger serial set method, which ensures that there will be a valid serial object
             obj.frequency = obj.get_frequency();
             obj.power =     obj.get_power();
         end

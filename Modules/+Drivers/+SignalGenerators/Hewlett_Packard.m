@@ -23,7 +23,7 @@ classdef Hewlett_Packard < Drivers.SignalGenerators.SignalGenerator
   
     methods(Static)
         
-        function obj = instance(name)
+        function obj = instance(name, comObject, comObjectInfo)
             mlock;
             persistent Objects
             if isempty(Objects)
@@ -35,15 +35,15 @@ classdef Hewlett_Packard < Drivers.SignalGenerators.SignalGenerator
                     return
                 end
             end
-            obj = Drivers.SignalGenerators.Hewlett_Packard();
+            obj = Drivers.SignalGenerators.Hewlett_Packard(comObject, comObjectInfo);
             obj.singleton_id = name;
             Objects(end+1) = obj;
         end
     end
     
     methods(Access=private)
-        function [obj] = Hewlett_Packard()
-            obj.SG_init;
+        function [obj] = Hewlett_Packard(comObject, comObjectInfo)
+            obj.SG_init(comObject, comObjectInfo);
         end
     end
     
