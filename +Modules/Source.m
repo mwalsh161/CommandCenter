@@ -23,7 +23,8 @@ classdef Source < Base.Module
     end
     methods
         function obj = Source
-            addlistener(obj,'source_on','PostSet',@obj.updateCommandCenter);
+            addlistener(obj, 'source_on',   'PostSet', @obj.updateCommandCenter);
+            addlistener(obj, 'armed',       'PostSet', @obj.updateCommandCenter);
         end
     end
     
@@ -53,17 +54,21 @@ classdef Source < Base.Module
                     % Note: this method will be called everytime a user manually
                     % turns a source on from CC GUI, so the developer is responsible
                     % for ensuring extra work isn't performed if not necessary.
-                    resp = questdlg('Source not armed; please arm source manually, then click "Ok" (disable this warning by overwriting val = set_armed(obj, val, ~))','Arm (Modules.Source)','Ok','Cancel','Ok');
-                    if ~strcmp(resp,'Ok')
-                        error('%s not armed',class(obj))
+                    resp = questdlg(['Source not armed; please arm source manually, then click "Ok" ' ...
+                            '(disable this warning by overwriting val = set_armed(obj, val, ~))','Arm (Modules.Source)'], ...
+                            'Ok', 'Cancel', 'Ok');
+                    if ~strcmp(resp, 'Ok')
+                        error('%s not armed',class(obj));
                     end
                 else
                     %this method should do whatever is necessary to completely
                     %block emissions from the source; for example, this may include
                     %powering off a source
-                    resp = questdlg('Source is armed; please blackout source manually, then click "Ok" (disable this warning by overwriting val = set_armed(obj, val, ~))','Blackout (Modules.Source)','Ok','Cancel','Ok');
-                    if ~strcmp(resp,'Ok')
-                        error('%s not blacked out',class(obj))
+                    resp = questdlg(['Source is armed; please blackout source manually, then click "Ok" ' ...
+                            '(disable this warning by overwriting val = set_armed(obj, val, ~))'],'Blackout (Modules.Source)', ...
+                            'Ok','Cancel','Ok');
+                    if ~strcmp(resp, 'Ok')
+                        error('%s not blacked out',class(obj));
                     end
                 end
             else
@@ -77,7 +82,6 @@ classdef Source < Base.Module
         end
         function blackout(obj)
             obj.armed = false;
-            obj.source_on = false;      % Also turn fast modulation off so GUI is red.
         end
     end
     
@@ -85,13 +89,21 @@ classdef Source < Base.Module
         function updateCommandCenter(obj,~,~)
             if isstruct(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
                 i = obj.CC_dropdown.i;
+                
                 name = strsplit(class(obj),'.');
                 short_name = strjoin(name(2:end),'.');
-                if obj.source_on
-                    obj.CC_dropdown.h.String{i} = sprintf('<HTML><FONT COLOR="green">%s</HTML>',short_name);
+                
+                if obj.source_on && obj.armed
+                    color = 'rgb(0,255,0)';
+                elseif obj.armed
+                    color = 'rgb(255,128,0)';
+                elseif obj.source_on
+                    color = 'rgb(255,69,0)';
                 else
-                    obj.CC_dropdown.h.String{i} = sprintf('<HTML><FONT COLOR="red">%s</HTML>',short_name);
+                    color = 'rgb(255,0,0)';
                 end
+                
+                obj.CC_dropdown.h.String{i} = sprintf('<html><font color=%s>%s</html>', color, short_name);
             end
         end
     end

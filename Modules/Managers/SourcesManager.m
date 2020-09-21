@@ -62,21 +62,22 @@ classdef SourcesManager < Base.Manager
             if isempty(obj.modules)
                 return
             end
+            
             h = obj.handles.sources_select;
+            
             for i = 1:numel(obj.modules)
-                mod_dropdown_struct.h = h;
-                mod_dropdown_struct.i = i;
-                obj.modules{i}.CC_dropdown = mod_dropdown_struct;
-                % Initialize with correct color, but any update after this
-                % is handled in Modules.Source
-                name = strsplit(class(obj.modules{i}),'.');
-                short_name = strjoin(name(2:end),'.');
-                if obj.modules{i}.source_on
-                    h.String{i} = sprintf('<HTML><FONT COLOR="green">%s</HTML>',short_name);
-                else
-                    h.String{i} = sprintf('<HTML><FONT COLOR="red">%s</HTML>',short_name);
-                end
+                dropdown.h = h;                                 % Handle to dropdown.
+                dropdown.i = i;                                 % Index of this dropdown element.
+                obj.modules{i}.CC_dropdown = dropdown;
+                
+                h.String{i} = '';                               % Initialize with empty strings.
             end
+            
+            for i = 1:numel(obj.modules)
+                obj.modules{i}.updateCommandCenter(obj, 0, 0);  % Update empty strings to be correct.
+            end
+            
+            drawnow expose;
         end
     end
 
