@@ -74,7 +74,7 @@ classdef SourcesManager < Base.Manager
             end
             
             for i = 1:numel(obj.modules)
-                obj.modules{i}.updateCommandCenter(obj, 0, 0);  % Update empty strings to be correct.
+                obj.modules{i}.updateCommandCenter(0, 0);       % Update empty strings to be correct.
             end
             
             drawnow expose;

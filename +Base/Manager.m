@@ -659,7 +659,7 @@ classdef Manager < handle
                 if ~isempty(temp)
                     obj.modules{end+1} = temp{1};
                     % Set the selected module to the one that was just added.
-                    obj.setActiveModule(obj, numel(obj.modules));
+                    obj.setActiveModule(numel(obj.modules));
                 end
             else
                 % This means the module IS currently loaded
