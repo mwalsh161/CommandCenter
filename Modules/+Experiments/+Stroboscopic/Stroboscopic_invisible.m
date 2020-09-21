@@ -2,18 +2,21 @@ classdef Stroboscopic_invisible < Modules.Experiment
     %
 
     properties(SetObservable,AbortSet)
+        PB_host =       Prefs.String(Experiments.Stroboscopic.Stroboscopic_invisible.noserver, 'set', 'set_PB_host', 'help', 'IP/hostname of computer with PB server');
+        
         samples =       Prefs.Integer(1, 'min', 1);
-        time =          Prefs.Double(1, 'min', 1, 'units', 's');
+        time =          Prefs.Double(1, 'min', 1, 'units', 's', 'read_only', true);
         
         render =        Prefs.Boolean(false, 'set', 'set_render');
         
         image =         Prefs.ModuleInstance('inherits', {'Modules.Imaging'});
-        image_chn =     Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21);
+        image_line =    Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
+                                        'help', 'PulseBlaster channel that triggers the camera. Unused if NaN.');
         
         image_pre =     Prefs.Double(0, 'min', 0, 'units', 'ms');
         image_post =    Prefs.Double(0, 'min', 0, 'units', 'ms');
         
-        pump_chn =      Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
+        pump_line =     Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
                                         'help', 'PulseBlaster channel that the pump modulator is connected to. Experiment will not start if NaN.');
         pump_tau =      Prefs.Double(5, 'min', 0, 'units', 'us', ...
                                         'help', 'Time that the pump is on. Increasing tau increases intialization fidelity, yet decreases SNR.');
@@ -27,6 +30,9 @@ classdef Stroboscopic_invisible < Modules.Experiment
         s;      % Current pulsesequence.
         f;      % Handle to the figure that displays the pulse sequence.
         a;      % Handle to the axes that displays the pulse sequence.
+    end
+    properties(Constant, Hidden)
+        noserver = 'No Server';
     end
     methods(Static)
         function obj = instance(varargin)
@@ -75,6 +81,29 @@ classdef Stroboscopic_invisible < Modules.Experiment
             obj.s.simulate(obj.a);
             
             val = false;
+        end
+        
+        function val = set_PB_host(obj,val,~)
+            err = [];
+            
+            try
+                obj.pb = Drivers.PulseBlaster.StaticLines.instance(val);
+            catch err
+                
+            end
+            
+            if isempty(obj.pb)
+                obj.PB_host = obj.noserver;
+                if ~isempty(err)
+                    rethrow(err)
+                end
+                return
+            end
+            if ~isempty(err)
+                rethrow(err)
+            end
+            
+            obj.source_on = obj.pb.lines(obj.PB_line);
         end
         function run(obj, status, managers, ax)
             obj.s = obj.BuildPulseSequence();

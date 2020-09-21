@@ -2,7 +2,7 @@ classdef Hahn < Experiments.Stroboscopic.Stroboscopic_invisible
     % 
 
     properties(SetObservable,AbortSet)
-        mw_chn =      Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
+        mw_line =     Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
                                         'help', 'PulseBlaster channel that the microwave switch is connected to. Experiment will not start if NaN.');
         mw_tau =      Prefs.Double(5, 'min', 0, 'units', 'us', ...
                                         'help', ['Total deadtime between microwave pulses. '...
@@ -45,8 +45,8 @@ classdef Hahn < Experiments.Stroboscopic.Stroboscopic_invisible
         function s = BuildPulseSequence(obj)
             s = sequence('Ramsey');
             
-            pump =  channel('pump',     'color', 'g', 'hardware', obj.pump_chn-1);
-            mw =    channel('MW',       'color', 'b', 'hardware', obj.mw_chn-1);
+            pump =  channel('pump',     'color', 'g', 'hardware', obj.pump_line-1);
+            mw =    channel('MW',       'color', 'b', 'hardware', obj.mw_line-1);
             
             s.channelOrder = [pump mw];
 
