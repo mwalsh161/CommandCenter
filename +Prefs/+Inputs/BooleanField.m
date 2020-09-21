@@ -12,7 +12,7 @@ classdef BooleanField < Prefs.Inputs.LabelControlBasic
                 obj.ui.Value = false;
                 obj.ui.Style = obj.nanuistyle;
                 obj.ui.Enable = 'off';
-            else            % Change to square (checkbox) and disable if read_only
+            else            % Change to square (checkbox) and enable if not read_only
                 obj.ui.Value = logical(val);
                 obj.ui.Style = obj.uistyle;
                 if obj.ui.UserData  % Copy of read_only
