@@ -1,5 +1,10 @@
 classdef Button < Base.pref
-    %BUTTON for access to a "set" method that the user can activate on click.
+    %BUTTON for access to a "set" method that the user can activate on click. For instance, 
+    %
+    %    Prefs.Button('name', 'Greeting', 'string', 'Click Me!' 'set', @(~,~)(disp('Hello World')) )
+    %
+    % will create a UI line with 'Greeting: [ Click Me! ]' where the button is square bracketed.
+    % Clicking the button will execute the set function and display 'Hello World' in the console.
     
     properties(Hidden)
         default = false;    % Completely unused.

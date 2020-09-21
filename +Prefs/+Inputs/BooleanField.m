@@ -8,14 +8,14 @@ classdef BooleanField < Prefs.Inputs.LabelControlBasic
     
     methods
         function set_value(obj,val)
-            if isnan(val)
+            if isnan(val)   % Change to circle (radiobutton) and disable
                 obj.ui.Value = false;
                 obj.ui.Style = obj.nanuistyle;
                 obj.ui.Enable = 'off';
-            else
+            else            % Change to square (checkbox) and disable if read_only
                 obj.ui.Value = logical(val);
                 obj.ui.Style = obj.uistyle;
-                if obj.ui.UserData
+                if obj.ui.UserData  % Copy of read_only
                     obj.ui.Enable = 'on';
                 else
                     obj.ui.Enable = 'off';
