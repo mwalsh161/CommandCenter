@@ -55,7 +55,7 @@ classdef Source < Base.Module
                     % turns a source on from CC GUI, so the developer is responsible
                     % for ensuring extra work isn't performed if not necessary.
                     resp = questdlg(['Source not armed; please arm source manually, then click "Ok" ' ...
-                            '(disable this warning by overwriting val = set_armed(obj, val, ~))','Arm (Modules.Source)'], ...
+                            '(disable this warning by overwriting val = set_armed(obj, val, ~))'],'Arm (Modules.Source)', ...
                             'Ok', 'Cancel', 'Ok');
                     if ~strcmp(resp, 'Ok')
                         error('%s not armed',class(obj));
@@ -85,7 +85,7 @@ classdef Source < Base.Module
         end
     end
     
-    methods(Access=private)
+    methods(Hidden)
         function updateCommandCenter(obj,~,~)
             if isstruct(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
                 i = obj.CC_dropdown.i;

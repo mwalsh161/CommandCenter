@@ -19,7 +19,7 @@ classdef Line < Modules.Driver
             [~,host_resolved] = resolvehost(parent.host);
             id = [host_resolved '_line' num2str(line)];
             for ii = 1:length(Objects)
-                if isvalid(Objects(ii)) && isvalid(Objects(ii).PB) && isequal(id, Objects(ii).singleton_id)
+                if isvalid(Objects(ii)) && isvalid(Objects(ii).pb) && isequal(id, Objects(ii).singleton_id)
                     obj = Objects(ii);
                     return
                 end
@@ -37,7 +37,7 @@ classdef Line < Modules.Driver
             p.help_text = ['Line ' num2str(line) ' of the PulseBlaster at ' parent.host];
             obj.set_meta_pref('state', p);
             addlistener(obj.pb,'ObjectBeingDestroyed',@(~,~)obj.delete);
-            %addlistener(obj.PB,'running','PostSet',@(~,~)obj.updateRunning);
+            %addlistener(obj.pb,'running','PostSet',@(~,~)obj.updateRunning);
         end
     end
     methods

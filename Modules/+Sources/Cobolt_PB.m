@@ -41,34 +41,12 @@ classdef Cobolt_PB < Modules.Source
                 task = 'Attempted to turn diode off; FAILED';
             end
         end
-<<<<<<< HEAD
-
-        function arm(obj)
-            obj.armed = true;
-        end
-        function blackout(obj)
-            obj.armed = false;
-        end
-
-=======
-        
->>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
         function delete(obj)
             delete(obj.serial)
         end
-<<<<<<< HEAD
-
-        function val = set_power(obj, val, ~)
-            if obj.isConnected && ~isnan(val)
-                errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
-            else
-                val = NaN;
-            end
-=======
         
         function val = set_source_on(obj, val, ~)
             obj.PulseBlaster.lines(obj.PB_line).state = val;
->>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
         end
         function val = set_armed(obj, val, ~)   % Turn the diode on or off.
             if obj.isConnected()
@@ -83,9 +61,7 @@ classdef Cobolt_PB < Modules.Source
                 val = NaN;
             end
         end
-<<<<<<< HEAD
-
-=======
+        
         function val = set_power(obj, val, ~)
             if obj.isConnected && ~isnan(val)
                 errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
@@ -93,8 +69,6 @@ classdef Cobolt_PB < Modules.Source
                 val = NaN;
             end
         end
-        
->>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
         function val = get_power(obj, ~)
             val = obj.serial.com('Cobolt', 'glmp?');    % Get laser modulation power (mW)
         end
@@ -174,29 +148,6 @@ classdef Cobolt_PB < Modules.Source
                 rethrow(err)
             end
         end
-<<<<<<< HEAD
-
-<<<<<<< HEAD
-        function on(obj)
-            assert(~isempty(obj.PulseBlaster), 'No host set!')
-            obj.PulseBlaster.lines(obj.PB_line).state = true;
-            obj.source_on = true;
-        end
-        function off(obj)
-            assert(~isempty(obj.PulseBlaster), 'No host set!')
-            obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PB_line).state = false;
-=======
-        function val = set_source_on(obj, val, ~)
-            obj.PulseBlaster.lines(obj.PB_line) = val;
->>>>>>> f9dffac692836587ccf50e52092a25065de8404c
-        end
-
-%         function isRunning(obj,varargin)
-%             obj.PB_running = obj.PulseBlaster.running;
-%         end
-=======
->>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
     end
 end
 
