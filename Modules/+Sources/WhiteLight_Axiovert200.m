@@ -51,11 +51,10 @@ classdef WhiteLight_Axiovert200 < Modules.Source
             end
         end
         function val = set_source_on(obj, val, ~)
-            if val
-                obj.ZeissDriver.HaloLampState = 1;
-            else
-                obj.ZeissDriver.HaloLampState = 0;
-            end
+            obj.ZeissDriver.HaloLampState = logical(val);
+        end
+        function val = set_armed(obj, val, ~)
+            % Opt out of armed warning.
         end
         
         % Settings and Callbacks

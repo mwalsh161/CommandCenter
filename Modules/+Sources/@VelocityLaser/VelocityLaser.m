@@ -21,7 +21,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     properties
         prefs = {'PB_line','PB_host','velocity_host','wavemeter_host','wavemeter_channel',...
                  'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
-        show_prefs = {'PB_status','tuning','armed','wavemeter_active','PB_line','PB_host',...
+        show_prefs = {'tuning','armed','wavemeter_active','PB_line','PB_host',...
             'velocity_host','wavemeter_channel','wavemeter_host','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
@@ -47,8 +47,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         
         PB_host =               Prefs.String(Sources.VelocityLaser.noserver,'set','set_PB_host','help','IP/hostname of computer with PB server');
         PB_line =               Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PB_line','help','Indexed from 1');
-        PB_status =             Prefs.String('Unknown','readonly',true);
-        running =               Prefs.Boolean(false,'help','Boolean specifying if StaticLines program running');
         
         velocity_host =         Prefs.String(Sources.VelocityLaser.noserver,'set','set_velocity_host','help','IP/hostname of computer with hwserver for velocity laser');
         
@@ -64,7 +62,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     end
     properties(Access=private)
         calibration_timeout_override = false; %if user chooses to ignore, ignore until inactive
-        listeners
         path_button
     end
     properties(SetAccess=private)
@@ -96,12 +93,39 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         function task = inactive(obj)
             task = 'Turning diode power and wavemeter switch channel off';
             obj.calibration_timeout_override = false;
-            obj.deactivate;
+            obj.blackout;
+        end
+        
+        function val = set_source_on(obj, val, ~)
+            assert(~isempty(obj.PulseBlaster),'No IP set!')
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
+        end
+        
+        function val = set_armed(obj, val, pref)
+            if val ~= pref.value
+                if isnan(val); return; end %short-circuit if set to nan
+                assert(~isempty(obj.serial),'No Velocity Laser connected');
+                % This requires some time, so have msgbox appear
+                st = dbstack(1);
+                if ~any(strcmpi({st.name},'VelocityLaser.set_velocity_host'))
+                    if val
+                        [~] = obj.calibration;
+                        f = msgbox('Turning laser diode on, please wait...');
+                        obj.serial.on;
+                        obj.activate;
+                        delete(f);
+                    else
+                        obj.serial.off;
+                        obj.deactivate;
+                    end
+                end
+            else
+                % AbortSet
+            end
         end
         function activate(obj)
             % Will error if not able to
             assert(~isempty(obj.wavemeter)&&~isempty(obj.serial),'Wavemeter and velocity do not exist')
-            obj.armed = true;
             obj.wavemeter_active = true;
             % Make sure piezo is reset correctly
             obj.TunePercent(50); % Should center input voltage range
@@ -121,22 +145,12 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             elseif ~strcmp(obj.wavemeter_host,Sources.VelocityLaser.noserver)
                 warning('Wavemeter IP set, but not connected!');
             end
-            if ~isempty(obj.serial)
-                try
-                    obj.armed = false;
-                catch err
-                    errs{end+1} = err.message;
-                end
-            elseif ~strcmp(obj.velocity_host,Sources.VelocityLaser.noserver)
-                warning('Velocity IP set, but not connected!');
-            end
             if ~isempty(errs)
                 error(strjoin(errs,[newline newline]))
             end
         end
         function delete(obj)
-            delete(obj.listeners)
-            obj.deactivate; % Close up
+            obj.blackout(); % Close up
         end
         
         function err = connect_driver(obj,propname,drivername,varargin)
@@ -171,7 +185,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             obj.armed = obj.serial.getDiodeState;
         end
         function val = set_PB_host(obj,val,~)
-            err = obj.connect_driver('PulseBlaster','PulseBlaster.StaticLines',val);
+            err = obj.connect_driver('PulseBlaster','PulseBlaster',val);
             obj.isRunning;
             if isempty(obj.PulseBlaster)
                 obj.PB_host = Sources.VelocityLaser.noserver;
@@ -183,13 +197,11 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~isempty(err)
                 rethrow(err)
             end
-            obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
-            delete(obj.listeners);
-            obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
+            obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
         end
         function val = set_PB_line(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-                obj.source_on = obj.PulseBlaster.lines(val);
+                obj.source_on = obj.PulseBlaster.lines(val).state;
             end
         end
         function val = set_wavemeter_host(obj,val,~)
@@ -213,21 +225,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 rethrow(err)
             end
         end
-        function val = set_armed(obj,val,~)
-            if isnan(val); return; end %short-circuit if set to nan
-            assert(~isempty(obj.serial),'No Velocity Laser connected');
-            % This requires some time, so have msgbox appear
-            st = dbstack(1);
-            if ~any(strcmpi({st.name},'VelocityLaser.set_velocity_host'))
-                if val
-                    f = msgbox('Turning laser diode on, please wait...');
-                    obj.serial.on;
-                    delete(f);
-                else
-                    obj.serial.off;
-                end
-            end
-        end
+        
         function val = set_wavemeter_active(obj,val,~)
             if isnan(val);val=false;return;end %short-circuit if set to nan but keep false for settings method
             assert(~isempty(obj.wavemeter),'No wavemeter connected');
@@ -243,43 +241,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             range = sort(cal.a./(obj.c./obj.range-cal.c)+cal.b);
         end
         
-        function val = set_source_on(obj, val, ~)
-            if val
-                assert(~isempty(obj.PulseBlaster),'No IP set!')
-                obj.PulseBlaster.lines(obj.PB_line) = true;
-            else
-                assert(~isempty(obj.PulseBlaster),'No IP set!')
-                obj.PulseBlaster.lines(obj.PB_line) = false;
-            end
-        end
-        
-        function arm(obj)
-            % Make sure calibration is available
-            [~] = obj.calibration;
-            if ~obj.armed
-                obj.activate;
-            end
-        end
-        function blackout(obj)
-            if obj.armed
-                obj.deactivate;
-            end
-        end
-        
         function val = getFrequency(obj)
             val = obj.wavemeter.getFrequency();
-        end
-        function isRunning(obj,varargin)
-            if isempty(obj.PulseBlaster)
-                obj.PB_status = 'Not Connected';
-            else
-                obj.running = obj.PulseBlaster.running;
-                if obj.running
-                    obj.PB_status = 'Running';
-                else
-                    obj.PB_status = 'Unknown State, to update, change state.';
-                end
-            end
         end
         
         function calibrate(obj,ax)
@@ -291,7 +254,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                     case 'No'
                         error('Laser must be armed for wavelength calibration');
                     case 'Yes'
-                        obj.activate;
+                        obj.armed = false;  % if wavemeter is inactive, need to do a reset to prevent AbortSet from doing nothing.
+                        obj.armed = true;
                 end
             end
             set_range = findprop(obj,'range'); 

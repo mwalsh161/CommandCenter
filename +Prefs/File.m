@@ -12,7 +12,7 @@ classdef File < Base.pref
     
     properties(Hidden)
         default = '';
-        ui = Prefs.Inputs.ButtonField;
+        ui = Prefs.Inputs.FileField;
         user_callback;
     end
     properties

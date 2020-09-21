@@ -4,7 +4,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     % Call with the IP of the host computer (singleton based on ip)
     
     properties(Constant)
-        clk = 500           % MHz?
+        clk = 500           % MHz
         resolution = 2;     % ns
         minDuration = 10;   % Minimum duration in ns
         maxRepeats = 2^20;  % positive integer value
@@ -13,14 +13,11 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     end
     properties(SetAccess=private,Hidden)
         connection
-        lines
+        lines               % Array of `Drivers.PulseBlaster.Line`s with state stored in the pref "state".
     end
     properties(SetAccess=immutable)
         host = '';
     end
-%     properties(SetObservable,GetObservable,AbortSet)
-%         host = Prefs.String();
-%     end
     
     methods(Static)
         function obj = instance(host_ip)
@@ -42,9 +39,16 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         end
     end
     methods(Access=private)
-        function obj = PulseBlaster(ip)
-            obj.host = ip;
-            obj.connection = hwserver(ip);
+        function obj = PulseBlaster(host_)
+            obj.host = host_;
+            try
+                obj.connection = hwserver(host_);
+            catch err
+                warning([   'Could not connect to an instance of hwserver at host "' host_ '". ' ...
+                            'Are you sure hwserver is installed there? The hwserver repository is ' ...
+                            'located at https://github.mit.edu/mpwalsh/hwserver/.']);
+                rethrow(err);
+            end
             obj.spawnLines();
         end
         function spawnLines(obj)
@@ -63,21 +67,25 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             obj.killLines();
             delete(obj.connection);
         end
-        function response = com(obj, varargin)
+        function response = com(obj, varargin)              % Communication helper function.
             response = obj.connection.com(obj.hwname, varargin{:});
         end
         
-        function response = start(obj)
+        function response = start(obj)                      % Start the currently-loaded program.
             response = obj.com('start');
         end
-        function response = stop(obj)
+        function response = stop(obj)                       % Stop the currently-loaded program. Does not revert to staticLines state.
             response = obj.com('stop');
         end
-        function response = reset(obj)
-            response = obj.com('setLines')';
+        function response = reset(obj)                      % Reset to staticLines mode.
+            if ~obj.isStatic
+                response = obj.com('setLines')';
+            else
+                response = obj.com('getLines')';
+            end
         end
         
-        function response = load(obj, program, clock)
+        function response = load(obj, program, clock)       % Load a program.
             if iscell(program)  % Process cell array of strings for backwards compatibility.
                 program = strjoin(program, newline);
             end
@@ -91,23 +99,23 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
                 response = obj.com('load', program, clock);
             end
         end
-        function response = getProgram(obj)
+        function response = getProgram(obj)                 % Get the currently-loaed program (text form).
             response = obj.com('getProgram');
         end
         
-        function response = isStatic(obj)
+        function response = isStatic(obj)                   % Whether we are currently in staticLines mode.
             response = obj.com('isStatic');
         end
-        function response = setAllLines(obj, lines)         % Pass a logical array
+        function response = setAllLines(obj, lines)         % Pass a logical array of the desired state of the lines. This will stop a currently-running program and revert to staticLines state.
             response = obj.com('setAllLines', lines)';
         end
-        function response = setLines(obj, indices, values)  % Pass a list of indices to change
+        function response = setLines(obj, indices, values)  % Pass a list of line indices to change values. This will stop a currently-running program and revert to staticLines state.
             response = obj.com('setLines', indices, values)';
         end
         function response = setLine(obj, index, value)      % Pass a single index to change.
             response = obj.com('setLines', index, value)';
         end
-        function response = blink(obj, indices, rate)  % Blinks the listed lines at `rate` Hz.
+        function response = blink(obj, indices, rate)       % Blinks the listed lines at `rate` Hz.
             s = sequence('Blink');
             s.repeat = Inf;
             
@@ -130,8 +138,8 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             
             response = obj.load(s.compile());
             obj.start();
-        end
-        function response = getLines(obj)
+        end 
+        function response = getLines(obj)                   % Get state of staticLines. All NaN if a program is running.
             response = obj.com('getLines')';
         end
     end

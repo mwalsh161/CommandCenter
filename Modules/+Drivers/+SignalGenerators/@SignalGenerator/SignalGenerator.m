@@ -38,9 +38,6 @@ classdef SignalGenerator < Modules.Driver
                 end
             end
             obj.reset; %set the SG to a known state
-            
-            
-%                 obj.comObjectInfo = struct('comType','','comAddress','','comProperties','');
         end
         
         function setUnitPower(obj)

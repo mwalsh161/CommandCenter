@@ -11,10 +11,6 @@ classdef Cobolt_PB < Modules.Source
 
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
-        PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
-    end
-    properties(Access=private)
-        listeners
     end
     properties(SetAccess=private)
         serial                      % hwserver handle
@@ -45,6 +41,7 @@ classdef Cobolt_PB < Modules.Source
                 task = 'Attempted to turn diode off; FAILED';
             end
         end
+<<<<<<< HEAD
 
         function arm(obj)
             obj.armed = true;
@@ -53,10 +50,13 @@ classdef Cobolt_PB < Modules.Source
             obj.armed = false;
         end
 
+=======
+        
+>>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
         function delete(obj)
-            delete(obj.listeners)
             delete(obj.serial)
         end
+<<<<<<< HEAD
 
         function val = set_power(obj, val, ~)
             if obj.isConnected && ~isnan(val)
@@ -64,6 +64,11 @@ classdef Cobolt_PB < Modules.Source
             else
                 val = NaN;
             end
+=======
+        
+        function val = set_source_on(obj, val, ~)
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
+>>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
         end
         function val = set_armed(obj, val, ~)   % Turn the diode on or off.
             if obj.isConnected()
@@ -78,7 +83,18 @@ classdef Cobolt_PB < Modules.Source
                 val = NaN;
             end
         end
+<<<<<<< HEAD
 
+=======
+        function val = set_power(obj, val, ~)
+            if obj.isConnected && ~isnan(val)
+                errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
+            else
+                val = NaN;
+            end
+        end
+        
+>>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
         function val = get_power(obj, ~)
             val = obj.serial.com('Cobolt', 'glmp?');    % Get laser modulation power (mW)
         end
@@ -118,7 +134,6 @@ classdef Cobolt_PB < Modules.Source
         function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
-                delete(obj.listeners)
                 obj.source_on = false;
                 return
             end
@@ -126,12 +141,8 @@ classdef Cobolt_PB < Modules.Source
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
-%                 delete(obj.listeners)
-%                 obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
-%                 obj.isRunning;
             catch err
                 obj.PulseBlaster = [];
-%                 delete(obj.listeners)
                 obj.source_on = false;
                 val = 'No Server';
             end
@@ -163,6 +174,7 @@ classdef Cobolt_PB < Modules.Source
                 rethrow(err)
             end
         end
+<<<<<<< HEAD
 
 <<<<<<< HEAD
         function on(obj)
@@ -183,6 +195,8 @@ classdef Cobolt_PB < Modules.Source
 %         function isRunning(obj,varargin)
 %             obj.PB_running = obj.PulseBlaster.running;
 %         end
+=======
+>>>>>>> 16aa18a002dcbed713f55b68c2741e0c6b91598d
     end
 end
 

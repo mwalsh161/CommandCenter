@@ -40,8 +40,6 @@ classdef WhiteLight < Modules.Source
         end
     end
     methods
-        function arm(~) % Nothing to do here
-        end
         function task = inactive(obj)
             task = '';
             if obj.source_on
@@ -68,11 +66,10 @@ classdef WhiteLight < Modules.Source
             end
         end
         function val = set_source_on(obj, val, ~)
-            if val
-                obj.ni.WriteAOLines('LED',obj.intensity/20)
-            else
-                obj.ni.WriteAOLines('LED',0)
-            end
+            obj.ni.WriteAOLines('LED', logical(val) * obj.intensity/20)
+        end
+        function val = set_armed(obj, val, ~)
+            % Opt out of armed warning.
         end
         
         % Settings and Callbacks

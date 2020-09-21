@@ -20,7 +20,7 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
     % NOTE to extend set of prefs, subclasses must extend in constructor.
     %   DO NOT overload the prefs property
     %   
-    % The superclass will require a NIDAQ.dev and PulseBlaster.Remote
+    % The superclass will require a Drivers.NIDAQ.dev and Drivers.PulseBlaster
     %
     % obj.data looks like: max(indices) is 1xlength(vars)
     %   obj.data.sumCounts = NaN([obj.averages,max(indices),obj.nCounterBins]);
