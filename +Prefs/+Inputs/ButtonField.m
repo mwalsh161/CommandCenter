@@ -1,5 +1,5 @@
 classdef ButtonField < Prefs.Inputs.LabelControlBasic
-    %BUTTONFIELD provides a pushbutton for the user to click.
+    %BUTTONFIELD provides a pushbutton for the user to click. See Prefs.Button for an example.
 
     properties(Hidden)
         uistyle = 'pushbutton';
@@ -11,10 +11,10 @@ classdef ButtonField < Prefs.Inputs.LabelControlBasic
             [obj,height_px,label_width_px] = make_UI@Prefs.Inputs.LabelControlBasic(obj,pref,parent,yloc_px,width_px);
             set(obj.ui,'String',pref.string);
         end
-        function set_value(obj,val)
+        function set_value(~,~)
             % Do nothing.
         end
-        function val = get_value(obj)
+        function val = get_value(~)
             val = false;
         end
     end
