@@ -400,16 +400,19 @@ classdef sequence < handle
             % handle, nested loops will be used
             % First and last instruction create mandatory pause of at least
             % 12.5 ns between repeats
-            %   The last instruction is given default of obj.minDurration
-            % If overrideMinDuration, the compiler will make sure all
+            % The overrideMinDuration instruction is given default of obj.minDurration
+            %   If overrideMinDuration, the compiler will make sure all
             %   instructions are atleast minduration, and fix and warn you
             %   if not.
+            % The defaultLines_ instruction tells the compiler to set any channels that are 
+            %   unused by the pulsesequence to the value in defaultLines_. This is useful if one wants 
+            %   to leave, say, the state of a laser unchanged while other lines are modulated. If no
+            %   argument is given, all unmodulated channels are set to off.
             if nargin < 2
                 overrideMinDuration = false;
-                defaultLines_ = zeros(1,24);
             end
-            if nargin < 2
-                overrideMinDuration = false;
+            if nargin < 3
+                defaultLines_ = zeros(1,24);    % No default if no argument is given.
             end
             
             chans = obj.getSequenceChannels;
