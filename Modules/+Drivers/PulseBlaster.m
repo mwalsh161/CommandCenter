@@ -13,7 +13,8 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     end
     properties(SetAccess=private,Hidden)
         connection
-        lines               % Array of `Drivers.PulseBlaster.Line`s with state stored in the pref "state".
+        lines                   % Array of `Drivers.PulseBlaster.Line`s with staticLines state stored in the pref "state".
+        linesEnabled = true;    % Used for updating lines. If false, lines will not try to (slowly) talk with the PB.
     end
     properties(SetAccess=immutable)
         host = '';
@@ -61,6 +62,21 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         function killLines(obj)
             delete(obj.lines);
         end
+        function updateLines(obj, state)
+            if nargin == 1
+                state = obj.getLines();
+            end
+            
+            obj.linesEnabled = false;
+            
+            for ii = 1:length(state)
+                if isnumeric(obj.lines(ii).state)           % Avoid disturbing mid-pref-switch.
+                    obj.lines(ii).state = state(ii);        % Update state without communicating with hardware.
+                end
+            end
+            
+            obj.linesEnabled = true;
+        end
     end
     methods
         function delete(obj)
@@ -77,12 +93,14 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         function response = stop(obj)                       % Stop the currently-loaded program. Does not revert to staticLines state.
             response = obj.com('stop');
         end
-        function response = reset(obj)                      % Reset to staticLines mode.
+        function state = reset(obj)                         % Reset to staticLines mode.
             if ~obj.isStatic
-                response = obj.com('setLines')';
+                state = obj.com('setLines')';               % setLines without arguments sets to staticLines mode.
             else
-                response = obj.com('getLines')';
+                state = obj.com('getLines')';
             end
+            
+            obj.updateLines(state)
         end
         
         function response = load(obj, program, clock)       % Load a program.
@@ -92,28 +110,34 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             
             assert(ischar(program))
             assert(~isempty(program))
+            
             if nargin == 2
                 response = obj.com('load', program);
             else
                 assert(clock > 0)
                 response = obj.com('load', program, clock);
             end
+            
+            obj.updateLines(NaN(1,length(obj.lines)));
         end
         function response = getProgram(obj)                 % Get the currently-loaed program (text form).
             response = obj.com('getProgram');
         end
         
-        function response = isStatic(obj)                   % Whether we are currently in staticLines mode.
-            response = obj.com('isStatic');
+        function tf = isStatic(obj)                         % Whether we are currently in staticLines mode.
+            tf = obj.com('isStatic');
         end
-        function response = setAllLines(obj, lines)         % Pass a logical array of the desired state of the lines. This will stop a currently-running program and revert to staticLines state.
-            response = obj.com('setAllLines', lines)';
+        function state = setAllLines(obj, state)            % Pass a logical array of the desired state of the lines. This will stop a currently-running program and revert to staticLines state.
+            state = obj.com('setAllLines', state)';
+            obj.updateLines(state);
         end
-        function response = setLines(obj, indices, values)  % Pass a list of line indices to change values. This will stop a currently-running program and revert to staticLines state.
-            response = obj.com('setLines', indices, values)';
+        function state = setLines(obj, indices, values)     % Pass a list of line indices to change values. This will stop a currently-running program and revert to staticLines state.
+            state = obj.com('setLines', indices, values)';
+            obj.updateLines(state);
         end 
-        function response = getLines(obj)                   % Get state of staticLines. All NaN if a program is running.
-            response = obj.com('getLines')';
+        function state = getLines(obj)                      % Get state of staticLines. All NaN if a program is running.
+            state = obj.com('getLines')';
+            obj.updateLines(state);
         end
     end
 end

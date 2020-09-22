@@ -1,5 +1,6 @@
 classdef Line < Modules.Driver
-    %Drivers.PulseBlaster.Line is a wrapper for a Prefs.Boolean
+    %Drivers.PulseBlaster.LINE(pb, i) is a wrapper for a Prefs.Boolean to keep track the state of the ith
+    %   line of a Drivers.PulseBlaster.
     
     properties(SetObservable,GetObservable)
         state = Prefs.Boolean(false, 'set', 'set', 'help', 'A line of a PulseBlaster.')
@@ -19,7 +20,7 @@ classdef Line < Modules.Driver
             [~,host_resolved] = resolvehost(parent.host);
             id = [host_resolved '_line' num2str(line)];
             for ii = 1:length(Objects)
-                if isvalid(Objects(ii)) && isvalid(Objects(ii).PB) && isequal(id, Objects(ii).singleton_id)
+                if isvalid(Objects(ii)) && isvalid(Objects(ii).pb) && isequal(id, Objects(ii).singleton_id)
                     obj = Objects(ii);
                     return
                 end
@@ -33,15 +34,16 @@ classdef Line < Modules.Driver
         function obj = Line(parent, line)
             obj.pb = parent;
             obj.line = line;
+            
             p = obj.get_meta_pref('state');
             p.help_text = ['Line ' num2str(line) ' of the PulseBlaster at ' parent.host];
             obj.set_meta_pref('state', p);
+            
             addlistener(obj.pb,'ObjectBeingDestroyed',@(~,~)obj.delete);
-            %addlistener(obj.PB,'running','PostSet',@(~,~)obj.updateRunning);
         end
     end
     methods
-        function delete(obj)
+        function delete(~)
             % Do nothing.
         end
         function val = get(obj, ~, ~)
@@ -49,7 +51,9 @@ classdef Line < Modules.Driver
             val = lines(obj.line);
         end
         function val = set(obj, val, ~)
-            obj.pb.setLines(obj.line, val);     % This will stop a currently-running program and revert to staticLines state.
+            if obj.pb.linesEnabled                  % If we should communicate with the hardware. If false, we already know the state of the hardware and are merely updating the values of prefs.
+                obj.pb.setLines(obj.line, val);     % This will stop a currently-running program and revert to staticLines state.
+            end
         end
     end
 end
