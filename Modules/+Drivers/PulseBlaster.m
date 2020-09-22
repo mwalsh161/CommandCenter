@@ -135,6 +135,33 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             state = obj.com('setLines', indices, values)';
             obj.updateLines(state);
         end 
+        function response = blink(obj, indices, rate)       % Blinks the listed lines in `indices` at `rate` Hz. Useful for debugging!
+            s = sequence('Blink');
+            s.repeat = Inf;
+            
+            l = getLines(obj);
+            
+            for ii = 1:length(l)
+                ch(ii) = channel(num2str(ii), 'hardware', ii-1);    %#ok<AGROW> % Should unify indexing!
+            end
+            
+            s.channelOrder = ch;
+            
+            n = s.StartNode;
+            
+            for jj = 1:2
+                t = jj*1e6/rate/2;
+                for ii = indices
+                    node(n, ch(ii), 'units', 'us', 'delta', t);
+                end
+            end
+            
+            response = obj.load(s.compile());
+            obj.start();
+            
+            delete(s);
+        end 
+        
         function state = getLines(obj)                      % Get state of staticLines. All NaN if a program is running.
             state = obj.com('getLines')';
             obj.updateLines(state);
