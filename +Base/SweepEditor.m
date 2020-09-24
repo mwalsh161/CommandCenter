@@ -7,7 +7,7 @@ classdef SweepEditor < handle
     properties (Constant, Hidden)
         pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X1',       'Step',     'X2',       'N',         'Pair',      'Sweep',       'OMin',     'Guess',    'OMax'};
         peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true,         false,        true,       true,       true]; 
-        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          0,          80,            0,          0,          0,};
+        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          40,          80,            0,          0,          0,};
         pwidthsopt =    {20,        160,       160,        40,         40,         40,         0,           0,          0,          0,          0,           0,             40,         40,         40,};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric',   'char',        'numeric',  'numeric',  'numeric'};
         
@@ -63,9 +63,13 @@ classdef SweepEditor < handle
 
             padding = 30;
 
-            w = obj.totalWidth(true) + obj.totalWidth(false)
+            w = obj.totalWidth(true) + obj.totalWidth(false);
             h = 600;
-            rh = 17;
+            if ismac
+                rh = 17;
+            else
+                rh = 18;
+            end
             obj.maxelements = floor(h/rh)-1;
             h = obj.maxelements*rh;
 
@@ -86,7 +90,7 @@ classdef SweepEditor < handle
                                                     'Style', 'pushbutton',...
                                                     'Units', 'pixels',...
                                                     'Callback', @obj.generate_Callback,...
-                                                    'Position', p);    p(1) = p(1) + dp;
+                                                    'Position', p + [0 -1 0 2]*4);    p(1) = p(1) + dp;
                                                 
                                                 
             obj.gui.timePointText       = uicontrol('String', 'Single Time (sec):',...
@@ -99,7 +103,7 @@ classdef SweepEditor < handle
                                                     'Style', 'edit',... 'Enable', 'inactive',...
                                                     'Units', 'pixels',...
                                                     'Callback', @obj.setSingleTime_Callback,...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position', p .* [1 1 .7 1]);    p(1) = p(1) + dp*.7;
                                                 
             obj.gui.numPointsText       = uicontrol('String', 'Number of Points:',...
                                                     'Tooltip', 'Number of points in the sweep.',...
@@ -112,20 +116,20 @@ classdef SweepEditor < handle
                                                     'Style', 'edit',...
                                                     'Enable', 'off',...
                                                     'Units', 'pixels',...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position',  p .* [1 1 .7 1]);    p(1) = p(1) + dp*.7;
                                                 
             obj.gui.timeTotalText       = uicontrol('String', 'Total Time:',...
-                                                    'Tooltip', 'Expected total time for the sweep of measurements.',...
+                                                    'Tooltip', 'Expected total time for the sweep of measurements (DD:HH:MM:SS).',...
                                                     'Style', 'text',...
                                                     'HorizontalAlignment', 'right',...
                                                     'Units', 'pixels',...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position',  p .* [1 1 .7 1]);    p(1) = p(1) + dp*.7;
             obj.gui.timeTotal           = uicontrol('String', '1:00',...
-                                                    'Tooltip', 'Expected total time for the sweep of measurements.',...
+                                                    'Tooltip', 'Expected total time for the sweep of measurements (DD:HH:MM:SS).',...
                                                     'Style', 'edit',...
                                                     'Enable', 'inactive',...
                                                     'Units', 'pixels',...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position',  p .* [1 1 .7 1]);    p(1) = p(1) + dp*.75;
                                                 
                                                 
             obj.gui.continuous          = uicontrol('String', 'Continuous',...
@@ -163,7 +167,7 @@ classdef SweepEditor < handle
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
                                                     'Enable', 'off',...
-                                                    'Position', p);    p(1) = p(1) + dp;
+                                                    'Position', p .* [1 1 1.1 1]);    % p(1) = p(1) + dp*1.1;
             
             obj.makeMenus();
             
@@ -188,7 +192,7 @@ classdef SweepEditor < handle
 %             rh = jtable.getRowHeight()
 
             xlim(apt, [0, ptPosition(3)]);
-            ylim(apt, [0, ptPosition(4)/rh]);
+            ylim(apt, [0, ptPosition(4)/rh] - 3*(~ismac)/rh);
             apt.YDir = 'reverse';
 
             % Measurement Table
@@ -273,8 +277,8 @@ classdef SweepEditor < handle
             
             sweep = Base.Sweep(obj.measurements, obj.prefs(end:-1:1), scans(end:-1:1), flags);
             
-            d = sweep.blank()
-            whos d
+%             d = sweep.blank()
+%             whos d
         end
     end
     
@@ -363,9 +367,9 @@ classdef SweepEditor < handle
                 mask = obj.getPrefsMask(); %1:obj.numRows(true);
                 for ii = 1:length(mask)
                     if obj.gui.optimize.Value
-                        obj.pdata{ii,1} = formatNumber(mask(ii), true);
+                        obj.pdata{ii,1} = formatNumber(mask(ii), -1);
                     else
-                        obj.pdata{ii,1} = formatNumber(mask(ii));
+                        obj.pdata{ii,1} = formatNumber(mask(ii), max(mask));
                     end
                 end
                 obj.pdata{end,1} = formatNumber('+');
@@ -378,29 +382,38 @@ classdef SweepEditor < handle
                 
             end
             
-            function color = getColor(ii)
+            function color = getColor(ii, gradient)
                 if ischar(ii)
                     color = 'blue';
                 else
-                    if mod(ii, 2)
-                        color = 'green';
+                    if gradient == 0
+                        if mod(ii, 2)
+                            color = 'green';
+                        else
+                            color = 'purple';
+                        end
                     else
-                        color = 'purple';
+                        % hot cold gradient to imply which prefs are being scanned the most.
+                        color = sprintf('rgb(%i,0,%i)', 0 + floor(255*ii/gradient), 255 - floor(255*ii/gradient));
                     end
                 end
             end
-            function str = formatNumber(ii, varargin)
+            function str = formatNumber(ii, gradient)
+                if nargin < 2
+                    gradient = 0;
+                end
+                
                 if isnan(ii)
                     str = '';
                 else
                     num = num2str(ii);
                     
-                    if ~isempty(varargin) && isnumeric(ii)
+                    if gradient < 0 && isnumeric(ii)
                         optnum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                         num = optnum(ii);
                     end
                     
-                    str = sprintf('<html><tr align=center><td width=%d><font color=%s><b>%s', Base.SweepEditor.pwidths{1}, getColor(ii), num);
+                    str = sprintf('<html><tr align=center><td width=%d><font color=%s><b>%s', Base.SweepEditor.pwidths{1}, getColor(ii, gradient), num);
                 end
             end
         end
@@ -575,7 +588,7 @@ classdef SweepEditor < handle
                 
                 for ii = 1:length(subdata)
                     sd = subdata{ii};
-                    d = [d ; {'<html><font color=red><b>',   ['<i>' class(m)], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }];
+                    d = [d ; {'<html><font color=red><b>',   ['<i>' class(m)], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }]; %#ok<AGROW>
                 end
                 
 %                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', [1 1024], 'cts/sec', 0 };
@@ -812,7 +825,7 @@ classdef SweepEditor < handle
         end
         
         function buttondown_Callback(obj, src, evt)
-            cp = src.UserData.CurrentPoint(1,:);
+            cp = src.UserData.CurrentPoint(1,:);    % This value is generated by the axes that sit on top of the uitable. The y-coordinate is aligned with the rows.
             yi = floor(cp(2));
 
             N = size(src.Data, 1)-1;
@@ -822,12 +835,19 @@ classdef SweepEditor < handle
             if yi <= N && yi > 0
                 if isPrefs
                     obj.pselected = yi;
-                    src.UIContextMenu.Children(end).Label = ['Pref ' num2str(yi)];
+                    
+                    src.UIContextMenu.Children(end).Label = ['Pref #' num2str(yi)];
+                    src.UIContextMenu.Children(end).Enable = 'on';
+                    src.UIContextMenu.Children(end).Callback = @(s,e)(helpdlg());
                 else
+                    % Measurements are indexed by Measurement, not by Meas.
                     yi = obj.getMeasurementIndex(yi);
                     obj.mselected = yi;
-                    src.UIContextMenu.Children(end).Label = ['Measurement ' num2str(yi)];
                     N = num(obj, false);
+                    
+                    src.UIContextMenu.Children(end).Label = ['Measurement #' num2str(yi)];
+                    src.UIContextMenu.Children(end).Enable = 'on';
+                    src.UIContextMenu.Children(end).Callback = @(s,e)(helpdlg());
                 end
 
                 if yi ~= 1
@@ -858,31 +878,13 @@ classdef SweepEditor < handle
                     src.UIContextMenu.Children(end).Label = 'Add Measurement';
                 end
 
+                src.UIContextMenu.Children(end).Enable = 'off';     % Title
                 src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
                 src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
                 src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
             end
 
             drawnow;
-        end
-
-        function xi = getXIndex(obj, x)
-            if true
-                widths = obj.pwidths;
-            else
-                widths = obj.mwidths;
-            end
-
-            xi = 0;
-            total = 0;
-
-            for ii = 1:numel(widths)
-                total = total + widths{ii};
-                if total > x
-                    xi = ii;
-                    return
-                end
-            end
         end
         function total = totalWidth(obj, isPrefs)
             if isPrefs
