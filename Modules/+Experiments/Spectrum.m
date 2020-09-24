@@ -10,6 +10,14 @@ classdef Spectrum < Modules.Experiment
         over_exposed_override = Prefs.Boolean(false);       % override over_exposed error from server and return data regardless
     end
     
+    properties(Access=private)
+%         intensity =     Base.Meas([1 1024], 'unit', 'arb')
+%         wavelength =    Base.Meas([1 1024], 'unit', 'nm')
+        
+        measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
+                        Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
+    end
+    
     properties (Hidden, Constant)
         gratingFormat = @(a)sprintf('%i %s', a.grooves, a.name)
     end
@@ -86,7 +94,7 @@ classdef Spectrum < Modules.Experiment
             
             err = [];
             
-            obj.setMeasurementVars(1024);
+%             obj.setMeasurementVars(1024);
             
             if ~strcmp(val, 'No Server')
                 h = msgbox(sprintf('Connecting to %s...',val), mfilename, 'help', 'modal');
@@ -100,7 +108,7 @@ classdef Spectrum < Modules.Experiment
                     obj.position = obj.WinSpec.position;
                     obj.exposure = obj.WinSpec.exposure;
                     
-                    obj.setMeasurementVars(1024);
+%                     obj.setMeasurementVars(1024);
                     
                     delete(h)
                     return;
@@ -124,11 +132,11 @@ classdef Spectrum < Modules.Experiment
                 rethrow(err)
             end
         end
-        function setMeasurementVars(obj, N)
-            obj.sizes = struct('wavelength', [1 N],   'intensity', [1 N]);
-            obj.units = struct('wavelength', 'nm',      'intensity', 'arb');
-            % Scans and dims default to 1:N (pixels), which is fine.
-        end
+%         function setMeasurementVars(obj, N)
+%             obj.sizes = struct('wavelength', [1 N],   'intensity', [1 N]);
+%             obj.units = struct('wavelength', 'nm',      'intensity', 'arb');
+%             % Scans and dims default to 1:N (pixels), which is fine.
+%         end
         function delete(obj)
             delete(obj.listeners)
             delete(obj.WinSpec)

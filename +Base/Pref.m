@@ -122,12 +122,38 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             % Can also use to check/verify input/output
             obj.parent_class = class(module_instance);
             
+%             if isa(obj, 'Base.Measurement') % This needs to be after pref is initialized and filled with property_name, but before it is fully bound.
+%                 obj.sizes = struct(obj.property_name, [1 1]);
+%                 obj.names = struct(obj.property_name, obj.name);
+%                 obj.units = struct(obj.property_name, obj.unit);
+%                 obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
+%                 obj.dims =  struct();
+%             end
+
+
+%             class(obj)
+            
+%             mc = metaclass(obj)
+%             
+%             mc
+% 
+%             props = mc.PropertyList
+            
+%             props.Name
+            
             if isa(obj, 'Base.Measurement') % This needs to be after pref is initialized and filled with property_name, but before it is fully bound.
-                obj.sizes = struct(obj.property_name, [1 1]);
-                obj.names = struct(obj.property_name, obj.name);
-                obj.units = struct(obj.property_name, obj.unit);
-                obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
-                obj.dims =  struct();
+%                 obj.measurements = 
+                    m = Base.Meas([1 1], ...
+                        'field', obj.property_name, ...
+                        'name', obj.name, ...
+                        'unit', obj.unit);
+                    obj.set_measurements(m);
+                
+%                 struct(obj.property_name, [1 1]);
+%                 obj.names = struct(obj.property_name, obj.name);
+%                 obj.units = struct(obj.property_name, obj.unit);
+%                 obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
+%                 obj.dims =  struct();
             end
             
             mc = metaclass(module_instance);
@@ -311,6 +337,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 nprops = length(mps);
                 for ii = 1:nprops % Need to bypass get methods using the metaprop
                     mp = mps(ii);
+%                     mp
+%                     mp.DefiningClass
                     if ~mp.Hidden && ~mp.Abstract && ~mp.Constant
                         assert(mp.HasDefault && iscell(mp.DefaultValue) && length(mp.DefaultValue)==2,...
                             'Default value of "%s" should be cell array: {default, validation_function}',mp.Name);

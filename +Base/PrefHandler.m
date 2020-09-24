@@ -56,6 +56,11 @@ classdef PrefHandler < handle
                     assert(~strcmp(prop.GetAccess,'private')&&~strcmp(prop.SetAccess,'private'),...
                         sprintf('Class-based pref ''%s'' cannot have set/get access private.',prop.Name));
                     obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
+                    
+                    if isempty(obj.(prop.Name).name)
+                        obj.(prop.Name).name = prop.Name;
+                    end
+                    
                     % Add listeners to get and set so we can swap the value
                     % in/out behind the scenes. All listeners relate to
                     % this object, so no need to clean them up.
@@ -81,6 +86,8 @@ classdef PrefHandler < handle
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
                     % Done after binding Set/Get listeners since the method call expects them to be set already
 
+                    pref
+                    
                     obj.set_meta_pref(prop.Name, pref);
                 end
             end

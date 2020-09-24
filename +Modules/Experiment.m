@@ -1,4 +1,4 @@
-classdef Experiment < Base.Module & Base.Measurement
+classdef Experiment < Base.Module  & Base.Measurement
     %EXPERIMENT Abstract Class for Experiments
     
     properties(Abstract,SetAccess=private)
@@ -115,6 +115,14 @@ classdef Experiment < Base.Module & Base.Measurement
                 rmdir(root,'s');
                 rethrow(err);
             end
+        end
+    end
+    
+    methods
+        function data = measure(obj)
+            data = obj.blank();
+%             obj.run(statusH, managers, ax)
+%             data = GetData(obj, stage, imager);
         end
     end
 end

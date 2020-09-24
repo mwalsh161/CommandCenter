@@ -64,11 +64,13 @@ classdef MeasurementRegister < Base.Singleton
                     if isempty(obj.register.(modules{ii})) || ~isvalid(obj.register.(modules{ii}))
                         obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
                     else
-                        m = obj.register.(modules{ii});
-                        sd = m.subdata;
-                        l = m.getLabels;
-                        s = m.getSizes;
-                        str = makeParentString(m, true);
+                        m =     obj.register.(modules{ii});
+                        
+                        sd =    m.subdata;
+                        l =     m.getLabels;
+                        s =     m.getSizes;
+                        
+                        str =   makeParentString(m, true);
                         
                         label = ['<html>' str ':'];
 

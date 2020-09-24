@@ -1,4 +1,4 @@
-classdef MultipleChoice < Prefs.Numeric
+classdef MultipleChoice < Base.Pref %Prefs.Numeric
     % MULTIPLECHOICE Select among a set of options.
     %   These options, set in choices, can be *anything*. This is parsed into UI by arb2string(choices). 
     %   The default value is '', which corresponds to the display name
@@ -33,7 +33,8 @@ classdef MultipleChoice < Prefs.Numeric
     
     methods
         function obj = MultipleChoice(varargin)
-            obj = obj@Prefs.Numeric(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
+%             obj = obj@Prefs.Numeric(varargin{:});
             obj.max = numel(obj.choices);
 %             assert(obj.max == numel(obj.choices));
             obj.initialized = true;

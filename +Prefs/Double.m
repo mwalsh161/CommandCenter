@@ -18,7 +18,9 @@ classdef Double < Prefs.Numeric
 
     methods
         function obj = Double(varargin)
+%             metaclass(obj)
             obj = obj@Prefs.Numeric(varargin{:});
+%             obj.init(varargin{:});
         end
         function set_ui_value(obj,val)
             obj.ui.set_value(num2str(val,obj.display_precision));

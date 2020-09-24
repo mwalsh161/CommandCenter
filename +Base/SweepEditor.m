@@ -7,11 +7,11 @@ classdef SweepEditor < handle
     properties (Constant, Hidden)
         pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X1',       'Step',     'X2',       'N',         'Pair',      'Sweep',       'OMin',     'Guess',    'OMax'};
         peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true,         false,        true,       true,       true]; 
-        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          40,          80,            0,          0,          0,};
+        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          0,          80,            0,          0,          0,};
         pwidthsopt =    {20,        160,       160,        40,         40,         40,         0,           0,          0,          0,          0,           0,             40,         40,         40,};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric',   'char',        'numeric',  'numeric',  'numeric'};
         
-        mheaders =  {'#',       'Parent',       'Measurement', 'Size',    'Unit',     'Time'};
+        mheaders =  {'#',       'Parent',       'Measurement', 'Size',    'Unit',     'Exposure'};
         meditable = [false,     false,         false,       false,      false,      true];
         mwidths =   {20,        160,           160,         60,         40,         0};
         mformat =   {'char',    'char',        'char',      'char',     'char',     'numeric'};
@@ -302,7 +302,7 @@ classdef SweepEditor < handle
                 obj.pt.ColumnWidth = obj.pwidths;
             end
             
-            obj.gui.timeTotal.String = datastrCustom(str2double(obj.gui.numPoints.String) * str2double(obj.gui.timePoint.String));
+            obj.gui.timeTotal.String = datestrCustom(str2double(obj.gui.numPoints.String) * str2double(obj.gui.timePoint.String));
             
             % Checks for continuous
             if numel(obj.prefs) > 0
@@ -383,9 +383,9 @@ classdef SweepEditor < handle
                     color = 'blue';
                 else
                     if mod(ii, 2)
-                        color = 'red';
+                        color = 'green';
                     else
-                        color = 'orange';
+                        color = 'purple';
                     end
                 end
             end
@@ -407,9 +407,20 @@ classdef SweepEditor < handle
         
         % ROW FUNCTIONS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function setRow(obj, instrument, isPrefs)
-            instrument
+%             instrument
             
             if isPrefs
+                if ~isa(instrument, 'Prefs.Time')   % Time can be added as many times as desired.
+                    for ii = 1:length(obj.prefs)
+                        if obj.pselected ~= ii
+                            if isequal(instrument, obj.prefs{ii})
+                                warning('Base.SweepEditor: Cannot add duplicate pref.')
+                                return;
+                            end
+                        end
+                    end
+                end
+                
                 if obj.pselected == 0
                     obj.pdata(end, :) = centerCharsPrefs(obj.makePrefRow(instrument));
                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
@@ -468,7 +479,7 @@ classdef SweepEditor < handle
                     mask = obj.getMeasurementMask();
                     mask2 = obj.getMeasurementMask() == mask(obj.mselected);
                     obj.mdata(mask2, :) = [];
-                    obj.measurements{obj.mselected} = [];
+                    obj.measurements(obj.mselected) = [];
                 end
             end
             
@@ -607,6 +618,10 @@ classdef SweepEditor < handle
             obj.update();
         end
         function setContinuous_Callback(obj, ~, ~)
+            if obj.gui.continuous.Value && obj.numRows(true) >= 2
+            	obj.pdata{2, 11} = false;    
+            end
+            
             obj.update();
         end
         function setOptimize_Callback(obj, ~, ~)
@@ -651,7 +666,8 @@ classdef SweepEditor < handle
                             
                         x = r;
                         
-                        while obj.pdata{x, 11} && x >= r
+                        % Scan up and down the column setting N data to be the same as the parent.
+                        while x <= obj.numRows(isPrefs) && obj.pdata{x, 11} && x >= r
                             srcFake.UserData.UserData = true;
                             
                             evtFake.Indices         = [x, 10];  % N
@@ -827,12 +843,12 @@ classdef SweepEditor < handle
                 
                 src.UIContextMenu.Children(end-3).Enable = 'on';   % Delete
                 
-                if ~isPrefs
-                    disp('Up/Down/Delete disabled.')
-                    src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
-                    src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
-                    src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
-                end
+%                 if ~isPrefs
+%                     warning('Up/Down/Delete disabled.')
+%                     src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
+%                     src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
+%                     src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
+%                 end
             else
                 if isPrefs
                     obj.pselected = 0;
@@ -924,6 +940,7 @@ classdef SweepEditor < handle
         end
         function mask = getMeasurementMask(obj)
             mask = [];
+            obj.measurements
             for ii = 1:length(obj.measurements)
                 mask = [mask ii*ones(1, obj.measurements{ii}.getN())]; %#ok<AGROW>
             end
@@ -971,14 +988,31 @@ end
 function tf = isPrefInteger(p)
     tf = isa(p, 'Prefs.Integer') || isa(p, 'Prefs.Boolean') || isa(p, 'Prefs.MultipleChoice');
 end
-function str = datastrCustom(t)
+function str = datestrCustom(t)
     if t > 31*60*60*24
         str = 'Insanity';
-    elseif t > 60*60*24
-        str = datestr(t/60/60/24, 'DD:HH:MM:SS');
-    elseif t > 60*60
-        str = datestr(t/60/60/24, 'HH:MM:SS');
     else
-        str = datestr(t/60/60/24, 'MM:SS');
+        t = ceil(t);
+        str = '';
+        
+        for mm = [60, 60, 24, 31]
+            if t > 0 || mm == 60
+                str = [sprintf('%02i', mod(t, mm)) ':' str];
+                t = floor(t/mm);
+            end
+        end
+        
+        if str(1) == '0'
+            str = str(2:end-1);
+        else
+            str = str(1:end-1);
+        end
     end
+%     elseif t > 60*60*24
+%         str = datestr(t/60/60/24, 'DD:HH:MM:SS');
+%     elseif t > 60*60
+%         str = datestr(t/60/60/24, 'HH:MM:SS');
+%     else
+%         str = datestr(t/60/60/24, 'MM:SS');
+%     end
 end

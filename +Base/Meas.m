@@ -1,15 +1,21 @@
-classdef Meas < matlab.mixin.Heterogeneous
+classdef Meas < handle %matlab.mixin.Heterogeneous
+    properties (SetAccess=private)
+        field   = 'data';   % Programatic name of this measurement (defaults to "data").
+%         parent_class = '';  % 
+    end
     properties
-        size    = [1 1];    % Size of numeric data returned by this Meas.
+        name    = '';       % Displayed name of this measurement (defaults to field).
+        unit    = '';       % Displayed unit of the data from this measurement (e.g. cts, V, ...)
         
-        name    = '';
-        unit    = '';
-        
-        dims    = {};
-        scns    = {};
+        size    = [];       % Size of numeric data returned by this Meas.
+        dims    = {};       % 
+        scans   = {};       % 
     end
     
     methods
+        function obj = Meas(varargin)
+            obj = obj.init(varargin{:});
+        end
         function obj = init(obj, varargin)
             try % Try is to throw all errors as caller
                 % Process input (subclasses should use set methods to validate)
@@ -41,23 +47,48 @@ classdef Meas < matlab.mixin.Heterogeneous
 %                     end
 %                 end
                 
+                addParameter(p, 'field', '');
+                addParameter(p, 'name', '');
+                addParameter(p, 'unit', 'arb');
+                addParameter(p, 'dims', {});
+                addParameter(p, 'scans', {});
+                
+
                 parse(p,varargin{:});
                 
                 if size_in_parser
                     size = p.Results.size;
                 end
+                
+                assert(~(isempty(p.Results.field) && isempty(p.Results.name)))
 
+                if isempty(p.Results.field)
+                    obj.field = 'data';     %  Default to "data"
+                    obj.name =  p.Results.name;
+                elseif isempty(p.Results.name)
+                    obj.field = p.Results.field;
+                    obj.name =  p.Results.field;
+                else
+                    obj.field = p.Results.field;
+                    obj.name =  p.Results.name;
+                end
+                
+                obj.unit =  p.Results.unit;
+                
+                obj.dims =  p.Results.dims;
+                obj.scans = p.Results.scans;
+                
                 % Assign props
-                for ii = 1:nprops
-                    mp = mps(ii);
-                    if ~mp.Hidden && ~mp.Abstract && ~mp.Constant
-                        obj.(mp.Name) = p.Results.(mp.Name);
-                    end
-                end
+%                 for ii = 1:nprops
+%                     mp = mps(ii);
+%                     if ~mp.Hidden && ~mp.Abstract && ~mp.Constant
+%                         obj.(mp.Name) = p.Results.(mp.Name);
+%                     end
+%                 end
 
-                if isempty(obj.name)
-                    obj.name = obj.property_name;
-                end
+%                 if isempty(obj.name)
+%                     obj.name = obj.property_name;
+%                 end
 
                 % Finally assign default (dont ignore if empty, because
                 % subclass might have validation preventing empty, in which
@@ -67,16 +98,56 @@ classdef Meas < matlab.mixin.Heterogeneous
             catch err
                 rethrow(err);
             end
-            obj.initialized = true;
+%             obj.initialized = true;
+        end
+    end
+        
+    methods
+        function obj = set.field(obj, val)
+            assert(ischar(val),     'Base.Meas.field must be a string')
+            assert(~isempty(val),   'Base.Meas.field cannot be empty.')
+            assert(isvarname(val), ['Base.Meas.field must be a valid struct field name, but "' val '" is not according to isvarname()']);
+            
+            obj.field = val;
+        end
+        function obj = set.name(obj, val)
+            assert(ischar(val),     'Base.Meas.name must be a string')
+            
+            obj.name = val;
+        end
+        function obj = set.unit(obj, val)
+            assert(ischar(val),     'Base.Meas.unit must be a string')
+            
+            obj.unit = val;
         end
         
-        function md = metadata(obj)
-            md = struct('size', obj.size,...
-                        'name', obj.name,...
-                        'unit', obj.unit,...
-                        'dims', obj.dims,...
-                        'scns', obj.scns,...
-            )
+        function obj = set.size(obj, val)
+            obj.size = val;
+        end
+        function obj = set.dims(obj, val)
+            obj.dims = val;
+        end
+        function obj = set.scans(obj, val)
+            obj.scans = val;
+        end
+        
+%         function md = metadata(obj)
+%             md = struct('size', obj.size,...
+%                         'name', obj.name,...
+%                         'unit', obj.unit,...
+%                         'dims', obj.dims,...
+%                         'scans', obj.scans)
+%         end
+    end
+    
+    methods
+        function extendedMeas = extendBySweep(obj, sweep, tag)
+            extendedMeas = Base.Meas(   [sweep.ssizes obj.size(obj.size > 1)], ...
+                               'field', [tag obj.field], ...
+                                'unit', obj.unit, ...
+                                'name', obj.name, ...
+                                'dims', [sweep.sdims obj.dims], ...
+                               'scans', [sweep.sscans obj.scans]);
         end
     end
 end

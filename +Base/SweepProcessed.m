@@ -101,12 +101,12 @@ classdef SweepProcessed < handle
 			height = obj.tab.tab.InnerPosition(4)-1.5*ch;
 
 			% Input selector
-			MM = length(obj.s.measurements);
+			MM = length(obj.s.measurements_);
 			iNames = {'None [none]'};
 
 			for ii = 1:MM
-                labels = obj.s.measurements{ii}.getLabels();
-                sd = obj.s.measurements{ii}.subdata();
+                labels = obj.s.measurements_{ii}.getLabels();
+                sd = obj.s.measurements_{ii}.subdata();
                 for jj = 1:length(sd)
                     iNames{end+1} = labels.(sd{jj});%#ok
                 end
@@ -224,8 +224,8 @@ classdef SweepProcessed < handle
             height = height + .5;
 
 			% Input Panels
-			for ii = 1:length(obj.s.measurements)
-                meas = obj.s.measurements{ii};
+			for ii = 1:length(obj.s.measurements_)
+                meas = obj.s.measurements_{ii};
                 sd = meas.subdata();
                 dims_ = meas.getDims();
                 names_ = meas.getLabels();

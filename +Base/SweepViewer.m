@@ -81,8 +81,8 @@ classdef SweepViewer < handle
 
             kk = 1;
             
-            for ii = 1:length(obj.s.measurements)
-                m = obj.s.measurements{ii};
+            for ii = 1:length(obj.s.measurements_)
+                m = obj.s.measurements_{ii};
 
                 sd = m.subdata;
                 dims_ =  m.getDims;
