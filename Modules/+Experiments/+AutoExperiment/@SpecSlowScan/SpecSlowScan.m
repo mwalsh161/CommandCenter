@@ -35,7 +35,6 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         patch_functions = {'','Spec2Open','Open2Closed','Closed2SuperRes'};
         prerun_functions = {'PreSpec','PreSlow','PreSlow','PreSuperRes'};
         nm2THz = []; %this will be a function pulled from calibrating the spectrometer in the prerun method
-        analysis = [];
     end
     methods(Access=private)
         function obj = SpecSlowScan()

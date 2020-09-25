@@ -138,17 +138,19 @@ classdef MAX302motors < Modules.Stage
         end
         
         % Settings and Callback
-        function  settings(obj,panelH,~,~)
-            settings@Modules.Stage(obj,panelH); % Add in prefs
-            % Adjust for pref space usage
+        function  settings(obj,panelH,varargin)
+            settings@Modules.Stage(obj,panelH,varargin{:}); % Add in prefs
+            % Adjust for pref space usage (use character units)
             start = 0;
             children = allchild(panelH);
+            set(children,'units','characters');
             for i = 1:length(children)
                 h = sum(children(i).Position([2 4]));
                 if h > start
                     start = h;
                 end
             end
+            start = start + 1; % Give a bit of space between
             spacing = 1.5;
             num_lines = 3;
             line = 1;

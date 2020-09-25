@@ -43,6 +43,23 @@ classdef QR
         c = findMarkers(im,conv,sensitivity,ax_debug); % Nx2 double
         [QR2pxT,cQR] = findQR(c,conv,markersBase,leg_thresh,angle_thresh,debug_ax) % 1xN affine2d
         [codeOut,p,estimate,posPxs] = digitize(im,unit2pxT,significance,markersPx)
+        
+        function readInfo = invertReadInfo(readInfo,ax)
+            % Given which axes, invert all affine2d transform objects
+            % contained in readInfo (returned by Base.QR.reader)
+            % ax should be an "indexed axes" - x: 1, y: 2
+            assert(isnumeric(ax),...
+                sprintf('ax must be a numeric type, not "%s".',class(ax)));
+            assert(any(ax==[1,2]),...
+                sprintf('ax should be 1 for x or 2 for y. %i not supported.',ax))
+            yinv = eye(3); yinv(ax,ax) = -1;
+            readInfo.tform.T = yinv * readInfo.tform.T; % "im2QR"
+            for j = 1:length(readInfo.qrInfo)
+                if isa(readInfo.qrInfo(j).QR2imT,'affine2d')
+                    readInfo.qrInfo(j).QR2imT.T = readInfo.qrInfo(j).QR2imT.T * yinv;
+                end
+            end
+        end
     end
     %% Graphics tools
     methods(Static)

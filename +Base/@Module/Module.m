@@ -9,8 +9,10 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
     %   If there is a Constant property "visible" and it is set to false,
     %   this will prevent CommandCenter from displaying it.
     
-    properties(Access=private)
+    properties(SetAccess=private,Hidden)
         namespace                   % Namespace for saving prefs
+    end
+    properties(Access=private)
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         StructOnObject_state = 'on';% To restore after deleting
     end
@@ -28,15 +30,38 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
 
-    methods(Sealed)
-        function obj = Module
+    methods(Static)
+        [code,f] = uibuild(block,varargin)
+    end
+    methods(Static,Sealed)
+        function [namespace,CC_handle] = get_namespace(classname)
+            % This function returns the formatted namespace string to be used with MATLAB prefs
+            % It is recommended to be called using either mfilename or class to help construct input:
+            %   ... obj.get_namespace(class(obj));
+            %   ... Base.Module.get_namespace(mfilename('class'))
+
+            % isvector takes care of non-empty too
+            assert(ischar(classname) && isvector(classname),'classname must be a non-empty character vector.')
+            % Convert periods in classname to underscores
+            name = strrep(classname,'.','_');
+            assert(isvarname(name),'converting "." to "_" was not sufficient to turn classname into a valid variable name in MATLAB.')
+            
+            CC_handle = findall(0,'name','CommandCenter');
+            if isempty(CC_handle)
+                pre = '';
+            else
+                pre = getappdata(CC_handle,'namespace_prefix');
+            end
+            namespace = [pre name];
+        end
+    end
+    methods
+        function obj = Module()
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
-            % First get namespace
-            obj.namespace = strrep(class(obj),'.','_');
-            % Second, add to global appdata if app is available
-            hObject = findall(0,'name','CommandCenter');
-            if isempty(hObject)
+            [obj.namespace,hObject] = obj.get_namespace(class(obj));
+            
+            if isempty(hObject) 
                 obj.logger = Base.Logger_console();
                 return
             end
@@ -95,6 +120,8 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
             % *************************[END LEGACY]*****************************
             % ******************************************************************
         end
+    end 
+    methods(Sealed)
         function module_clean(obj,hObj,prop)
             to_remove = false(size(obj.(prop)));
             for i = 1:length(obj.(prop)) % Heterogeneous list; cant do in one line
@@ -399,6 +426,7 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
                         mps{i} = mps{i}.adjust_UI(suggested_label_width, margin);
+                        obj.set_meta_pref(setting_names{i},mps{i});
                         lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
                 end
@@ -412,8 +440,20 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end
+            % set method might notify "update_settings"
+            mp = obj.get_meta_pref(mp.property_name);
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
-            mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+            try
+                mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+            catch err
+                error('MODULE:UI',['Failed to (re)set value in UI. ',... 
+                       'Perhaps got deleted during callback? ',...
+                       'You can click the settings refresh button to try and restore.',...
+                       '\n\nError:\n%s'],err.message)
+                % FUTURE UPDATE: make this an errordlg instead, and
+                % provide a button to the user in the errordlg figure to
+                % reload settings.
+            end
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
                 try
                     val_help = mp.validation_summary(obj.pref_handler_indentation);
@@ -437,4 +477,3 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
         end
     end
 end
-

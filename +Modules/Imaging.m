@@ -26,20 +26,9 @@ classdef Imaging < Base.Module
     properties(Abstract)
         maxROI
     end
-    properties(Access=private)
-        namespace
-    end
     
     methods
         function obj = Imaging()
-            d = dbstack('-completenames');
-            if numel(d) > 1
-                name = strsplit(d(2).name,'.');
-                name = name{1};
-            else
-                name = mfilename;
-            end
-            obj.namespace = sprintf('Imaging_%s',name);
             if ispref(obj.namespace,'calibration')
                 obj.calibration = getpref(obj.namespace,'calibration');
             end

@@ -4,6 +4,8 @@ dbquit.m
 .lock
 # matlabpref backup
 .matlabprefs.mat.backup
+# Temp folders
+temp/
 
 # MAC OS generated files #
 ######################

@@ -1,7 +1,7 @@
 classdef dev < Modules.Driver
     % Matlab Object Class implementing control for National Instruments
     % Digital Acquistion Card. Only voltage implemented, no current.
-    % 
+    %
     % Primary purpose of this is to create tasks and lines and manage the
     % GUI.  Other task based control is in Drivers.NIDAQ.task
     %
@@ -32,7 +32,7 @@ classdef dev < Modules.Driver
     %
     % Depending on how the C libraries are written, this could produce
     % many warnings because loadlibrary does not recognize '...' in the
-    % header file. Edit the prototype file (not header file) and use it 
+    % header file. Edit the prototype file (not header file) and use it
     % instead to fix these warnings. Eliminating unused functions will
     % decrease load time.
     %
@@ -69,7 +69,7 @@ classdef dev < Modules.Driver
         init_error = true;                  % used to unload library if loaded
         load_error = true;                  % Prevent saving partially loaded lines
         init_warnings;                      % just informative
-        namespace
+        namespace_dev
     end
 
     properties(Constant,Hidden)
@@ -83,7 +83,7 @@ classdef dev < Modules.Driver
         AnalogInMaxVoltage = 10;
         AnalogInMinVoltage = -10;
         Counters = {'Ctr0','Ctr1','Ctr2','Ctr3'};
-        
+
         % constants for C library
         LibraryName = 'nidaqmx';            % alias for library
         LibraryFilePath = 'nicaiu.dll';     % Path to dll
@@ -162,17 +162,17 @@ classdef dev < Modules.Driver
             end
             obj.SelfTest();
             obj.init_error = false;
-            obj.namespace = [strrep(mfilename('class'),'.','_') '_' DeviceChannel];
+            obj.namespace_dev = [obj.namespace '_' DeviceChannel];
             % Initialize lines from last time
-            if ispref(obj.namespace,'OutLines')
-                p = getpref(obj.namespace,'OutLines');
+            if ispref(obj.namespace_dev,'OutLines')
+                p = getpref(obj.namespace_dev,'OutLines');
                 for i = 1:numel(p)
                     line = p(i);
                     obj.addOutLine(line.line,line.name,line.limits,line.state);
                 end
             end
-            if ispref(obj.namespace,'InLines')
-                p = getpref(obj.namespace,'InLines');
+            if ispref(obj.namespace_dev,'InLines')
+                p = getpref(obj.namespace_dev,'InLines');
                 for i = 1:numel(p)
                     line = p(i);
                     obj.addInLine(line.line,line.name);
@@ -273,7 +273,7 @@ classdef dev < Modules.Driver
                 set(obj.GUI.InLines,'Value',1)
             end
             set(obj.GUI.InLines,'String',inLines)
-            
+
             outLines = cell(size(obj.OutLines));
             for i = 1:length(obj.OutLines)
                 outLines{i} = obj.OutLines(i).text;
@@ -401,7 +401,7 @@ classdef dev < Modules.Driver
                     varargin{i} = varargin{i}.line;
                 end
             end
-            
+
             nargs = Base.libnargout(obj.LibraryName,FunctionName);
             if nargs < 2
                 varargout = '';
@@ -447,6 +447,8 @@ classdef dev < Modules.Driver
                 catch err
                     warning(err.message)
                 end
+                setpref(obj.namespace_dev,'OutLines',TempOutLines)
+                setpref(obj.namespace_dev,'InLines',TempInLines)
             end
             delete(obj.OutLines);
             delete(obj.InLines);
@@ -467,7 +469,7 @@ classdef dev < Modules.Driver
             obj.LibraryFunction('DAQmxSelfTestDevice',obj.DeviceChannel);
         end
         %function view(obj) - in separate file
-            
+
         %% Basic Task Control
         function task = GetTaskByName(obj,TaskName)
             mask = find(strcmp({obj.Tasks.name},TaskName));
@@ -556,7 +558,7 @@ classdef dev < Modules.Driver
             delete(line)
             obj.InLines(mask) = [];
         end
-        
+
         function lines = getLines(obj,names,line_type)
             % Return line objects with names of type "in" or "out"
             if ~iscell(names)
@@ -576,7 +578,7 @@ classdef dev < Modules.Driver
                 lines(i) = obj.getLine(names{i},line_type);
             end
         end
-        
+
         %% Quick Read/Write (no task prep/clean necessary)
         function WriteDOLines(obj,names,values)
             if ~iscell(names)
@@ -589,7 +591,7 @@ classdef dev < Modules.Driver
             end
             TaskName = 'DigitalWrite';
             task = obj.CreateTask(TaskName);
-            
+
             % Equivalent to try catch finally statement:
             err = NaN;
             try
@@ -621,7 +623,7 @@ classdef dev < Modules.Driver
             % MinVal 10% around values, but at least +/- 0.01
             MinVal = max(obj.AnalogOutMinVoltage,min(values)-max(abs(min(values)*0.1),0.01));
             MaxVal = min(obj.AnalogOutMaxVoltage,max(values)+max(abs(max(values)*0.1),0.01));
-            
+
             TaskName = 'AnalogWrite';
             task = obj.CreateTask(TaskName);
 
@@ -639,7 +641,7 @@ classdef dev < Modules.Driver
                 lines(i).state = values(i);
             end
         end
-        
+
         function voltage = ReadAILine(obj,name,VoltLim)
             % If user optionally specifies min/max, it will give a better result
             TaskName = 'AnalogRead';
@@ -648,21 +650,19 @@ classdef dev < Modules.Driver
                 VoltLim = [obj.AnalogInMinVoltage obj.AnalogInMaxVoltage];
             end
             line = obj.getLine(name,obj.InLines);
-            ptr = libpointer('doublePtr',0);
+            voltage = libpointer('doublePtr',0);
             MinVal = VoltLim(1);
             MaxVal = VoltLim(2);
 
             % create a new task
             task = obj.CreateTask(TaskName);
-                
+
             % create an analog in voltage channel
             err = NaN;
-            voltage = NaN;
             try
                 task.CreateChannels('DAQmxCreateAIVoltageChan',line,'',obj.DAQmx_Val_Cfg_Default,MinVal, MaxVal,obj.DAQmx_Val_Volts ,[]);
                 task.Start;
-                task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, ptr,[]);
-                voltage = ptr.Value;
+                [~,voltage] = task.LibraryFunction('DAQmxReadAnalogScalarF64',task,obj.ReadTimeout, voltage,[]);
             catch err
             end
             task.Clear;
@@ -671,14 +671,12 @@ classdef dev < Modules.Driver
         function state   = ReadDILine(obj,name)
             TaskName = 'DigitalRead';
             line = obj.getLine(name,obj.InLines);
-            ptr = libpointer('uint32Ptr',0);
-            
+
             % create a new task
             task = obj.CreateTask(TaskName);
-            
+
             % create a digital in channel
             err = NaN;
-            state = NaN; 
             try
                 task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
                 task.Start
@@ -696,10 +694,10 @@ classdef dev < Modules.Driver
         function counts  = ReadCILine(obj,name)
             TaskName = 'CounterRead';
             line = obj.getLine(name,obj.InLines);
-            
+
             % create a new task
             task = obj.CreateTask(TaskName);
-            
+
             % create a counter in channel
             err = NaN;
             try
@@ -708,7 +706,7 @@ classdef dev < Modules.Driver
                 warning('NotImplemented');
                 counts = NaN;
 %                 [~,state] = task.LibraryFunction('DAQmxReadCounterScalarU32',task,obj.ReadTimeout, state,[]);
-                
+
 %                 task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, ptr,[]);
 %                 state = ptr.Value;
             catch err

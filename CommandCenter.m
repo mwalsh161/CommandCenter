@@ -1,7 +1,15 @@
 function varargout = CommandCenter(varargin)
-% CommandCenter debug -> will start with logger visible during launch
-% CommandCenter reset -> will remove all previously loaded modules before launching
-% Any combination of the above two will also work
+% CommandCenter
+% CommandCenter [flags]
+% CommandCenter([name,value])
+% CommandCenter([flag1],[name1,value1],[flag2],[name2,value2])
+% Flags (should be char vectors and order does not matter):
+%   debug: Sets logger to DEBUG and starts logger on startup.
+%   reset: Removes any previously loaded modules.
+% Name/Value Pairs (order of pairs does not matter). Default values in parentheses:
+%   namespace: ('') Prepend char vector to namespaces for debugging purposes.
+%
+% -> Note, order of name/value pairs and flags does not matter
 % -> Note `CommandCenter string1 string2` is equivalent to `CommandCenter('string1','string2')`
 %
 % COMMANDCENTER MATLAB code for CommandCenter.fig
@@ -27,7 +35,7 @@ function varargout = CommandCenter(varargin)
 
 % Edit the above text to modify the response to help CommandCenter
 
-% Last Modified by GUIDE v2.5 28-Mar-2019 13:48:26
+% Last Modified by GUIDE v2.5 19-Mar-2020 14:37:10
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -64,6 +72,16 @@ function CommandCenter_OpeningFcn(hObject, eventdata, handles, varargin)
 if strcmp(hObject.Visible,'on')
     % Means it already exists, so do nothing
     return
+end
+% Check compatibility
+if verLessThan('matlab','9.4') % R2018a
+    delete(hObject);
+    msg = ['You are running a MATLAB version less than R2018a (version 9.4). ',...
+           'You may encounter unexpected errors due to a major update in ',...
+           'implicit superclass constructor calls.' newline newline...
+           'Update to a newer release >= R2018a!'];
+    errordlg(msg);
+    throwAsCaller(MException('CommandCenter:version',msg));
 end
 MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
@@ -114,16 +132,15 @@ try
             rethrow(err);
         end
     end
-    % Parse inputs
+    % Parse inputs flags
     assert(all(cellfun(@ischar,varargin)),'All inputs provided to CommandCenter must be strings')
     [debug,varargin] = parseInput(varargin,'debug');
     [reset,varargin] = parseInput(varargin,'reset');
+    p = inputParser();
+    p.addParameter('namespace','',@ischar);
+    p.parse(varargin{:}); % p.Results has 
     % Prepare state based on inputs
     loggerStartState = 'off';
-    if ~isempty(varargin)
-        error('Invalid argument(s) provided to CommandCenter upon launching:\n  %s',...
-            strjoin(varargin,'\n  '));
-    end
     debugLevel = Base.Logger.INFO;
     if debug
         loggerStartState = 'on';
@@ -136,9 +153,10 @@ try
             rmpref('Manager');
         end
     end
+    setappdata(hObject,'namespace_prefix',p.Results.namespace);
     
     % Update path
-    warning('off','MATLAB:dispatcher:nameConflict');  % Overload setpref and dbquit
+    warning('off','MATLAB:dispatcher:nameConflict');  % Overloaded methods
     if ~exist(fullfile(path,'dbquit.m'),'file')
         copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));
     end
@@ -178,6 +196,8 @@ try
     setappdata(hObject,'ALLmodules',{})
     setappdata(hObject,'logger',handles.logger)
     set(handles.file_logger,'checked',handles.logger.visible)
+    handles.logger.log(['Using namespace prefix: "',...
+        getappdata(hObject,'namespace_prefix') '"'],handles.logger.DEBUG)
     
     % Convert panels to scrollPanels
     set(textH,'String', 'Making Panels'); drawnow;
@@ -891,3 +911,11 @@ path = handles.Managers.Imaging.get_im_path;
 if path
     handles.Managers.Imaging.load_im(path);
 end
+
+
+% --------------------------------------------------------------------
+function ui_module_build_Callback(hObject, eventdata, handles)
+% hObject    handle to ui_module_build (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+Base.Module.uibuild;

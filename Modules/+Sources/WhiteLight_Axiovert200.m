@@ -6,9 +6,6 @@ classdef WhiteLight_Axiovert200 < Modules.Source
         intensity = 100;               % Intenisty 0-100 (0-5 V)
         prefs = {'intensity'};
     end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-    end
     properties(Access=private)
         listeners
         status                       % Text object reflecting running
@@ -53,11 +50,11 @@ classdef WhiteLight_Axiovert200 < Modules.Source
                 obj.ZeissDriver.HaloLampIntensity = val;
             end
         end
-        function on(obj)
-            obj.ZeissDriver.HaloLampState = 1;
+        function val = set_source_on(obj, val, ~)
+            obj.ZeissDriver.HaloLampState = logical(val);
         end
-        function off(obj)
-            obj.ZeissDriver.HaloLampState = 0;
+        function val = set_armed(obj, val, ~)
+            % Opt out of armed warning.
         end
         
         % Settings and Callbacks

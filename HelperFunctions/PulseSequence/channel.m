@@ -66,7 +66,14 @@ classdef channel < handle
             if nargin < 5
                 callbacks = true;
             end
-            transitions = findall(ax,'tag',obj.label);
+            transitions = findobj(ax,'tag',obj.label); % Filter by name
+            rm = false(size(transitions));
+            for i = 1:length(transitions)              % Then check node channel in case two have same name
+                if transitions(i).UserData.data ~= obj
+                    rm(i) = true;
+                end
+            end
+            transitions(rm) = [];
             if ~isempty(transitions)
                 transitions = get(transitions,'xdata');
                 if ~iscell(transitions)  % Case of one transition
@@ -99,7 +106,7 @@ classdef channel < handle
         end
         
         function beginNewLoop(obj,ax,seq)
-            options = findall(ax,'type','line');
+            options = findobj(ax,'type','line');
             options(cellfun(@(i)not(isempty(i)),{options.Tag})) = [];
             set(options,'ButtonDownFcn',@(hObj,event)obj.newLoopClick(hObj,event,ax,seq,[]));
             title(ax,'Select Starting Position!')
@@ -116,7 +123,7 @@ classdef channel < handle
             obj.parentNodeSelection = [];
             t = get(ax,'CurrentPoint');
             t = t(1,1);
-            options = findall(ax,'type','line');
+            options = findobj(ax,'type','line');
             options(cellfun(@isempty,{options.Tag})) = [];
             set(options,'ButtonDownFcn',@(hObj,~)obj.selectParentNode(hObj,ax));
             plot(ax,[t t],ax.YLim,'--k')
@@ -140,7 +147,7 @@ classdef channel < handle
                 rethrow(err)
             end
             if i==1
-                options = findall(ax,'type','line');
+                options = findobj(ax,'type','line');
                 options(cellfun(@(i)not(isempty(i)),{options.Tag})) = [];
                 set(options,'ButtonDownFcn',@(hObj,event)obj.newLoopClick(hObj,event,ax,seq,temp));
                 title(ax,'Select Loop End')
@@ -159,7 +166,7 @@ classdef channel < handle
                 elseif strcmpi(ax.UserData,'us')
                     t = t*1e3;
                 end
-                options = findall(ax,'type','line');
+                options = findobj(ax,'type','line');
                 options(cellfun(@isempty,{options.Tag})) = [];
                 set(options,'ButtonDownFcn',@(hObj,~)obj.selectParentNode(hObj,ax));
                 title(ax,'Select parent node!')

@@ -9,6 +9,8 @@ classdef APDPulseSequence < handle
     end
     properties(SetAccess=private)
         tasks           % Handles to nidaq tasks (can querry for available samples)
+        time            % Expected time for the sequence (sec).
+        timeout         % Padded timeout (sec).
     end
     
     methods
@@ -96,8 +98,10 @@ classdef APDPulseSequence < handle
                 obj.tasks(i).Start;
             end
             try
-                [program,s] = obj.seq.compile(overrideMinDuration);
-                obj.pb.open;
+                [program, ~, ~, obj.time] = obj.seq.compile(overrideMinDuration);
+                
+                obj.timeout = 1.5*obj.time + 1;
+                
                 obj.pb.load(program);
                 obj.pb.start;
             catch err
@@ -117,7 +121,8 @@ classdef APDPulseSequence < handle
             end
             err = [];
             try
-                while ~isempty(obj.tasks)
+                t = tic;
+                while ~isempty(obj.tasks) && toc(t) < obj.timeout
                     for i = 1:numel(obj.tasks)
                         if obj.tasks(i).IsTaskDone
                             clearFlag = 1;
@@ -140,6 +145,10 @@ classdef APDPulseSequence < handle
                             obj.tasks(i) = [];
                         end
                     end
+                end
+                
+                if toc(t) >= obj.timeout
+                    error('APDPulseSequence operation timed out without reading samples from DAQ. Make sure that PulseBlaster pulses are reaching the DAQ!')
                 end
             catch err
             end

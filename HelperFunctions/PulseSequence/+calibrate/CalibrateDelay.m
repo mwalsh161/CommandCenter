@@ -7,7 +7,7 @@ apdBin = 0.1; %resolution of APD bin in us
 maxDelay = 10; %maximum expeceted delay in us
 maxCounts = 1e2;
 nidaq = Drivers.NIDAQ.dev.instance(NIDAQ_dev);
-pb = Drivers.PulseBlaster.Remote.instance(PB_ip);
+pb = Drivers.PulseBlaster.instance(PB_ip);
 
 % Note, BuildCalibrateSequence resets offsets to [0,0]
 
@@ -116,9 +116,3 @@ hold(debugax,'off');
 delay = c(2);
 ontime = 3*c(3); %3 sigma is >99.9% contrast
 channel('Laser','hardware',laserLine,'offset',[delay ontime]);
-
-
-
-
-
-
