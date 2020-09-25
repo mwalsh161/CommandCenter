@@ -64,16 +64,18 @@ classdef MeasurementRegister < Base.Singleton
                     if isempty(obj.register.(modules{ii})) || ~isvalid(obj.register.(modules{ii}))
                         obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
                     else
-                        m = obj.register.(modules{ii});
-                        sd = m.subdata;
-                        l = m.getLabels;
-                        s = m.getSizes;
-                        str = makeParentString(m, true);
+                        m =     obj.register.(modules{ii});
+                        
+                        sd =    m.subdata;
+                        l =     m.getLabels;
+                        s =     m.getSizes;
+                        
+                        str =   makeParentString(m, true);
                         
                         label = ['<html>' str ':'];
 
-                        for ii = 1:length(sd)
-                            label = [label '<br>' char(8594) ' ' l.(sd{ii}) ' (<font face="Courier" color="green">.' sd{ii} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{ii})) ']</font>)'];
+                        for ii = 1:length(sd) %#ok<FXSET>
+                            label = [label '<br>' char(8594) ' ' l.(sd{ii}) ' (<font face="Courier" color="green">.' sd{ii} '</font>, <font face="Courier" color="blue">[' num2str(s.(sd{ii})) ']</font>)']; %#ok<AGROW>
                         end
 
                         uimenu(menu, 'Text', [label '</html>'], 'UserData', [], 'Callback', @(s,e)(callback(m)));
@@ -81,8 +83,10 @@ classdef MeasurementRegister < Base.Singleton
                 end
             end
             
+            % Make a menu for prefs which can be measured...
             prefs = uimenu(menu, 'Label', 'Prefs');
             
+            % And populate this menu with info from PrefRegister.
             pr = Base.PrefRegister.instance();
             pr.getMenu(prefs, callback, 'isnumeric', true);
         end
@@ -90,7 +94,9 @@ classdef MeasurementRegister < Base.Singleton
     
     methods
         function addMeasurement(obj, varargin)
-            % Adds pref to the register under the field corresponding to the parent.
+            varargin
+            
+            % Adds measurement to the register corresponding to the parent.
             if numel(varargin) == 2
                 m = varargin{1};
                 name = varargin{2};

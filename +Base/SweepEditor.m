@@ -11,7 +11,7 @@ classdef SweepEditor < handle
         pwidthsopt =    {20,        160,       160,        40,         40,         40,         0,           0,          0,          0,          0,           0,             40,         40,         40,};
         pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric',   'char',        'numeric',  'numeric',  'numeric'};
         
-        mheaders =  {'#',       'Parent',       'Measurement', 'Size',    'Unit',     'Time'};
+        mheaders =  {'#',       'Parent',       'Measurement', 'Size',    'Unit',     'Exposure'};
         meditable = [false,     false,         false,       false,      false,      true];
         mwidths =   {20,        160,           160,         60,         40,         0};
         mformat =   {'char',    'char',        'char',      'char',     'char',     'numeric'};
@@ -63,9 +63,13 @@ classdef SweepEditor < handle
 
             padding = 30;
 
-            w = obj.totalWidth(true) + obj.totalWidth(false)
+            w = obj.totalWidth(true) + obj.totalWidth(false);
             h = 600;
-            rh = 17;
+            if ismac
+                rh = 17;
+            else
+                rh = 18;
+            end
             obj.maxelements = floor(h/rh)-1;
             h = obj.maxelements*rh;
 
@@ -86,7 +90,7 @@ classdef SweepEditor < handle
                                                     'Style', 'pushbutton',...
                                                     'Units', 'pixels',...
                                                     'Callback', @obj.generate_Callback,...
-                                                    'Position', p);    p(1) = p(1) + dp;
+                                                    'Position', p + [0 -1 0 2]*4);    p(1) = p(1) + dp;
                                                 
                                                 
             obj.gui.timePointText       = uicontrol('String', 'Single Time (sec):',...
@@ -99,7 +103,7 @@ classdef SweepEditor < handle
                                                     'Style', 'edit',... 'Enable', 'inactive',...
                                                     'Units', 'pixels',...
                                                     'Callback', @obj.setSingleTime_Callback,...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position', p .* [1 1 .7 1]);    p(1) = p(1) + dp*.7;
                                                 
             obj.gui.numPointsText       = uicontrol('String', 'Number of Points:',...
                                                     'Tooltip', 'Number of points in the sweep.',...
@@ -112,20 +116,20 @@ classdef SweepEditor < handle
                                                     'Style', 'edit',...
                                                     'Enable', 'off',...
                                                     'Units', 'pixels',...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position',  p .* [1 1 .7 1]);    p(1) = p(1) + dp*.7;
                                                 
             obj.gui.timeTotalText       = uicontrol('String', 'Total Time:',...
-                                                    'Tooltip', 'Expected total time for the sweep of measurements.',...
+                                                    'Tooltip', 'Expected total time for the sweep of measurements (DD:HH:MM:SS).',...
                                                     'Style', 'text',...
                                                     'HorizontalAlignment', 'right',...
                                                     'Units', 'pixels',...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position',  p .* [1 1 .7 1]);    p(1) = p(1) + dp*.7;
             obj.gui.timeTotal           = uicontrol('String', '1:00',...
-                                                    'Tooltip', 'Expected total time for the sweep of measurements.',...
+                                                    'Tooltip', 'Expected total time for the sweep of measurements (DD:HH:MM:SS).',...
                                                     'Style', 'edit',...
                                                     'Enable', 'inactive',...
                                                     'Units', 'pixels',...
-                                                    'Position', [p(1:2) dp*.7 p(4)]);    p(1) = p(1) + dp*.7;
+                                                    'Position',  p .* [1 1 .7 1]);    p(1) = p(1) + dp*.75;
                                                 
                                                 
             obj.gui.continuous          = uicontrol('String', 'Continuous',...
@@ -163,7 +167,7 @@ classdef SweepEditor < handle
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
                                                     'Enable', 'off',...
-                                                    'Position', p);    p(1) = p(1) + dp;
+                                                    'Position', p .* [1 1 1.1 1]);    % p(1) = p(1) + dp*1.1;
             
             obj.makeMenus();
             
@@ -188,7 +192,7 @@ classdef SweepEditor < handle
 %             rh = jtable.getRowHeight()
 
             xlim(apt, [0, ptPosition(3)]);
-            ylim(apt, [0, ptPosition(4)/rh]);
+            ylim(apt, [0, ptPosition(4)/rh] - 3*(~ismac)/rh);
             apt.YDir = 'reverse';
 
             % Measurement Table
@@ -273,8 +277,8 @@ classdef SweepEditor < handle
             
             sweep = Base.Sweep(obj.measurements, obj.prefs(end:-1:1), scans(end:-1:1), flags);
             
-            d = sweep.blank()
-            whos d
+%             d = sweep.blank()
+%             whos d
         end
     end
     
@@ -302,7 +306,7 @@ classdef SweepEditor < handle
                 obj.pt.ColumnWidth = obj.pwidths;
             end
             
-            obj.gui.timeTotal.String = datastrCustom(str2double(obj.gui.numPoints.String) * str2double(obj.gui.timePoint.String));
+            obj.gui.timeTotal.String = datestrCustom(str2double(obj.gui.numPoints.String) * str2double(obj.gui.timePoint.String));
             
             % Checks for continuous
             if numel(obj.prefs) > 0
@@ -363,9 +367,9 @@ classdef SweepEditor < handle
                 mask = obj.getPrefsMask(); %1:obj.numRows(true);
                 for ii = 1:length(mask)
                     if obj.gui.optimize.Value
-                        obj.pdata{ii,1} = formatNumber(mask(ii), true);
+                        obj.pdata{ii,1} = formatNumber(mask(ii), -1);
                     else
-                        obj.pdata{ii,1} = formatNumber(mask(ii));
+                        obj.pdata{ii,1} = formatNumber(mask(ii), max(mask));
                     end
                 end
                 obj.pdata{end,1} = formatNumber('+');
@@ -378,38 +382,58 @@ classdef SweepEditor < handle
                 
             end
             
-            function color = getColor(ii)
+            function color = getColor(ii, gradient)
                 if ischar(ii)
                     color = 'blue';
                 else
-                    if mod(ii, 2)
-                        color = 'red';
+                    if gradient == 0
+                        if mod(ii, 2)
+                            color = 'green';
+                        else
+                            color = 'purple';
+                        end
                     else
-                        color = 'orange';
+                        % hot cold gradient to imply which prefs are being scanned the most.
+                        color = sprintf('rgb(%i,0,%i)', 0 + floor(255*ii/gradient), 255 - floor(255*ii/gradient));
                     end
                 end
             end
-            function str = formatNumber(ii, varargin)
+            function str = formatNumber(ii, gradient)
+                if nargin < 2
+                    gradient = 0;
+                end
+                
                 if isnan(ii)
                     str = '';
                 else
                     num = num2str(ii);
                     
-                    if ~isempty(varargin) && isnumeric(ii)
+                    if gradient < 0 && isnumeric(ii)
                         optnum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                         num = optnum(ii);
                     end
                     
-                    str = sprintf('<html><tr align=center><td width=%d><font color=%s><b>%s', Base.SweepEditor.pwidths{1}, getColor(ii), num);
+                    str = sprintf('<html><tr align=center><td width=%d><font color=%s><b>%s', Base.SweepEditor.pwidths{1}, getColor(ii, gradient), num);
                 end
             end
         end
         
         % ROW FUNCTIONS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function setRow(obj, instrument, isPrefs)
-            instrument
+%             instrument
             
             if isPrefs
+                if ~isa(instrument, 'Prefs.Time')   % Time can be added as many times as desired.
+                    for ii = 1:length(obj.prefs)
+                        if obj.pselected ~= ii
+                            if isequal(instrument, obj.prefs{ii})
+                                warning('Base.SweepEditor: Cannot add duplicate pref.')
+                                return;
+                            end
+                        end
+                    end
+                end
+                
                 if obj.pselected == 0
                     obj.pdata(end, :) = centerCharsPrefs(obj.makePrefRow(instrument));
                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
@@ -429,6 +453,8 @@ classdef SweepEditor < handle
                     obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
                     
                     obj.measurements{end+1} = instrument;
+                else
+                    helpdlg('Setting measurements currently disabled due to implementation complexity.');
                 end
 %                 if obj.mselected == 0
 %                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
@@ -465,10 +491,11 @@ classdef SweepEditor < handle
                 end
             else
                 if obj.mselected ~= 0
-                    mask = obj.getMeasurementMask();
-                    mask2 = obj.getMeasurementMask() == mask(obj.mselected);
+%                     mask = obj.getMeasurementMask();
+%                     mask2 = obj.getMeasurementMask() == mask(obj.mselected);
+                    mask2 = obj.getMeasurementMask() == obj.mselected;
                     obj.mdata(mask2, :) = [];
-                    obj.measurements{obj.mselected} = [];
+                    obj.measurements(obj.mselected) = [];
                 end
             end
             
@@ -488,14 +515,15 @@ classdef SweepEditor < handle
                 obj.prefs{r1} = obj.prefs{r2};
                 obj.prefs{r2} = tmp;
             else
+                helpdlg('Swapping measurements currently disabled due to implementation complexity.');
 %                 mask1 = obj.getMeasurementMask() == r1;
 %                 mask2 = obj.getMeasurementMask() == r2;
 %                 
 %                 tmp = obj.mdata(mask1, :);
-%                 obj.mdata(mask1, :) = [];
+% %                 obj.mdata(mask1, :) = [];
 %                 
 %                 obj.mdata(mask1, :) = obj.mdata(r2, :);
-%                 obj.mdata(r2, :) = tmp;
+%                 obj.mdata(mask2, :) = tmp;
 %                 
 %                 tmp = obj.measurements{r1};
 %                 obj.measurements{r1} = obj.measurements{r2};
@@ -564,7 +592,7 @@ classdef SweepEditor < handle
                 
                 for ii = 1:length(subdata)
                     sd = subdata{ii};
-                    d = [d ; {'<html><font color=red><b>',   ['<i>' class(m)], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }];
+                    d = [d ; {'<html><font color=red><b>',   ['<i>' class(m)], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }]; %#ok<AGROW>
                 end
                 
 %                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', [1 1024], 'cts/sec', 0 };
@@ -607,6 +635,10 @@ classdef SweepEditor < handle
             obj.update();
         end
         function setContinuous_Callback(obj, ~, ~)
+            if obj.gui.continuous.Value && obj.numRows(true) >= 2
+            	obj.pdata{2, 11} = false;    
+            end
+            
             obj.update();
         end
         function setOptimize_Callback(obj, ~, ~)
@@ -638,6 +670,7 @@ classdef SweepEditor < handle
                 
                 p = obj.prefs{r};
                 isInteger = isPrefInteger(p);
+                isBoolean = isPrefBoolean(p);
                 
                 if strcmp(obj.pheaders{evt.Indices(2)}, 'Pair') % 11
                     if r > 1 + obj.gui.continuous.Value
@@ -651,7 +684,8 @@ classdef SweepEditor < handle
                             
                         x = r;
                         
-                        while obj.pdata{x, 11} && x >= r
+                        % Scan up and down the column setting N data to be the same as the parent.
+                        while x <= obj.numRows(isPrefs) && obj.pdata{x, 11} && x >= r
                             srcFake.UserData.UserData = true;
                             
                             evtFake.Indices         = [x, 10];  % N
@@ -692,6 +726,7 @@ classdef SweepEditor < handle
                         case 'X1'   % 7
                             X0 = min(M, max(m, ndata));
                             if isInteger, X0 = round(X0); end
+                            if isBoolean, X0 = logical(X0); end
                             obj.pdata{r, 7} = X0;
 
                             obj.updateStep(r);
@@ -710,6 +745,7 @@ classdef SweepEditor < handle
                         case 'X2'   % 9
                             X1 = max(m, min(M, ndata));
                             if isInteger, X1 = round(X1); end
+                            if isBoolean, X1 = logical(X1); end
                             obj.pdata{r, 9} = X1;
 
                             obj.updateStep(r);
@@ -745,6 +781,7 @@ classdef SweepEditor < handle
                         
                         obj.pdata{r, 8} = Step;
                         obj.pdata{r, 9} = obj.pdata{r, 7} + (N-1)*Step;
+                        if isBoolean, obj.pdata{r, 9} = logical(obj.pdata{r, 9}); end
                         obj.pdata{r, 10} = N;
                     else
                         obj.pdata{r, 8} = Step;
@@ -779,9 +816,6 @@ classdef SweepEditor < handle
                 
             end
         end
-        function updateN(obj, ind)
-            
-        end
         function updateStep(obj, ind)
             N = obj.pdata{ind, 10};
             if N == 1
@@ -795,8 +829,8 @@ classdef SweepEditor < handle
             end
         end
         
-        function buttondown_Callback(obj, src, evt)
-            cp = src.UserData.CurrentPoint(1,:);
+        function buttondown_Callback(obj, src, ~)
+            cp = src.UserData.CurrentPoint(1,:);    % This value is generated by the axes that sit on top of the uitable. The y-coordinate is aligned with the rows.
             yi = floor(cp(2));
 
             N = size(src.Data, 1)-1;
@@ -806,12 +840,22 @@ classdef SweepEditor < handle
             if yi <= N && yi > 0
                 if isPrefs
                     obj.pselected = yi;
-                    src.UIContextMenu.Children(end).Label = ['Pref ' num2str(yi)];
+                    
+                    src.UIContextMenu.Children(end).Label = ['Pref #' num2str(yi)];
+                    
+                    % help_text is in html and cannot be diplayed. Still keeping this around in case it is useful in the future.
+%                     src.UIContextMenu.Children(end).Enable = 'on';
+%                     obj.prefs{yi}
+%                     src.UIContextMenu.Children(end).Callback = @(s,e)(helpdlg(obj.prefs{yi}.help_text, obj.prefs{yi}.name));
                 else
+                    % Measurements are indexed by Measurement, not by Meas.
                     yi = obj.getMeasurementIndex(yi);
                     obj.mselected = yi;
-                    src.UIContextMenu.Children(end).Label = ['Measurement ' num2str(yi)];
                     N = num(obj, false);
+                    
+                    src.UIContextMenu.Children(end).Label = ['Measurement #' num2str(yi)];
+%                     src.UIContextMenu.Children(end).Enable = 'on';
+%                     src.UIContextMenu.Children(end).Callback = @(s,e)(helpdlg());
                 end
 
                 if yi ~= 1
@@ -826,13 +870,6 @@ classdef SweepEditor < handle
                 end
                 
                 src.UIContextMenu.Children(end-3).Enable = 'on';   % Delete
-                
-                if ~isPrefs
-                    disp('Up/Down/Delete disabled.')
-                    src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
-                    src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
-                    src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
-                end
             else
                 if isPrefs
                     obj.pselected = 0;
@@ -842,31 +879,13 @@ classdef SweepEditor < handle
                     src.UIContextMenu.Children(end).Label = 'Add Measurement';
                 end
 
+                src.UIContextMenu.Children(end).Enable = 'off';     % Title
                 src.UIContextMenu.Children(end-1).Enable = 'off';   % Up
                 src.UIContextMenu.Children(end-2).Enable = 'off';   % Down
                 src.UIContextMenu.Children(end-3).Enable = 'off';   % Delete
             end
 
             drawnow;
-        end
-
-        function xi = getXIndex(obj, x)
-            if true
-                widths = obj.pwidths;
-            else
-                widths = obj.mwidths;
-            end
-
-            xi = 0;
-            total = 0;
-
-            for ii = 1:numel(widths)
-                total = total + widths{ii};
-                if total > x
-                    xi = ii;
-                    return
-                end
-            end
         end
         function total = totalWidth(obj, isPrefs)
             if isPrefs
@@ -904,7 +923,7 @@ classdef SweepEditor < handle
                 kk = 1;
                 for ii = 1:length(obj.prefs)
                     if isa(obj.prefs{ii}, 'Prefs.Time')
-                        mask = [mask NaN];
+                        mask = [mask NaN]; %#ok<AGROW>
                     else
                         mask = [mask kk]; %#ok<AGROW>
                         kk = kk + 1;
@@ -924,6 +943,7 @@ classdef SweepEditor < handle
         end
         function mask = getMeasurementMask(obj)
             mask = [];
+            obj.measurements
             for ii = 1:length(obj.measurements)
                 mask = [mask ii*ones(1, obj.measurements{ii}.getN())]; %#ok<AGROW>
             end
@@ -971,14 +991,34 @@ end
 function tf = isPrefInteger(p)
     tf = isa(p, 'Prefs.Integer') || isa(p, 'Prefs.Boolean') || isa(p, 'Prefs.MultipleChoice');
 end
-function str = datastrCustom(t)
+function tf = isPrefBoolean(p)
+    tf = isa(p, 'Prefs.Boolean');
+end
+function str = datestrCustom(t)
     if t > 31*60*60*24
         str = 'Insanity';
-    elseif t > 60*60*24
-        str = datestr(t/60/60/24, 'DD:HH:MM:SS');
-    elseif t > 60*60
-        str = datestr(t/60/60/24, 'HH:MM:SS');
     else
-        str = datestr(t/60/60/24, 'MM:SS');
+        t = ceil(t);
+        str = '';
+        
+        for mm = [60, 60, 24, 31]
+            if t > 0 || mm == 60
+                str = [sprintf('%02i', mod(t, mm)) ':' str]; %#ok<AGROW>
+                t = floor(t/mm);
+            end
+        end
+        
+        if str(1) == '0'
+            str = str(2:end-1);
+        else
+            str = str(1:end-1);
+        end
     end
+%     elseif t > 60*60*24
+%         str = datestr(t/60/60/24, 'DD:HH:MM:SS');
+%     elseif t > 60*60
+%         str = datestr(t/60/60/24, 'HH:MM:SS');
+%     else
+%         str = datestr(t/60/60/24, 'MM:SS');
+%     end
 end

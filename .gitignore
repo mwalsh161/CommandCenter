@@ -32,6 +32,7 @@ Thumbs.db
 *.log
 *.pem
 *.SPE
+*.gds
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

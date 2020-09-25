@@ -1,14 +1,19 @@
 classdef Numeric < Base.Pref & Base.Measurement
     %NUMERIC Any numeric value
-
-    properties (Abstract)               % Adds min and max
+    
+    properties (Abstract)               % Enforces min and max
         min;
         max;
     end
+    
+%     properties
+%         measurements = {[], @()true};
+%     end
 
     methods (Static)
         function obj = Numeric(varargin)
             obj = obj@Base.Pref(varargin{:});
+%             obj = obj.init(varargin{:});
         end
         function tf = isnumeric(~)      % Overloads isnumeric.
             tf = true;

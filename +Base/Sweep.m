@@ -7,12 +7,14 @@ classdef Sweep < handle & Base.Measurement
         name = '';
         
         % Core
-        measurements;   % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
-        sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
+        measurements_;   % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
+%         sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
         
         sdims;          % cell array                % Contains 1xN `Base.Pref` objects that are being swept over.
         sscans;         % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
     end
+    
+    
     
 %   properties (Hidden)             % Inherited from Measurement.
 %       % sizes
@@ -59,7 +61,7 @@ classdef Sweep < handle & Base.Measurement
     end
 
     methods
-		function obj = Sweep(varargin)
+        function obj = Sweep(varargin)
             if numel(varargin) == 0     % If nothing was given, generate a test Sweep.
                 a = Drivers.AxisTest.instance('fish');
                 a1 = a.get_meta_pref('x');
@@ -81,12 +83,12 @@ classdef Sweep < handle & Base.Measurement
                 
                 error('NotImplemented');
                 
-%                 obj.measurements =  varargin{1};    % Not sure what to do here.
+%                 obj.measurements_ =  varargin{1};    % Not sure what to do here.
 %                 
 %                 obj.sdims =         obj.data.metadata.dims;
 %                 obj.sscans =        obj.data.metadata.scans;
             else
-                obj.measurements =  varargin{1};
+                obj.measurements_ =  varargin{1};
                 obj.sdims =         varargin{2};
                 obj.sscans =        varargin{3};
 
@@ -106,22 +108,22 @@ classdef Sweep < handle & Base.Measurement
             defaultname = 'Sweep';  % Fix me.
             
 			% Check measurements
-            assert(numel(obj.measurements) == length(obj.measurements), '')
-            assert(numel(obj.measurements) > 0, '')
+            assert(numel(obj.measurements_) == length(obj.measurements_), '')
+            assert(numel(obj.measurements_) > 0, '')
             
-            obj.NIDAQ.isMeasurementNIDAQ = false(1, numel(obj.measurements));
+            obj.NIDAQ.isMeasurementNIDAQ = false(1, numel(obj.measurements_));
             
-            for ii = 1:length(obj.measurements)
-                assert(isa(obj.measurements{ii}, 'Base.Measurement'), '');
+            for ii = 1:length(obj.measurements_)
+                assert(isa(obj.measurements_{ii}, 'Base.Measurement'), '');
                 
-                obj.NIDAQ.isMeasurementNIDAQ(ii) = isa(obj.measurements{ii}, 'Drivers.NIDAQ.in');
+                obj.NIDAQ.isMeasurementNIDAQ(ii) = isa(obj.measurements_{ii}, 'Drivers.NIDAQ.in');
             end
             
             prefList = {};
                 
             obj.NIDAQ.isPrefNIDAQ = false(1, numel(obj.sdims));
             
-			% Check dims and scans
+            % Check dims and scans
             if ~obj.flags.isOptimize
                 assert(iscell(obj.sdims), '.sdims must be a cell array.')
                 assert(iscell(obj.sscans), '.sscans must be a cell array.')
@@ -148,7 +150,7 @@ classdef Sweep < handle & Base.Measurement
             if all(obj.NIDAQ.isPrefNIDAQ) && all(obj.NIDAQ.isMeasurementNIDAQ) && false
                 obj.NIDAQ.isNIDAQ = true;
                 
-                obj.NIDAQ.dev = obj.measurements{1}.dev;
+                obj.NIDAQ.dev = obj.measurements_{1}.dev;
                 
                 obj.setupNIDAQ();
             end
@@ -183,35 +185,44 @@ classdef Sweep < handle & Base.Measurement
             end
         end
         
-        function l = length(obj)    % Returns the total number of dimensions length(sdims).
+        % function l = length(obj)    % Returns the total number of dimensions length(sdims).
+        function l = ndims(obj)         % Returns the total number of scan dimensions length(sdims).
 			l = length(obj.sdims);
         end
-        function L = lengths(obj)   % Returns the length of each dimension in the scan.
+        % function L = lengths(obj)   % Returns the length of each scan dimension in the sweep.
+        function L = size(obj)   % Returns the length of each scan dimension in the sweep.
 % 			L = cellfun(@(x)(length(x)), obj.sscans, 'UniformOutput', true);
             
-            l = obj.length();
+            l = obj.ndims();
             L = NaN(1, l);
             
             for ii = 1:l
                 L(ii) = length(obj.sscans{ii});
             end
+            
+            L(L < 1) = [];  % Check me!
 		end
-
+        
+            % function l = measurementLength(obj)
         function l = measurementLength(obj)
-            l = length(obj.measurements);
+            l = length(obj.measurements_);
         end
+            % function D = measurementLengths(obj)
         function D = measurementLengths(obj)
             D = [];
             
-            for ii = 1:length(obj.measurements)
-                D = [D obj.measurements{ii}.subdatas()]; %#ok<AGROW>
+            for ii = 1:length(obj.measurements_)
+                D = [D obj.measurements_{ii}.nmeas()]; %#ok<AGROW>
             end
         end
         function D = measurementDimensions(obj)
             D = [];
             
-            for ii = 1:length(obj.measurements)
-                D = [D obj.measurements{ii}.dimensions()]; %#ok<AGROW>
+            for ii = 1:length(obj.measurements_)
+%                 ii
+%                 obj.measurements_{ii}
+%                 obj.measurements_{ii}.dimensions()
+                D = [D obj.measurements_{ii}.dimensions()]; %#ok<AGROW>
             end
         end
         
@@ -237,13 +248,13 @@ classdef Sweep < handle & Base.Measurement
         end
 
         function gotoIndex(obj, index)
-            L = obj.lengths();
+            L = obj.size();
 
             obj.sub = [];
 
             [obj.sub{1:length(L)}] = ind2sub(L, index);
             obj.sub = cell2mat(obj.sub);
-            A = 1:obj.length();
+            A = 1:obj.ndims();
 
             for aa = A
                 obj.sdims{aa}.writ(obj.sscans{aa}(obj.sub(aa)));
@@ -253,7 +264,7 @@ classdef Sweep < handle & Base.Measurement
         end
 		function data = measure(obj)
             % First, make sure that we are at the correct starting position.
-            N = prod(obj.lengths());
+            N = prod(obj.size());
 
             if obj.index > N && ~obj.flags.isContinuous
                 warning('Already done')
@@ -385,28 +396,47 @@ classdef Sweep < handle & Base.Measurement
             x = fminsearch(fun, x0, options);
         end
         function tick(obj)
-            L = obj.lengths();
+            L = obj.size();
             N = prod(L);
             
             shouldCircshift = false;
-
-            if obj.index > N
-                if obj.flags.isContinuous
+            
+%             isa(obj.sdims{end}, 'Prefs.Time')
+            
+            if obj.flags.isContinuous
+%                 isa(obj.sdims{end}, 'Prefs.Time')
+                M = prod(L(1:end-1));
+%                 'a'
+                obj.index = 1;
+%                 obj.index = mod(obj.index-1, M) + 1;
+%                 obj.index
+%                 'b'
+%                 mod(obj.index-1, M)
+                if obj.index == 1
                     shouldCircshift = true;
-                    obj.index = 1;
-                else
-                    warning('Already done')
-                    return
                 end
             end
+
+            if obj.index > N
+%                 if obj.flags.isContinuous
+%                     shouldCircshift = true;
+%                     obj.index = 1;
+%                 else
+%                     warning('Already done')
+                    return
+%                 end
+            end
+           
 
             % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
             [sub2{1:length(L)}] = ind2sub(L, obj.index);
             SUB = sub2;
             sub2 = [sub2{:}];
+%             obj.sub
+%             sub2
 
             differences = obj.sub ~= sub2;	% Find the axes that need to change...
-            A = 1:obj.length();
+            A = 1:obj.ndims();
 
             for aa = A(differences)
                 obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
@@ -428,8 +458,8 @@ classdef Sweep < handle & Base.Measurement
             kk = 1;
 
             for ii = 1:M
-                msd =       obj.measurements{ii}.subdata;
-                d =         obj.measurements{ii}.snap(false);   % Don't pass metadata...
+                msd =       obj.measurements_{ii}.subdata;
+                d =         obj.measurements_{ii}.snap(false);   % Don't pass metadata...
 
                 for jj = 1:length(msd)
                     C    = cell(1, sum(size(d.(msd{jj}).dat) > 1));
@@ -438,12 +468,10 @@ classdef Sweep < handle & Base.Measurement
                     S.subs = [SUB C];
 
                     if shouldCircshift
-                        obj.data.(sd{kk}).dat           = circshift(obj.data.(sd{kk}).dat,1);
-                        obj.data.(sd{kk}).dat(1,:,:)    = NaN;
+                        obj.data.(sd{kk}).dat = subsasgn(circshift(obj.data.(sd{kk}).dat, 1), S, d.(msd{jj}).dat); %, length(S.subs));
+                    else
+                        obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
                     end
-                    
-                    obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
-
 %                     if ~isempty(d.(msd{jj}).std)
 %                         obj.data.(sd{kk}).std = subsasgn(obj.data.(sd{kk}), S, d.(msd{jj}).std);
 %                     end
@@ -453,7 +481,9 @@ classdef Sweep < handle & Base.Measurement
             end
 
             % Lastly, incriment the index.
-            obj.index = obj.index + 1;
+            if ~shouldCircshift
+                obj.index = obj.index + 1;
+            end
 
             if ~isempty(obj.controller) && isvalid(obj.controller)
                 obj.controller.setIndex();
@@ -461,40 +491,17 @@ classdef Sweep < handle & Base.Measurement
         end
         
         function fillMeasurementProperties(obj)
-            sizes_ = struct();
-            names_ = struct();
-            units_ = struct();
-            dims_  = struct();
-            scans_ = struct();
-
-            ssizes = obj.lengths();
-
-            for ii = 1:length(obj.measurements)
-                mtag = ['m' num2str(ii) '_'];
+            obj.measurements = [];
+            
+            digits = floor(max(length(obj.measurements_), 0)) + 1;
+            
+            for ii = 1:length(obj.measurements_)
+                tag = sprintf(sprintf('m%%0%ii_', digits), ii);
                 
-                sd = obj.measurements{ii}.subdata();
-                
-                msizes = obj.measurements{ii}.getSizes();
-                mnames = obj.measurements{ii}.getNames();
-                munits = obj.measurements{ii}.getUnits();
-                mdims =  obj.measurements{ii}.getDims();
-                mscans = obj.measurements{ii}.getScans();
-                
-                for jj = 1:length(sd)
-                    s = msizes.(sd{jj});
-                    sizes_.([mtag sd{jj}]) = [ssizes s(s > 1)];  % Append dimensions
-                    names_.([mtag sd{jj}]) = mnames.(sd{jj});
-                    units_.([mtag sd{jj}]) = munits.(sd{jj});
-                    dims_.( [mtag sd{jj}]) = [obj.sdims     mdims.( sd{jj})];
-                    scans_.([mtag sd{jj}]) = [obj.sscans    mscans.(sd{jj})];
+                for jj = 1:obj.measurements_{ii}.getN()
+                    obj.measurements = [obj.measurements obj.measurements_{ii}.measurements(jj).extendBySweep(obj, tag)];
                 end
             end
-            
-            obj.sizes = sizes_;
-            obj.names = names_;
-            obj.units = units_;
-            obj.dims  = dims_;
-            obj.scans = scans_;
         end
     end
 end
