@@ -8,7 +8,7 @@ classdef Sweep < handle & Base.Measurement
         
         % Core
         measurements_;   % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
-        sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
+%         sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
         
         sdims;          % cell array                % Contains 1xN `Base.Pref` objects that are being swept over.
         sscans;         % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
@@ -199,6 +199,8 @@ classdef Sweep < handle & Base.Measurement
             for ii = 1:l
                 L(ii) = length(obj.sscans{ii});
             end
+            
+            L(L < 1) = [];  % Check me!
 		end
         
             % function l = measurementLength(obj)
@@ -217,6 +219,9 @@ classdef Sweep < handle & Base.Measurement
             D = [];
             
             for ii = 1:length(obj.measurements_)
+%                 ii
+%                 obj.measurements_{ii}
+%                 obj.measurements_{ii}.dimensions()
                 D = [D obj.measurements_{ii}.dimensions()]; %#ok<AGROW>
             end
         end
@@ -243,13 +248,13 @@ classdef Sweep < handle & Base.Measurement
         end
 
         function gotoIndex(obj, index)
-            L = obj.lengths();
+            L = obj.size();
 
             obj.sub = [];
 
             [obj.sub{1:length(L)}] = ind2sub(L, index);
             obj.sub = cell2mat(obj.sub);
-            A = 1:obj.length();
+            A = 1:obj.ndims();
 
             for aa = A
                 obj.sdims{aa}.writ(obj.sscans{aa}(obj.sub(aa)));
@@ -259,7 +264,7 @@ classdef Sweep < handle & Base.Measurement
         end
 		function data = measure(obj)
             % First, make sure that we are at the correct starting position.
-            N = prod(obj.lengths());
+            N = prod(obj.size());
 
             if obj.index > N && ~obj.flags.isContinuous
                 warning('Already done')
@@ -391,28 +396,47 @@ classdef Sweep < handle & Base.Measurement
             x = fminsearch(fun, x0, options);
         end
         function tick(obj)
-            L = obj.lengths();
+            L = obj.size();
             N = prod(L);
             
             shouldCircshift = false;
-
-            if obj.index > N
-                if obj.flags.isContinuous
+            
+%             isa(obj.sdims{end}, 'Prefs.Time')
+            
+            if obj.flags.isContinuous
+%                 isa(obj.sdims{end}, 'Prefs.Time')
+                M = prod(L(1:end-1));
+%                 'a'
+                obj.index = 1;
+%                 obj.index = mod(obj.index-1, M) + 1;
+%                 obj.index
+%                 'b'
+%                 mod(obj.index-1, M)
+                if obj.index == 1
                     shouldCircshift = true;
-                    obj.index = 1;
-                else
-                    warning('Already done')
-                    return
                 end
             end
+
+            if obj.index > N
+%                 if obj.flags.isContinuous
+%                     shouldCircshift = true;
+%                     obj.index = 1;
+%                 else
+%                     warning('Already done')
+                    return
+%                 end
+            end
+           
 
             % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
             [sub2{1:length(L)}] = ind2sub(L, obj.index);
             SUB = sub2;
             sub2 = [sub2{:}];
+%             obj.sub
+%             sub2
 
             differences = obj.sub ~= sub2;	% Find the axes that need to change...
-            A = 1:obj.length();
+            A = 1:obj.ndims();
 
             for aa = A(differences)
                 obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
@@ -444,12 +468,10 @@ classdef Sweep < handle & Base.Measurement
                     S.subs = [SUB C];
 
                     if shouldCircshift
-                        obj.data.(sd{kk}).dat           = circshift(obj.data.(sd{kk}).dat,1);
-                        obj.data.(sd{kk}).dat(1,:,:)    = NaN;
+                        obj.data.(sd{kk}).dat = subsasgn(circshift(obj.data.(sd{kk}).dat, 1), S, d.(msd{jj}).dat); %, length(S.subs));
+                    else
+                        obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
                     end
-                    
-                    obj.data.(sd{kk}).dat = subsasgn(obj.data.(sd{kk}).dat, S, d.(msd{jj}).dat);
-
 %                     if ~isempty(d.(msd{jj}).std)
 %                         obj.data.(sd{kk}).std = subsasgn(obj.data.(sd{kk}), S, d.(msd{jj}).std);
 %                     end
@@ -459,7 +481,9 @@ classdef Sweep < handle & Base.Measurement
             end
 
             % Lastly, incriment the index.
-            obj.index = obj.index + 1;
+            if ~shouldCircshift
+                obj.index = obj.index + 1;
+            end
 
             if ~isempty(obj.controller) && isvalid(obj.controller)
                 obj.controller.setIndex();
@@ -472,53 +496,12 @@ classdef Sweep < handle & Base.Measurement
             digits = floor(max(length(obj.measurements_), 0)) + 1;
             
             for ii = 1:length(obj.measurements_)
-%                 tag = ['m' num2str(ii) '_'];
                 tag = sprintf(sprintf('m%%0%ii_', digits), ii);
                 
-                for jj = 1:length(obj.measurements_{ii})
+                for jj = 1:obj.measurements_{ii}.getN()
                     obj.measurements = [obj.measurements obj.measurements_{ii}.measurements(jj).extendBySweep(obj, tag)];
                 end
             end
         end
-        
-%         function fillMeasurementProperties(obj)
-%             sizes_ = struct();
-%             names_ = struct();
-%             units_ = struct();
-%             dims_  = struct();
-%             scans_ = struct();
-% 
-%             ssizes = obj.size();
-% 
-%             digits = floor(max(length(obj.measurements_), 0)) + 1;
-%             
-%             for ii = 1:length(obj.measurements_)
-% %                 mtag = ['m' num2str(ii) '_'];
-%                 mtag = sprintf(sprintf('m%%0%ii_', digits), ii);
-%                 
-%                 sd = obj.measurements_{ii}.subdata();
-%                 
-%                 msizes = obj.measurements_{ii}.getSizes();
-%                 mnames = obj.measurements_{ii}.getNames();
-%                 munits = obj.measurements_{ii}.getUnits();
-%                 mdims =  obj.measurements_{ii}.getDims();
-%                 mscans = obj.measurements_{ii}.getScans();
-%                 
-%                 for jj = 1:length(sd)
-%                     s = msizes.(sd{jj});
-%                     sizes_.([mtag sd{jj}]) = [ssizes s(s > 1)];  % Append dimensions
-%                     names_.([mtag sd{jj}]) = mnames.(sd{jj});
-%                     units_.([mtag sd{jj}]) = munits.(sd{jj});
-%                     dims_.( [mtag sd{jj}]) = [obj.sdims     mdims.( sd{jj})];
-%                     scans_.([mtag sd{jj}]) = [obj.sscans    mscans.(sd{jj})];
-%                 end
-%             end
-%             
-%             obj.sizes = sizes_;
-%             obj.names = names_;
-%             obj.units = units_;
-%             obj.dims  = dims_;
-%             obj.scans = scans_;
-%         end
     end
 end

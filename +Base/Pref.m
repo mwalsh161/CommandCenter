@@ -147,7 +147,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                         'field', obj.property_name, ...
                         'name', obj.name, ...
                         'unit', obj.unit);
-                    obj.set_measurements(m);
+                    obj.measurements = m;
+%                     obj.set_measurements(m);
                 
 %                 struct(obj.property_name, [1 1]);
 %                 obj.names = struct(obj.property_name, obj.name);

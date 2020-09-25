@@ -40,13 +40,13 @@ classdef SweepViewer < handle
         ptrData = [];
     end
 
-	properties (Hidden, Access=private)
+	properties (Hidden, Access={?Base.SweepViewer, ?Base.SweepProcessed})
         drawnowLast = 0;
         timerposted = false;
         rendering = false;
     end
 	properties (Constant, Hidden)
-        fpsTarget = 4;
+        fpsTarget = 5;
     end
 
 	properties (SetObservable, SetAccess=private)   % 
@@ -77,7 +77,7 @@ classdef SweepViewer < handle
 			obj.displayAxesScans =      [{NaN} 				obj.s.sscans];
 			obj.displayAxesMeasNum = 	[-1                 zeros(1, length(obj.s.sscans))];
             
-			obj.displayAxesSubdata(1:(length(obj.s.scans)+1)) = {''};
+			obj.displayAxesSubdata(1:(length(obj.s.sscans)+1)) = {''};
 
             kk = 1;
             
@@ -326,6 +326,18 @@ classdef SweepViewer < handle
 
 			obj.panel.panel.Visible = 'on';
         end
+        
+        function delete(obj)
+            delete(obj.listeners.data)
+            delete(obj.listeners.x)
+            delete(obj.listeners.y)
+%             delete(obj.ax)
+%             delete(obj.panel)
+            delete(obj.txt)
+            delete(obj.plt)
+            delete(obj.img)
+            delete(obj.ptr)
+        end
     end
 
     methods                                         % uimenu callbacks (when right-clicking on the graph)
@@ -375,17 +387,20 @@ classdef SweepViewer < handle
 
                         unitsX = obj.displayAxesObjects{obj.axesDisplayed(~isNone)}.unit;
 
-
                         for ii = 1:length(obj.names)
                             valr = NaN;
 
                             if enabled(ii)
-                                valr = obj.plt{1}.YData(xi);
+                                valr = obj.plt{ii}.YData(xi);
                             end
 
                             obj.ptrData(1) = valr;
-
-                            unitsC = 'cts/sec';
+                            
+                            if obj.sp{ii}.I > 0
+                                unitsC = obj.s.measurements(obj.sp{ii}.I).unit;
+                            else
+                                unitsC = '~~~~';
+                            end
 
                             if isnan(valr)
                                 obj.menus.ctsMenu(ii).Label = [obj.names{ii} ': ~~~~ ' unitsC];
@@ -422,7 +437,11 @@ classdef SweepViewer < handle
                             obj.ptrData(ii) = val;
 
                             for jj = 1:length(obj.names)
-                                unitsC = 'cts/sec';
+                                if obj.sp{jj}.I > 0
+                                    unitsC = obj.s.measurements(obj.sp{jj}.I).unit;
+                                else
+                                    unitsC = '~~~~';
+                                end
 
                                 if ii ~= jj
                                     obj.menus.ctsMenu(jj).Label = [obj.names{jj} ': ~~~~ ' unitsC];
@@ -440,7 +459,11 @@ classdef SweepViewer < handle
 
                                 obj.ptrData(ii) = val;
 
-                                unitsC = 'cts/sec';
+                                if obj.sp{ii}.I > 0
+                                    unitsC = obj.s.measurements(obj.sp{ii}.I).unit;
+                                else
+                                    unitsC = '~~~~';
+                                end
 
                                 if isnan(val)
                                     obj.menus.ctsMenu(ii).Label = [obj.names{ii} ': ~~~~ ' unitsC];
@@ -522,9 +545,9 @@ classdef SweepViewer < handle
             
             if ~obj.rendering
                 obj.rendering = true;
-            
                 if ~isempty(obj.ax) && isvalid(obj.ax)
-                    if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget
+                    if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget || ~obj.timerposted
+%                         disp('datachanged_Callback Postponed');
                         if ~obj.timerposted         % If a timer has not been sent off to remind us to update...
                             t = timer('TimerFcn', @obj.datachanged_Callback, 'ExecutionMode', 'singleShot', 'StartDelay', ceil(2000/obj.fpsTarget)/1000);
                             obj.timerposted = true; % And prevent new timers from being made until this one has been received or enough time has elapsed.
@@ -532,12 +555,15 @@ classdef SweepViewer < handle
                         end
                         obj.rendering = false;
                     else
+%                         disp('datachanged_Callback Accepted');
+                        obj.process();
                         obj.drawnowLast = now;
                         obj.timerposted = false;
                         obj.rendering = false;
-                        obj.process();
                     end
                 end
+            else
+%                 disp('datachanged_Callback Denied');
             end
         end
         function [isNone, enabled] = isNoneEnabled(obj)
@@ -627,21 +653,21 @@ classdef SweepViewer < handle
             end
 
             if sum(~isNone) == 2 && any(enabled)    % 2D
-                alpha = ~isnan(obj.sp{enabledIndex(1)}.processed);
+                alpha_ = ~isnan(obj.sp{enabledIndex(1)}.processed);
 
                 if sum(enabled) == 1 && true  % If grayscale
                     data = repmat( (obj.sp{enabledIndex(1)}.processed - obj.sp{enabledIndex(1)}.m) / (obj.sp{enabledIndex(1)}.M - obj.sp{enabledIndex(1)}.m), [1 1 3]);
 
                     obj.img.CData = data;
-                    obj.img.AlphaData = alpha;
+                    obj.img.AlphaData = alpha_;
                 else
                     partialpixels = true;
 
                     for ii = enabledIndex(2:end)
                         if partialpixels
-                            alpha = alpha | ~isnan(obj.sp{ii}.processed);
+                            alpha_ = alpha_ | ~isnan(obj.sp{ii}.processed);
                         else
-                            alpha = alpha & ~isnan(obj.sp{ii}.processed);%#ok
+                            alpha_ = alpha_ & ~isnan(obj.sp{ii}.processed);%#ok
                         end
                     end
 
@@ -655,7 +681,7 @@ classdef SweepViewer < handle
                     end
 
                     obj.img.CData = data;
-                    obj.img.AlphaData = alpha;
+                    obj.img.AlphaData = alpha_;
                 end
 
                 realAxes = obj.axesDisplayed(~isNone);
@@ -672,9 +698,10 @@ classdef SweepViewer < handle
 
             obj.setPtr(3, [NaN, NaN]);
 
-            pause(0.001);
+%             pause(0.001);
             drawnow
             pause(0.001);
+%             drawnow expose
         end
 
 		function axeschanged_Callback(obj, src, ~)

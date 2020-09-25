@@ -1,5 +1,9 @@
 classdef SweepProcessed < handle
 
+	properties (SetObservable, AbortSet, SetAccess=private)
+		processed = [];
+	end
+
 	properties (SetAccess=private)
 		s = [];             % Parent scan of type `Base.Sweep`
 		v = [];             % Parent viewer of type `Base.SweepViewer`
@@ -25,16 +29,15 @@ classdef SweepProcessed < handle
 		M = 0;				% Maximum of scaling
 		normAuto = true;	% Whether to automatically normalize the scale.
 		normAll = false;	% Whether _all_ the data, or merely the current slice is normalized.
+        normShrink = true;  % Whether min and max should shrink to size when normalized, or if they should only expand.
 
 		slice = {};
 		sliceDefault = {};
 
 		sliceOptions = [];
 		sliceOptionsDefault = [];
-	end
-
-	properties (SetObservable, SetAccess=private)
-		processed = [];
+        
+        listeners = struct();
 	end
 
 	methods
@@ -42,16 +45,8 @@ classdef SweepProcessed < handle
 			obj.s = s;
 			obj.v = v;
 			obj.x = x;
-
-            'fish'
             
-            obj.s.length()
-            sum(obj.s.measurementDimensions())
-            obj.s.measurementDimensions()
-            
-            'dish'
-            
-			L = obj.s.length() + sum(obj.s.measurementDimensions());
+			L = obj.s.ndims() + sum(obj.s.measurementDimensions());
 
             obj.sliceDefault =      num2cell(ones(1, L));
 			obj.sliceDefault(:) =   {':'};
@@ -72,7 +67,7 @@ classdef SweepProcessed < handle
             
 %             obj.v.displayAxesMeasNum
             
-            so = obj.sliceOptions
+%             so = obj.sliceOptions;
 
 % 			if obj.x > max(obj.v.displayAxesMeasNum)
             obj.v.displayAxesMeasNum
@@ -81,8 +76,11 @@ classdef SweepProcessed < handle
             else
 				obj.I = x;
             end
+            
+%             prop = findprop(obj, 'processed');
+%             obj.listeners.processed = event.proplistener(obj, prop, 'PostSet', @obj.dataChanged_Callback);
 
-			obj.process()
+			obj.process();
         end
         
         function makePanel(obj)
@@ -149,7 +147,7 @@ classdef SweepProcessed < handle
                                             'Title', 'Scale');
 			obj.makeScaleGUI();
 
-			N = obj.s.length();
+			N = obj.s.ndims();
 %             sd = obj.s.subdata;
 
             tw = 30 / (ismac + 1);
@@ -230,7 +228,7 @@ classdef SweepProcessed < handle
                 dims_ = meas.getDims();
                 names_ = meas.getLabels();
                 
-                for ll = 1:length(sd)
+                for ll = 1:length(sd)                   % For every meas...
                     dims__ = dims_.(sd{ll});
                     Mi = length(dims__);
 
@@ -327,11 +325,14 @@ classdef SweepProcessed < handle
         end
 
 		function process(obj)
+%             disp(['processing ' num2str(obj.x)])
+            
             if ~obj.I || ~obj.enabled
                 return
             end
             
 % 			s_ = size(obj.s.data{obj.I});
+%             obj.s.measurements
             sd = obj.s.subdata;
 			s_ = size(obj.s.data.(sd{obj.I}).dat);
 
@@ -344,11 +345,11 @@ classdef SweepProcessed < handle
             
             p = subsref(obj.s.data.(sd{obj.I}).dat, S);
             
-            obj.v.displayAxesMeasNum
+%             p
+            
+%             obj.v.displayAxesMeasNum
             
             relevant = obj.v.displayAxesMeasNum == 0 | obj.v.displayAxesMeasNum == obj.I; % Look for axes which are either global (0) or related to this input (obj.I)
-            
-            relevant
             
             opts = obj.sliceOptions(relevant(2:end));   % Ignore the first axis, which is None
             
@@ -377,14 +378,34 @@ classdef SweepProcessed < handle
 			scandim = obj.sliceOptions < 0;
 			
 			xy = abs(obj.sliceOptions(scandim));
+            
+            tmp = obj.processed;
 			
 			if length(xy) == 2 && diff(xy) > 0		% Transpose the data if the viewer order is reversed from the full data order. Only works for 2D; make generic.
-				obj.processed = squeeze(p)';
+% 				new = squeeze(p)';
+%                 e = all(obj.processed(:) == squeeze(p)'
+                obj.processed = squeeze(p)';
             else
                 obj.processed = squeeze(p);
             end
             
-            obj.dataChanged_Callback(0,0);
+%             tic
+            tmp2 = obj.processed;
+            
+            tmp(isnan(tmp)) = Inf;
+            tmp2(isnan(tmp2)) = Inf;
+            
+            s1 = size(tmp);
+            s2 = size(tmp2);
+            
+            if length(s1) ~= length(s2) || ~all(s1 == s2) || ~all(tmp(:) == tmp2(:))
+                obj.dataChanged_Callback(0,0);
+            end
+%             toc
+            
+%             obj.processed
+            
+%             obj.dataChanged_Callback(0,0);
         end
 
         function updateSlice_Callback(obj, src, ~)
@@ -480,8 +501,6 @@ classdef SweepProcessed < handle
             old = obj.sliceOptions;
 			obj.sliceOptions = sliceOptions;
             
-            obj.sliceOptions
-            
 			if ~isempty(obj.tab)	% If we have a panel...
                 for ii = 1:length(obj.sliceOptions)
                     
@@ -505,8 +524,6 @@ classdef SweepProcessed < handle
                         obj.tab.edit(ii).Enable = 'off';
                     else
                         if obj.enabledUI
-                            ii
-                            obj.tab.edit(ii)
                             obj.tab.edit(ii).Enable = 'on';
                         end
                     end
@@ -655,38 +672,51 @@ classdef SweepProcessed < handle
             w = obj.tab.scale.panel.Position(3);
             
             p = .5;
-            bw = w/4 - 1;
+            bw = w/5;
             bx = bw-p;
             
             obj.tab.scale.norm =        uicontrol(  'Parent', obj.tab.scale.panel,...
                                                     'Interruptible', 'off',...
                                                     'Style', 'push',...
                                                     'String', 'Normalize',...
+                                                    'ToolTip', 'Calculate the min and max of the data and change the limits of view accordingly',...
                                                     'Units', 'characters',...
-                                                    'Position', [p y bw ch],...
+                                                    'Position', [p y bw+2*p ch],...
                                                     'Callback', @obj.normalize_Callback);
 			obj.tab.scale.normAuto =    uicontrol(  'Parent', obj.tab.scale.panel,...
                                                     'Interruptible', 'off',...
                                                     'Style', 'check',...
                                                     'String', 'Auto',... 
+                                                    'ToolTip', 'Every time the data is changed, automatically normalize.',...
                                                     'Units', 'characters',...
-                                                    'Position', [6*p+1*bx y bw ch],...
+                                                    'Position', [5*p+1*bx y bw ch],...
                                                     'Value', obj.normAuto,...
                                                     'Callback', @obj.normauto_Callback);
+			obj.tab.scale.normShrink =  uicontrol(  'Parent', obj.tab.scale.panel,...
+                                                    'Interruptible', 'off',...
+                                                    'Style', 'check',...
+                                                    'String', 'Shrink',... 
+                                                    'ToolTip', 'Shrink the limits of view to fit the data. If false, the bounds will only get larger when the data needs it, and never smaller.',...
+                                                    'Units', 'characters',...
+                                                    'Position', [2*p+2*bx y bw ch],...
+                                                    'Value', obj.normShrink,...
+                                                    'Callback', @obj.normshrink_Callback);
 			obj.tab.scale.normAll =     uicontrol(  'Parent', obj.tab.scale.panel,...
                                                     'Interruptible', 'off',...
                                                     'Style', 'check',...
                                                     'String', 'By Slice',...
+                                                    'ToolTip', 'Normalize via the slice currently in view. If false, min and max are taken from the unsliced data.',...
                                                     'Units', 'characters',...
-                                                    'Position', [2*p+2*bx y bw ch],...
+                                                    'Position', [1*p+3*bx y bw+1 ch],...
                                                     'Value', ~obj.normAll,...
                                                     'Callback', @obj.normall_Callback);
 			obj.tab.scale.normPair =    uicontrol(  'Parent', obj.tab.scale.panel,...
                                                     'Interruptible', 'off',...
                                                     'Style', 'check',...
                                                     'String', 'Paired',...
+                                                    'ToolTip', 'Whether this is paired with another color channel that has the same units (e.g. R cts and G cts).',...
                                                     'Units', 'characters',...
-                                                    'Position', [2*p+3*bx y bw ch],...
+                                                    'Position', [5*p+4*bx y bw ch],...
                                                     'Value', false,...
                                                     'Enable', 'off');
 			
@@ -736,8 +766,18 @@ classdef SweepProcessed < handle
         function set.normAll(obj,normAll)
             obj.normAll = normAll;
             if ~isempty(obj.tab)
-                obj.v.process();
-                obj.normalize(false);
+%                 obj.v.process();
+                obj.normalize(true);
+            end
+        end
+		function normshrink_Callback(obj, ~, ~)
+			obj.normShrink = obj.tab.scale.normShrink.Value;
+		end
+        function set.normShrink(obj,normShrink)
+            obj.normShrink = normShrink;
+            if ~isempty(obj.tab)
+%                 obj.v.process();
+                obj.normalize(true);
             end
         end
 		function normauto_Callback(obj, ~, ~)
@@ -762,6 +802,7 @@ classdef SweepProcessed < handle
             obj.normalize(true);
         end
         function dataChanged_Callback(obj, ~, ~)
+%             disp(['Normalizing ' num2str(obj.x)])
             obj.normalize(false);
         end
 		function normalize(obj, shouldForce)
@@ -788,9 +829,18 @@ classdef SweepProcessed < handle
             end
 
 			if (obj.normAuto && ~(obj.m == m_ && obj.M == M_)) || shouldForce
-                obj.m = m_;
-                obj.M = M_;
-                obj.v.process();
+                if obj.normShrink   % Should shrink
+                    obj.m = m_;
+                    obj.M = M_;
+                else
+                    obj.m = min(obj.m, m_);
+                    obj.M = max(obj.M, M_);
+                end
+                
+                if ~obj.v.rendering
+                    obj.v.process();
+                end
+%                 warning('Should obj.v.process()?')
             end
 
             if obj.v.currentTab() == obj.x

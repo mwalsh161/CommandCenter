@@ -12,9 +12,8 @@ classdef Numeric < Base.Pref & Base.Measurement
 
     methods (Static)
         function obj = Numeric(varargin)
-            'init'
-%             obj = obj@Base.Pref(varargin{:});
-            obj = obj.init(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
+%             obj = obj.init(varargin{:});
         end
         function tf = isnumeric(~)      % Overloads isnumeric.
             tf = true;

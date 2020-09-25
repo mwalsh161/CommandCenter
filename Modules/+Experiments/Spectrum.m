@@ -10,13 +10,13 @@ classdef Spectrum < Modules.Experiment
         over_exposed_override = Prefs.Boolean(false);       % override over_exposed error from server and return data regardless
     end
     
-    properties(Access=private)
-%         intensity =     Base.Meas([1 1024], 'unit', 'arb')
-%         wavelength =    Base.Meas([1 1024], 'unit', 'nm')
-        
-        measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
-                        Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
-    end
+%     properties(Access=private)
+% %         intensity =     Base.Meas([1 1024], 'unit', 'arb')
+% %         wavelength =    Base.Meas([1 1024], 'unit', 'nm')
+%         
+%         measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
+%                         Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
+%     end
     
     properties (Hidden, Constant)
         gratingFormat = @(a)sprintf('%i %s', a.grooves, a.name)
@@ -36,7 +36,12 @@ classdef Spectrum < Modules.Experiment
     
     methods(Access=private)
         function obj = Spectrum()
+            'Spectrum init'
+            
             obj.path = 'spectrometer';
+            
+            obj.measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
+                                Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
             try
                 obj.loadPrefs; % Load prefs should load WinSpec via set.ip
             catch err % Don't need to raise alert here

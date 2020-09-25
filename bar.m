@@ -1,5 +1,5 @@
 classdef (HandleCompatible) bar
-    properties
+    properties(Abstract, SetAccess=private)
         z
     end
     

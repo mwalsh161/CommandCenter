@@ -1,10 +1,10 @@
-classdef foobar < foo & bar
+classdef fooobar < foobar
     properties(SetAccess=private)
         z
     end
     
     methods
-        function obj = foobar()
+        function obj = fooobar()
             
         end
     end
