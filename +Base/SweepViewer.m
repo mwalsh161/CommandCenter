@@ -90,7 +90,7 @@ classdef SweepViewer < handle
                 
                 for jj = 1:length(sd)
                     if numel(dims_.(sd{jj})) > 0
-                        obj.displayAxesMeasNum =        [obj.displayAxesMeasNum         kk];
+                        obj.displayAxesMeasNum =        [obj.displayAxesMeasNum         kk * ones(1, numel(dims_.(sd{jj})))];
                         obj.displayAxesObjects =        [obj.displayAxesObjects         dims_.(sd{jj})];
                         obj.displayAxesScans =          [obj.displayAxesScans           scans_.(sd{jj})];
                     end
@@ -100,6 +100,8 @@ classdef SweepViewer < handle
                 
                 obj.displayAxesMeasNum(1) = -kk+1;
             end
+            
+            damn = obj.displayAxesMeasNum
             
             sd = obj.s.subdata;
             
@@ -844,6 +846,7 @@ classdef SweepViewer < handle
                             if ptr == 3
                                 if ~dao{ii}.display_only
                                     to(ii) = dao{ii}.read();
+%                                     to(ii) = dao{ii}.value;
                                 else
                                     to(ii) = NaN;
                                 end

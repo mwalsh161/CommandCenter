@@ -87,7 +87,7 @@ classdef PrefHandler < handle
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
                     % Done after binding Set/Get listeners since the method call expects them to be set already
 
-                    pref
+%                     pref
                     
                     obj.set_meta_pref(prop.Name, pref);
                 end
@@ -365,7 +365,7 @@ classdef PrefHandler < handle
             obj.last_pref_set_err = [];
         end
         function val = readProp(obj,prop)
-            event.EventName = 'PreSet'; % pre() ====='
+            event.EventName = 'PreGet'; % pre() ====='
             
             % Disable other listeners on this since we will be both getting
             % and setting this prop in this method
@@ -382,29 +382,31 @@ classdef PrefHandler < handle
             obj.execute_external_ls(prop,event);
 %             obj.prop_listener_ctrl(prop.Name,true);
 
-            event.EventName = 'PostSet'; % post() =====
+%             event.EventName = 'PostGet'; % post() =====
             
             % Disable other listeners on this since we will be both getting
             % and setting this prop in this method
 %             obj.prop_listener_ctrl(prop.Name,false);
             % Update stash, then copy back to prop (get listeners can alter
             % obj.(prop.Name) as well as the obvious SetEvent does)
-            new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
-            try
-                new_val.getEvent = strcmp(event.EventName,'PostGet');
-                new_val.value = obj.(prop.Name); % validation occurs here
-                new_val.getEvent = false;
-                obj.execute_external_ls(prop,event); % Execute any external listeners
-                if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
-                    % This should now be interpreted as a set event
-                    new_val.value = obj.(prop.Name); % validation occurs here
-                end
-            catch err
-            end
+            
+%             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
+%             try
+%                 new_val.getEvent = strcmp(event.EventName,'PostGet');
+%                 new_val.value = obj.(prop.Name); % validation occurs here
+%                 new_val.getEvent = false;
+%                 obj.execute_external_ls(prop,event); % Execute any external listeners
+%                 if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
+%                     % This should now be interpreted as a set event
+%                     new_val.value = obj.(prop.Name); % validation occurs here
+%                 end
+%             catch err
+%             end
+
             % Update the class-pref and re-engage listeners
             % Note if the above try block failed; this is still the old value
-            obj.(prop.Name) = new_val;
-            val = new_val.value;
+            obj.(prop.Name) =  obj.temp_prop.(prop.Name);
+            val =  obj.temp_prop.(prop.Name).value;
             obj.prop_listener_ctrl(prop.Name,true);
             if exist('err','var')
                 % This will be thrown as warning in console because it is

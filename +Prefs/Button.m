@@ -1,4 +1,4 @@
-classdef Button < Base.pref
+classdef Button < Base.Pref
     %BUTTON for access to a "set" method that the user can activate on click. For instance, 
     %
     %    Prefs.Button('name', 'Greeting', 'string', 'Click Me!' 'set', @(~,~)(disp('Hello World')) )
@@ -9,12 +9,12 @@ classdef Button < Base.pref
     properties(Hidden)
         default = false;    % Completely unused.
         ui = Prefs.Inputs.ButtonField;
-        string = {'', @(a)validateattributes(a,{'char'},{'vector'})};   % String to display on the button
+        string = '';   % String to display on the button
     end
     
     methods
         function obj = Button(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
         end
         function val = clean(~, ~)
             val = false;

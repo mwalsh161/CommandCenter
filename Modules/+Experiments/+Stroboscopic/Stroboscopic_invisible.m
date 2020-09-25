@@ -3,26 +3,26 @@ classdef Stroboscopic_invisible < Modules.Experiment
 
     properties(SetObservable,AbortSet)
         PB_host =       Prefs.String(Experiments.Stroboscopic.Stroboscopic_invisible.noserver, 'set', 'set_PB_host', 'help', 'IP/hostname of computer with PB server');
-        
+
         samples =       Prefs.Integer(1, 'min', 1);
-        time =          Prefs.Double(1, 'min', 1, 'units', 's', 'read_only', true);
-        
+        time =          Prefs.Double(1, 'min', 1, 'unit', 's', 'read_only', true);
+
         render =        Prefs.Boolean(false, 'set', 'set_render');
-        
+
         image =         Prefs.ModuleInstance('inherits', {'Modules.Imaging'});
         image_line =    Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
                                         'help', 'PulseBlaster channel that triggers the camera. Unused if NaN.');
-        
-        image_pre =     Prefs.Double(0, 'min', 0, 'units', 'ms');
-        image_post =    Prefs.Double(0, 'min', 0, 'units', 'ms');
-        
+
+        image_pre =     Prefs.Double(0, 'min', 0, 'unit', 'ms');
+        image_post =    Prefs.Double(0, 'min', 0, 'unit', 'ms');
+
         pump_line =     Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
                                         'help', 'PulseBlaster channel that the pump modulator is connected to. Experiment will not start if NaN.');
-        pump_tau =      Prefs.Double(5, 'min', 0, 'units', 'us', ...
+        pump_tau =      Prefs.Double(5, 'min', 0, 'unit', 'us', ...
                                         'help', 'Time that the pump is on. Increasing tau increases intialization fidelity, yet decreases SNR.');
-        pump_pre =      Prefs.Double(1, 'min', 0, 'units', 'us', ...
+        pump_pre =      Prefs.Double(1, 'min', 0, 'unit', 'us', ...
                                         'help', 'Padding before the pump seperating it from any other pulses.');
-        pump_post =     Prefs.Double(1, 'min', 0, 'units', 'us', ...
+        pump_post =     Prefs.Double(1, 'min', 0, 'unit', 'us', ...
                                         'help', 'Padding after the pump seperating it from any other pulses.');
     end
     properties
@@ -37,7 +37,7 @@ classdef Stroboscopic_invisible < Modules.Experiment
     methods(Static)
         function obj = instance(varargin)
             % This file is what locks the instance in memory such that singleton
-            % can perform properly. 
+            % can perform properly.
             % For the most part, varargin will be empty, but if you know what you
             % are doing, you can modify/use the input (just be aware of singleton_id)
             mlock;
@@ -74,24 +74,24 @@ classdef Stroboscopic_invisible < Modules.Experiment
                 obj.f = figure;
                 obj.a = axes(obj.f);
             else
-                
+
             end
-            
+
             obj.s = obj.BuildPulseSequence();
             obj.s.simulate(obj.a);
-            
+
             val = false;
         end
-        
+
         function val = set_PB_host(obj,val,~)
             err = [];
-            
+
             try
                 obj.pb = Drivers.PulseBlaster.StaticLines.instance(val);
             catch err
-                
+
             end
-            
+
             if isempty(obj.pb)
                 obj.PB_host = obj.noserver;
                 if ~isempty(err)
@@ -102,13 +102,13 @@ classdef Stroboscopic_invisible < Modules.Experiment
             if ~isempty(err)
                 rethrow(err)
             end
-            
+
             obj.source_on = obj.pb.lines(obj.PB_line);
         end
         function run(obj, status, managers, ax)
             obj.s = obj.BuildPulseSequence();
             prog = obj.s.compile();
-            
+
             obj.pb
         end
 %         function PreRun(obj,~,~,ax)
@@ -130,7 +130,7 @@ classdef Stroboscopic_invisible < Modules.Experiment
 %             hold(ax,'off');
 %             set(ax,'xlimmode','auto','ylimmode','auto','ytickmode','auto')
 %         end
-%         
+%
 %         function UpdateRun(obj,~,~,ax,~,~)
 %             if obj.averages > 1
 %                 averagedData = squeeze(nanmean(obj.data.sumCounts,3));
@@ -139,7 +139,7 @@ classdef Stroboscopic_invisible < Modules.Experiment
 %                 averagedData = obj.data.sumCounts;
 %                 meanError = obj.data.stdCounts;
 %             end
-%             
+%
 %             %grab handles to data from axes plotted in PreRun
 %             ax.UserData.plots(1).YData = averagedData(:,1);
 %             ax.UserData.plots(2).YData = averagedData(:,1) + meanError(:,1);

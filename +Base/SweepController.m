@@ -138,7 +138,7 @@ classdef SweepController < handle
                 obj.gui.tick.Enable =           'off';
                 obj.gui.reset.Enable =           'off';
                 
-                obj.sweep.snap();
+                obj.sweep.measure();
                 
                 obj.running = false;
             else

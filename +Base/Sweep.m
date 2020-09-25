@@ -277,7 +277,7 @@ classdef Sweep < handle & Base.Measurement
             % Slow aquisition
             if ~obj.flags.isNIDAQ
                 while (obj.index <= N || obj.flags.isContinuous) && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
-                    obj.controller.gui.toggle.Value
+%                     obj.controller.gui.toggle.Value
                     obj.tick();
                 end
             else
@@ -459,7 +459,7 @@ classdef Sweep < handle & Base.Measurement
 
             for ii = 1:M
                 msd =       obj.measurements_{ii}.subdata;
-                d =         obj.measurements_{ii}.snap(false);   % Don't pass metadata...
+                d =         obj.measurements_{ii}.measureValidated(false);   % Don't pass metadata...
 
                 for jj = 1:length(msd)
                     C    = cell(1, sum(size(d.(msd{jj}).dat) > 1));

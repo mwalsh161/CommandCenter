@@ -456,7 +456,7 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
             end
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
                 try
-                    val_help = mp.validation_summary(obj.pref_handler_indentation);
+                    val_help = mp.validationSummary(obj.PrefHandler_indentation);
                 catch val_help_err
                     val_help = sprintf('Failed to generate validation help:\n%s',...
                         getReport(val_help_err,'basic','hyperlinks','off'));

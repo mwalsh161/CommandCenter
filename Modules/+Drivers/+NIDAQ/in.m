@@ -50,22 +50,22 @@ classdef in < handle & Base.Measurement
             mname = [lower(dev.DeviceChannel) '_' lower(line)];
             
             % Fix name to include device id
-            line = ['/' dev.DeviceChannel '/' upper(line)];
             obj.dev = dev;
-            obj.line = line;
+            obj.line = ['/' dev.DeviceChannel '/' upper(line)];
             obj.name = name;
             obj.check;
             
-            obj.sizes = struct(mname, [1 1]);
-            obj.names = struct(mname, obj.name);
             switch obj.type
                 case 'analog'
-                    obj.units = struct(mname, 'V');
+                    unit = 'V';
                 case 'digital'
-                    obj.units = struct(mname, 'cts/sec');
+                    unit = 'cts/sec';
             end
-            obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
-            obj.dims =  struct();
+            
+            obj.measurements = Base.Meas(   'name', obj.name,...
+                                            'field', strrep(lower(line), '/', '_'),...
+                                            'size', [1 1], ...
+                                            'unit', unit);
         end
         function str = text(obj)
             ch = strsplit(obj.line,'/');

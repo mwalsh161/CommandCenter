@@ -13,17 +13,17 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             'help_text','Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
         tuning = Prefs.Boolean(false,'readonly',true);
         hwserver_host = Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_hwserver_host');
-        etalon_percent = Prefs.Double(NaN,'units','%','help_text','Set etalon percent. This will change the etalon_voltage that is read.');  % Settable
-        etalon_voltage = Prefs.Double(NaN,'units','V','readonly',true);  % Readable
+        etalon_percent = Prefs.Double(NaN,'unit','%','help_text','Set etalon percent. This will change the etalon_voltage that is read.');  % Settable
+        etalon_voltage = Prefs.Double(NaN,'unit','V','readonly',true);  % Readable
         etalon_lock = Prefs.Boolean(false,'set','set_etalon_lock');  % Settable
-        resonator_percent = Prefs.Double(NaN,'units','%','min',0,'max',100,'set','set_resonator_percent',...
+        resonator_percent = Prefs.Double(NaN,'unit','%','min',0,'max',100,'set','set_resonator_percent',...
             'help_text','Set resonator percent. This will change the resonator_voltage that is read.');  % Settable
-        resonator_voltage = Prefs.Double(NaN,'units','V','readonly',true);  % Readable
-        target_wavelength = Prefs.Double(NaN,'units','nm','set','set_target_wavelength'); % nm settable
+        resonator_voltage = Prefs.Double(NaN,'unit','V','readonly',true);  % Readable
+        target_wavelength = Prefs.Double(NaN,'unit','nm','set','set_target_wavelength'); % nm settable
         wavelength_lock = Prefs.Boolean(false,'set','set_wavelength_lock'); % Settable
         PB_line = Prefs.Integer(1,'min',1,'set','set_PBline','help_text','Indexed from 1.');
         pb_host = Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_pb_host');
-        resonator_tune_speed = Prefs.Double(2,'units','%/step','min',0,'allow_nan',false,'help_text','Maximum % per step allowed. Lower numbers will take longer to tune.');
+        resonator_tune_speed = Prefs.Double(2,'unit','%/step','min',0,'allow_nan',false,'help_text','Maximum % per step allowed. Lower numbers will take longer to tune.');
     end
     properties(Access=protected)
         timeout = 30   % Ignore errors within this timeout on wavelength read (getWavelength)

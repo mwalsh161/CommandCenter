@@ -1,17 +1,17 @@
 classdef MultipleChoice < Base.Pref %Prefs.Numeric
     % MULTIPLECHOICE Select among a set of options.
-    %   These options, set in choices, can be *anything*. This is parsed into UI by arb2string(choices). 
+    %   These options, set in choices, can be *anything*. This is parsed into UI by arb2string(choices).
     %   The default value is '', which corresponds to the display name
     %   empty_val, which, if allow_empty is true, is automatically prepended
     %   to choices.
     %   Similar to Prefs.String, if no default value is supplied and
     %   allow_empty is false, it will error upon instantiation.
-    
+
     properties (Hidden)
         min = 1;
         max = 1;
     end
-    
+
     properties (Hidden)
         default = [];
         ui = Prefs.Inputs.DropDownField;
@@ -24,13 +24,13 @@ classdef MultipleChoice < Base.Pref %Prefs.Numeric
         % Value displayed for empty option
         empty_val = {'<None>', @(a)validateattributes(a,{'char'},{'vector'})};
     end
-    properties (Dependent, Hidden) % Hidden hides from validation_summary
+    properties (Dependent, Hidden) % Hidden hides from validationSummary
         choices_strings = {}; % Used in Prefs.Inputs.DropDownField
     end
     properties (SetAccess=immutable, Hidden)
         initialized = false;
     end
-    
+
     methods
         function obj = MultipleChoice(varargin)
             obj = obj@Base.Pref(varargin{:});
@@ -43,7 +43,7 @@ classdef MultipleChoice < Base.Pref %Prefs.Numeric
             if obj.initialized
                 assert(~val && isempty(obj.choices), 'If allow_empty is set to false, there must be at least one choice to choose from.');
             end
-            
+
             obj.allow_empty = val;
 
             if obj.initialized
@@ -144,9 +144,9 @@ classdef MultipleChoice < Base.Pref %Prefs.Numeric
             end
             obj.ui.set_value(I);
         end
-        function summary = validation_summary(obj,indent)
+        function summary = validationSummary(obj,indent)
             % Swap choices to the UI values briefly for the user to see
-            summary = validation_summary@Base.Pref(obj,indent,'choices:choices_strings');
+            summary = validationSummary@Base.Pref(obj,indent,'choices:choices_strings');
         end
     end
     methods (Static)
@@ -174,5 +174,5 @@ classdef MultipleChoice < Base.Pref %Prefs.Numeric
             string = strjoin(choices,delim);
         end
     end
-    
+
 end

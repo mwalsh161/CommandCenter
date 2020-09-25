@@ -165,7 +165,7 @@ classdef (HandleCompatible) Measurement
     end
 
     methods (Sealed)
-        function data = snap(obj, varargin)
+        function data = measureValidated(obj, varargin)
             if numel(varargin) == 0
                 try
                     data = obj.validateData(obj.measure());

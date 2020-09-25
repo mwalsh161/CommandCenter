@@ -63,6 +63,10 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             delete(obj.lines);
         end
         function updateLines(obj, state)
+            if isempty(obj.lines)
+                return
+            end
+                
             if nargin == 1
                 state = obj.getLines();
             end

@@ -46,7 +46,7 @@ classdef SweepProcessed < handle
 			obj.v = v;
 			obj.x = x;
             
-			L = obj.s.ndims() + sum(obj.s.measurementDimensions());
+			L = obj.s.ndims() + sum(obj.s.measurementDimensions())
 
             obj.sliceDefault =      num2cell(ones(1, L));
 			obj.sliceDefault(:) =   {':'};
@@ -351,7 +351,7 @@ classdef SweepProcessed < handle
             
             relevant = obj.v.displayAxesMeasNum == 0 | obj.v.displayAxesMeasNum == obj.I; % Look for axes which are either global (0) or related to this input (obj.I)
             
-            opts = obj.sliceOptions(relevant(2:end));   % Ignore the first axis, which is None
+            opts = obj.sliceOptions(relevant(2:end))   % Ignore the first axis, which is None
             
             for ii = 1:(length(obj.axisOptions)-1)  % Iterate through the non-snap options
                 d = D(opts == ii);
@@ -380,6 +380,8 @@ classdef SweepProcessed < handle
 			xy = abs(obj.sliceOptions(scandim));
             
             tmp = obj.processed;
+            
+            size(p)
 			
 			if length(xy) == 2 && diff(xy) > 0		% Transpose the data if the viewer order is reversed from the full data order. Only works for 2D; make generic.
 % 				new = squeeze(p)';

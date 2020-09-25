@@ -54,9 +54,9 @@ classdef out < handle
             end
             % Fix name to include device id
             pname = line;
-            line = ['/' dev.DeviceChannel '/' upper(line)];
+            line_ = ['/' dev.DeviceChannel '/' upper(line)];
             obj.dev = dev;
-            obj.line = line;
+            obj.line = line_;
             obj.name = name;
             if nargin < 4 % This obviously does not matter for digital
                 limits = [dev.AnalogOutMinVoltage dev.AnalogOutMaxVoltage];
@@ -69,8 +69,8 @@ classdef out < handle
             
             % Make and register a fake Pref:
             pref = Prefs.Double('name', obj.name, 'unit', 'V', 'min', limits(1), 'max', limits(2));
-            pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
-            pref.property_name = lower(pname);
+%             pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
+            pref.property_name = strrep(lower(pname), '/', '_');
             pref.parent_class = class(dev);
             
             pref.writ_fn = @(x)(obj.writ(x));

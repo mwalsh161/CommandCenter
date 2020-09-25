@@ -37,6 +37,7 @@ classdef Laser532_PB < Modules.Source
             err = [];
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
+                obj.PulseBlaster.lines
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             catch err
                 obj.PulseBlaster = [];
@@ -45,6 +46,14 @@ classdef Laser532_PB < Modules.Source
             end
             if ~isempty(err)
                 rethrow(err)
+            end
+        end
+        function tf = PB_enabled(obj)
+            switch obj.PB_host
+                case {'', 'No Server'} % Empty should not be possible though.
+                    tf = false;
+                otherwise
+                    tf = true;
             end
         end
     end

@@ -20,9 +20,9 @@ classdef umanager_invisible < Modules.Imaging
         config_file;  % Config file full path or relative to classdef
     end
     properties(SetObservable,GetObservable)
-        exposure = Prefs.Double('min', 0, 'units', 'ms', 'set', 'set_exposure',...
+        exposure = Prefs.Double('min', 0, 'unit', 'ms', 'set', 'set_exposure',...
             'help_text', 'How long each frame is integrated for.');
-        binning = Prefs.Integer(1, 'min', 1, 'units', 'px', 'set', 'set_binning',...
+        binning = Prefs.Integer(1, 'min', 1, 'unit', 'px', 'set', 'set_binning',...
             'help_text', 'Hardware binning of the camera. For instance, binning = 2 ==> 2x2 superpixels. Note that not all integers will be available for your camera.');
     end
 
@@ -113,6 +113,10 @@ classdef umanager_invisible < Modules.Imaging
                 -obj.resolution(2)/2 obj.resolution(2)/2]*obj.binning;
             obj.maxROI = new_ROI;
             obj.ROI = new_ROI;
+            
+            measname = split(obj.dev, [" ", ":"]);
+            obj.measurements = Base.Meas('size', obj.resolution, 'field', 'img', 'name', measname{1}, 'unit', 'cts');
+            
             obj.initializing = false;
         end
     end
@@ -184,6 +188,9 @@ classdef umanager_invisible < Modules.Imaging
             end
             % Take Image
             obj.mmc('snapImage');
+            if obj.exposure > 100
+                pause(obj.exposure/2000)    % Allow other parts of CC to update while camera is working.
+            end
             dat = obj.mmc('getImage');
             width = obj.mmc('getImageWidth');
             height = obj.mmc('getImageHeight');
@@ -198,6 +205,9 @@ classdef umanager_invisible < Modules.Imaging
             % This function calls snapImage and applies to hImage.
             im = obj.snapImage;
             set(hImage,'cdata',im)
+        end
+        function data = measure(obj)
+            data = obj.snapImage;
         end
         function startVideo(obj,hImage)
             obj.continuous = true;

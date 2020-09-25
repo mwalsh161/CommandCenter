@@ -1,10 +1,10 @@
 classdef Rabi < Experiments.Stroboscopic.Stroboscopic_invisible
-    % 
+    %
 
     properties(SetObservable,AbortSet)
         mw_line =     Prefs.Integer(NaN, 'allow_nan', true, 'min', 1, 'max', 21, ...
                                         'help', 'PulseBlaster channel that the microwave switch is connected to. Experiment will not start if NaN.');
-        mw_tau =      Prefs.Double(5, 'min', 0, 'units', 'us', ...
+        mw_tau =      Prefs.Double(5, 'min', 0, 'unit', 'us', ...
                                         'help', 'Length of microwave pulse.');
     end
     properties
@@ -16,7 +16,7 @@ classdef Rabi < Experiments.Stroboscopic.Stroboscopic_invisible
     methods(Static)
         function obj = instance(varargin)
             % This file is what locks the instance in memory such that singleton
-            % can perform properly. 
+            % can perform properly.
             % For the most part, varargin will be empty, but if you know what you
             % are doing, you can modify/use the input (just be aware of singleton_id)
             mlock;
@@ -38,17 +38,17 @@ classdef Rabi < Experiments.Stroboscopic.Stroboscopic_invisible
     methods
         function s = BuildPulseSequence(obj)
             s = sequence('Rabi');
-            
+
             pump =  channel('pump',     'color', 'g', 'hardware', obj.pump_line-1);
             mw =    channel('MW',       'color', 'b', 'hardware', obj.mw_line-1);
-            
+
             s.channelOrder = [pump mw];
 
             g = s.StartNode;
-            
+
             g = node(g, pump,   'delta', obj.pump_pre,  'units', 'us');
             g = node(g, pump,   'delta', obj.pump_tau,  'units', 'us');
-            
+
             g = node(g, mw,     'delta', obj.pump_post, 'units', 'us');
                 node(g, mw,     'delta', obj.mw_tau,    'units', 'us');
 
