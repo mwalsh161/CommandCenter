@@ -1,7 +1,7 @@
 classdef Imaging < Base.Module
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties. For future use.
-    
+
     properties(GetObservable,SetObservable)
         calibration = Prefs.Double(1, 'units', 'um/pix'); % Calibration set and used by CommandCenter (um/#)
         % When saving, instructs CommandCenter to ignore the last stage (finest moving)
@@ -28,7 +28,7 @@ classdef Imaging < Base.Module
     properties(Abstract)
         maxROI
     end
-    
+
     methods
         function obj = Imaging()
             if ispref(obj.namespace,'calibration')
@@ -37,7 +37,7 @@ classdef Imaging < Base.Module
         end
         function delete(obj)
             % Manually make calibration a pref
-            
+
             % if namespace isn't set, means error in constructor
             if isempty(obj.namespace)
                 return
@@ -46,20 +46,19 @@ classdef Imaging < Base.Module
             setpref(obj.namespace,'calibration',obj.calibration)
         end
     end
-    
+
     methods(Abstract)
         % Focus the image using the stageHandle.  See <a href="matlab:doc('Modules.Stage')">Modules.Stage</a>.
         metric = focus(obj,ax,stageHandle)
-        
+
         % Take a snapshot, and populate cdata of imHandle
         snap(obj,imHandle)
-        
+
         % Begin previewing continuous frames update the image cdata
         startVideo(obj,imHandle)
-        
+
         % Stop previewing frames
         stopVideo(obj)
     end
-    
-end
 
+end

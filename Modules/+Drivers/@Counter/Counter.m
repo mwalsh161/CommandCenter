@@ -180,7 +180,21 @@ classdef Counter < Modules.Driver
                 'period',obj.update_rate,'timerfcn',@obj.cps);
             obj.callback = Callback;
             dwell = obj.dwell/1000; % ms to s
-            obj.PulseTrainH = obj.nidaq.CreateTask('Counter PulseTrain');
+            try
+                obj.PulseTrainH = obj.nidaq.CreateTask('Counter PulseTrain');
+            catch
+                err = [];
+                
+               try
+                   obj.PulseTrainH = obj.nidaq.GetTaskByName('Counter PulseTrain');
+               catch err
+                   
+               end
+               
+               if ~isempty(err)
+                   rethrow(err)
+               end
+            end
             f = 1/dwell; %#ok<*PROP>
             try
                 obj.PulseTrainH.ConfigurePulseTrainOut(obj.lineOut,f);
@@ -188,7 +202,7 @@ classdef Counter < Modules.Driver
                 obj.reset
                 rethrow(err)
             end
-            obj.CounterH = obj.nidaq.CreateTask('Counter CounterObj');
+            obj.CounterH = obj.nidaq.CreateTask(['Counter CounterObj ' obj.lineIn]);
             try
                 continuous = true;
                 buffer = f*obj.update_rate;

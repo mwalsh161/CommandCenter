@@ -1,4 +1,4 @@
-classdef input
+classdef Input
 % INPUT Abstract class for input UIs in settings
 %   Used by class-based prefs (stored in Prefs.Inputs)
 

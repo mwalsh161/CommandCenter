@@ -1,4 +1,4 @@
-classdef ModuleSelectionField < Base.input
+classdef ModuleSelectionField < Base.Input
     %MODULESELECTIONFIELD provides UI to choose modules and access their settings
     %   If a module gets deleted, it will turn red in the dropdown but will not
     %   be removed.
@@ -101,8 +101,8 @@ classdef ModuleSelectionField < Base.input
             if obj.readonly
                 enabled = 'off';
             end
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)',pref.name,pref.units);
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', pref.name, pref.unit);
             end
             % Line 3
             height_px = 0;
@@ -191,7 +191,7 @@ classdef ModuleSelectionField < Base.input
                     obj.selection.Value = nval;
                 end
                 % Add deleted listeners
-                lsh = Base.preflistener.empty;
+                lsh = Base.PrefListener.empty;
                 for i = 1:nval
                     lsh(end+1) = addlistener(val(i),'ObjectBeingDestroyed',@obj.module_deleted);
                 end
@@ -245,7 +245,7 @@ classdef ModuleSelectionField < Base.input
             lenmenu = 0;
             for i = 1:nmenus
                 temp = uicontrol(f,'units','characters','style','text','string',obj.module_types{i});
-                lenmenu = lenmenu + temp.Extent(3); 
+                lenmenu = lenmenu + temp.Extent(3);
                 delete(temp);
             end
             f.Position(3:4) = [lenmenu*1.5 ,0];
@@ -326,7 +326,7 @@ classdef ModuleSelectionField < Base.input
             end
             bottom = min(positions);
             top = max(positions);
-            
+
             f.Position(4) = top;
             f.Visible = 'on';
         end

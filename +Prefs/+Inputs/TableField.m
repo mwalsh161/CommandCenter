@@ -1,4 +1,4 @@
-classdef TableField < Base.input
+classdef TableField < Base.Input
     %TABLEFIELD provides interface to MATLAB uitable
     %   The property "props" is passed directuly to uitable. There will be an
     %   error if you attempt to pass some reserved properties. For example,
@@ -37,8 +37,8 @@ classdef TableField < Base.input
                 enabled = 'off';
             end
             labeltext = pref.name;
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)',pref.name,pref.units);
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', pref.name, pref.unit);
             end
             height_px = 0;
             obj.ui = uitable(parent, 'units', 'pixels',...

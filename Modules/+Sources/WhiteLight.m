@@ -1,6 +1,6 @@
 classdef WhiteLight < Modules.Source
-    %LASER532 Summary of this class goes here
-    %   Detailed explanation goes here
+    %WHITELIGHT Is an antiquanted Source for analog LEDs such as:
+    % https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=2616
     
     properties
         intensity = 100;               % Intenisty 0-100 (0-5 V)

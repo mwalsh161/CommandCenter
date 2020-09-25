@@ -14,18 +14,18 @@ classdef umanager_invisible < Modules.Imaging
     %         number returned by obj.core.(function_name)
     %
     % TODO: Dynamically fetch devices capable settings
-    
+
     properties(Abstract) % Used in init
         dev           % Device label for camera (from the cfg file)
         config_file;  % Config file full path or relative to classdef
     end
     properties(SetObservable,GetObservable)
-        exposure = Prefs.Double('min',0,'units','ms','set','set_exposure',...
+        exposure = Prefs.Double('min', 0, 'units', 'ms', 'set', 'set_exposure',...
             'help_text', 'How long each frame is integrated for.');
-        binning = Prefs.Integer(1,'min',1,'units','px','set','set_binning',...
-            'help_text','Not all integers will be available for your camera.');
+        binning = Prefs.Integer(1, 'min', 1, 'units', 'px', 'set', 'set_binning',...
+            'help_text', 'Hardware binning of the camera. For instance, binning = 2 ==> 2x2 superpixels. Note that not all integers will be available for your camera.');
     end
-    
+
     properties
         buffer_images = 2 % Size of buffer (images): buffer_images*core.getImageBufferSize
         maxROI           % Set in constructor
@@ -103,7 +103,7 @@ classdef umanager_invisible < Modules.Imaging
             single_image = obj.core.getImageBufferSize/1024^2; % MB
             obj.core.setCircularBufferMemoryFootprint(single_image*obj.buffer_images);
             obj.initialized = true;
-            
+
             obj.exposure = obj.core.getExposure();
             obj.binning = str2double(obj.core.getProperty(obj.dev,'Binning'));
             res(1) = obj.core.getImageWidth();
@@ -146,7 +146,7 @@ classdef umanager_invisible < Modules.Imaging
                 end
             end
         end
-        
+
         function metric = focus(obj,ax,Managers)
             stageManager = Managers.Stages;
             stageManager.update_gui = 'off';
@@ -244,7 +244,7 @@ classdef umanager_invisible < Modules.Imaging
             delete(obj.videoTimer)
             obj.continuous = false;
         end
- 
+
         % Set methods for prefs
         function val = set_exposure(obj,val,~)
             if val == obj.mmc('getExposure')
@@ -325,4 +325,3 @@ classdef umanager_invisible < Modules.Imaging
         end
     end
 end
-

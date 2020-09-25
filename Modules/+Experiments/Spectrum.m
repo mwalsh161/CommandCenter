@@ -1,24 +1,47 @@
 classdef Spectrum < Modules.Experiment
     %Spectrum Experimental wrapper for Drivers.WinSpec
     
+    properties(SetObservable,GetObservable)
+        ip =        Prefs.String('No Server', 'help', 'IP/hostname of computer with the WinSpec server');
+        grating = 	Prefs.MultipleChoice('');
+        position = 	Prefs.Double(NaN,   'unit', 'nm');      % Grating position
+        exposure =  Prefs.Double(NaN,   'unit', 'sec');     % Exposure time
+        
+        over_exposed_override = Prefs.Boolean(false);       % override over_exposed error from server and return data regardless
+    end
+    
+%     properties(Access=private)
+% %         intensity =     Base.Meas([1 1024], 'unit', 'arb')
+% %         wavelength =    Base.Meas([1 1024], 'unit', 'nm')
+%         
+%         measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
+%                         Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
+%     end
+    
+    properties (Hidden, Constant)
+        gratingFormat = @(a)sprintf('%i %s', a.grooves, a.name)
+    end
+    
     properties(SetObservable,AbortSet)
         data
-        ip = 'No Server';
-        grating = @Experiments.Spectrum.set_grating_values;
-        position = NaN;       % Grating position
-        exposure = NaN;         % Seconds
-        over_exposed_override = false; % override over_exposed error from server and return data regardless
-        prefs = {'over_exposed_override','ip'}; % Not including winspec stuff because it can take a long time!
-        show_prefs = {'exposure','position','grating','over_exposed_override','ip'};
+        
+%         prefs = {'over_exposed_override','ip'}; % Not including winspec stuff because it can take a long time!
+%         show_prefs = {'exposure','position','grating','over_exposed_override','ip'};
     end
+    
     properties(SetAccess=private,Hidden)
         WinSpec
         listeners
     end
+    
     methods(Access=private)
         function obj = Spectrum()
+            'Spectrum init'
+            
             obj.path = 'spectrometer';
-            obj.grating = NaN;
+            
+            obj.measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
+                                Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
             try
                 obj.loadPrefs; % Load prefs should load WinSpec via set.ip
             catch err % Don't need to raise alert here
@@ -34,40 +57,33 @@ classdef Spectrum < Modules.Experiment
             persistent Object
             if isempty(Object) || ~isvalid(Object)
                 Object = Experiments.Spectrum();
+                Object.ip = Object.ip;
             end
             obj = Object;
         end
-        function gratings = set_grating_values()
-            % If this is called properly, we can assume the singleton is
-            % loaded, and grab it. If not called by CC, this will end up
-            % creating an instance rather than grabbing the existing one.
-            obj = Experiments.Spectrum.instance;
-            if isempty(obj.WinSpec)
-                gratings = {'Connect to WinSpec first (ip)'};
-            else
-                gratings = arrayfun(@(a)sprintf('%i %s',a.grooves,a.name),obj.WinSpec.gratings_avail,'uniformoutput',false);
-            end
-        end
-        sp = spectrumload(filename)
-        out = TCP_comm( ip,port,msg )
     end
     
     methods
         function run( obj,status,managers,ax )
-            assert(~isempty(obj.WinSpec)&&isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
+            assert(~isempty(obj.WinSpec) && isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
             set(status,'string','Connecting...');
             obj.data = [];
             drawnow;
             obj.data = obj.WinSpec.acquire(@(t)set(status,'string',sprintf('Elapsed Time: %0.2f',t)),obj.over_exposed_override); %user can cause abort error during this call
-            if ~isempty(obj.data)
-                plot(ax,obj.data.x,obj.data.y)
+            
+            if ~isempty(obj.data) && ~isempty(ax)
+                plot(ax,obj.data.x, obj.data.y)
                 xlabel(ax,'Wavelength (nm)')
                 ylabel(ax,'Intensity (AU)')
                 set(status,'string','Complete!')
             else
                 set(status,'string','Unknown error. WinSpec did not return anything.')
             end
-            obj.data.position = managers.Stages.position;
+            
+            if ~isempty(managers)
+                obj.data.position = managers.Stages.position;
+            end
+            
             try
                 obj.data.WinSpec_calibration = obj.WinSpec.calibration;
             catch
@@ -75,43 +91,57 @@ classdef Spectrum < Modules.Experiment
             end
         end
         
-        function set.ip(obj,val)
+        function val = set_ip(obj,val, ~)
             delete(obj.listeners);
             obj.WinSpec = []; obj.listeners = [];
-            wrappers = {'grating','position','exposure'};
-            if strcmp(val,'No Server')
-                for i = 1:length(wrappers) % Disable editing
-                    obj.(wrappers{i}) = NaN;
-                end
-                obj.ip = val;
-            else
-                h = msgbox(sprintf('Connecting to %s...',val),mfilename,'help','modal');
+            
+            obj.ip = val;
+            
+            err = [];
+            
+%             obj.setMeasurementVars(1024);
+            
+            if ~strcmp(val, 'No Server')
+                h = msgbox(sprintf('Connecting to %s...',val), mfilename, 'help', 'modal');
                 delete(findall(h,'tag','OKButton')); drawnow;
                 try
-                    obj.WinSpec = Drivers.WinSpec.instance(val); %#ok<*MCSUP>
-                    obj.ip = val;
-                    % Setup listeners and grab winspec settings
-                    grating_info = obj.WinSpec.gratings_avail(obj.WinSpec.grating);
-                    notify(obj,'update_settings'); % Trigger CC to reload settings now that we have grating info (before calling update_settings)
-                    obj.grating = sprintf('%i %s',grating_info.grooves,grating_info.name);
-                    obj.listeners = addlistener(obj.WinSpec,'grating','PostSet',@obj.set_grating_string);
-                    for i = 2:length(wrappers)
-                        obj.(wrappers{i}) = obj.WinSpec.(wrappers{i});
-                        obj.listeners(i) = addlistener(obj.WinSpec,wrappers{i},'PostSet',@(a,b)updateprop(a,b,obj));
-                    end
+                    obj.WinSpec = Drivers.WinSpec.instance(val);
+                    
+                    obj.setGratingStrings();
+                    obj.get_grating();
+                    
+                    obj.position = obj.WinSpec.position;
+                    obj.exposure = obj.WinSpec.exposure;
+                    
+%                     obj.setMeasurementVars(1024);
+                    
                     delete(h)
+                    return;
                 catch err
                     delete(h)
-                    obj.WinSpec = [];
-                    for i = 1:length(wrappers) % Disable editing
-                        obj.(wrappers{i}) = NaN;
-                    end
-                    obj.ip = 'No Server';
-                    notify(obj,'update_settings'); % Trigger CC to reload settings now that we have disabled them with NaN
-                    rethrow(err)
                 end
             end
+            
+            
+            obj.WinSpec = [];
+            
+            obj.grating = {};
+            obj.position = NaN;
+            obj.exposure = NaN;
+            
+            obj.ip = 'No Server';
+            
+            val = obj.ip;
+            
+            if ~isempty(err)
+                rethrow(err)
+            end
         end
+%         function setMeasurementVars(obj, N)
+%             obj.sizes = struct('wavelength', [1 N],   'intensity', [1 N]);
+%             obj.units = struct('wavelength', 'nm',      'intensity', 'arb');
+%             % Scans and dims default to 1:N (pixels), which is fine.
+%         end
         function delete(obj)
             delete(obj.listeners)
             delete(obj.WinSpec)
@@ -131,19 +161,30 @@ classdef Spectrum < Modules.Experiment
             end
         end
         
-        function set_grating_string(obj,varargin)
-            grating_info = obj.WinSpec.gratings_avail(obj.WinSpec.grating);
-            obj.grating = sprintf('%i %s',grating_info.grooves,grating_info.name);
+        function strs = getGratingStrings(obj)
+            if ~isempty(obj.WinSpec)
+                strs = arrayfun(obj.gratingFormat, obj.WinSpec.gratings_avail, 'uniformoutput', false);
+            else
+                strs = {};
+            end
         end
+        function setGratingStrings(obj)
+            g = obj.get_meta_pref('grating');
+
+            g.choices = obj.getGratingStrings();
+
+            obj.set_meta_pref('grating', g);
+        end
+        function val = get_grating(obj, ~)
+            if ~isempty(obj.WinSpec)
+                grating_info = obj.WinSpec.gratings_avail(obj.WinSpec.grating);
+                obj.grating = obj.gratingFormat(grating_info);
+                val = obj.grating;
+            end
+        end
+        
         % Experimental Set methods
-        function setWrapper(obj,param,varargin)
-            if isempty(obj.WinSpec); return; end
-            % Don't set in constructor.
-            d = dbstack;
-            if ismember([mfilename '.' mfilename],{d.name}); return; end
-            obj.WinSpec.(sprintf('set%s',param))(varargin{:});
-        end
-        function set.grating(obj,val)
+        function val = set_grating(obj, val, ~)
             obj.grating = val;
             if isempty(obj.WinSpec); return; end
             d = dbstack;
@@ -155,7 +196,7 @@ classdef Spectrum < Modules.Experiment
             delete(findall(h,'tag','OKButton')); drawnow;
             err = [];
             try
-            obj.setWrapper('Grating',val,[]);
+            obj.setWrapper('Grating', val, []);
             catch err
             end
             delete(h)
@@ -163,13 +204,20 @@ classdef Spectrum < Modules.Experiment
                 rethrow(err)
             end
         end
-        function set.position(obj,val)
-            obj.position = val;
-            obj.setWrapper('Grating',[],val);
+        function setWrapper(obj,param,varargin)
+            if isempty(obj.WinSpec); return; end
+            % Don't set in constructor.
+            d = dbstack;
+            if ismember([mfilename '.' mfilename],{d.name}); return; end
+            obj.WinSpec.(sprintf('set%s',param))(varargin{:});
         end
-        function set.exposure(obj,val)
+        function val = set_position(obj, val, ~)
+            obj.position = val;
+            obj.setWrapper('Grating', [], val);
+        end
+        function val = set_exposure(obj, val, ~)
             obj.exposure = val;
-            obj.setWrapper('Exposure',val);
+            obj.setWrapper('Exposure', val);
         end
     end
     

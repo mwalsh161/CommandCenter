@@ -25,7 +25,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
     % is called after validating the above condition.
     %   This is only called if the user supplied the file and is the first
     %   thing called in the run method.
-    
+
     properties
         prefs = {'run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
         show_prefs = {'analysis_file','continue_experiment','experiments','run_type','site_selection','tracking_threshold','min_tracking_dt','max_tracking_dt','imaging_source','repeat'};
@@ -52,8 +52,8 @@ classdef AutoExperiment_invisible < Modules.Experiment
         site_selection = Prefs.MultipleChoice('Peak finder','choices',{'Peak finder','Grid','Manual sites','Load from file'});
         imaging_source = Prefs.ModuleInstance(Modules.Source.empty(0),'inherits',{'Modules.Source'});
         tracking_threshold = Prefs.Double(Inf,'min',0,'help','tracking metric will be normalized to 1');
-        min_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','tracker won''t run twice within this amount of time');
-        max_tracking_dt = Prefs.Double(Inf,'min',0,'units','seconds','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
+        min_tracking_dt = Prefs.Double(Inf,'min',0,'unit','sec','help','tracker won''t run twice within this amount of time');
+        max_tracking_dt = Prefs.Double(Inf,'min',0,'unit','sec','help','if tracking_threshold isn''t hit, tracker will still run after this amount of time');
         repeat = Prefs.Integer(1,'min',1,'allow_nan',false);
         continue_experiment = Prefs.Boolean(false,'set','set_continue_experiment');
         analysis_file = Prefs.File('filter_spec','*.mat','help','Used in patch functions instead of fitting last result. This also ignores SpecPeakThresh.',...
@@ -76,7 +76,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 last_path = '';
             end
             sites = struct('image',[],'positions',[],'input_method',site_selection,'meta',[]);
-            
+
             if strcmp(site_selection,'Load from file')
                 [file,path] = uigetfile('*.mat','Site Selection',last_path);
                     if isequal(file,0)
@@ -97,7 +97,7 @@ classdef AutoExperiment_invisible < Modules.Experiment
                 sites.positions = [sites.positions, NaN(size(sites.positions,1),1)];
                 return
             end
-            
+
             if isempty(managers.Imaging.current_image)
                 source_on = imaging_source.source_on;
                 imaging_source.on;
@@ -108,13 +108,13 @@ classdef AutoExperiment_invisible < Modules.Experiment
             else
                 sites.image = managers.Imaging.current_image.info;
             end
-            
+
             f = figure;
             ax_temp = axes('parent',f);
             imH = imagesc(sites.image.ROI(1,:),sites.image.ROI(2,:),sites.image.image,'parent',ax_temp);
             colormap(ax_temp,managers.Imaging.set_colormap);
             set(ax_temp,'ydir','normal')
-            axis(ax_temp,'image') 
+            axis(ax_temp,'image')
             switch site_selection
                 case 'Peak finder'
                     title('Drag red region to set thresholds, then close adjustment window when done.')

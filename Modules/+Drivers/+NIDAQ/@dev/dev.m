@@ -1,7 +1,7 @@
 classdef dev < Modules.Driver
     % Matlab Object Class implementing control for National Instruments
     % Digital Acquistion Card. Only voltage implemented, no current.
-    % 
+    %
     % Primary purpose of this is to create tasks and lines and manage the
     % GUI.  Other task based control is in Drivers.NIDAQ.task
     %
@@ -32,7 +32,7 @@ classdef dev < Modules.Driver
     %
     % Depending on how the C libraries are written, this could produce
     % many warnings because loadlibrary does not recognize '...' in the
-    % header file. Edit the prototype file (not header file) and use it 
+    % header file. Edit the prototype file (not header file) and use it
     % instead to fix these warnings. Eliminating unused functions will
     % decrease load time.
     %
@@ -83,7 +83,7 @@ classdef dev < Modules.Driver
         AnalogInMaxVoltage = 10;
         AnalogInMinVoltage = -10;
         Counters = {'Ctr0','Ctr1','Ctr2','Ctr3'};
-        
+
         % constants for C library
         LibraryName = 'nidaqmx';            % alias for library
         LibraryFilePath = 'nicaiu.dll';     % Path to dll
@@ -133,6 +133,8 @@ classdef dev < Modules.Driver
             Objects(end+1) = obj;
         end
         function [line,mask] = getLine(name,line_type)
+            name
+            line_type
             names = {line_type.name};
             mask = strcmp(names,name);
             if sum(mask) == 1
@@ -232,15 +234,21 @@ classdef dev < Modules.Driver
         %% View callbacks
         function close(obj,varargin)
             % Remove listeners
-            for i = 1:numel(obj.OutLines)
-                line = obj.OutLines(i);
-                delete(line.niListener)
-                line.niListener = [];
+            try
+                for i = 1:numel(obj.OutLines)
+                    line = obj.OutLines(i);
+                    delete(line.niListener)
+                    line.niListener = [];
+                end
+            catch
             end
-            for i = 1:numel(obj.Tasks)
-                task = obj.Tasks(i);
-                delete(task.niListener)
-                task.niListener = [];
+            try
+                for i = 1:numel(obj.Tasks)
+                    task = obj.Tasks(i);
+                    delete(task.niListener)
+                    task.niListener = [];
+                end
+            catch
             end
             delete(obj.GUI.listeners)
             % Close out GUI
@@ -265,7 +273,7 @@ classdef dev < Modules.Driver
                 set(obj.GUI.InLines,'Value',1)
             end
             set(obj.GUI.InLines,'String',inLines)
-            
+
             outLines = cell(size(obj.OutLines));
             for i = 1:length(obj.OutLines)
                 outLines{i} = obj.OutLines(i).text;
@@ -393,7 +401,7 @@ classdef dev < Modules.Driver
                     varargin{i} = varargin{i}.line;
                 end
             end
-            
+
             nargs = Base.libnargout(obj.LibraryName,FunctionName);
             if nargs < 2
                 varargout = '';
@@ -411,36 +419,44 @@ classdef dev < Modules.Driver
             end
             if ~obj.load_error
                 % Save channels
-                TempOutLines = struct('line',{},'name',{},'state',{},'limits',{});
-                for i = 1:length(obj.OutLines)
-                    OutLineObj = obj.OutLines(i);
-                    line = strsplit(OutLineObj.line,'/');
-                    line = strjoin(line(3:end),'/');
-                    OutLineStruct.line = line;        % Remove /Dev#/
-                    OutLineStruct.name = OutLineObj.name;
-                    OutLineStruct.state = OutLineObj.state;
-                    OutLineStruct.limits = OutLineObj.limits;
-                    TempOutLines(end+1) = OutLineStruct;
-                    delete(OutLineObj.niListener)
-                    OutLineObj.niListener = [];
-                end
-                TempInLines = struct('line',{},'name',{});
-                for i = 1:length(obj.InLines)
-                    InLineObj = obj.InLines(i);
-                    line = strsplit(InLineObj.line,'/');
-                    line = strjoin(line(3:end),'/');
-                    InLineStruct.line = line;        % Remove /Dev#/
-                    InLineStruct.name = InLineObj.name;
-                    TempInLines(end+1) = InLineStruct;
+                try
+                    TempOutLines = struct('line',{},'name',{},'state',{},'limits',{});
+                    for i = 1:length(obj.OutLines)
+                        OutLineObj = obj.OutLines(i)
+                        line = strsplit(OutLineObj.line,'/');
+                        line = strjoin(line(3:end),'/');
+                        OutLineStruct.line = line;        % Remove /Dev#/
+                        OutLineStruct.name = OutLineObj.name;
+                        OutLineStruct.state = OutLineObj.state;
+                        OutLineStruct.limits = OutLineObj.limits;
+                        TempOutLines(end+1) = OutLineStruct;
+                        delete(OutLineObj.niListener)
+                        OutLineObj.niListener = [];
+                    end
+                    TempInLines = struct('line',{},'name',{});
+                    for i = 1:length(obj.InLines)
+                        InLineObj = obj.InLines(i)
+                        line = strsplit(InLineObj.line,'/');
+                        line = strjoin(line(3:end),'/');
+                        InLineStruct.line = line;        % Remove /Dev#/
+                        InLineStruct.name = InLineObj.name;
+                        TempInLines(end+1) = InLineStruct;
+                    end
+                    setpref(obj.namespace,'OutLines',TempOutLines)
+                    setpref(obj.namespace,'InLines',TempInLines)
+                catch err
+                    warning(err.message)
                 end
                 setpref(obj.namespace_dev,'OutLines',TempOutLines)
                 setpref(obj.namespace_dev,'InLines',TempInLines)
             end
+            delete(obj.OutLines);
+            delete(obj.InLines);
             if ~obj.init_error
                 % clear all tasks
                 obj.ClearAllTasks();
                 % unload library
-                if libisloaded(obj.LibraryName),
+                if libisloaded(obj.LibraryName)
                     unloadlibrary(obj.LibraryName);
                 end
             end
@@ -453,7 +469,7 @@ classdef dev < Modules.Driver
             obj.LibraryFunction('DAQmxSelfTestDevice',obj.DeviceChannel);
         end
         %function view(obj) - in separate file
-            
+
         %% Basic Task Control
         function task = GetTaskByName(obj,TaskName)
             mask = find(strcmp({obj.Tasks.name},TaskName));
@@ -542,7 +558,7 @@ classdef dev < Modules.Driver
             delete(line)
             obj.InLines(mask) = [];
         end
-        
+
         function lines = getLines(obj,names,line_type)
             % Return line objects with names of type "in" or "out"
             if ~iscell(names)
@@ -562,7 +578,7 @@ classdef dev < Modules.Driver
                 lines(i) = obj.getLine(names{i},line_type);
             end
         end
-        
+
         %% Quick Read/Write (no task prep/clean necessary)
         function WriteDOLines(obj,names,values)
             if ~iscell(names)
@@ -575,14 +591,14 @@ classdef dev < Modules.Driver
             end
             TaskName = 'DigitalWrite';
             task = obj.CreateTask(TaskName);
-            
+
             % Equivalent to try catch finally statement:
             err = NaN;
             try
                 task.CreateChannels('DAQmxCreateDOChan',lines,[],obj.DAQmx_Val_ChanPerLine);
                 task.Start;
                 task.LibraryFunction('DAQmxWriteDigitalLines',task,1,obj.WriteTimeout,10.0,0,values,0,[]);
-            catch err;
+            catch err
             end
             task.Clear
             if isa(err,'MException'); rethrow(err); end
@@ -607,7 +623,7 @@ classdef dev < Modules.Driver
             % MinVal 10% around values, but at least +/- 0.01
             MinVal = max(obj.AnalogOutMinVoltage,min(values)-max(abs(min(values)*0.1),0.01));
             MaxVal = min(obj.AnalogOutMaxVoltage,max(values)+max(abs(max(values)*0.1),0.01));
-            
+
             TaskName = 'AnalogWrite';
             task = obj.CreateTask(TaskName);
 
@@ -625,7 +641,7 @@ classdef dev < Modules.Driver
                 lines(i).state = values(i);
             end
         end
-        
+
         function voltage = ReadAILine(obj,name,VoltLim)
             % If user optionally specifies min/max, it will give a better result
             TaskName = 'AnalogRead';
@@ -640,7 +656,7 @@ classdef dev < Modules.Driver
 
             % create a new task
             task = obj.CreateTask(TaskName);
-                
+
             % create an analog in voltage channel
             err = NaN;
             try
@@ -652,20 +668,47 @@ classdef dev < Modules.Driver
             task.Clear;
             if isa(err,'MException'); rethrow(err); end
         end
-        function state = ReadDILine(obj,name)
+        function state   = ReadDILine(obj,name)
             TaskName = 'DigitalRead';
             line = obj.getLine(name,obj.InLines);
-            
+
             % create a new task
             task = obj.CreateTask(TaskName);
-            
+
             % create a digital in channel
             err = NaN;
             try
                 task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
                 task.Start
-                warning('Not implemented yet')
-                state = 0;
+                warning('NotImplemented');
+                state = NaN;
+%                 [~,ptr] = task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, ptr,[]);
+%(TaskHandle taskHandle, int32 numSampsPerChan, float64 timeout, bool32 fillMode, uInt8 readArray[], uInt32 arraySizeInBytes, int32 *sampsPerChanRead, int32 *numBytesPerSamp, bool32 *reserved);
+                task.LibraryFunction('DAQmxReadDigitalLines', task, 1, obj.ReadTimeout, obj.DAQmx_Val_GroupByChannel, ptr, [], [], []);
+                state = ptr.Value;
+            catch err
+            end
+            task.Clear
+            if isa(err,'MException'); rethrow(err); end
+        end
+        function counts  = ReadCILine(obj,name)
+            TaskName = 'CounterRead';
+            line = obj.getLine(name,obj.InLines);
+
+            % create a new task
+            task = obj.CreateTask(TaskName);
+
+            % create a counter in channel
+            err = NaN;
+            try
+                task.CreateChannels('DAQmxCreateCICountEdgesChan',line,'',obj.DAQmx_Val_Rising, 0, obj.DAQmx_Val_CountUp);
+                task.Start
+                warning('NotImplemented');
+                counts = NaN;
+%                 [~,state] = task.LibraryFunction('DAQmxReadCounterScalarU32',task,obj.ReadTimeout, state,[]);
+
+%                 task.LibraryFunction('DAQmxReadDigitalScalarU32',task,obj.ReadTimeout, ptr,[]);
+%                 state = ptr.Value;
             catch err
             end
             task.Clear

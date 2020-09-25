@@ -1,7 +1,7 @@
-classdef String < Base.pref
+classdef String < Base.Pref
     %STRING Allows any character array
     
-    properties(Hidden)
+    properties (Hidden)
         default = '';
         ui = Prefs.Inputs.CharField;
     end
@@ -12,7 +12,7 @@ classdef String < Base.pref
     
     methods
         function obj = String(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
         end
         function validate(obj,val)
             validateattributes(val,{'char','string'},{'scalartext'})
