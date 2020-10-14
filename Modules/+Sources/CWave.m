@@ -169,17 +169,39 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
 
         % source methods
 
-        function on(obj)
-            assert(~isempty(obj.PulseStreamerHandle), 'No IP set for PulseStreamer!')
-            state = PulseStreamer.OutputState([obj.PBline],0,0);
-            obj.PulseStreamerHandle.PS.constant(state);
+         function on(obj)
+            uwavePS = Sources.MWswitch_PS.instance();
+            laser532PS = Sources.Laser532ME_PS.instance();
+            assert(~isempty(obj.PulseStreamerMaster),'No IP set for PulseStreamer!')
             obj.source_on = true;
+            if laser532PS.source_on == true && uwavePS.source_on == true
+                output = [obj.PBline, uwavePS.PBline, laser532PS.PBline];
+            elseif laser532PS.source_on == false && uwavePS.source_on == true
+                output = [obj.PBline, uwavePS.PBline];
+            elseif laser532PS.source_on == true && uwavePS.source_on == false
+                output = [obj.PBline, laser532PS.PBline];
+            elseif laser532PS.source_on == false && uwavePS.source_on == false
+                output = [obj.PBline];
+            end
+            state = PulseStreamer.OutputState(output,0,0);
+            obj.PulseStreamerMaster.PS.constant(state); 
             
         end
         function off(obj)
+            laser532PS = Sources.Laser532ME_PS.instance();
+            uwavePS = Sources.MWswitch_PS.instance();
             assert(~isempty(obj.PulseStreamerHandle), 'No IP set for PulseStreamer!')
             obj.source_on = false;
-            state = PulseStreamer.OutputState([],0,0);
+            if laser532PS.source_on == true && uwavePS.source_on == true
+                output = [laser532PS.PBline, uwavePS.PBline];
+            elseif laser532PS.source_on == false && uwavePS.source_on == true
+                output = [uwavePS.PBline];
+            elseif laser532PS.source_on == true && uwavePS.source_on == false
+                output = [laser532PS.PBline];
+            elseif laser532PS.source_on == false && uwavePS.source_on == false
+                output = [];
+            end
+            state = PulseStreamer.OutputState(output,0,0);
             obj.PulseStreamerHandle.PS.constant(state);
         end
         function arm(obj)
