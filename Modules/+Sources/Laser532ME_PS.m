@@ -72,11 +72,10 @@ classdef Laser532ME_PS < Modules.Source & Sources.MEdge_invisible
                 rethrow(err)
             end
         end
-       function on(obj)
+        function on(obj)
             uwavePS = Sources.MWswitch_PS.instance();
             cwavePS = Sources.CWave.instance();
-            %cwavePS.PBline = 1;
-            %cwavePS.source_on = false;
+            
             assert(~isempty(obj.PulseStreamerMaster),'No IP set for PulseStreamer!')
             obj.source_on = true;
             if cwavePS.source_on == true && uwavePS.source_on == true
@@ -92,25 +91,25 @@ classdef Laser532ME_PS < Modules.Source & Sources.MEdge_invisible
             obj.PulseStreamerMaster.PS.constant(state);  
         end
         function off(obj)
-            %uwavePS = Sources.MWswitch_PS.instance();
-            %cwavePS = Sources.CWave.instance();
-            %cwavePS.PBline = 1;
-            %cwavePS.source_on = false;
+            uwavePS = Sources.MWswitch_PS.instance();
+            cwavePS = Sources.CWave.instance();
             assert(~isempty(obj.PulseStreamerMaster),'No IP set for PulseStreamer!')
             obj.source_on = false;
-%             if cwavePS.source_on == true && uwavePS.source_on == true
-%                 output = [obj.PBline, uwavePS.PBline, cwavePS.PBline];
-%             elseif cwavePS.source_on == false && uwavePS.source_on == true
-%                 output = [obj.PBline, uwavePS.PBline];
-%             elseif cwavePS.source_on == true && uwavePS.source_on == false
-%                 output = [obj.PBline, cwavePS.PBline];
-%             elseif cwavePS.source_on == false && uwavePS.source_on == false
-%                 output = [obj.PBline];
-%             end
+            if cwavePS.source_on == true && uwavePS.source_on == true
+                output = [uwavePS.PBline, cwavePS.PBline];
+            elseif cwavePS.source_on == false && uwavePS.source_on == true
+                output = [uwavePS.PBline];
+            elseif cwavePS.source_on == true && uwavePS.source_on == false
+                output = [cwavePS.PBline];
+            elseif cwavePS.source_on == false && uwavePS.source_on == false
+                output = [];
+            end
             output = [obj.PBline];
             state = PulseStreamer.OutputState(output,0,0);
-            obj.PulseStreamerMaster.PS.constant(state);
+            obj.PulseStreamerMaster.PS.constant(state); 
+            
         end
+       
         function isRunning(obj,varargin)
             obj.running = obj.source_on; 
             % Constant method currently has no flags to indicate successful 
