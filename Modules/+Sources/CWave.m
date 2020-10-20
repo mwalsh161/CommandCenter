@@ -172,7 +172,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
          function on(obj)
             uwavePS = Sources.MWswitch_PS.instance();
             laser532PS = Sources.Laser532ME_PS.instance();
-            assert(~isempty(obj.PulseStreamerMaster),'No IP set for PulseStreamer!')
+            assert(~isempty(obj.PulseStreamerHandle),'No IP set for PulseStreamer!')
             obj.source_on = true;
             if laser532PS.source_on == true && uwavePS.source_on == true
                 output = [obj.PBline, uwavePS.PBline, laser532PS.PBline];
@@ -184,7 +184,7 @@ classdef CWave < Modules.Source & Sources.TunableLaser_invisible
                 output = [obj.PBline];
             end
             state = PulseStreamer.OutputState(output,0,0);
-            obj.PulseStreamerMaster.PS.constant(state); 
+            obj.PulseStreamerHandle.PS.constant(state); 
             
         end
         function off(obj)
