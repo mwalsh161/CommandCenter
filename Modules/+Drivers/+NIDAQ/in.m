@@ -1,4 +1,4 @@
-classdef in < handle & Base.Measurement
+classdef in < handle %& Base.Measurement
     %DAQin is a handle class for input lines for NIDAQ
     %   Makes it more convenient to modify properties of its state
     
@@ -56,16 +56,16 @@ classdef in < handle & Base.Measurement
             obj.name = name;
             obj.check;
             
-            obj.sizes = struct(mname, [1 1]);
-            obj.names = struct(mname, obj.name);
-            switch obj.type
-                case 'analog'
-                    obj.units = struct(mname, 'V');
-                case 'digital'
-                    obj.units = struct(mname, 'cts/sec');
-            end
-            obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
-            obj.dims =  struct();
+%             obj.sizes = struct(mname, [1 1]);
+%             obj.names = struct(mname, obj.name);
+%             switch obj.type
+%                 case 'analog'
+%                     obj.units = struct(mname, 'V');
+%                 case 'digital'
+%                     obj.units = struct(mname, 'cts/sec');
+%             end
+%             obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
+%             obj.dims =  struct();
         end
         function str = text(obj)
             ch = strsplit(obj.line,'/');
