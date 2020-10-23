@@ -127,6 +127,7 @@ classdef PathManager < Base.Manager
             end
             % Check to see if exists
             if isempty(obj.paths)
+                return;
                 obj.error(sprintf('Attempted to select "%s", but there are currently no paths defined.',name),true);
             end
             map = ismember({obj.paths.name},name);
@@ -140,6 +141,7 @@ classdef PathManager < Base.Manager
                         return
                     end
                 end % If no prompt is desired, error
+                return;
                 obj.error(sprintf('No path found by name "%s"',name),true);
             end
             

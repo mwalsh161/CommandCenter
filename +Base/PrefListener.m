@@ -1,4 +1,4 @@
-classdef (ConstructOnLoad) preflistener < handle
+classdef (ConstructOnLoad) PrefListener < handle
     % PREFLISTENER is designed to be a drop in for event.proplistener
     % preflistener(event.proplistener)
     % preflistener(hSource,PropertyName,EventName,callback)
@@ -15,8 +15,8 @@ classdef (ConstructOnLoad) preflistener < handle
         Enabled = true;
         Recursive = false;
     end
-    properties(Access={?Base.pref_handler})
-        % Used internally for pref_handler
+    properties(Access={?Base.PrefHandler})
+        % Used internally for PrefHandler
         executing = false;
         PropertyName = '';
     end
@@ -27,7 +27,7 @@ classdef (ConstructOnLoad) preflistener < handle
     end
 
     methods
-        function obj = preflistener(varargin)
+        function obj = PrefListener(varargin)
             % preflistener(proplistener)
             % preflistener(hSource,PropertyName,EventName,callback)
             if nargin == 1
@@ -53,8 +53,8 @@ classdef (ConstructOnLoad) preflistener < handle
             delete(obj.proplistener);
         end
         function set.Enabled(obj,val)
-            if obj.wrapper
-                obj.proplistener.Enabled = val;
+            if obj.wrapper %#ok<MCSUP>
+                obj.proplistener.Enabled = val; %#ok<MCSUP>
             end
             obj.Enabled = val;
         end

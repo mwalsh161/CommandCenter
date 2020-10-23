@@ -394,7 +394,7 @@ classdef sequence < handle
             end
             
         end
-        function [instructionSet,seqOut,instInfo] = compile(obj,overrideMinDuration)
+        function [instructionSet,seqOut,instInfo,time] = compile(obj,overrideMinDuration, defaultLines_)
             % repeat puts a loop around the full thing. If Inf, a branch
             % statement is used instead. If more than a single command can
             % handle, nested loops will be used
@@ -406,8 +406,21 @@ classdef sequence < handle
             %   if not.
             if nargin < 2
                 overrideMinDuration = false;
+                defaultLines_ = zeros(1,24);
             end
+            if nargin < 2
+                overrideMinDuration = false;
+            end
+            
             chans = obj.getSequenceChannels;
+            
+            assert(numel(defaultLines_) <= 24 && length(defaultLines_) == numel(defaultLines_), 'defaultLines_ must be a vector with length less than 24 inclusive.');
+            
+            defaultLines = zeros(1,24);
+            defaultLines(1:numel(defaultLines_)) = defaultLines_;  % In case defaultLines_ is a column vector or has fewer elemeents
+            defaultLines([chans.hardware] + 1) = 0;                % Any channel that is used should start off. Turned zero indexing into one indexing.
+            defaultLines = fliplr(defaultLines);                   % Little endian.
+            
             assert(numel(chans)==numel(unique([chans.hardware])),'Channels have repeated hardware lines.')
             % Add in channel offsets and apply resolution (should help reduce number of instructions)
             offsets = reshape([chans.offset],2,[]);
@@ -446,7 +459,7 @@ classdef sequence < handle
             % and most significant node type. Also check for multiple loops
             % in one flag (cannot do that).
             assert(strcmp(seq(1).node.type,'null'),'The first node in time is not the null node. This means there must be a negative delta set which orders another node before the null node!')
-            instInfo = struct('flag',zeros(1,24),'dt',seq(2).t - seq(1).t,'msn',seq(1).node,'notes',''); % msn = most significant node
+            instInfo = struct('flag',defaultLines,'dt',seq(2).t - seq(1).t,'msn',seq(1).node,'notes',''); % msn = most significant node
             seq(1) = [];
             while ~isempty(seq)
                 notes = {};  % Use for warnings 'name:data,...'
@@ -578,6 +591,25 @@ classdef sequence < handle
             end
             assert(numel(instructionSet) <= 4096,...
                 sprintf('Can only handle 4096 instructions, have %i currently.',numel(instructionSet)))
+            
+            % Calculate expected time for this sequence to take.
+            N = length(seqOut);
+            times = NaN(1,N);
+
+            for ii = 1:N    % Iterate through every node in the sequence (probably could convert to array function but meh).
+                switch seqOut(ii).node.units
+                    case 'ns'
+                        times(ii) = seqOut(ii).t / 1e9;
+                    case 'us'
+                        times(ii) = seqOut(ii).t / 1e6;
+                    case 'ms'
+                        times(ii) = seqOut(ii).t / 1e3;
+                    otherwise
+                        error(['Units ' num2str(seqOut(ii).node.units) ' not recognized.'])
+                end
+            end
+
+            time = (max(times) - min(times)) * obj.repeat;  % Multiply time difference between first and last instructions by the number of repeats.
         end
         
         function simulate(obj,seq,ax)

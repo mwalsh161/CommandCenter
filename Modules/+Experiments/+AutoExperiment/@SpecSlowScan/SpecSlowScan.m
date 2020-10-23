@@ -1,7 +1,13 @@
 classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
+<<<<<<< HEAD
+    %SpecSlowScan Automatically performs 1) spectra, 2) open-loop PLE, and
+    %3) closed-loop PLE on identified sites
+
+=======
     %SpecSlowScan Automatically performs 1) spectra, 2) open-loop PLE,
     %3) closed-loop PLE 4) and SuperRes on identified sites
     
+>>>>>>> 1e24d6d4dc4513317440bc46779d59b3873db42e
     % The analysis struct can be extended to include "nm2THz" as well as the
     % corresponding "gof" (both as separate fields).
     % The sites struct has been expanded to have fit information for each
@@ -9,6 +15,13 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
 
     properties(SetObservable,GetObservable)
         % Preferences for thresholding in the patch methods
+<<<<<<< HEAD
+        freq_range = Prefs.DoubleArray(299792./[635,640],'unit','THz','min',0,'allow_nan',false);
+        SpecCalExposure = Prefs.Double(0.1,'min',0,'unit','sec');
+        SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help','Number of std above noise proms');
+        PointsPerPeak = Prefs.Integer(10,'min',0,'allow_nan',false,'help','how many points per std for SlowScanClosed');
+        StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help','how wide of a bin around peaks for SlowScanClosed');
+=======
         freq_range = Prefs.DoubleArray(299792./[635,640],'units','THz','min',0,'allow_nan',false);
         SpecCalExposure = Prefs.Double(0.1,'min',0,'units','sec');
         SpecPeakThresh = Prefs.Double(4,'min',0,'allow_nan',false,'help_text','Number of std above noise proms');
@@ -16,6 +29,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         StdsPerPeak = Prefs.Double(5,'min',0,'allow_nan',false,'help_text','how wide of a bin around peaks for SlowScanClosed');
         ROI_Size = Prefs.Double(2,'units','um','allow_nan',false,'help_text','Symmetric box size (width and height) for super res scans around emitter');
         ROI_points = Prefs.Integer(50,'units','px','allow_nan',false,'help_text','Symmetric pixel count (width and height) for super res scans. Will determine resolution.')
+>>>>>>> 1e24d6d4dc4513317440bc46779d59b3873db42e
     end
     properties
         patch_functions = {'','Spec2Open','Open2Closed','Closed2SuperRes'};
@@ -53,13 +67,13 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         varargout = analyze(data,varargin)
         [n2THz,gof,fig] = diagnostic(data,sites)
         regions = peakRegionBin(peaks,wids,ppp,scanDevs,maxRange)
-        function [dx,dy,dz,metric] = Track(Imaging,Stage,track_thresh) 
+        function [dx,dy,dz,metric] = Track(Imaging,Stage,track_thresh)
             % Imaging = handle to active imaging module
             % Stage = handle to active stage module
             % track_thresh = true --> force track
             %                false --> return metric, but don't track
             %                numeric --> if metric <= track_thresh, track
-            
+
             tracker = Drivers.Tracker.instance(Stage,Stage.galvoDriver);
             dx = NaN;
             dy = NaN;
@@ -110,7 +124,7 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
         end
         %the below patch functions will be run at the beginning of each
         %(site, experiment) in the run_queue for any experiment that isn't
-        %the first one, and will be passed the relevant emitter site 
+        %the first one, and will be passed the relevant emitter site
         %(containing) all previous experiments.
         function params = Spec2Open(obj,site,index)
             params = struct('freq_THz',{}); %structure of params beings assigned
@@ -255,10 +269,10 @@ classdef SpecSlowScan < Experiments.AutoExperiment.AutoExperiment_invisible
             obj.nm2THz = calibration.nm2THz; %grab the calibration function
             obj.meta.nm2THz = obj.nm2THz; % And add to metadata
             obj.meta.analysis = obj.analysis; % To avoid scenarios where analysis gets renamed/deleted
-            
+
             % Set SlowScan.Open to always use Tune Coarse
             obj.experiments(2).tune_coarse = true;
         end
-        
+
     end
 end

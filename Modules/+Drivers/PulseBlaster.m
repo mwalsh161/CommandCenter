@@ -4,7 +4,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     % Call with the IP of the host computer (singleton based on ip)
     
     properties(Constant)
-        clk = 500           % MHz?
+        clk = 500           % MHz
         resolution = 2;     % ns
         minDuration = 10;   % Minimum duration in ns
         maxRepeats = 2^20;  % positive integer value
@@ -13,14 +13,12 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     end
     properties(SetAccess=private,Hidden)
         connection
-        lines
+        lines                   % Array of `Drivers.PulseBlaster.Line`s with staticLines state stored in the pref "state".
+        linesEnabled = true;    % Used for updating lines. If false, lines will not try to (slowly) talk with the PB.
     end
     properties(SetAccess=immutable)
         host = '';
     end
-%     properties(SetObservable,GetObservable,AbortSet)
-%         host = Prefs.String();
-%     end
     
     methods(Static)
         function obj = instance(host_ip)
@@ -42,9 +40,16 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         end
     end
     methods(Access=private)
-        function obj = PulseBlaster(ip)
-            obj.host = ip;
-            obj.connection = hwserver(ip);
+        function obj = PulseBlaster(host_)
+            obj.host = host_;
+            try
+                obj.connection = hwserver(host_);
+            catch err
+                warning([   'Could not connect to an instance of hwserver at host "' host_ '". ' ...
+                            'Are you sure hwserver is installed there? The hwserver repository is ' ...
+                            'located at https://github.mit.edu/mpwalsh/hwserver/.']);
+                rethrow(err);
+            end
             obj.spawnLines();
         end
         function spawnLines(obj)
@@ -57,55 +62,109 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         function killLines(obj)
             delete(obj.lines);
         end
+        function updateLines(obj, state)
+            if nargin == 1
+                state = obj.getLines();
+            end
+            
+            obj.linesEnabled = false;
+            
+            for ii = 1:length(state)
+                if isnumeric(obj.lines(ii).state)           % Avoid disturbing mid-pref-switch.
+                    obj.lines(ii).state = state(ii);        % Update state without communicating with hardware.
+                end
+            end
+            
+            obj.linesEnabled = true;
+        end
     end
     methods
         function delete(obj)
             obj.killLines();
             delete(obj.connection);
         end
-        function response = com(obj, varargin)
+        function response = com(obj, varargin)              % Communication helper function.
             response = obj.connection.com(obj.hwname, varargin{:});
         end
         
-        function response = start(obj)
+        function response = start(obj)                      % Start the currently-loaded program.
             response = obj.com('start');
         end
-        function response = stop(obj)
+        function response = stop(obj)                       % Stop the currently-loaded program. Does not revert to staticLines state.
             response = obj.com('stop');
         end
-        function response = reset(obj)
-            response = obj.com('setLines')';
+        function state = reset(obj)                         % Reset to staticLines mode.
+            if ~obj.isStatic
+                state = obj.com('setLines')';               % setLines without arguments sets to staticLines mode.
+            else
+                state = obj.com('getLines')';
+            end
+            
+            obj.updateLines(state)
         end
         
-        function response = load(obj, program, clock)
+        function response = load(obj, program, clock)       % Load a program.
             if iscell(program)  % Process cell array of strings for backwards compatibility.
                 program = strjoin(program, newline);
             end
             
             assert(ischar(program))
             assert(~isempty(program))
+            
             if nargin == 2
                 response = obj.com('load', program);
             else
                 assert(clock > 0)
                 response = obj.com('load', program, clock);
             end
+            
+            obj.updateLines(NaN(1,length(obj.lines)));
         end
-        function response = getProgram(obj)
+        function response = getProgram(obj)                 % Get the currently-loaed program (text form).
             response = obj.com('getProgram');
         end
         
-        function response = isStatic(obj)
-            response = obj.com('isStatic');
+        function tf = isStatic(obj)                         % Whether we are currently in staticLines mode.
+            tf = obj.com('isStatic');
         end
-        function response = setAllLines(obj, lines)         % Pass a logical array
-            response = obj.com('setAllLines', lines)';
+        function state = setAllLines(obj, state)            % Pass a logical array of the desired state of the lines. This will stop a currently-running program and revert to staticLines state.
+            state = obj.com('setAllLines', state)';
+            obj.updateLines(state);
         end
-        function response = setLines(obj, indices, values)  % Pass a list of indices to change
-            response = obj.com('setLines', indices, values)';
-        end
-        function response = getLines(obj)
-            response = obj.com('getLines')';
+        function state = setLines(obj, indices, values)     % Pass a list of line indices to change values. This will stop a currently-running program and revert to staticLines state.
+            state = obj.com('setLines', indices, values)';
+            obj.updateLines(state);
+        end 
+        function response = blink(obj, indices, rate)       % Blinks the listed lines in `indices` at `rate` Hz. Useful for debugging!
+            s = sequence('Blink');
+            s.repeat = Inf;
+            
+            l = getLines(obj);
+            
+            for ii = 1:length(l)
+                ch(ii) = channel(num2str(ii), 'hardware', ii-1);    %#ok<AGROW> % Should unify indexing!
+            end
+            
+            s.channelOrder = ch;
+            
+            n = s.StartNode;
+            
+            for jj = 1:2
+                t = jj*1e6/rate/2;
+                for ii = indices
+                    node(n, ch(ii), 'units', 'us', 'delta', t);
+                end
+            end
+            
+            response = obj.load(s.compile());
+            obj.start();
+            
+            delete(s);
+        end 
+        
+        function state = getLines(obj)                      % Get state of staticLines. All NaN if a program is running.
+            state = obj.com('getLines')';
+            obj.updateLines(state);
         end
     end
 end

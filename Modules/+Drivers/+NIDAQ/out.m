@@ -9,11 +9,16 @@ classdef out < handle
         name                           % Alias - name used in MATLAB
         limits                         % [low,high] for analog lines
     end
-    properties(SetAccess={?Drivers.NIDAQ.task,?Drivers.NIDAQ.dev},SetObservable,AbortSet)
-        state = NaN                    % Last set state
+%     properties(SetAccess={?Drivers.NIDAQ.task,?Drivers.NIDAQ.dev}, SetObservable, GetObservable)
+    properties(SetObservable, GetObservable)
+%          state = NaN                    % Last set state
+        state = NaN;
     end
     properties(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.out})
         niListener                     % Handle to NIDAQ's listener to state_change
+    end
+    properties (Access=private, Hidden)
+        pref;                           % The fake pref that is constructed to lead to this DAQ.
     end
     
     methods(Access=private)
@@ -48,6 +53,7 @@ classdef out < handle
                 obj.type = 'digital';
             end
             % Fix name to include device id
+            pname = line;
             line = ['/' dev.DeviceChannel '/' upper(line)];
             obj.dev = dev;
             obj.line = line;
@@ -60,6 +66,23 @@ classdef out < handle
             assert(limits(2) <= dev.AnalogOutMaxVoltage, sprintf('Upper limit is above device max voltage (%g V)',dev.AnalogOutMaxVoltage));
             obj.limits = limits;
             obj.check;
+            
+            % Make and register a fake Pref:
+            pref = Prefs.Double('name', obj.name, 'unit', 'V', 'min', limits(1), 'max', limits(2));
+            pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
+            pref.property_name = lower(pname);
+            pref.parent_class = class(dev);
+            
+            pref.writ_fn = @(x)(obj.writ(x));
+            pref.read_fn = @()(obj.read());
+%             pref.listen_fn = @(event, callback)(module_instance.addlistener(obj.property_name, event, callback));
+%             pref.listen_fn = @(event, callback)(event.proplistener(obj, 'state', event, callback));
+            pref.listen_fn = @(event, callback)([]);
+            
+            obj.pref = pref;
+            
+            pr = Base.PrefRegister.instance();
+            pr.addPref(dev, pref);
         end
         function delete(obj)
             delete(obj.niListener)
@@ -68,6 +91,43 @@ classdef out < handle
             ch = strsplit(obj.line,'/');
             ch = strjoin(ch(3:end),'/');
             str = [obj.name ': ' ch ' (' num2str(obj.state) ')'];
+        end
+    end
+    methods
+        function set_state(obj, val)
+%             obj.type
+            try
+                if      strcmp(obj.type, 'digital')
+                    obj.dev.WriteDOLines(obj.name, val);
+                elseif  strcmp(obj.type, 'analog')
+%                     true
+%                     obj.dev
+%                     val
+                    obj.dev.WriteAOLines(obj.name, val);
+                else    % Counter outputs NotImplemented.
+
+                end
+                
+%                 obj.state = val;
+            catch err
+                warning(err.message);
+            end
+        end
+        function tf = writ(obj, val)
+            try
+                obj.set_state(val);
+                tf = true;
+            catch
+                tf = false;
+            end
+        end
+        function val = read(obj)
+            val = obj.state;
+        end
+    end
+    methods
+        function pref = get_meta_pref(obj)
+            pref = obj.pref;
         end
     end
 end

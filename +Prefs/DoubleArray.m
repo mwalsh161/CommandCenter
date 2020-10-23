@@ -1,4 +1,4 @@
-classdef DoubleArray < Base.pref
+classdef DoubleArray < Base.Pref
     %ARRAY Maintain an array of double values. STR2NUM is used to attempt
     %to convert any text data to a value. This means expressions will be
     %evaluated and any text representing a number to MATLAB (e.g. 'pi')
@@ -6,7 +6,7 @@ classdef DoubleArray < Base.pref
     %set to NaN. Obviously if allow_nan is false, this will error and not
     %set a new value.
     
-    properties(Hidden)
+    properties (Hidden)
         default = 0;
         ui = Prefs.Inputs.TableField;
         callback = [];
@@ -21,7 +21,7 @@ classdef DoubleArray < Base.pref
     
     methods
         function obj = DoubleArray(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
             obj.ui.ColumnFormat = {'numeric'};
             obj.ui.hide_label = obj.hide_label;
         end

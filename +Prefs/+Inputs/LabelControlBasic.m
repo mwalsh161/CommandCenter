@@ -1,4 +1,4 @@
-classdef LabelControlBasic < Base.input
+classdef LabelControlBasic < Base.Input
     % LABELCONTROLBASIC provides functionality for preparing a common input type
     %   of a right justified label (text) and a left justified input uicontrol element
     %   It stores the label uicontrol element in "label" and the input element
@@ -18,10 +18,16 @@ classdef LabelControlBasic < Base.input
         % Important to do it this way to allow MATLAB to make the proper extent
         %   when generating the label uicontrol for "label_width_px"
         function labeltext = get_label(~,pref)
-            if ~isempty(pref.units)
-                labeltext = sprintf('%s (%s)',pref.name,pref.units);
+            name = pref.name;
+
+            if isempty(name)
+                name = strrep(pref.property_name, '_', ' ');
+            end
+
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', name, pref.unit);
             else
-                labeltext = pref.name;
+                labeltext = name;
             end
         end
     end
@@ -35,23 +41,29 @@ classdef LabelControlBasic < Base.input
             % Here, widths will all be taken care of in adjust_UI
             tag = strrep(pref.name,' ','_');
             labeltext = obj.get_label(pref);
+
+            if strcmp(obj.uistyle, 'checkbox') && strcmp(pref.unit, '0/1')
+                labeltext = labeltext(1:end-6);
+            end
+
             enabled = 'on';
             if pref.readonly
                 enabled = 'off';
             end
-            obj.label = uicontrol(parent, 'style', 'text',...
-                        'string', [labeltext ': '],...
-                        'horizontalalignment', 'right',...
-                        'units', 'pixels',...
-                        'tag', [tag '_label']);
+            obj.label = uicontrol(parent, 'Style', 'text',...
+                        'String', [labeltext ': '],...
+                        'HorizontalAlignment', 'right',...
+                        'Units', 'pixels',...
+                        'Tag', [tag '_label']);
             obj.label.Position(2) = yloc_px;
             label_width_px = obj.label.Extent(3);
 
-            obj.ui = uicontrol(parent, 'style', obj.uistyle,...
-                        'horizontalalignment','left',...
-                        'units', 'pixels',...
-                        'tag', tag,...
-                        'enable', enabled);
+            obj.ui = uicontrol(parent, 'Style', obj.uistyle,...
+                        'HorizontalAlignment','left',...
+                        'Units', 'pixels',...
+                        'Tag', tag,...
+                        'Enable', enabled,...
+                        'UserData', enabled);   % UserData field contains another copy of readonly for inputs which overwrite Enable
             obj.ui.Position(2) = yloc_px;
 
             if ~isempty(pref.help_text)

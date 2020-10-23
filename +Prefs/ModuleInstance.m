@@ -1,4 +1,4 @@
-classdef ModuleInstance < Base.pref
+classdef ModuleInstance < Base.Pref
     %MODULE Allow particular types of module arrays
     %   NOTE: The UI will interpret whatever array size as an Nx1 when displaying
     %   If remove_on_delete is set to true, then the actual data value will 
@@ -16,7 +16,7 @@ classdef ModuleInstance < Base.pref
     %       empty_val: The value displayed is the dropdown menu when no
     %           module instances exist.
     
-    properties(Hidden) % Satisfy abstract
+    properties (Hidden) % Satisfy abstract
         default = Base.Module.empty(0);
         ui = Prefs.Inputs.ModuleSelectionField;
     end
@@ -37,7 +37,7 @@ classdef ModuleInstance < Base.pref
     
     methods
         function obj = ModuleInstance(varargin)
-            obj = obj@Base.pref(varargin{:});
+            obj = obj@Base.Pref(varargin{:});
             % Saving prefs don't support reloading with input params, so leave out drivers
             obj.ui.module_types = {'Experiment','Stage','Imaging','Source','Database'};
         end

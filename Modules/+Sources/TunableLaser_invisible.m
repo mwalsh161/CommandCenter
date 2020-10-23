@@ -1,6 +1,6 @@
 classdef TunableLaser_invisible < handle
     %TUNABLELASER_INVISIBLE Superclass for all lasers that can have their
-    %frequency tuned. 
+    %frequency tuned.
     %Properties:
     %   tuning: flag indicating laser is still tuning (should be updated on
     %       getFrequency calls)
@@ -12,14 +12,14 @@ classdef TunableLaser_invisible < handle
     %   TunePercent: Tune percentage (0,100) of presumed fine-tuning
     %   TuneSetpoint: Tuning with feedback to a unit-value
     %   getFrequency: Should return a real-time readout of laser frequency (NOT just setpoint, but where the laser ACTUALLY is)
-    
+
     properties(Abstract,SetObservable)
         % User must define even if empty cell array!
         show_prefs
         tuning  % True/false if laser is actively tuning (used in trackWavelength)
     end
     properties(SetObservable,GetObservable)
-        setpoint = Prefs.Double(NaN,'readonly',true,'units','THz');
+        setpoint = Prefs.Double(NaN,'readonly',true,'unit','THz');
     end
     properties(SetObservable,GetObservable)
         locked = Prefs.Boolean(false,'readonly',true);
@@ -120,4 +120,3 @@ classdef TunableLaser_invisible < handle
         freq = getFrequency(~,varargin)
     end
 end
-

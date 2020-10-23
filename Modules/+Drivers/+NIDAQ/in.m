@@ -1,4 +1,4 @@
-classdef in < handle
+classdef in < handle %& Base.Measurement
     %DAQin is a handle class for input lines for NIDAQ
     %   Makes it more convenient to modify properties of its state
     
@@ -8,12 +8,18 @@ classdef in < handle
         line                           % Physical Line name [see nidaqmx help]
         name                           % Alias - name used in MATLAB
     end
+    
+    properties
+        selftask
+        selfpulsetrain
+        dwell = 0
+    end
 
     methods(Access=private)
         function check(obj)
             lineparts = strsplit(obj.line,'/');
             lname = lineparts{end};
-            if numel(lname)>2&&strcmp(lname(1:3),'CTR')
+            if numel(lname)>2 && strcmp(lname(1:3),'CTR')
                 % Counters are ok, and should not go through test below.
                 return
             end
@@ -41,17 +47,110 @@ classdef in < handle
             else
                 obj.type = 'digital';
             end
+            mname = [lower(dev.DeviceChannel) '_' lower(line)];
+            
             % Fix name to include device id
             line = ['/' dev.DeviceChannel '/' upper(line)];
             obj.dev = dev;
             obj.line = line;
             obj.name = name;
             obj.check;
+            
+%             obj.sizes = struct(mname, [1 1]);
+%             obj.names = struct(mname, obj.name);
+%             switch obj.type
+%                 case 'analog'
+%                     obj.units = struct(mname, 'V');
+%                 case 'digital'
+%                     obj.units = struct(mname, 'cts/sec');
+%             end
+%             obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
+%             obj.dims =  struct();
         end
         function str = text(obj)
             ch = strsplit(obj.line,'/');
             ch = strjoin(ch(3:end),'/');
             str = [obj.name ': ' ch];
+        end
+    end
+    methods
+        function val = measure(obj)
+            switch obj.type
+                case 'analog'
+                    val = obj.dev.ReadAILine(obj.name);
+                case 'digital'
+                    val = obj.measureCounter(.1);
+                    % Assume counter for now.
+%                     val = obj.dev.ReadDILine(obj.name);
+                case 'counter'
+            end
+        end
+    end
+    methods (Access=private)
+        function val = measureCounter(obj, dwell)
+            nsamples = 1;
+            
+            if isempty(obj.selftask) || ~isvalid(obj.selftask) || isempty(obj.selfpulsetrain) || ~isvalid(obj.selfpulsetrain)
+                % Blocking function that will take nsamples, each with the
+                % specified dwell time.
+                % Returns array of size 1x(nsamples).
+                % dwell is in ms.
+                if nargin < 3
+                    nsamples = 1;
+                end
+                assert(nsamples>0,'Number of samples must be greater than 0.')
+                nsamples = nsamples + 1;
+                % Configure clock (pulse train)
+                obj.selfpulsetrain = obj.dev.CreateTask([obj.line ' Counter singleShot PulseTrain']); %#ok<*PROPLC>
+                f = 1/dwell;
+                obj.selfpulsetrain.ConfigurePulseTrainOut('CounterSync', f, nsamples);
+                obj.dwell = dwell;
+                
+                % Configure Counter
+                try
+                    obj.selftask = obj.dev.CreateTask([obj.line ' Counter CounterObj']);
+                catch err
+                    obj.selfpulsetrain.Clear;
+                    rethrow(err)
+                end
+            
+                obj.selftask.ConfigureCounterIn(obj.name,nsamples,obj.selfpulsetrain);
+            else
+                obj.selftask.Stop;
+                obj.selfpulsetrain.Stop;
+            end
+            
+            if isempty(obj.dwell) || obj.dwell ~= dwell
+                f = 1/dwell;
+                obj.selfpulsetrain.ConfigurePulseTrainOut('CounterSync', f, nsamples);
+                obj.dwell = dwell;
+            end
+            
+            try
+                % Start counter (waits for pulse train), then start pulse train
+                obj.selftask.Start;
+                obj.selfpulsetrain.Start;
+            catch err
+                obj.selfpulsetrain.Clear;
+                obj.selftask.Clear;
+                rethrow(err)
+                return
+            end
+            % Wait until finished, then read data.
+            obj.selfpulsetrain.WaitUntilTaskDone;
+            data = obj.selftask.ReadCounter(obj.selftask.AvailableSamples);
+            val = diff(data)/dwell;
+            data(1)/dwell;
+            
+            try
+                obj.selftask.Stop;
+                obj.selfpulsetrain.Stop;
+            catch err
+                obj.selfpulsetrain.Clear;
+                obj.selftask.Clear;
+                rethrow(err)
+                return
+            end
         end
     end
     
