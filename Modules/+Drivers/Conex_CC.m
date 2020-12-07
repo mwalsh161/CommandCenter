@@ -1,4 +1,6 @@
 classdef Conex_CC < Modules.Driver
+    % Implements serial communication with a Newport CONEX-CC micrometer. API
+    % documentation https://www.newport.com/mam/celum/celum_assets/resources/CONEX-CC_-_Controller_Documentation.pdf?1
     
     properties(SetObservable, GetObservable)
         host =          Prefs.String('COM?',    'set', 'set_host',      'help', 'COM (USB) port that is connected to the micrometer.');
@@ -36,15 +38,17 @@ classdef Conex_CC < Modules.Driver
                 delete(obj.s);
             end
         end
-%         
-%         function val = set_power(obj, val, ~)
-%             if obj.isConnected && ~isnan(val)
-%                 errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
-%             else
-%                 val = NaN;
-%             end
-%         end
-        
+
+        function home(obj, ~)
+            obj.com('OR');                  % Execute home search
+            obj.get_state();
+            
+            t = tic;
+            while strcmp(obj.get_raw_state(), '1E') && toc(t) < 60; pause(.01); end    % Wait while homing.
+            
+            obj.get_state();
+        end
+
         function val = get_identifier(obj, ~)
             obj.com('ID?');    % Get laser modulation power (mW)
             
@@ -61,7 +65,7 @@ classdef Conex_CC < Modules.Driver
         function val = set_position(obj, val, ~)
             obj.com('ST');                  % Stop any current movement
             
-            obj.get_state()
+            obj.get_state();
             
             t = tic;
             while strcmp(obj.get_raw_state(), '28') && toc(t) < 1; pause(.01); end    % Wait while decellerating.
@@ -89,7 +93,7 @@ classdef Conex_CC < Modules.Driver
         function [state, err] = get_raw_state(obj, ~)
             obj.com('TS');   % Tell the axes to goto the desired position.
             str = fscanf(obj.s);
-            str
+%             str
 %             err = str(1:4);
 %             state = str(5:6);
             err = str(4:7);
@@ -130,7 +134,8 @@ classdef Conex_CC < Modules.Driver
             
             switch raw
                 case {'0A','0B','0C','0D','0E','0F','10'}
-                    state = 'NOT REFERENCED';
+%                     state = 'NOT REFERENCED';
+                    state = 'NOT HOMED';
                 case '14'
                     state = 'CONFIGURATION';
                 case '1E'
@@ -163,22 +168,8 @@ classdef Conex_CC < Modules.Driver
             str = fscanf(obj.s);
             val = str2double(str(4:end));
         end
-%         function tf = isConnected(obj)
-%             tf = ~strcmp('No Server', obj.host) && strcmp('OK', obj.serial.com('Cobolt', '?'));
-%             
-%             if ~tf
-%                 if strcmp('No Server', obj.cobolt_host)
-%                     error('Host not set!');
-%                 end
-%                 host = obj.cobolt_host;
-%                 obj.set_cobolt_host(obj,'No Server');
-%                 error(['Cobolt not found at host "' host '"!']);
-%             end
-%         end
         
         function val = set_host(obj, val, ~) %this loads the hwserver driver
-            val
-            
             delete(obj.s);
             
             if strcmp('COM?', val)
@@ -197,7 +188,6 @@ classdef Conex_CC < Modules.Driver
                 obj.position =      obj.get_position();
                 obj.velocity =      obj.get_velocity();
                 obj.acceleration =  obj.get_acceleration();
-%                 obj.power = obj.get_power();
             catch err
                 obj.s = [];
                 val = 'COM?';
