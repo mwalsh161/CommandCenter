@@ -1,10 +1,49 @@
-function [cx, cy, CX, CY, flat, conv, convH, convV, bw] = QRconv(img, ang0, r, l)
+function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
+    % QRconv finds 
+    % v and V are arrays of column vectors (2xN) of the same size. v are
+    % positions of candidate QR codes in the coordinate system of the image
+    % img, while V are the corresponding positons in QR space. If a
+    % candidate does not pass the checksum, [NaN; NaN] is returned for V.
+    % Returns transform from QR-space V to position-space v according to 
+    %   v = M * V + b
+    % options_guess
+    
     % Convolutional QR detection
-
+    if nargin < 3
+        QR_parameters = struct('r', .3, 'l', 6.25, 'd', 40);
+    end
+    
+    ang0 = options_guess.ang
+    r = QR_parameters.r * options_guess.calibration;
+    l = QR_parameters.r * options_guess.calibration;
+    
+    % Step 1: remove gradients 
     flat = flatten(img);
+    
+    % Step 2: perform a convolutional filter to identify QR candidates
     [conv, convH, convV] = doConv(flat, ang0, r, l);
+    
+    % Step 3: generate a logical image to determine the code of the QR code.
     bw = threshold(flat);
+    
+    % Step 4: using the candidate locations, return the location of QR codes.
     [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l);
+    
+    v = [cx; cy];
+    V = [CX; CY];
+    
+    % Step 5: fit a coordinate system to the positions of our QR codes.
+    [M, b] = majorityVoteCoordinateFit(v, V, options_guess);
+    
+    xaxis = invaffine([1;0], M, b);
+    if xaxis(1) == 0
+        ang1 = (pi/2) + pi * (xaxis(2) < 0);
+    else
+        ang1 = atan(xaxis(2)/xaxis(1));
+    end
+    
+    stages = struct('flat', flat, 'conv', conv, 'convH', convH, 'convV', convV, 'bw', bw);
+    options_fit = struct('ang', ang1, 'calibration', calibration)
 end
 
 function [conv, convH, convV] = doConv(img, ang0, r, l)
@@ -31,6 +70,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     sp = 2;
     sn = 1;
 
+    % 
     fil =  B*circleFunc(XX, YY, 0,       0,      r) ...
         - sn*circleFunc(XX, YY, 1*lx/8,  1*ly/8, r/3) ...
         + sp*circleFunc(XX, YY, lx/4,    ly/4,   r/3) ...
@@ -48,13 +88,14 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     fil = fil - sum(sum(fil))/S1(1)/S1(2);
     fil = fil / sqrt(sum(sum(fil.^2)));
 
+    % Uncomment this line to get a better idea of what the filter looks like.
 %     imwrite(.5 + fil/max(max(fil))/2, 'fil.png');
 
     lx = ceil(l*ca);
     ly = ceil(l*sa);
 
-    convH = conv2((img), fil);
-    convV = conv2((img), rot90(fil));
+    convH = conv2(img, fil);
+    convV = conv2(img, rot90(fil));
 
     S = size(img);
     X = (1:S(1)) + r;
@@ -63,30 +104,24 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     convH = convH(X + invx*ly, Y + invy*lx);
     convV = convV(X + (~invy)*lx, Y + invx*ly);
 
-%     invx*ly
-%     invy*lx
-%     (~invy)*lx, Y + invx*ly);
-
     conv = convH.*convH.*convH + convV.*convV.*convV;
-
-    if false
-        N = 2;
-        M = 3;
-
-        a = subplot(N, M, 4);
-        imagesc(convH); set(a,'YDir','normal')
-        title('Horizontal Convolution')
-        a = subplot(N, M, 5);
-        imagesc(convV); set(a,'YDir','normal')
-        title('Vertical Convolution')
-        a = subplot(N, M, 6);
-        imagesc(conv); set(a,'YDir','normal')
-%         imagesc(log10(abs(img7)));
-        title('Sum of Cubes of Horizontal and Vertical Convolutions')
-%         warning()
-    end
+%     if false
+%         N = 2;
+%         M = 3;
+% 
+%         a = subplot(N, M, 4);
+%         imagesc(convH); set(a,'YDir','normal')
+%         title('Horizontal Convolution')
+%         a = subplot(N, M, 5);
+%         imagesc(convV); set(a,'YDir','normal')
+%         title('Vertical Convolution')
+%         a = subplot(N, M, 6);
+%         imagesc(conv); set(a,'YDir','normal')
+% %         imagesc(log10(abs(img7)));
+%         title('Sum of Cubes of Horizontal and Vertical Convolutions')
+% %         warning()
+%     end
 end
-
 function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
     S = size(conv);
 
@@ -95,10 +130,11 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
 
     lxx = l*(sa0+ca0)/2;
     lyy = l*(sa0-ca0)/2;
+    
+    [XX, YY] = meshgrid(1:S(1), 1:S(2));
 
-    XX = repmat(1:S(1),    [S(2) 1]);
-    YY = repmat((1:S(2))', [1 S(1)]);
-
+%     XX = repmat(1:S(1),    [S(2) 1]);
+%     YY = repmat((1:S(2))', [1 S(1)]);
 
     CC = bwconncomp(conv > max(max(conv))/8);
 
@@ -111,27 +147,14 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
         cy(ii) = mean(YY(CC.PixelIdxList{ii}));
     end
 
-%     s = regionprops(bw, 'centroid');
-%     c = cat(1, s.Centroid);
-%     cx = c(:,1) + lxx;
-%     cy = c(:,2) + lyy;
-%     n = length(c(:,1));
-
-%     plot(cx, cy,'g*')
-
-
     pad = abs(l*(sa0+ca0)/2) + 2*r;
 
-
     isQR = true(1, NQR);
-
+    
     bitcoord = .75*(-2:2)/6.25;
-
+    % Replace with meshgrid?
     bity = repmat(-bitcoord,  [5 1]);
     bitx = repmat(-bitcoord', [1 5]);
-
-    lx0 = l*ca0;
-    ly0 = l*sa0;
 
     A = l * [ca0, sa0; -sa0, ca0];
 
@@ -141,13 +164,9 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
     CX = NaN*cx;
     CY = NaN*cx;
 
-%     for ii = 1:n
-%         plot(c(ii,1) + [0 lx0 ly0+lx0 ly0 0], c(ii,2) + [0 ly0 ly0-lx0 -lx0 0], 'r');
-%     end
-
     for ii = 1:NQR
         if cx(ii) + lxx < pad || cx(ii) + lxx > S(2) - pad || cy(ii) + lyy < pad || cy(ii) + lyy > S(1) - pad
-            isQR(ii) = false;   % QR is clipping edge of screen and decoding should not be attempted.
+            isQR(ii) = false;   % QR is clipping the edge of screen and decoding should not be attempted.
         else
             m = NaN(5);
 
@@ -160,44 +179,17 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
             [CX(ii), CY(ii), ~, isQR(ii)] = interpretQR(m(:));
 
             if false && isQR(ii)
-%                 plot(cx(ii) + [0 lx0 ly0+lx0 ly0 0], cy(ii) + [0 ly0 ly0-lx0 -lx0 0], 'r');
-%                 plot(BITX + cx(ii), BITY + cy(ii), 'bo');
-%
-%                 ll = 1;
-%                 for jj = 1:length(bitcoord)
-%                     for kk = 1:length(bitcoord)
-%                         text(cx(ii)+BITX(jj,kk), cy(ii)+BITY(jj,kk), num2str(ll), 'color', 'g');
-%                         ll = ll + 1;
-%                     end
-%                 end
-
-%                 text(cx(ii)-12, cy(ii), { ['[' num2str(CX(ii)) ','], [' ' num2str(CY(ii)) ']'] }, 'color', 'r');
             end
         end
     end
 
-%     assert(sum(isQR) <= 4, 'Don''t expect more than four QR codes within a single field of view.');
-
-%     CX
-%     CY
-%     isQR
-
-    CX(~isQR) = [];
-    CY(~isQR) = [];
-    cx(~isQR) = [];
-    cy(~isQR) = [];
-
-    CX
-
-
+    CX(~isQR) = NaN;
+    CY(~isQR) = NaN;
+    cx(~isQR) = NaN;
+    cy(~isQR) = NaN;
 end
-
 function [CX, CY, version, checksum0] = interpretQR(m)
-%     pad = Base.QR.pad; %#ok<*PROP>
-%     vb = Base.QR.vb;
-%     rb = Base.QR.rb;
-%     cb = Base.QR.cb;
-%     cs = Base.QR.cs;
+    % From the code contained in m, attempt to read information.
 
     length = 25;    % Total length of code
     pad = [1 6]; % Pad locations of bits (indexed from 1)
@@ -213,20 +205,13 @@ function [CX, CY, version, checksum0] = interpretQR(m)
     end
 
     b = 2 .^ (0:7);
-
     m(pad) = [];
-
     p = 1;
 
     version =   sum(m(p:p+vb-1) .* b(vb:-1:1)); p = p + vb;
     CY =        sum(m(p:p+rb-1) .* b(rb:-1:1)); p = p + rb;
     CX =        sum(m(p:p+cb-1) .* b(cb:-1:1)); p = p + cb;
     checksum = 	sum(m(p:p+cs-1) .* b(cs:-1:1));
-
-%     version
-%     CX
-%     CY
-%     checksum
 
     % Remove checksum, and test
     m(end-cs+1:end) = [];
@@ -236,19 +221,82 @@ function [CX, CY, version, checksum0] = interpretQR(m)
         checksum0 = mod(sum(m), 2^cs) == checksum;
     end
 end
-
 function cir = circleFunc(XX, YY, x0, y0, r)
     cir = (XX - x0).^2 + (YY - y0).^2 < r^2;
 end
+function [M, b, b2] = majorityVoteCoordinateFit(v, V, options_guess)
+    c = cos(options_guess.ang);
+    s = sin(options_guess.ang);
+    M_guess = [[c, s]; [-s, c]];
+    % Need to multiply this by calibration
+    
+    % The positions and labels of candidate QR codes define candidate coordinate systems.
+    % We want to find which candidate is correct.
+    b_guesses = v - M_guess * V;
+    
+    % Setup variables that we will change as we loop.
+    mostvotes = 1;
+    b_guess = [];
+    outliers = [];
+    
+    % Radius within which b guesses are considered the same guess.
+    R = 10;
+    
+    for ii = 1:size(b_guesses,2)                                % For every candidate...
+        votes = sum((b_guesses - b_guesses(:, ii)).^2) < R;     % How many other candidates agree?
+        if mostvotes < sum(votes)                               % If this is a new record...
+            mostvotes = sum(votes);                             % Record the record.
+            b_guess = mean(b_guesses(:, votes), 2);             % And estimate b as the average.
+            outliers = ~votes;                                  % Record the candidates that were outside.
+        end
+    end
+    
+    % Trim the outliers.
+    v_trim = v(:, ~outliers);
+    V_trim = V(:, ~outliers);
 
-% function img2 = resize(img)
-%     img2 = imresize(img, .25, 'bilinear');
-% end
+    % Fit the candidates to a translation b using the guess transformation.
+    fun = @(p)( leastsquares(v_trim, V_trim, M_guess, p(5:6)') );
+    p_guess = b_guess';
+    p = fminsearch(fun, p_guess);
+    
+    b2 = p';
 
-function img3 = threshold(img)
-    img3 = imbinarize(img);
+    % Fit the candidates fully to an affine transformation.
+    fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2); p(3:4)], p(5:6)') );
+    p_guess = [M_guess(:) b_guess];
+    p_full = fminsearch(fun, p_guess);
+    
+    M = [p_full(1:2); p_full(3:4)];
+    b = p_full(5:6)';
 end
 
-function img2 = flatten(img)
-    img2 = imgaussfilt(img,10) - imgaussfilt(img,1);
+% function img = resize(img)
+%     img = imresize(img, .25, 'bilinear');
+% end
+function img = threshold(img)
+    img = imbinarize(img);
+end
+function img = flatten(img)
+    img = imgaussfilt(img,10) - imgaussfilt(img,1);
+end
+
+
+
+function v_ = affine(v, M, b)
+    % v and v_ are either column vectors (2x1) or arrays of column vectors (2xN) of the same size
+    % M is a matrix (2x2)
+    % b is a column vector (2x1)
+    v_ = M * v + b;
+end
+
+function v = invaffine(v_, M, b)
+    % v and v_ are either column vectors (2x1) or arrays of column vectors (2xN) of the same size
+    % M is a matrix (2x2)
+    % b is a column vector (2x1)
+    v = inv(M) * (v_ - b);
+end
+
+function fom = leastsquares(v_, v, M, b)
+    fom = sum(sum((v_ - affine(v, M, b)).^2));
 end

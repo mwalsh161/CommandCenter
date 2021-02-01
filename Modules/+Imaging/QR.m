@@ -12,15 +12,14 @@ classdef QR < Modules.Imaging
         displaytypes = {'Raw', 'Flattened', 'Convolution X', 'Convolution Y', 'Convolution X^3 + Y^3', 'Thresholded'};
     end
     properties(GetObservable,SetObservable)
-        QR_len = Prefs.Double(6.25, 'unit', 'um', 'readonly', true);
-        QR_rad = Prefs.Double(.3,   'unit', 'um', 'readonly', true);
-        QR_ang = Prefs.Double(0,    'unit', 'deg');
+        QR_len = Prefs.Double(6.25, 'unit', 'um', 'readonly', true, 'help_text', 'Length of QR arm. This is set to the standard value.');
+        QR_rad = Prefs.Double(.3,   'unit', 'um', 'readonly', true, 'help_text', 'Radius of the three large QR dots. This is set to the standard value.');
+        QR_ang = Prefs.Double(0,    'unit', 'deg', 'help_text', 'QR code angle in the image coordinates (CCW).');
 
         image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image');
-%         imager = Modules.Imaging.empty;
 
-        flip =   Prefs.Boolean();
-        rotate = Prefs.MultipleChoice(0, 'allow_empty', false, 'choices', {0, 90, 180, 270});
+        flip =   Prefs.Boolean('help_text', 'Whether the image should be flipped across the x axis. This should be used along with rotate to put the image in a user-friendly frame.');
+        rotate = Prefs.MultipleChoice(0, 'allow_empty', false, 'choices', {0, 90, 180, 270}, 'help_text', 'Rotation (CCW) of the image after flipping. This should be used along with flip to put the image in a user-friendly frame.');
 
         display = Prefs.MultipleChoice('Raw', 'allow_empty', false, 'choices', Imaging.QR.displaytypes);
 %         my_logical = Prefs.Boolean();
@@ -29,9 +28,11 @@ classdef QR < Modules.Imaging
         ROI = [-1 1;-1 1];
         continuous = false;
 
-
-
 %         image = Base.Meas([120 120], 'name', 'Image', 'unit', 'cts');
+    end
+    
+    properties(Access=private, Hidden)
+        current_img;    % Storage for the image that was previously taken.
     end
 
     methods(Access=private)
@@ -75,8 +76,11 @@ classdef QR < Modules.Imaging
                 continuous = false;
             end
 
-            img = obj.image.snapImage();
-
+            obj.current_img = obj.image.snapImage();
+        end
+        function analyze(obj, ~, ~)
+            img = obj.current_img;
+            
             if obj.flip
                 img = flipud(img);
             end
@@ -85,34 +89,31 @@ classdef QR < Modules.Imaging
                 img = rot90(img, round(obj.rotate/90));
             end
 
-            [cx, cy, CX, CY, flat, conv, convH, convV, bw] = ...
+            [v, V, stages] = ...
                 Base.QRconv(img, (  obj.QR_ang + 90) * pi / 180,...
                                     obj.QR_rad / obj.calibration,...
                                     obj.QR_len / obj.calibration);
 
-            cx = (cx + obj.ROI(1,1)) * obj.calibration;
-            cy = (cy + obj.ROI(2,1)) * obj.calibration;
-
-
+            v = (v + obj.ROI(:,1)) * obj.calibration;
 
             switch obj.display
                 case Imaging.QR.displaytypes{1}
-                    im.CData = img;
+                    displayimg = img;
                 case Imaging.QR.displaytypes{2}
-                    im.CData = flat;
+                    displayimg = stages.flat;
                 case Imaging.QR.displaytypes{3}
-                    im.CData = convH;
+                    displayimg = stages.convH;
                 case Imaging.QR.displaytypes{4}
-                    im.CData = convV;
+                    displayimg = stages.convV;
                 case Imaging.QR.displaytypes{5}
-                    im.CData = conv;
+                    displayimg = stages.conv;
                 case Imaging.QR.displaytypes{6}
-                    im.CData = bw;
+                    displayimg = stages.bw;
                 otherwise
-                    im.CData = img;
+                    displayimg = img;
             end
 
-            a = im.Parent;
+%             a = im.Parent;
 
 %             a.Children
 
@@ -122,53 +123,99 @@ classdef QR < Modules.Imaging
 %                 hold(a, 'on')
                 obj.graphics.figure = figure;
                 obj.graphics.axes = axes;
+                
                 hold(obj.graphics.axes, 'on');
-                obj.graphics.img = imagesc(obj.graphics.axes, ...
-                                            [ obj.ROI(1,1),  obj.ROI(1,2)] * obj.calibration, ...
-                                            [ obj.ROI(1,1),  obj.ROI(1,2)] * obj.calibration, ...
-                                            NaN(obj.resolution));
-                obj.graphics.p1 = plot(obj.graphics.axes, NaN, NaN, 'r-');
-                obj.graphics.p2 = plot(obj.graphics.axes, NaN, NaN, 'g*');
+                obj.graphics.img =          imagesc(obj.graphics.axes, ...
+                                                [ obj.ROI(1,1),  obj.ROI(1,2)] * obj.calibration, ...
+                                                [ obj.ROI(2,1),  obj.ROI(2,2)] * obj.calibration, ...
+                                                NaN(obj.resolution));
+                                        
+                obj.graphics.p1 =           plot(obj.graphics.axes, NaN, NaN, 'g-*', 'LineWidth',2);
+                obj.graphics.p2 =           plot(obj.graphics.axes, NaN, NaN, 'r-*');
+                obj.graphics.p3 =           plot(obj.graphics.axes, NaN, NaN, 'r-*');
+                obj.graphics.p2.Color(4) = 0.5;
+                obj.graphics.p3.Color(4) = 0.25;
+                
+                obj.graphics.text = [];
+                
+                obj.graphics.grid =         plot(obj.graphics.axes, NaN, NaN, 'y-', 'LineWidth',.5);
+                obj.graphics.grid.Color(4) = 0.25;
+                
+                cx = (obj.ROI(1,1) + obj.ROI(1,2))/2;
+                cy = (obj.ROI(2,1) + obj.ROI(2,2))/2;
+                obj.graphics.center =       plot(obj.graphics.axes, cx, cy, 'g-', 'LineWidth',2);
+                obj.graphics.centertext =   text(obj.graphics.axes, cx, cy, 'Center', 'g');
             end
 
-            obj.graphics.img.CData = im.CData;
+            obj.graphics.img.CData = displayimg;
 
-            obj.graphics.p2.XData = cx;
-            obj.graphics.p2.YData = cy;
+%             obj.graphics.p2.XData = v(1,:);
+%             obj.graphics.p2.YData = v(2,:);
 
-            p1x = [];
-            p1y = [];
-%             tstr = {};
+            p1x = []; p1y = [];
+            p2x = []; p2y = [];
+            p3x = []; p3y = [];
 
-            lx0 = obj.QR_len * cos((obj.QR_ang + 90) * pi / 180);
-            ly0 = obj.QR_len * sin((obj.QR_ang + 90) * pi / 180);
+            lx0 = obj.QR_len * cosd(obj.QR_ang + 90);
+            ly0 = obj.QR_len * sind(obj.QR_ang + 90);
+            
+            kk = 1;
 
-            for ii = 1:length(cx)
-                p1x = [p1x cx(ii) + [0 lx0 ly0+lx0 ly0 0, NaN]];
-                p1y = [p1y cy(ii) + [0 ly0 ly0-lx0 -lx0 0, NaN]];
-%                 tstr{ii} = ['[' num2str(CX(ii)) ', ' num2str(CY(ii)) ']'];
+            for ii = 1:size(v,2)
+%                 squarex = v(1,ii) + [0 lx0 ly0+lx0 ly0 0 NaN];
+%                 squarey = v(2,ii) + [0 ly0 ly0-lx0 -lx0 0 NaN];
+                squarex = v(1,ii) + [ ly0 0 lx0 NaN];
+                squarey = v(2,ii) + [-lx0 0 ly0 NaN];
+                if isnan(V(1,ii))
+                    p3x = [p3x squarex];
+                    p3y = [p3y squarey];
+                elseif false
+                    p2x = [p2x squarex];
+                    p2y = [p2y squarey];
+                else
+                    p1x = [p1x squarex];
+                    p1y = [p1y squarey];
+                    
+                    str = ['[' num2str(V(1,ii)) ', ' num2str(V(2,ii)) ']'];
+                    
+                    if kk > length(obj.graphics.text)
+                        obj.graphics.text(kk) = text(obj.graphics.axes, NaN, NaN, '', 'g');
+                    end
+                    
+                    obj.graphics.text(kk).String = str;
+                    obj.graphics.text(kk).XData = v(1,ii) + lx0/2;
+                    obj.graphics.text(kk).YData = v(2,ii) + ly0/2;
+                    obj.graphics.text(kk).Color = 'g';
+                    
+                    kk = kk + 1;
+                end
             end
-%
-
+            
+            while kk <= length(obj.graphics.text)
+                obj.graphics.text(kk).String = '';
+                obj.graphics.text(kk).XData = NaN;
+                obj.graphics.text(kk).YData = NaN;
+                obj.graphics.text(kk).Color = 'k';
+                
+                kk = kk + 1;
+            end
+            
+            obj.graphics.img.XData = [ obj.ROI(1,1),  obj.ROI(1,2)] * obj.calibration;
+            obj.graphics.img.YData = [ obj.ROI(2,1),  obj.ROI(2,2)] * obj.calibration;
+            
+%             vcenter = 
+            obj.graphics.centertext.String = ['[' num2str(V(1,ii), '%.2f') ', ' num2str(V(2,ii), '%.2f') ']'];
+            
             obj.graphics.p1.XData = p1x;
             obj.graphics.p1.YData = p1y;
-
-%             p1x
-%             p1y
-%
-% %             p1x
-% %
-% %             obj.graphics
-%
-%             im
-%             a
-%             a.Children
-%
-%             drawnow
             
-%             t.
-%             t.String = tstr;
+            obj.graphics.p2.XData = p2x;
+            obj.graphics.p2.YData = p2y;
+            
+            obj.graphics.p3.XData = p3x;
+            obj.graphics.p3.YData = p3y;
         end
+        
         function startVideo(obj,im)
             obj.continuous = true;
             while obj.continuous
