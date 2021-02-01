@@ -120,9 +120,9 @@ classdef Experiment < Base.Module  & Base.Measurement
     
     methods
         function data = measure(obj)
-            data = obj.blank();
-%             obj.run(statusH, managers, ax)
-%             data = GetData(obj, stage, imager);
+%             data = obj.blank();
+            obj.run([], [], [])
+            data = GetData(obj, stage, imager);
         end
     end
 end

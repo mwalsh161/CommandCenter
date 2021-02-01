@@ -66,18 +66,27 @@ classdef Spectrum < Modules.Experiment
     methods
         function run( obj,status,managers,ax )
             assert(~isempty(obj.WinSpec) && isobject(obj.WinSpec)&&isvalid(obj.WinSpec),'WinSpec not configured propertly; check the IP');
-            set(status,'string','Connecting...');
             obj.data = [];
-            drawnow;
-            obj.data = obj.WinSpec.acquire(@(t)set(status,'string',sprintf('Elapsed Time: %0.2f',t)),obj.over_exposed_override); %user can cause abort error during this call
+            
+            if ~isempty(status)
+                set(status,'string','Connecting...');
+                drawnow;
+                obj.data = obj.WinSpec.acquire(@(t)set(status,'string',sprintf('Elapsed Time: %0.2f',t)),obj.over_exposed_override); %user can cause abort error during this call
+            else
+                obj.data = obj.WinSpec.acquire([],obj.over_exposed_override);
+            end
             
             if ~isempty(obj.data) && ~isempty(ax)
                 plot(ax,obj.data.x, obj.data.y)
                 xlabel(ax,'Wavelength (nm)')
                 ylabel(ax,'Intensity (AU)')
-                set(status,'string','Complete!')
+                if ~isempty(status)
+                    set(status,'string','Complete!')
+                end
             else
-                set(status,'string','Unknown error. WinSpec did not return anything.')
+                if ~isempty(status)
+                    set(status,'string','Unknown error. WinSpec did not return anything.')
+                end
             end
             
             if ~isempty(managers)
