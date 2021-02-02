@@ -6,7 +6,7 @@ classdef Paired < Prefs.Numeric
     %   p = Prefs.Paired(   prefs,...   % array of Prefs.Numeric
     %                       pairings)   % cell array of function_handle
     %
-    % This structure enables ensane things like:
+    % This structure enables complex superprefs like:
     %
     %   angle   = Prefs.Double('name', 'Unit Circle', 'unit', 'deg')
     %   gx      = Galvos.get_meta_pref('x');    % Pseudocode
