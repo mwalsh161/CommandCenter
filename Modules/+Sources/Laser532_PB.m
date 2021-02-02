@@ -2,6 +2,9 @@ classdef Laser532_PB < Modules.Source
     %LASER532 Summary of this class goes here
     %   Detailed explanation goes here
     
+    properties
+        prefs = {'PB_line', 'PB_host'};
+    end
     properties(GetObservable,SetObservable)
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
