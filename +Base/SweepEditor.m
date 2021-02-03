@@ -246,10 +246,10 @@ classdef SweepEditor < handle
             
             uimenu(obj.mmenu, 'Label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
 
-            mr = Base.MeasurementRegister.instance();
-            mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
-            
-            obj.mmenu.Children(end-4).Separator = 'on';
+%             mr = Base.MeasurementRegister.instance();
+%             mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
+%             
+%             obj.mmenu.Children(end-4).Separator = 'on';
         end
     end
     

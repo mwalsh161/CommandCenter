@@ -5,11 +5,11 @@ classdef QR < Modules.Imaging
         maxROI = [-1 1; -1 1];
         prefs = {'image', 'flip', 'rotate', 'display', 'calibration', 'QR_ang'};
     end
-    properties
+    properties(Hidden, Access=private)
         graphics = [];  % Contains handles for graphics objects for QR drawing.
     end
     properties(Constant)
-        displaytypes = {'Raw', 'Flattened', 'Convolution X', 'Convolution Y', 'Convolution X^3 + Y^3', 'Thresholded'};
+        displaytypes = {'Raw', 'Flattened', 'Convolution X', 'Convolution Y', '(Convolution X)^3 + (Convolution Y)^3', 'Thresholded'};
     end
     properties(GetObservable,SetObservable)
         QR_len = Prefs.Double(6.25, 'unit', 'um', 'readonly', true, 'help_text', 'Length of QR arm. This is set to the standard value.');
@@ -30,9 +30,14 @@ classdef QR < Modules.Imaging
 
 %         image = Base.Meas([120 120], 'name', 'Image', 'unit', 'cts');
     end
-    
     properties(Access=private, Hidden)
-        current_img;    % Storage for the image that was previously taken.
+        current_img;    % Cache for the previous image.
+    end
+    properties(SetAccess=private)
+        X
+        Y
+        N
+        
     end
 
     methods(Access=private)
@@ -66,16 +71,16 @@ classdef QR < Modules.Imaging
             val(2,2) = max(val(2,1),val(2,2));
             obj.ROI = val;
         end
-        function focus(obj,ax,stageHandle)
+        function focus(obj,ax,stageHandle) %#ok<INUSD>
         end
         function img = snapImage(obj)
             obj.current_img = obj.image.snapImage();
             
             img = obj.analyze();
         end
-        function snap(obj,im,continuous)
+        function snap(obj,im,continuous) %#ok<INUSD>
             if nargin < 3
-                continuous = false;
+                continuous = false; %#ok<NASGU>
             end
 
             im.CData = obj.snapImage();
@@ -129,7 +134,7 @@ classdef QR < Modules.Imaging
             end
 
             if isempty(obj.graphics) || isempty(obj.graphics.figure) || ~isvalid(obj.graphics.figure) % ~continuous || length(a.Children) == 1
-                obj.graphics.figure = figure('menubar', 'none', 'toolbar', 'none');
+                obj.graphics.figure = figure('Name', 'QR Navigation', 'NumberTitle', 'off', 'Menubar', 'none', 'Toolbar', 'none');
                 obj.graphics.axes = axes('Units', 'normalized', 'Position', [0 0 1 1], 'PickableParts', 'none');
                 
                 hold(obj.graphics.axes, 'on');
@@ -150,10 +155,10 @@ classdef QR < Modules.Imaging
                 obj.graphics.center =       scatter(obj.graphics.axes, cx, cy, 'go');
                 obj.graphics.centertext =   text(obj.graphics.axes, cx, cy, 'Center', 'color', 'g');
                                         
-                obj.graphics.p3 =           plot(obj.graphics.axes, NaN, NaN, 'r-', 'LineWidth',2);
-                obj.graphics.p2 =           plot(obj.graphics.axes, NaN, NaN, 'y-', 'LineWidth',2);
+                obj.graphics.p3 =           plot(obj.graphics.axes, NaN, NaN, 'r-', 'LineWidth',.5);
+                obj.graphics.p2 =           plot(obj.graphics.axes, NaN, NaN, 'y-', 'LineWidth',1);
                 obj.graphics.p1 =           plot(obj.graphics.axes, NaN, NaN, 'g-', 'LineWidth',2);
-                obj.graphics.p3.Color(4) = 0.2;
+                obj.graphics.p3.Color(4) = 0.25;
                 
                 obj.graphics
             end
@@ -173,25 +178,22 @@ classdef QR < Modules.Imaging
 %             sqy = [ ly0 0 lx0 NaN];
             
             p = .15;
-
             sqx = [-p*(ly0+lx0) (1+p)*lx0-p*ly0 (1+p)*(ly0+lx0)  (1+p)*ly0-p*lx0 -p*(ly0+lx0) NaN];
             sqy = [-p*(ly0-lx0) (1+p)*ly0-p*lx0 (1+p)*(ly0-lx0) -(1+p)*lx0-p*ly0 -p*(ly0-lx0) NaN];
 
             for ii = 1:size(v,2)
-%                 squarex = v(1,ii) + [0 lx0 ly0+lx0 ly0 0 NaN];
-%                 squarey = v(2,ii) + [0 ly0 ly0-lx0 -lx0 0 NaN];
                 squarex = v(1,ii) + sqx;
                 squarey = v(2,ii) + sqy;
                 if isnan(V(1,ii))
-                    p3x = [p3x squarex];
-                    p3y = [p3y squarey];
+                    p3x = [p3x squarex]; %#ok<AGROW>
+                    p3y = [p3y squarey]; %#ok<AGROW>
                 else
                     if options_fit.outliers(ii)
-                        p2x = [p2x squarex];
-                        p2y = [p2y squarey];
+                        p2x = [p2x squarex]; %#ok<AGROW>
+                        p2y = [p2y squarey]; %#ok<AGROW>
                     else
-                        p1x = [p1x squarex];
-                        p1y = [p1y squarey];
+                        p1x = [p1x squarex]; %#ok<AGROW>
+                        p1y = [p1y squarey]; %#ok<AGROW>
                     end
                     
                     str = ['[' num2str(V(1,ii)) ', ' num2str(V(2,ii)) ']'];
@@ -225,8 +227,6 @@ classdef QR < Modules.Imaging
             obj.graphics.p2.XData = p2x; obj.graphics.p2.YData = p2y;
             obj.graphics.p3.XData = p3x; obj.graphics.p3.YData = p3y;
             
-            floor(options_fit.Vcen)
-            
             gdata = (affine(floor(options_fit.Vcen) + [[0, 1, 1, 0, 0]; [0, 0, 1, 1, 0]], options_fit.M,  options_fit.b)  - size(img)'/2 ) * options_fit.calibration;
             gdata = [gdata [NaN; NaN], (affine(floor(options_fit.Vcen) + [[0, 1, 0, 1, 0]; [0, 0, 1, 1, 0]], options_fit.M2, options_fit.b2) - size(img)'/2 ) * options_fit.calibration];
             
@@ -235,8 +235,11 @@ classdef QR < Modules.Imaging
             
             obj.graphics.img.XData = [ obj.ROI(1,1),  obj.ROI(1,2)] * obj.calibration;
             obj.graphics.img.YData = [ obj.ROI(2,1),  obj.ROI(2,2)] * obj.calibration;
+            
             xlim(obj.graphics.axes, obj.graphics.img.XData);
             ylim(obj.graphics.axes, obj.graphics.img.YData);
+            
+            figure(obj.graphics.figure);
         end
         
         function startVideo(obj,im)

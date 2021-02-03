@@ -34,9 +34,6 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     
     v = [cx; cy];
     V = [CX; CY];
-    
-%     isempty(V)
-%      all(isnan(V(:)))
      
     if isempty(V) || all(isnan(V(:)))
         M = [[NaN NaN]; [NaN NaN]];
@@ -62,8 +59,6 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
         ang1 = (pi/2) + pi * (xaxis(2) < 0);
     else
         ang1 = atan(xaxis(2)/xaxis(1));
-%         atan(xaxis(2)/xaxis(1))
-%         atan(xaxis(1)/xaxis(2))
     end
     
     call = options_guess.d / norm(xaxis);
@@ -106,8 +101,6 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
         - sn*circleFunc(XX, YY, 7*lx/8,  7*ly/8, r/3) ...
         + B*circleFunc(XX, YY, lx,      ly,     r);
 
-%     fil = imgaussfilt(fil, 1);
-
     % Normalize
     S1 = size(fil);
     fil = fil - sum(sum(fil))/S1(1)/S1(2);
@@ -130,22 +123,6 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     convV = convV(X + (~invy)*lx, Y + invx*ly);
 
     conv = convH.*convH.*convH + convV.*convV.*convV;
-%     if false
-%         N = 2;
-%         M = 3;
-% 
-%         a = subplot(N, M, 4);
-%         imagesc(convH); set(a,'YDir','normal')
-%         title('Horizontal Convolution')
-%         a = subplot(N, M, 5);
-%         imagesc(convV); set(a,'YDir','normal')
-%         title('Vertical Convolution')
-%         a = subplot(N, M, 6);
-%         imagesc(conv); set(a,'YDir','normal')
-% %         imagesc(log10(abs(img7)));
-%         title('Sum of Cubes of Horizontal and Vertical Convolutions')
-% %         warning()
-%     end
 end
 function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
     S = size(conv);
@@ -157,9 +134,6 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
     lyy = l*(sa0-ca0)/2;
     
     [XX, YY] = meshgrid(1:S(1), 1:S(2));
-
-%     XX = repmat(1:S(1),    [S(2) 1]);
-%     YY = repmat((1:S(2))', [1 S(1)]);
 
     CC = bwconncomp(conv > max(max(conv))/8);
 
@@ -203,7 +177,7 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
 
             [CX(ii), CY(ii), ~, isQR(ii)] = interpretQR(m(:));
             
-            if CX(ii) == 0 && CY(ii) == 0   % Empty bits ==> [0,0] QR, so most [0,0] are false positives.
+            if CX(ii) == 0 && CY(ii) == 0   % Empty bits reads as [0,0] QR, so most [0,0] are false positives.
                 isQR(ii) = false;
             end
         end
@@ -251,7 +225,6 @@ end
 function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_guess)
     c = cos(options_guess.ang);
     s = sin(options_guess.ang);
-%     M_guess = [[c, -s]; [s, c]] / options_guess.calibration * options_guess.d;
     M_guess = [[s, c]; [-c, s]] / options_guess.calibration * options_guess.d;
     
     % The positions and labels of candidate QR codes define candidate coordinate systems.
@@ -303,9 +276,6 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
 %     fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2)', p(3:4)'], p(5:6)') );
 %     p_guess = [M_guess(:); b_guess]';
 %     p_full = fminsearch(fun, p_guess);
-    
-    
-%     M_guess = [[s, c]; [-c, s]] / options_guess.calibration * options_guess.d;
 end
 
 % function img = resize(img)

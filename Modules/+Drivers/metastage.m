@@ -2,14 +2,14 @@ classdef metastage < Modules.Driver
 
     % GENERAL ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
     properties (GetObservable, SetObservable)
-        coarse_x =      Prefs.Pointer();
-        fine_x =        Prefs.Pointer();
+        coarse_x =      []; %Prefs.Pointer();
+        fine_x =        []; %Prefs.Pointer();
         
-        coarse_y =      Prefs.Pointer();
-        fine_y =        Prefs.Pointer();
+        coarse_y =      []; %Prefs.Pointer();
+        fine_y =        []; %Prefs.Pointer();
         
-        coarse_z =      Prefs.Pointer();
-        fine_z =        Prefs.Pointer();
+        coarse_z =      []; %Prefs.Pointer();
+        fine_z =        []; %Prefs.Pointer();
         
         image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image');
         
@@ -21,6 +21,9 @@ classdef metastage < Modules.Driver
         
 %         target = Prefs.Button('name', 'target', 'string', 'Go!');
         targeting = Prefs.Boolean(false, 'set', 'target');
+    end
+    properties
+        graphics = [];
     end
     
     methods(Static)
@@ -45,6 +48,8 @@ classdef metastage < Modules.Driver
     end
     methods(Access=private)
         function obj = metastage()
+            obj.graphics.figure = figure;
+            obj.graphics.axes = axes;
         end
     end
     
@@ -107,13 +112,13 @@ classdef metastage < Modules.Driver
             for a = 1:4     % For each of the four axes that require calibration ...
                 switch a    % Grab the object.
                     case 1
-                        pref = obj.get_meta_pref('coarse_x');
+                        pref = obj.coarse_x;    %obj.get_meta_pref('coarse_x');
                     case 2
-                        pref = obj.get_meta_pref('fine_x');
+                        pref = obj.fine_x;      %obj.get_meta_pref('fine_x');
                     case 3
-                        pref = obj.get_meta_pref('coarse_y');
+                        pref = obj.coarse_y;    %obj.get_meta_pref('coarse_y');
                     case 4
-                        pref = obj.get_meta_pref('fine_y');
+                        pref = obj.fine_y;      %obj.get_meta_pref('fine_y');
                 end
 
                 positions = 0:2:10;
@@ -129,7 +134,7 @@ classdef metastage < Modules.Driver
                     Vs(:,kk) = obj.image.V;
 
                     % Give the user an idea of what's happening by plotting.
-                    scatter(obj.helperaxes, Vs(1,:), Vs(2,:), [], 1:size(V,2), 'fill');
+                    scatter(obj.graphics.axes, Vs(1,:), Vs(2,:), [], 1:size(V,2), 'fill');
 
                     kk = kk + 1;
                 end
@@ -142,6 +147,9 @@ classdef metastage < Modules.Driver
                     obj.calibration_fine(   :, round(a/2)) = dV;
                 end
             end
+            
+            obj.calibration_coarse
+            obj.calibration_fine
         end
     end
     
