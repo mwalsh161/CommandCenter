@@ -39,22 +39,36 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
 %      all(isnan(V(:)))
      
     if isempty(V) || all(isnan(V(:)))
+        M = [[NaN NaN]; [NaN NaN]];
+        b = [NaN; NaN];
+        
+        options_guess.Vcen = b;
+        options_guess.M = M;
+        options_guess.b = b;
+        options_guess.M2 = M;
+        options_guess.b2 = b;
+        options_guess.outliers = false(1, size(V, 2));
         options_fit = options_guess;
         return
     end
     
     % Step 5: fit a coordinate system to the positions of our QR codes.
-    [M, b, M2, b2] = majorityVoteCoordinateFit(v, V, options_guess);
+    [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_guess);
     
     Vcen = invaffine((size(img)/2)', M, b);
     
-    xaxis = invaffine([1;0], M, b);
+    xaxis = affine([1;0], M, [0; 0]);
     if xaxis(1) == 0
         ang1 = (pi/2) + pi * (xaxis(2) < 0);
     else
         ang1 = atan(xaxis(2)/xaxis(1));
+%         atan(xaxis(2)/xaxis(1))
+%         atan(xaxis(1)/xaxis(2))
     end
-    options_fit = struct('ang', ang1, 'calibration', options_guess.calibration, 'Vcen', Vcen, 'M', M, 'b', b, 'M2', M2, 'b2', b2);
+    
+    call = options_guess.d / norm(xaxis);
+    
+    options_fit = struct('ang', ang1, 'calibration', call, 'Vcen', Vcen, 'M', M, 'b', b, 'M2', M2, 'b2', b2, 'outliers', outliers);
 end
 
 function [conv, convH, convV] = doConv(img, ang0, r, l)
@@ -188,16 +202,15 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
             end
 
             [CX(ii), CY(ii), ~, isQR(ii)] = interpretQR(m(:));
-
-%             if false && isQR(ii)
-%             end
+            
+            if CX(ii) == 0 && CY(ii) == 0   % Empty bits ==> [0,0] QR, so most [0,0] are false positives.
+                isQR(ii) = false;
+            end
         end
     end
 
     CX(~isQR) = NaN;
     CY(~isQR) = NaN;
-%     cx(~isQR) = NaN;
-%     cy(~isQR) = NaN;
 end
 function [CX, CY, version, checksum0] = interpretQR(m)
     % From the code contained in m, attempt to read information.
@@ -235,31 +248,26 @@ end
 function cir = circleFunc(XX, YY, x0, y0, r)
     cir = (XX - x0).^2 + (YY - y0).^2 < r^2;
 end
-function [M, b, M2, b2] = majorityVoteCoordinateFit(v, V, options_guess)
+function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_guess)
     c = cos(options_guess.ang);
     s = sin(options_guess.ang);
 %     M_guess = [[c, -s]; [s, c]] / options_guess.calibration * options_guess.d;
-    M_guess = [[s, -c]; [c, s]] / options_guess.calibration * options_guess.d;
-    M_guess
+    M_guess = [[s, c]; [-c, s]] / options_guess.calibration * options_guess.d;
     
     % The positions and labels of candidate QR codes define candidate coordinate systems.
     % We want to find which candidate is correct.
-    v
-%     V = V - [40; 55];
-    M_guess * V
     b_guesses = v - M_guess * V;
-    b_guesses
     
     % Setup variables that we will change as we loop.
     mostvotes = 1;
     b_guess = [];
-    outliers = [];
+    outliers = false(1, size(b_guesses,2));
     
     % Radius within which b guesses are considered the same guess.
-    R = 10;
+    R = 2*options_guess.d;
     
     for ii = 1:size(b_guesses,2)                                % For every candidate...
-        votes = sum((b_guesses - b_guesses(:, ii)).^2) < R;     % How many other candidates agree?
+        votes = sum((b_guesses - b_guesses(:, ii)).^2) < R*R;   % How many other candidates agree?
         if mostvotes <= sum(votes)                              % If this is a new record...
             mostvotes = sum(votes);                             % Record the record.
             b_guess = mean(b_guesses(:, votes), 2);             % And estimate b as the average.
@@ -276,23 +284,28 @@ function [M, b, M2, b2] = majorityVoteCoordinateFit(v, V, options_guess)
     V_trim = V(:, ~outliers);
 
     % Fit the candidates to a translation b using the guess transformation.
-    fun = @(p)( leastsquares(v_trim, V_trim, M_guess, p') );
-    p_guess = b_guess';
-    p = fminsearch(fun, p_guess);
-    
+%     fun = @(p)( leastsquares(v_trim, V_trim, M_guess, p') );
+%     p_guess = b_guess';
+%     p = fminsearch(fun, p_guess, struct('TolFun', 1, 'TolX', 1e-1));
+%     
     M2 = M_guess;
-    b2 = p';
+    b2 = b_guess;
 
     % Fit the candidates fully to an affine transformation.
-    fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2); p(3:4)], p(5:6)') );
+    fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2)', p(3:4)'], p(5:6)') );
     p_guess = [M_guess(:); b_guess]';
-    p_full = fminsearch(fun, p_guess);
+    p_full = fminsearch(fun, p_guess, struct('TolFun', 1, 'TolX', 1e-1));
     
-    M = [p_full(1:2); p_full(3:4)];
+    M = [p_full(1:2)', p_full(3:4)'];
     b = p_full(5:6)';
     
-%     M = M_guess
-%     b = b2
+    % Fit the candidates fully to a rigid motion plus a scale.
+%     fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2)', p(3:4)'], p(5:6)') );
+%     p_guess = [M_guess(:); b_guess]';
+%     p_full = fminsearch(fun, p_guess);
+    
+    
+%     M_guess = [[s, c]; [-c, s]] / options_guess.calibration * options_guess.d;
 end
 
 % function img = resize(img)
@@ -318,7 +331,7 @@ function v = invaffine(v_, M, b)
     % v and v_ are either column vectors (2x1) or arrays of column vectors (2xN) of the same size
     % M is a matrix (2x2)
     % b is a column vector (2x1)
-    v = inv(M) * (v_ - b);
+    v = M \ (v_ - b);
 end
 
 function fom = leastsquares(v_, v, M, b)
