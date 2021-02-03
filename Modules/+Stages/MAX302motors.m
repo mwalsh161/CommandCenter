@@ -79,7 +79,7 @@ classdef MAX302motors < Modules.Stage
             range = [obj.xRange;obj.yRange;obj.zRange];
             for i = 1:length(obj.motors)
                 if ~isempty(obj.motors{i})&&isobject(obj.motors{i}) && isvalid(obj.motors{i})
-                    pos(i) = obj.motors{i}.Position*1000+min(range(i,:));
+                    pos(i) = obj.motors{i}.read()*1000+min(range(i,:));
                 end
             end
             pos = pos.*obj.direction;
