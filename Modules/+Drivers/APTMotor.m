@@ -11,11 +11,14 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
     properties
         name
     end
+    properties(GetObservable,SetObservable)
+        Position =  Prefs.Double(NaN, 'set', 'set_position', 'allow_nan', true);
+    end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Flag to determine moving
         %   See WAITFOR
         Moving = false;
-        Position           % Current Position. 0 corresponds to mean(Travel)
+%         Position           % Current Position. 0 corresponds to mean(Travel)
         Homed              % Flag specifying home status
         Travel             % Restrictions on the travel distance. 2x1 vector
     end
@@ -104,7 +107,14 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             obj.LibraryFunction('ShowSettingsDlg');
         end
         
-        function curPos = get.Position(obj)
+        function val = set_position(obj,val,~)
+            if ~obj.Moving && obj.Homed
+                obj.move(val);
+            end
+        end
+        
+%         function curPos = get.Position(obj)
+        function read(obj)
             % This will get qurried alot, so it is nice to add some
             % intelligence so we only querry the expensive LibraryFunction
             % if we have to.

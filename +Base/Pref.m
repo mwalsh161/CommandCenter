@@ -108,6 +108,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         %   Called directly after built-in clean
         custom_clean = {[], @(a)true};
         % First things called before any validation
+        get = {[], @(a)true};
         set = {[], @(a)true};
     end
 
@@ -130,15 +131,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
 %                 obj.dims =  struct();
 %             end
 
-
 %             class(obj)
-            
 %             mc = metaclass(obj)
-%             
 %             mc
-% 
 %             props = mc.PropertyList
-            
 %             props.Name
             
             if isa(obj, 'Base.Measurement') % This needs to be after pref is initialized and filled with property_name, but before it is fully bound.
@@ -429,6 +425,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             end
             summary = strjoin(summary,newline);
         end
+        
+        % Functions for changing the validation/clean methods
         function obj = set.custom_validate(obj,val)
             if ~isempty(val)
                 assert(isa(val,'function_handle')||ischar(val),...
@@ -443,6 +441,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             end
             obj.custom_clean = val;
         end
+        
+        % Functions for changing the methods to write (set) and read (get) the hardware.
         function obj = set.set(obj,val)
             if ~isempty(val)
                 assert(isa(val,'function_handle')||ischar(val),...
@@ -450,6 +450,15 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             end
             obj.set = val;
         end
+        function obj = set.get(obj,val)
+            if ~isempty(val)
+                assert(isa(val,'function_handle')||ischar(val),...
+                    'Custom set function must be a function_handle or char vector');
+            end
+            obj.get = val;
+        end
+        
+        % Functions that actually write (set) and read (get) the hardware, with overhead.
         function obj = set.value(obj,val)
             if ~obj.getEvent
                 val = obj.clean(val);
@@ -473,6 +482,13 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             end
             obj.value = val;
         end
+        function val = get.value(obj)
+            if ~isempty(obj.get) && obj.initialized %#ok<*MCSUP>
+                val = obj.get(obj);
+            end
+        end
+        
+        % Functions to use when one has access to the pref, but nothing else.
         function val = read(obj)
             val = obj.read_fn();    % Add code to make sure read_fn is valid?
         end
@@ -482,12 +498,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function listener = addlistener(obj, event, callback)
             listener = obj.listen_fn(event, callback);
         end
-%         function obj = get.value_(obj)
-%             obj.value_ = obj.read();
-%         end
-%         function obj = set.value_(obj, val)
-%             obj.writ(val);
-%         end
+        
+        % Formatting help text.
         function val = get.help_text(obj)
             try
                 val = obj.get_help_text(obj.help_text);

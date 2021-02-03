@@ -1,5 +1,5 @@
 classdef (Sealed) APTMotor2 < Drivers.APT & Modules.Driver
-    % APTMOTOR A subclass to handle things specific to the motor controller
+    % APTMOTOR2 A subclass to handle things specific to the motor controller
     %   All positions are in mm
     %
     %	Singleton based off serial number
@@ -12,15 +12,16 @@ classdef (Sealed) APTMotor2 < Drivers.APT & Modules.Driver
         name
     end
     properties(GetObservable,SetObservable)
-        position = Prefs.Double(NaN, 'min', 0, 'max', 8, 'set', 'set_position', 'allow_nan', true);
+        position =  Prefs.Double(NaN, 'min', 0, 'max', 8, 'set', 'set_position', 'allow_nan', true);
+        moving =    Prefs.Boolean(false, 'readonly', 'true');
+        homed =     Prefs.Boolean(false);
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Flag to determine moving
         %   See WAITFOR
-        Moving = false;
-        Position           % Current Position. 0 corresponds to mean(Travel)
-        Homed              % Flag specifying home status
-        Travel             % Restrictions on the travel distance. 2x1 vector
+%         Moving = false;
+%         Position           % Current Position.
+%         Homed              % Flag specifying home status
     end
     properties(Access=private)
         newPosition = true;    % Used to speed up position querry
@@ -38,14 +39,14 @@ classdef (Sealed) APTMotor2 < Drivers.APT & Modules.Driver
             delete(f);
         end
         % Use this to create/retrieve instance associated with serialNum
-        function obj = instance(serialNum,travel,name)
+        function obj = instance(serialNum,name)
             mlock;
             if nargin < 3
                 name = serialNum;
             end
             persistent Objects
             if isempty(Objects)
-                Objects = Drivers.APTMotor.empty(1,0);
+                Objects = Drivers.APTMotor2.empty(1,0);
             end
             for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(serialNum,Objects(i).singleton_id)
@@ -53,32 +54,31 @@ classdef (Sealed) APTMotor2 < Drivers.APT & Modules.Driver
                     return
                 end
             end
-            obj = Drivers.APTMotor(serialNum,name,travel);
+            obj = Drivers.APTMotor2(serialNum,name);
             obj.singleton_id = serialNum;
             Objects(end+1) = obj;
         end
     end    
     methods(Access=private)
         % Constructor should only be called by instance()
-        function obj = APTMotor(serialNum,name,travel)
+        function obj = APTMotor2(serialNum,name)
             obj.initialize('MGMOTOR.MGMotorCtrl.1',serialNum)
             obj.name = name;
-            validateattributes( travel, {'numeric'}, {'vector', 'numel',2,'nonnan'} );
-            travel = sort(travel);
-            obj.Travel = travel;
         end
         
         %Method to handle ActiveX events
         function eventHandler(obj,varargin)
             switch varargin{end}
                 case {'MoveComplete', 'MoveStopped'}
-                    obj.Moving = false;
+                    obj.moving = false;
                 case 'HomeComplete'
-                    obj.Homed = true;
-                    obj.Moving = false;
+                    obj.homed = true;
+                    obj.moving = false;
                 case 'HWResponse'
                     obj.LibraryFunction('ShowEventDlg');
                     error('APTMotorController Error.');
+                otherwise
+                    varargin
             end
         end
         
@@ -90,8 +90,6 @@ classdef (Sealed) APTMotor2 < Drivers.APT & Modules.Driver
             %   Otherwise returns true
             tf = true;
             assert(obj.Homed==1,'Motor %s is not homed!',obj.name)
-            assert(newPos <=max(obj.Travel)&&newPos >= min(obj.Travel),...
-                'Attempted to move motor %s to %f, but it is limited to %f, %f',obj.name,newPos,min(obj.Travel),max(obj.Travel))
         end
     end
 
@@ -107,18 +105,18 @@ classdef (Sealed) APTMotor2 < Drivers.APT & Modules.Driver
             obj.LibraryFunction('ShowSettingsDlg');
         end
         
-        function curPos = get.Position(obj)
-            % This will get qurried alot, so it is nice to add some
-            % intelligence so we only querry the expensive LibraryFunction
-            % if we have to.
-           if obj.newPosition
-               [~,curPos] = obj.LibraryFunction('GetPosition',0,0);
-               obj.lastPosition = curPos;
-           else
-               curPos = obj.lastPosition;
-           end
-           obj.newPosition = obj.Moving;
-        end
+%         function curPos = get.Position(obj)
+%             % This will get qurried alot, so it is nice to add some
+%             % intelligence so we only querry the expensive LibraryFunction
+%             % if we have to.
+%            if obj.newPosition
+%                [~,curPos] = obj.LibraryFunction('GetPosition',0,0);
+%                obj.lastPosition = curPos;
+%            else
+%                curPos = obj.lastPosition;
+%            end
+%            obj.newPosition = obj.Moving;
+%         end
         
         %Method to identify the device
         function identify(obj)
