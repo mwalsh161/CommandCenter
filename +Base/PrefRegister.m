@@ -177,11 +177,28 @@ end
 
 function str = makeParentString(parent, pref, isHTML)
     str = strrep(strip(pref.parent_class, '_'), '_', '.');
-    if ~isempty(parent.singleton_id) && ischar(parent.singleton_id)
-        if isHTML
-            str = [str '(<font face="Courier New" color="purple">''' parent.singleton_id '''</font>)'];
+    disp('singleton_id:')
+    parent.singleton_id
+    if ~isempty(parent.singleton_id)
+        if ischar(parent.singleton_id)
+            str2 = ['''' parent.singleton_id ''''];
         else
-            str = [str '(''' parent.singleton_id ''')'];
+            try 
+                str2 = mat2str(parent.singleton_id);
+            catch
+                str2 = '';
+            end
         end
+        
+        str2
+        
+        if ~isempty(str2)
+            if isHTML
+                str = [str '(<font face="Courier New" color="purple">' str2 '</font>)'];
+            else
+                str = [str '(' str2 ')'];
+            end
+        end
+        str
     end
 end

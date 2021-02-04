@@ -133,8 +133,8 @@ classdef dev < Modules.Driver
             Objects(end+1) = obj;
         end
         function [line,mask] = getLine(name,line_type)
-            name
-            line_type
+%             name
+%             line_type
             names = {line_type.name};
             mask = strcmp(names,name);
             if sum(mask) == 1

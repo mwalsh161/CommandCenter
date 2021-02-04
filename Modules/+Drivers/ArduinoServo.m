@@ -21,14 +21,16 @@ classdef ArduinoServo < Modules.Driver
                 Objects = Drivers.ArduinoServo.empty(1,0);
             end
             [~,resolvedIP] = resolvehost(host);
+            
+            singleton_id = [resolvedIP '_line' num2str(pin)];
             for i = 1:length(Objects)
-                if isvalid(Objects(i)) && isequal({resolvedIP, pin}, Objects(i).singleton_id)
+                if isvalid(Objects(i)) && isequal(singleton_id, Objects(i).singleton_id)
                     obj = Objects(i);
                     return
                 end
             end
             obj = Drivers.ArduinoServo(resolvedIP, pin);
-            obj.singleton_id = {resolvedIP, pin};
+            obj.singleton_id = singleton_id;
             Objects(end+1) = obj;
         end
     end

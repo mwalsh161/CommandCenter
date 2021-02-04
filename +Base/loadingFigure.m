@@ -7,14 +7,14 @@ function [fig, t] = loadingFigure(image_file, figName, varargin)
     fig = figure('numbertitle', 'off', 'name', figName, 'Pointer', 'watch', 'MenuBar', 'None',...
                  'toolbar', 'None', 'resize', 'off', 'Visible', 'off', 'KeyPressFcn', '', 'CloseRequestFcn', '');
 
-    fig.Position(4) = fig.Position(3)*ymax/xlim;        % Make the same aspect ratio.
+    fig.Position(4) = fig.Position(3)*ymax/xlim;            % Make the figure the same same aspect ratio as the image.
              
-    axes('Units', 'Normalized', 'Position', [0 0 1 1]); % Maximize axes to this aspect ratio
+    a = axes('Units', 'normalized', 'Position', [0 0 1 1]); % Maximize axes to this aspect ratio
              
-    imshow(image_file, varargin{:})
+    imshow(im, varargin{:})
     
-    t = text(xlim/2, ymax*0.975, 'Initializing GUI',...
-                'VerticalAlignment', 'middle', 'HorizontalAlignment','center','Color','w');
+    t = text(a, xlim/2, ymax*0.975, 'Initializing GUI',...
+                'VerticalAlignment', 'middle', 'HorizontalAlignment', 'center', 'Color', 'w');
             
     fig.Visible = 'on'; drawnow;
 end

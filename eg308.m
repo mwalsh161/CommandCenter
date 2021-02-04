@@ -1,12 +1,45 @@
-function eg308
+function ms = eg308
 %     sweep = 10:99;
     sweep = 20:25;
     
+    ni =    Drivers.NIDAQ.dev.instance('dev1');
+    stage = Stages.MAX302motors.instance();
     ms =    Drivers.metastage.instance();
+    
+    ms.coarse_x = stage.motors{1}.get_meta_pref('Position');
+    ms.coarse_y = stage.motors{2}.get_meta_pref('Position');
+    
+    ms.fine_x = ni.OutLines(6).pref;
+    ms.fine_y = ni.OutLines(5).pref;
+    ms.fine_z = ni.OutLines(7).pref;
+    
     ard =   Drivers.ArduinoServo.instance('localhost', 3);
-    img =   Imaging.Camera.instance();
+    img =   Imaging.umanager.Camera.instance();
+    qr =    Imaging.QR.instance();
     red =   Sources.WhiteLight.instance();
     green = Sources.Laser532_PB.instance();
+    
+    ms.image = qr;
+    
+%     ms
+%     
+%     ms.fine_z
+%     ms.fine_z.read()
+%     ms.fine_z.writ(4)
+%     ms.fine_z.read()
+%     ms.coarse_x
+%     ms.coarse_x.read()
+%     ms.coarse_x.writ(5.161)
+
+
+    ms.calibrate();
+%     ms.focus(21);
+
+%     ms.navigateStep(0, 1)
+%     
+%     qr.snapImage();
+    
+    return;
     
     red.on();
     green.off();

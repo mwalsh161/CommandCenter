@@ -1,7 +1,7 @@
-classdef metastage < Modules.Driver
+classdef metastage < handle % Modules.Driver
 
     % GENERAL ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-    properties (GetObservable, SetObservable)
+    properties
         coarse_x =      []; %Prefs.Pointer();
         fine_x =        []; %Prefs.Pointer();
         
@@ -10,7 +10,9 @@ classdef metastage < Modules.Driver
         
         coarse_z =      []; %Prefs.Pointer();
         fine_z =        []; %Prefs.Pointer();
-        
+    end
+    
+    properties (GetObservable, SetObservable)
         image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image');
         
         X = Prefs.Double(NaN, 'allow_nan', true, 'readonly', true);
@@ -48,50 +50,115 @@ classdef metastage < Modules.Driver
     end
     methods(Access=private)
         function obj = metastage()
-            obj.graphics.figure = figure;
-            obj.graphics.axes = axes;
+            obj.graphics.figure = figure('Visible', 'off');
+            obj.graphics.axes = axes(obj.graphics.figure);
         end
     end
     
     % FOCUS ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
     properties
-        focusfigure
+%         focusfigure
     end
     
     methods
-        function success = focus(obj, N)
+        function success = focusSmart(obj)
+            obj.image.snapImage();
+            
+            success = true;
+            
+            if obj.image.N > 4
+                disp('Detected more than four QR codes. Need to add better checks to resolve this.')
+            elseif obj.image.N == 4     % All good, probs. Maybe add an option for precise focus.
+                
+            elseif obj.image.N == 3     % Do a local focus with only a few frames. 
+                success = obj.focus(3, .6);
+            elseif obj.image.N == 2     % Do a local focus with a few more frames.
+                success = obj.focus(5, 1.2);
+            else                        % Do a larger local focus.
+                success = obj.focus(11, 2);
+            end
+        end
+        function success = focus(obj, N, zspan)
+            if nargin < 3
+                zspan = 2;
+            end
             if nargin < 2
                 N = 11;
             end
             
-            dZ = linspace(-1, 1, N);
+            dZ = linspace(-zspan/2, zspan/2, N);
             zbase = obj.fine_z.read();
+            DZ = abs(mean(diff(dZ)));
             
             metric1 = NaN(1, length(dZ));
             metric2 = NaN(1, length(dZ));
             
+            znow = zbase;
+            while znow > zbase + min(dZ)
+                znow = znow - DZ/2;
+                obj.fine_z.writ(znow);
+            end
+            
+            % Plot sharpness and #QRs.
+            axes(obj.graphics.axes);
+            
+            yyaxis left;
+            p1 = plot(zbase + dZ, metric1);
+            ylabel('~Sharpness');
+            
+            yyaxis right;
+            p2 = plot(zbase + dZ, metric2);
+            ylabel('Number of QRs Detected');
+            
+            xlabel(obj.fine_z.get_label());
+            
             % Sweep over Z, recording 'focus metrics' at every step
             for ii = 1:length(dZ)
-                obj.fine_z.writ(zbase + dZ);
-                pause(.05); % Remove eventually!
+                obj.fine_z.writ(zbase + dZ(ii));
+                pause(.01);
                 
-                img = obj.image.snap();
+                img = obj.image.snapImage();
                 
                 metric1(ii) = sharpness(img);           % Image sharpness
-                metric2(ii) = obj.image.confidence;     % QR detection confidence (num QRs)
+                metric2(ii) = obj.image.N;              % QR detection confidence (num QRs)
+                
+                % Should also use X & Y reasonability as a metric.
+%                 obj.image.X
+%                 obj.image.Y
                 
                 % Give the user an idea of what's happening by plotting.
-%                 scatter(obj.helperaxes, Vs(1,:), Vs(2,:), [], 1:size(V,2), 'fill');
+                p1.YData = metric1;
+                p2.YData = metric2;
+                
+                switch obj.graphics.figure.Visible
+                    case 'off'
+                        obj.graphics.figure.Visible = 'on';
+                end
             end
             
-            success = max(metric2) > 0;
+            success = max(metric2) > 0; % If we found at least one QR...
             
-            if ~success             % If no QRs were found ...
-                obj.fine_z.writ(zbase);
-            else                    % Otherwise, goto the Z where the most QRs were legible.
-                obj.fine_z.writ(zbase + mean(dZ(metric2 == max(metric2))));
+            % If no QRs were found ...
+            zfin = zbase;
+            
+            if success      % Goto the Z where the most QRs were legible.
+                if max(metric2) == 1
+                    zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2));
+                else
+                    zfin = zbase + mean(dZ(metric2 == max(metric2)));
+                end
                 % Ignore metric 1 for now.
             end
+            
+            % Ramp to the desired final z.
+            znow = zbase + max(dZ);
+            while znow > zfin
+                znow = znow - DZ/2;
+                obj.fine_z.writ(znow);
+            end
+            
+            % Take a snapshot at the target Z for the user to examine the result. (remove?)
+            img = obj.image.snapImage();
         end
     end
     
@@ -104,9 +171,9 @@ classdef metastage < Modules.Driver
     
     methods
         function calibrate(obj)
-            if ~obj.focus()
-                % Focus onto QR codes was not successful. Try moving to an
-                % area with legible QR codes.
+            if ~obj.focus(11, 2)
+                disp('Focus onto QR codes was not successful. Try moving to an area with legible QR codes.');
+                return
             end
             
             for a = 1:4     % For each of the four axes that require calibration ...
@@ -120,36 +187,68 @@ classdef metastage < Modules.Driver
                     case 4
                         pref = obj.fine_y;      %obj.get_meta_pref('fine_y');
                 end
+                
+                isfine = ~mod(a, 2);
+                
+                step = 1e-3;    % Change these step values to look for something hardware-specific!
+                if isfine
+                    step = .1;
+                end
 
-                positions = 0:2:10;
+                positions = 0:10;
                 base = pref.read();
                 Vs = NaN(2, length(positions));
                 kk = 1;
+                
+                delete(obj.graphics.axes);
+                obj.graphics.axes = axes(obj.graphics.figure, 'DataAspectRatio', [1 1 1]);
 
                 for pp = positions  % Successively move from the current postion.
-                    pref.writ(base + pp * 1);
+                    pref.writ(base + pp * step);
+                    pause(.2);
+                    if ~isfine
+                        pause(1);
+                    end
 
                     % At each position, find the image-feedback location.
-                    obj.image.snap();
-                    Vs(:,kk) = obj.image.V;
+                    obj.image.snapImage();
+%                     Vs(:,kk) = obj.image.V;
+                    Vs(1,kk) = obj.image.X;
+                    Vs(2,kk) = obj.image.Y;
 
                     % Give the user an idea of what's happening by plotting.
-                    scatter(obj.graphics.axes, Vs(1,:), Vs(2,:), [], 1:size(V,2), 'fill');
+                    scatter(obj.graphics.axes, Vs(1,:), Vs(2,:), [], 1:size(Vs,2), 'fill');
+                    daspect([1 1 1]);
 
                     kk = kk + 1;
                 end
-
-                dV = trimmean(diff(Vs, [], 2), 50, 2);
-
-                if mod(a, 2)
-                    obj.calibration_coarse( :, round(a/2)) = dV;
+                
+                % Return to base.
+                if isfine
+                    for pp = positions(end:-1:1)
+                        pref.writ(base + pp * step);
+                    end
                 else
+                    pref.writ(base);
+                    pause(.5);
+                end
+
+%                 Vs
+%                 dVs = diff(Vs, [], 2) / step
+%                 dV = trimmean(diff(Vs, [], 2), 50, 2) / step;
+                dV = mean(diff(Vs, [], 2), 2) / step;
+
+                if isfine
                     obj.calibration_fine(   :, round(a/2)) = dV;
+                else
+                    obj.calibration_coarse( :, round(a/2)) = dV;
                 end
             end
             
-            obj.calibration_coarse
-            obj.calibration_fine
+            obj.image.snapImage();
+            
+            obj.calibration_coarse =    inv(obj.calibration_coarse);
+            obj.calibration_fine =      inv(obj.calibration_fine);
         end
     end
     
@@ -195,8 +294,42 @@ classdef metastage < Modules.Driver
             
             
         end
-        function navigatestep(obj)
+        function navigateStep(obj, dX, dY)
+%             obj.focusSmart();
+           
+            dV = [dX; dY];
             
+            dv = obj.calibration_coarse * dV;
+            
+            obj.coarse_x.writ(obj.coarse_x.read() + dv(1));
+            obj.coarse_y.writ(obj.coarse_y.read() + dv(2));
+            
+            obj.focusSmart();
+        end
+        function navigateTarget(obj, X, Y)
+            Vt = [X; Y];
+            
+            obj.focusSmart();
+            
+            V = [obj.image.X; obj.image.Y];
+            
+            dV = Vt - V;
+            
+            if norm(dV) > 3
+                disp('Don''t want to move too far right now.')
+            end
+            
+%             while norm(dV) > .1
+            dv = obj.calibration_coarse * dV;
+            
+            obj.coarse_x.writ(obj.coarse_x.read() + dv(1));
+            obj.coarse_y.writ(obj.coarse_y.read() + dv(2));
+            
+            pause(.5);
+            
+%             end
+            
+            obj.focusSmart();
         end
     end
     
@@ -222,10 +355,10 @@ end
 function s = sharpness(img)
     % Computes a metric for sharpness by averaging the gradients of the
     % image. Blurier images will have less gradient and thus less sharpness.
-    s = mean(mean(norm(                 ...
-        diff(img(:,1:(end-1)), [], 1) + ...     % y gradient
-        diff(img(1:(end-1),:), [], 2)   ...     % x gradient
-    )));
+    s = mean(mean(((                    ...
+        diff(img(:,1:(end-1)), [], 1) .^ 2 +    ...     % y gradient
+        diff(img(1:(end-1),:), [], 2) .^ 2      ...     % x gradient
+    ))));
 end
 
 

@@ -12,7 +12,7 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
         name
     end
     properties(GetObservable,SetObservable)
-        Position =  Prefs.Double(NaN, 'set', 'set_position', 'allow_nan', true);
+        Position =  Prefs.Double(NaN, 'set', 'set_position', 'get', 'get_position', 'allow_nan', true);
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Flag to determine moving
@@ -30,12 +30,12 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
     methods (Static)
         function devices = getAvailMotors()
             % 0 means no motor
-            f = msgbox('Loading APTSystem',mfilename,'modal');
+%             f = msgbox('Loading APTSystem',mfilename,'modal');    % This was taking more than a second upon startup; disabling. 
             APTSystem = Drivers.APTSystem.instance;
             devices = APTSystem.getDevices;
             devices = num2cell(double(devices.USB_STEPPER_DRIVE));
             devices = [{'0'},cellfun(@num2str,devices,'uniformoutput',false)];
-            delete(f);
+%             delete(f);
         end
         % Use this to create/retrieve instance associated with serialNum
         function obj = instance(serialNum,travel,name)
@@ -107,16 +107,19 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             obj.LibraryFunction('ShowSettingsDlg');
         end
         
-        function val = set_position(obj,val,~)
+        function val = set_position(obj,val,pref)
             if ~obj.Moving && obj.Homed
                 obj.move(val);
             end
         end
+        function val = get_position(obj,pref)
+            val = obj.read();
+        end
         
 %         function curPos = get.Position(obj)
-        function read(obj)
-            % This will get qurried alot, so it is nice to add some
-            % intelligence so we only querry the expensive LibraryFunction
+        function curPos = read(obj)
+            % This will get used alot, so it is nice to add some
+            % intelligence so we only poll the expensive LibraryFunction
             % if we have to.
            if obj.newPosition
                [~,curPos] = obj.LibraryFunction('GetPosition',0,0);

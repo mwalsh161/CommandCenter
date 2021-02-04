@@ -167,8 +167,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
 
             methods = mc.MethodList;
 
-            avail_methods = {'set','custom_validate','custom_clean'};
-            argouts = [1,0,1];
+            avail_methods = {'get', 'set','custom_validate','custom_clean'};
+            argouts = [1,1,0,1];
 
             for j = 1:length(avail_methods)
                 if j == 1 && isempty(obj.(avail_methods{j}))                % If no function is given for 'set'...
@@ -204,7 +204,12 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                         else
                             nin = nin - 1; % Exclude obj
                             fn = str2func(fnstring);
-                            obj.(avail_methods{j}) = @(val,obj)fn(module_instance,val,obj);
+                            
+                            if strcmp(avail_methods{j}, 'get')  % get takes only pref.
+                                obj.(avail_methods{j}) = @(obj)fn(module_instance,obj);
+                            else                                % set and related takes val and pref.
+                                obj.(avail_methods{j}) = @(val,obj)fn(module_instance,val,obj);
+                            end
                         end
                         fnstring = sprintf('%s.%s',class(module_instance),fnstring);
                     else
@@ -217,9 +222,15 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                     assert(nout>=argouts(j),sprintf(...
                         'Prefs require %s methods to output the set value\n\n  "%s" has %i outputs',...
                         (avail_methods{j}),fnstring,nout))
-                    assert(nin==2,sprintf(...
-                        'Prefs require %s methods to take in val and Pref\n\n  "%s" has %i inputs',...
-                        (avail_methods{j}),fnstring,nin))
+                    if strcmp(avail_methods{j}, 'get')  % get takes only pref.
+                        assert(nin==1,sprintf(...
+                            'Prefs require %s methods to take in Pref\n\n  "%s" has %i inputs',...
+                            (avail_methods{j}),fnstring,nin))
+                    else                                % set and related takes val and pref.
+                        assert(nin==2,sprintf(...
+                            'Prefs require %s methods to take in val and Pref\n\n  "%s" has %i inputs',...
+                            (avail_methods{j}),fnstring,nin))
+                    end
                 end
             end
 
@@ -485,6 +496,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function val = get.value(obj)
             if ~isempty(obj.get) && obj.initialized %#ok<*MCSUP>
                 val = obj.get(obj);
+            else
+                val = obj.value;
             end
         end
         

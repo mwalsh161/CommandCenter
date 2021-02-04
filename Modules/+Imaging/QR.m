@@ -91,6 +91,12 @@ classdef QR < Modules.Imaging
         function displayimg = analyze(obj)
             img = obj.current_img;
             
+            if isempty(img)
+                % Clear figure?
+                return
+            end
+            
+            % Transform the image according to the user's desire.
             if obj.flip
                 img = flipud(img);
             end
@@ -99,21 +105,31 @@ classdef QR < Modules.Imaging
                 img = rot90(img, round(obj.rotate/90));
             end
 
+            % Provide a guess starting point for the convolutional algorithm.
             options_guess = struct('ang', (obj.QR_ang + 90) * pi / 180, 'calibration', obj.calibration);
             
+            % Perform the convolution, 
             [v, V, options_fit, stages] = Base.QRconv(img, options_guess);
             
+            %
+            obj.X = options_fit.Vcen(1);
+            obj.Y = options_fit.Vcen(2);
+            obj.N = sum(~options_fit.outliers & ~isnan(V(1,:)));
+            
+            %
             QR_ang2 = (options_fit.ang * 180 / pi);
             
             if abs(QR_ang2 - obj.QR_ang) < .5
                 obj.QR_ang = mean([QR_ang2, obj.QR_ang]);
             end
             
+            %
             if abs(options_fit.calibration / obj.calibration - 1) < .02
                 obj.calibration = mean([options_fit.calibration, obj.calibration]);
                 obj.image.calibration = obj.calibration;
             end
 
+            % Change coordinates from pixels to microns for display.
             v = (v + obj.ROI(:,1)) * obj.calibration;
 
             switch obj.display
@@ -236,10 +252,14 @@ classdef QR < Modules.Imaging
             obj.graphics.img.XData = [ obj.ROI(1,1),  obj.ROI(1,2)] * obj.calibration;
             obj.graphics.img.YData = [ obj.ROI(2,1),  obj.ROI(2,2)] * obj.calibration;
             
-            xlim(obj.graphics.axes, obj.graphics.img.XData);
-            ylim(obj.graphics.axes, obj.graphics.img.YData);
+            try     % These lines sometimes breaks.
+                xlim(obj.graphics.axes, obj.graphics.img.XData);
+                ylim(obj.graphics.axes, obj.graphics.img.YData);
+            catch
+                
+            end
             
-            figure(obj.graphics.figure);
+%             figure(obj.graphics.figure);
         end
         
         function startVideo(obj,im)

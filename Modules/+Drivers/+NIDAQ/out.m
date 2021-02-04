@@ -17,7 +17,7 @@ classdef out < handle
     properties(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.out})
         niListener                     % Handle to NIDAQ's listener to state_change
     end
-    properties (Access=private, Hidden)
+    properties (SetAccess=private, Hidden)
         pref;                           % The fake pref that is constructed to lead to this DAQ.
     end
     
