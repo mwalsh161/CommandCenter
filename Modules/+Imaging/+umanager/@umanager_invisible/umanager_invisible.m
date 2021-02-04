@@ -188,7 +188,7 @@ classdef umanager_invisible < Modules.Imaging
             end
             % Take Image
             obj.mmc('snapImage');
-            if obj.exposure > 100
+            if obj.exposure >= 100
                 pause(obj.exposure/2000)    % Allow other parts of CC to update while camera is working.
             end
             dat = obj.mmc('getImage');
