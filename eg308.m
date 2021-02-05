@@ -66,6 +66,10 @@ function eg308(ms)
             pause(.5);
             
             img0 = ms.image.image.snapImage();
+            for ll = 1:(ceil(fin.g_exposure/fin.wl_exposure)-1)
+                img0 = img0 + ms.image.image.snapImage();
+            end
+            
             if ms.image.flip                  % Put the flipping elsewhere eventually.
                 img0 = flipud(img0);
             end
@@ -79,7 +83,7 @@ function eg308(ms)
             if kk == 1      % The first frame is wl, while the rest use green.
                 red.off();
                 green.on();
-                ms.image.image.exposure = fin.g_exposure;
+%                 ms.image.image.exposure = fin.g_exposure;
             end
             disp(['    * Snapped ' names{kk} '!']);
         end
@@ -89,7 +93,7 @@ function eg308(ms)
         ard.angle = 0;      % No filter.
         red.on();
         green.off();
-        ms.image.image.exposure = fin.wl_exposure;
+%         ms.image.image.exposure = fin.wl_exposure;
         pause(.5);
     end
 end

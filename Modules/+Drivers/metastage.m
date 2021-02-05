@@ -71,11 +71,11 @@ classdef metastage < handle % Modules.Driver
             elseif obj.image.N == 4     % All good, probs. Maybe add an option for precise focus.
                 
             elseif obj.image.N == 3     % Do a local focus with only a few frames. 
-                success = obj.focus(7, 1.2);
+                success = obj.focus(7+6, 1.2);
             elseif obj.image.N == 2     % Do a local focus with a few more frames.
-                success = obj.focus(9, 1.6);
+                success = obj.focus(9+8, 1.6);
             else                        % Do a larger local focus.
-                success = obj.focus(15, 2.8);
+                success = obj.focus(15+14, 2.8);
             end
         end
         function success = focus(obj, N, zspan, isfine)
@@ -92,14 +92,16 @@ classdef metastage < handle % Modules.Driver
             dZ = linspace(-zspan/2, zspan/2, N);
             DZ = abs(mean(diff(dZ)));
             
-            if isfine && abs(obj.fine_z.read() - 5) > 3     % If fine is about to exceed bounds ...
-                zbase = obj.fine_z.read();                  % Recenter fine.
-                for znow = zbase:(DZ*sign(5-zbase)):5
-                    obj.fine_z.writ(znow);
-                    pause(.01);
+            if isfine
+                zcen =  (obj.fine_z.max + obj.fine_z.min)/2;
+                zrange = obj.fine_z.max - obj.fine_z.min;
+                zbase =  obj.fine_z.read();
+                    
+                if abs(zbase - zcen) > .3*zrange                % If fine is about to exceed bounds ...
+                    ramp(obj.fine_z, zbase, zcen, DZ/4);        % Recenter...
+
+                    obj.focus(21, 40e-3, false);                % Focus coarse (dangerous, but probs fine).
                 end
-                
-                obj.focus(21, 40e-3, false);                   % Focus coarse (dangerous, but probs fine).
             end
             
             if isfine
@@ -112,12 +114,7 @@ classdef metastage < handle % Modules.Driver
             metric2 = NaN(1, length(dZ));
             
             if isfine
-                znow = zbase;
-                while znow > zbase + min(dZ)
-                    znow = znow - DZ/2; %/4;
-                    obj.fine_z.writ(znow);
-                    pause(.01);
-                end
+                ramp(obj.fine_z, zbase, zbase + min(dZ), DZ/4); % Ramp to the starting point.
             end
             
             % Plot sharpness and #QRs.
@@ -137,11 +134,6 @@ classdef metastage < handle % Modules.Driver
                 xlabel(obj.coarse_z.get_label());
             end
             
-            
-            if ~obj.image.image.core.isSequenceRunning()
-                obj.image.image.core.startContinuousSequenceAcquisition(100);
-            end
-            
             % Sweep over Z, recording 'focus metrics' at every step
             for ii = 1:length(dZ)
                 if isfine
@@ -152,9 +144,7 @@ classdef metastage < handle % Modules.Driver
                 end
                 pause(.05);
                 
-                img = obj.image.grabFrame();
-                
-%                 img = obj.image.snapImage();
+                img = obj.image.snapImage();
                 
                 metric1(ii) = sharpness(img);           % Image sharpness
                 metric2(ii) = obj.image.N;              % QR detection confidence (num QRs)
@@ -173,54 +163,30 @@ classdef metastage < handle % Modules.Driver
                 end
             end
             
-            success = max(metric2) > 0; % If we found at least one QR...
+            success = max(metric2) > 0;     % Return success if we found at least one QR...
             
-            % If no QRs were found ...
-            zfin = zbase;
-            
-            if success      % Goto the Z where the most QRs were legible.
+            if success      % If success, return the Z where the most QRs were legible.
                 if max(metric2) == 1
                     zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2));
                 else
                     zfin = zbase + mean(dZ(metric2 == max(metric2)));
                 end
-                % Ignore metric 1 for now.
+            else            % If no QRs were found, return to the starting point.
+                zfin = zbase;
             end
             
             % Ramp to the desired final z.
             if isfine
-%                 znow = zbase + max(dZ);
-%                 while znow > zfin
-%                     znow = znow - DZ/4;
-%                     obj.fine_z.writ(znow);
-%                     pause(.01);
-%                 end
-
-                for znow = (zbase + max(dZ)):(-DZ/2):(zbase + min(dZ))
-                    obj.fine_z.writ(znow);
-%                     pause(.01);
-                end
-
-                for znow = (zbase + min(dZ)):(DZ/2):(zfin-2*DZ)
-                    obj.fine_z.writ(znow);
-%                     pause(.01);
-                end
-                
-                obj.fine_z.writ(zfin);
+                ramp(obj.fine_z, zbase + max(dZ), zbase + min(dZ),  DZ/4); % Ramp to the starting point.
+                ramp(obj.fine_z, zbase + min(dZ), zfin,             DZ/4); % Ramp to the desired value.
             else
                 obj.coarse_z.writ(zfin);
             end
-            
-            % Take a snapshot at the target Z for the user to examine the result. (remove?)
-%             img = obj.image.snapImage();
 
             pause(.2);
-
-            img = obj.image.grabFrame();
-
-            if obj.image.image.core.isSequenceRunning()
-                obj.image.image.core.stopSequenceAcquisition();
-            end
+            
+            % Take a snapshot at the target Z for the user to examine the result. (remove?)
+            img = obj.image.snapImage();
         end
     end
     
@@ -280,7 +246,7 @@ classdef metastage < handle % Modules.Driver
 
                     % Give the user an idea of what's happening by plotting.
                     scatter(obj.graphics.axes, Vs(1,:), Vs(2,:), [], 1:size(Vs,2), 'fill');
-                    daspect([1 1 1]);
+                    daspect(obj.graphics.axes, [1 1 1]);
 
                     kk = kk + 1;
                 end
@@ -422,7 +388,12 @@ function s = sharpness(img)
         diff(img(1:(end-1),:), [], 2) .^ 2      ...     % x gradient
     ))));
 end
-
+function ramp(pref, from, to, dx)
+    for x = from:(abs(dx)*sign(to-from)):to
+        pref.writ(x);
+    end
+    pref.writ(to);
+end
 
 
 
