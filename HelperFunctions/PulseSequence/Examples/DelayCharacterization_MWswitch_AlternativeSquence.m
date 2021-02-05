@@ -67,7 +67,7 @@ s.repeat = 1e6
 sum(cellfun(@(x)(length(x)),s.compile))
 %% Run experiment
 ni = Drivers.NIDAQ.dev.instance('Dev1');
-pb = Drivers.PulseBlaster.Remote.instance('localhost');
+pb = Drivers.PulseBlaster.instance('localhost');
 APDpseq = Drivers.APDPulseSequence.instance(ni,pb,s);
 
 % create a line object
