@@ -5,7 +5,7 @@ classdef QR < Modules.Imaging
         maxROI = [-1 1; -1 1];
         prefs = {'image', 'flip', 'rotate', 'display', 'calibration', 'QR_ang'};
     end
-    properties(Hidden, Access=private)
+    properties(Hidden)
         graphics = [];  % Contains handles for graphics objects for QR drawing.
     end
     properties(Constant)
@@ -88,6 +88,21 @@ classdef QR < Modules.Imaging
         function val = set_variable(obj, val, ~)
             obj.analyze();
         end
+        function img = grabFrame(obj)
+            if obj.image.core.isSequenceRunning()
+                while obj.image.core.getRemainingImageCount() == 0
+                    pause(.01);
+                end
+            
+                dat = obj.image.core.popNextImage();
+                width = obj.image.core.getImageWidth();
+                height = obj.image.core.getImageHeight();
+                obj.current_img = transpose(reshape(typecast(dat, obj.image.pixelType), [width, height]));
+                img = obj.current_img;
+                
+                obj.analyze();
+            end
+        end
         function displayimg = analyze(obj)
             img = obj.current_img;
             
@@ -117,16 +132,18 @@ classdef QR < Modules.Imaging
             obj.N = sum(~options_fit.outliers & ~isnan(V(1,:)));
             
             %
-            QR_ang2 = (options_fit.ang * 180 / pi);
-            
-            if abs(QR_ang2 - obj.QR_ang) < .5
-                obj.QR_ang = mean([QR_ang2, obj.QR_ang]);
-            end
-            
-            %
-            if abs(options_fit.calibration / obj.calibration - 1) < .02
-                obj.calibration = mean([options_fit.calibration, obj.calibration]);
-                obj.image.calibration = obj.calibration;
+            if obj.N > 2
+                QR_ang2 = (options_fit.ang * 180 / pi);
+
+                if abs(QR_ang2 - obj.QR_ang) < .5
+                    obj.QR_ang = mean([QR_ang2, obj.QR_ang]);
+                end
+
+                %
+                if abs(options_fit.calibration / obj.calibration - 1) < .02
+                    obj.calibration = mean([options_fit.calibration, obj.calibration]);
+                    obj.image.calibration = obj.calibration;
+                end
             end
 
             % Change coordinates from pixels to microns for display.
@@ -151,7 +168,9 @@ classdef QR < Modules.Imaging
 
             if isempty(obj.graphics) || isempty(obj.graphics.figure) || ~isvalid(obj.graphics.figure) % ~continuous || length(a.Children) == 1
                 obj.graphics.figure = figure('Name', 'QR Navigation', 'NumberTitle', 'off', 'Menubar', 'none', 'Toolbar', 'none');
-                obj.graphics.axes = axes('Units', 'normalized', 'Position', [0 0 1 1], 'PickableParts', 'none');
+                obj.graphics.figure.Position(2) = obj.graphics.figure.Position(2) - obj.graphics.figure.Position(3) + obj.graphics.figure.Position(4);
+                obj.graphics.figure.Position(4) = obj.graphics.figure.Position(3);
+                obj.graphics.axes = axes('Units', 'normalized', 'Position', [0 0 1 1], 'PickableParts', 'none', 'DataAspectRatio', [1 1 1]);
                 
                 hold(obj.graphics.axes, 'on');
                 disableDefaultInteractivity(obj.graphics.axes)

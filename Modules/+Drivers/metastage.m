@@ -71,14 +71,17 @@ classdef metastage < handle % Modules.Driver
             elseif obj.image.N == 4     % All good, probs. Maybe add an option for precise focus.
                 
             elseif obj.image.N == 3     % Do a local focus with only a few frames. 
-                success = obj.focus(3, .6);
+                success = obj.focus(7, 1.2);
             elseif obj.image.N == 2     % Do a local focus with a few more frames.
-                success = obj.focus(5, 1.2);
+                success = obj.focus(9, 1.6);
             else                        % Do a larger local focus.
-                success = obj.focus(11, 2);
+                success = obj.focus(15, 2.8);
             end
         end
-        function success = focus(obj, N, zspan)
+        function success = focus(obj, N, zspan, isfine)
+            if nargin < 4
+                isfine = true;
+            end
             if nargin < 3
                 zspan = 2;
             end
@@ -87,16 +90,34 @@ classdef metastage < handle % Modules.Driver
             end
             
             dZ = linspace(-zspan/2, zspan/2, N);
-            zbase = obj.fine_z.read();
             DZ = abs(mean(diff(dZ)));
+            
+            if isfine && abs(obj.fine_z.read() - 5) > 3     % If fine is about to exceed bounds ...
+                zbase = obj.fine_z.read();                  % Recenter fine.
+                for znow = zbase:(DZ*sign(5-zbase)):5
+                    obj.fine_z.writ(znow);
+                    pause(.01);
+                end
+                
+                obj.focus(21, 40e-3, false);                   % Focus coarse (dangerous, but probs fine).
+            end
+            
+            if isfine
+                zbase = obj.fine_z.read();
+            else
+                zbase = obj.coarse_z.read();
+            end
             
             metric1 = NaN(1, length(dZ));
             metric2 = NaN(1, length(dZ));
             
-            znow = zbase;
-            while znow > zbase + min(dZ)
-                znow = znow - DZ/2;
-                obj.fine_z.writ(znow);
+            if isfine
+                znow = zbase;
+                while znow > zbase + min(dZ)
+                    znow = znow - DZ/2; %/4;
+                    obj.fine_z.writ(znow);
+                    pause(.01);
+                end
             end
             
             % Plot sharpness and #QRs.
@@ -110,14 +131,30 @@ classdef metastage < handle % Modules.Driver
             p2 = plot(zbase + dZ, metric2);
             ylabel('Number of QRs Detected');
             
-            xlabel(obj.fine_z.get_label());
+            if isfine
+                xlabel(obj.fine_z.get_label());
+            else
+                xlabel(obj.coarse_z.get_label());
+            end
+            
+            
+            if ~obj.image.image.core.isSequenceRunning()
+                obj.image.image.core.startContinuousSequenceAcquisition(100);
+            end
             
             % Sweep over Z, recording 'focus metrics' at every step
             for ii = 1:length(dZ)
-                obj.fine_z.writ(zbase + dZ(ii));
-                pause(.01);
+                if isfine
+                    obj.fine_z.writ(zbase + dZ(ii) - DZ/2);
+                    obj.fine_z.writ(zbase + dZ(ii));
+                else
+                    obj.coarse_z.writ(zbase + dZ(ii));
+                end
+                pause(.05);
                 
-                img = obj.image.snapImage();
+                img = obj.image.grabFrame();
+                
+%                 img = obj.image.snapImage();
                 
                 metric1(ii) = sharpness(img);           % Image sharpness
                 metric2(ii) = obj.image.N;              % QR detection confidence (num QRs)
@@ -151,14 +188,39 @@ classdef metastage < handle % Modules.Driver
             end
             
             % Ramp to the desired final z.
-            znow = zbase + max(dZ);
-            while znow > zfin
-                znow = znow - DZ/2;
-                obj.fine_z.writ(znow);
+            if isfine
+%                 znow = zbase + max(dZ);
+%                 while znow > zfin
+%                     znow = znow - DZ/4;
+%                     obj.fine_z.writ(znow);
+%                     pause(.01);
+%                 end
+
+                for znow = (zbase + max(dZ)):(-DZ/2):(zbase + min(dZ))
+                    obj.fine_z.writ(znow);
+%                     pause(.01);
+                end
+
+                for znow = (zbase + min(dZ)):(DZ/2):(zfin-2*DZ)
+                    obj.fine_z.writ(znow);
+%                     pause(.01);
+                end
+                
+                obj.fine_z.writ(zfin);
+            else
+                obj.coarse_z.writ(zfin);
             end
             
             % Take a snapshot at the target Z for the user to examine the result. (remove?)
-            img = obj.image.snapImage();
+%             img = obj.image.snapImage();
+
+            pause(.2);
+
+            img = obj.image.grabFrame();
+
+            if obj.image.image.core.isSequenceRunning()
+                obj.image.image.core.stopSequenceAcquisition();
+            end
         end
     end
     
@@ -316,7 +378,7 @@ classdef metastage < handle % Modules.Driver
             dV = Vt - V;
             
             if norm(dV) > 3
-                disp('Don''t want to move too far right now.')
+                error('Don''t want to move too far right now.')
             end
             
 %             while norm(dV) > .1

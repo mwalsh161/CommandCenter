@@ -66,7 +66,7 @@ classdef umanager_invisible < Modules.Imaging
             end
         end
         function init(obj)
-            % Initialize Java Core
+            % Initialize Java Core.
             obj.initializing = true;
             try
                 import mmcorej.*;
@@ -76,6 +76,8 @@ classdef umanager_invisible < Modules.Imaging
                         '    This process asks you to append to MATLAB files such as librarypath.txt. You might not have adminstrative privledges to save these files directly; try modifying externally and move and replace as a workaround.']);
                 rethrow(err);
             end
+            
+            % Load config file.
             config_file_full = obj.config_file;
             if ~(  (length(obj.config_file)>1 && obj.config_file(2) == ':') ||... % PC
                    (~isempty(obj.config_file) && obj.config_file(1) == '/')  )    % Unix-based
@@ -86,7 +88,8 @@ classdef umanager_invisible < Modules.Imaging
                 error('Could not find config file: "%s"',config_file_full);
             end
             obj.core.loadSystemConfiguration(config_file_full);
-            % Load preferences
+            
+            % Load preferences.
             nbytes = obj.core.getBytesPerPixel;
             switch nbytes
                 case 1
@@ -104,6 +107,7 @@ classdef umanager_invisible < Modules.Imaging
             obj.core.setCircularBufferMemoryFootprint(single_image*obj.buffer_images);
             obj.initialized = true;
 
+            
             obj.exposure = obj.core.getExposure();
             obj.binning = str2double(obj.core.getProperty(obj.dev,'Binning'));
             res(1) = obj.core.getImageWidth();
