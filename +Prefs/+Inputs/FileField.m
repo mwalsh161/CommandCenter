@@ -25,6 +25,9 @@ classdef FileField < Prefs.Inputs.LabelControlBasic
                 [~,name,ext] = fileparts(val);
                 obj.ui.String = [name, ext];
             end
+            if ~isstruct(obj.ui.UserData)
+                obj.ui.UserData = struct();
+            end
             obj.ui.UserData.value = val;
             obj.ui.TooltipString = val;
         end

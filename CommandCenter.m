@@ -91,7 +91,7 @@ if exist(fullfile(path,'.lock'),'file')
     lock = fullfile(path,'.lock');
     
     answer = questdlg(sprintf('Found a lock file, are you sure there is no other CommandCenter instance running?\n%s', lock),...
-                                '.lock File Found', 'Continue With This Instance', 'Oops, An Instance Exists', 'Oops, An Instance Exists');
+                                '.lock File Found', 'Continue With This New Instance', 'Oops, An Old Instance Is Running', 'Oops, An Instance Exists');
                             
     switch answer
         case 'Continue With This Instance'

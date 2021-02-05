@@ -29,7 +29,7 @@ classdef MicroManager < Modules.Imaging
         continuous = false;     % Tempted to get rid of this.
     end
     properties%(Access=private)
-        core            % The Micro-Manager core utility (java); Access through mmc method
+        core            % The Micro-Manager core utility (java)
         
         pixelType = 'uint8';    % Set in constructor after loading config
         buffer_images = 2       % Size of buffer (images): buffer_images*core.getImageBufferSize
@@ -48,9 +48,10 @@ classdef MicroManager < Modules.Imaging
             obj = Object;
         end
     end
-    methods
+    methods(Access={?Imaging.MicroManagerVideomode})
         function obj = MicroManager()
             obj.path = 'camera';
+            obj.loadPrefs();
         end
     end
     
@@ -119,10 +120,19 @@ classdef MicroManager < Modules.Imaging
         function delete(obj)
             if obj.initialized
                 if obj.core.isSequenceRunning()
-                    obj.stopVideo();
+                    obj.core.stopSequenceAcquisition();
                 end
-                obj.core.reset()  % Unloads all devices, and clears config data
-                delete(obj.core)
+                
+                obj.core.reset();   % Unloads all devices, and clears config data
+                delete(obj.core);
+                
+                if ~isempty(obj.videoTimer)
+                    if isvalid(obj.videoTimer)
+                        stop(obj.videoTimer)
+                    end
+                    delete(obj.videoTimer)
+                    obj.videoTimer = [];
+                end
             end
         end
         function [values,options] = get_all_properties(obj)
@@ -225,6 +235,9 @@ classdef MicroManager < Modules.Imaging
 
         % Set methods for prefs
         function val = set_exposure(obj,val,~)
+            if isempty(obj.core)
+                return
+            end
             if val == obj.core.getExposure()
                 return
             end
@@ -245,7 +258,11 @@ classdef MicroManager < Modules.Imaging
             end
         end
         function val = set_binning(obj,val,~)
-            if val==str2double(obj.mmc('getProperty',obj.dev,'Binning'))
+            if isempty(obj.core)
+                return
+            end
+            
+            if val == str2double(obj.core.getProperty(obj.dev,'Binning'))
                 return
             end
             
@@ -268,7 +285,22 @@ classdef MicroManager < Modules.Imaging
                 obj.core.startContinuousSequenceAcquisition(100);
             end
         end
-        
+        function val = reload_toggle(obj,val,~)
+            % TODO: replace with a Prefs.Button
+            % Pretends to be a button from a boolean pref
+            if val
+                val = false; % Swap back to false
+                
+                if ~isempty(obj.core)
+                    obj.core.reset()  % Unloads all devices, and clears config data
+                    delete(obj.core)
+                end
+                
+                obj.init;
+            end
+%             obj.loadPrefs('-config_file','-dev');
+        end
+    
         % These functions should perhaps be somewhere else.
         function set.ROI(obj,val)
             % Because this has a draggable rectangle in CommandCenter, it

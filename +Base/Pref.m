@@ -184,8 +184,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                     if ischar(obj.(avail_methods{j}))
                         fnstring = obj.(avail_methods{j});
                         mmethod = methods(strcmp(fnstring,{methods.Name}));
-                        assert(~isempty(mmethod),sprintf('Could not find "%s" in "%s"',...
-                            fnstring, class(module_instance)));
+                        assert(~isempty(mmethod), sprintf('Could not find "%s" in "%s", which is assigned as the %s method for %s.',...
+                            fnstring, class(module_instance), avail_methods{j}, obj.property_name));
                         nout = mmethod.OutputNames;
                         if ismember('varargout',nout)
                             nout = -1;

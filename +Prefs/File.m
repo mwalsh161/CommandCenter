@@ -65,6 +65,9 @@ classdef File < Base.Pref
     methods (Hidden) % Callback
         function select_file(obj,hObj,eventdata,~)
             if ~isfield(hObj.UserData,'last_choice')
+                if ~isstruct(hObj.UserData)
+                    hObj.UserData = struct();
+                end
                 hObj.UserData.last_choice = obj.value;
             end
             name = sprintf('Select File: %s',obj.name);

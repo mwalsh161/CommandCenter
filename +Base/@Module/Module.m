@@ -409,12 +409,12 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
                 %obj.set_meta_pref(setting_names{i},mp);
-                try
+%                 try
                     mp.set_ui_value(mp.value); % Update to current value
-                catch err
-                    warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
-                        setting_names{i},class(mp.value),err.message)
-                end
+%                 catch err
+%                     warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
+%                         setting_names{i},class(mp.value),err.message)
+%                 end
             end
             max_label_width = widthPx/2;
             suggested_label_width = max(label_size(label_size < max_label_width)); % px
