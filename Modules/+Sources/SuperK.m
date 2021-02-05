@@ -12,13 +12,8 @@ classdef SuperK < Modules.Source
         ip = 'Deprecated Use';         % IP of computer with and server
         prefs = {'ip'};
     end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-        running                      % Boolean specifying if StaticLines program running
-    end
     properties(SetAccess=private,Hidden)
         listeners
-        status                       % Text object reflecting running
         path_button
         serial
     end
@@ -57,13 +52,13 @@ classdef SuperK < Modules.Source
                 rethrow(err)
             end
         end
-        function on(obj)
-            obj.serial.on();
-            obj.source_on = true;
-        end
-        function off(obj)
-            obj.serial.off();
-            obj.source_on = false;
+        function val = set_source_on(obj, val, ~)
+            assert(~isempty(obj.serial),'Not Connected!')
+            if val
+                obj.serial.on()
+            else
+                obj.serial.off();
+            end
         end
         
         % Settings and Callbacks

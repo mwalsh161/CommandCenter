@@ -22,8 +22,8 @@ classdef Verdi_invisible < handle
         function delete(obj)
             obj.inactive;
         end
-        function arm(obj)
-            obj.enabled = true;
+        function val = set_armed(obj, val, ~)
+            obj.enabled = logical(val);
         end
         function task = inactive(obj)
             task = '';

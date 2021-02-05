@@ -1,13 +1,10 @@
 classdef WhiteLight < Modules.Source
-    %LASER532 Summary of this class goes here
-    %   Detailed explanation goes here
+    %WHITELIGHT Is an antiquanted Source for analog LEDs such as:
+    % https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=2616
     
     properties
         intensity = 100;               % Intenisty 0-100 (0-5 V)
         prefs = {'intensity'};
-    end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
     end
     properties(Access=private)
         listeners
@@ -43,8 +40,6 @@ classdef WhiteLight < Modules.Source
         end
     end
     methods
-        function arm(~) % Nothing to do here
-        end
         function task = inactive(obj)
             task = '';
             if obj.source_on
@@ -70,11 +65,11 @@ classdef WhiteLight < Modules.Source
                 rethrow(err)
             end
         end
-        function on(obj)
-            obj.ni.WriteAOLines('LED',obj.intensity/20)
+        function val = set_source_on(obj, val, ~)
+            obj.ni.WriteAOLines('LED', logical(val) * obj.intensity/20)
         end
-        function off(obj)
-            obj.ni.WriteAOLines('LED',0)
+        function val = set_armed(obj, val, ~)
+            % Opt out of armed warning.
         end
         
         % Settings and Callbacks
