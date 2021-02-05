@@ -20,9 +20,6 @@ classdef AQ4321D < Modules.Source
         prefs = {'port'};
         show_prefs = {'port','wavelength','frequency','power_mW'}
     end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
-    end
     properties(SetObservable, AbortSet)
         port = 'Not Connected';
         wavelength = NaN;
@@ -106,17 +103,9 @@ classdef AQ4321D < Modules.Source
             end
             delete(obj.listeners)
         end
-        function on(obj)
-            %turns laser emission on
+        function val = set_source_on(obj, val, ~)
             assert(~isempty(obj.serial),'Not Connected!')
-            obj.serial.SetEmission(true)
-            obj.source_on = true;
-        end
-        function off(obj)
-            %turns laser emission off
-            assert(~isempty(obj.serial),'Not Connected!')
-            obj.serial.SetEmission(false)
-            obj.source_on = false;
+            obj.serial.SetEmission(val)
         end
         
         %set methods that talk to driver
