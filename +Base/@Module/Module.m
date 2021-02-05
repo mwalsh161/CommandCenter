@@ -30,19 +30,41 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
 
-    methods(Sealed)
-        function obj = Module
+    methods(Static)
+        [code,f] = uibuild(block,varargin)
+    end
+    methods(Static,Sealed)
+        function [namespace,CC_handle] = get_namespace(classname)
+            % This function returns the formatted namespace string to be used with MATLAB prefs
+            % It is recommended to be called using either mfilename or class to help construct input:
+            %   ... obj.get_namespace(class(obj));
+            %   ... Base.Module.get_namespace(mfilename('class'))
+
+            % isvector takes care of non-empty too
+            assert(ischar(classname) && isvector(classname),'classname must be a non-empty character vector.')
+            % Convert periods in classname to underscores
+            name = strrep(classname,'.','_');
+            assert(isvarname(name),'converting "." to "_" was not sufficient to turn classname into a valid variable name in MATLAB.')
+            
+            CC_handle = findall(0,'name','CommandCenter');
+            if isempty(CC_handle)
+                pre = '';
+            else
+                pre = getappdata(CC_handle,'namespace_prefix');
+            end
+            namespace = [pre name];
+        end
+    end
+    methods
+        function obj = Module()
             warnStruct = warning('off','MATLAB:structOnObject');
             obj.StructOnObject_state = warnStruct.state;
-            hObject = findall(0,'name','CommandCenter');
-            if isempty(hObject)
-                pre = '';
+            [obj.namespace,hObject] = obj.get_namespace(class(obj));
+            
+            if isempty(hObject) 
                 obj.logger = Base.Logger_console();
-            else
-                pre = getappdata(hObject,'namespace_prefix');
+                return
             end
-            obj.namespace = [pre strrep(class(obj),'.','_')];
-            if isempty(hObject); return; end
             mods = getappdata(hObject,'ALLmodules');
             obj.logger = getappdata(hObject,'logger');
             mods{end+1} = obj;
@@ -98,6 +120,8 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
             % *************************[END LEGACY]*****************************
             % ******************************************************************
         end
+    end 
+    methods(Sealed)
         function module_clean(obj,hObj,prop)
             to_remove = false(size(obj.(prop)));
             for i = 1:length(obj.(prop)) % Heterogeneous list; cant do in one line
@@ -453,4 +477,3 @@ classdef Module < Base.Singleton & Base.pref_handler & matlab.mixin.Heterogeneou
         end
     end
 end
-

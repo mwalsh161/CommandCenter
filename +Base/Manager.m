@@ -60,7 +60,7 @@ classdef Manager < handle
     
     methods(Static)
         function getAvailModules(package,parent_menu,fun_callback,fun_in_use)
-            path = fileparts(fileparts(mfilename('fullpath'))); % Root AutomationSetup/
+            path = fileparts(fileparts(mfilename('fullpath'))); % Root CommandCenter/
             [prefix,module_strs,packages] = Base.GetClasses(path,'Modules',package);  % Returns name without package name
             % Alphabetic order
             packages = sortrows(packages');
