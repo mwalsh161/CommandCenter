@@ -73,6 +73,16 @@ if strcmp(hObject.Visible,'on')
     % Means it already exists, so do nothing
     return
 end
+% Check compatibility
+if verLessThan('matlab','9.4') % R2018a
+    delete(hObject);
+    msg = ['You are running a MATLAB version less than R2018a (version 9.4). ',...
+           'You may encounter unexpected errors due to a major update in ',...
+           'implicit superclass constructor calls.' newline newline...
+           'Update to a newer release >= R2018a!'];
+    errordlg(msg);
+    throwAsCaller(MException('CommandCenter:version',msg));
+end
 MATLAB_prefs = fullfile(prefdir,'matlabprefs.mat');
 key = 'ROYZNcVBgWkT8xiwcg5m2Nn9Gb4EAegF2XEN1i5adWD';  % CC key (helps avoid spam)
 [path,~,~] = fileparts(mfilename('fullpath'));
