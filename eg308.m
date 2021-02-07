@@ -1,4 +1,11 @@
-function eg308(ms)
+function eg308(ms, managers)
+    % Disable inactivity!
+    timerH = managers.handles.inactivity_timer;
+    managers.inactivity = false;
+    if ~isempty(timerH)
+        stop(timerH);
+    end
+
     xsweep = 0:50;
     ysweep = 0:20;
     
@@ -37,11 +44,7 @@ function eg308(ms)
             fname = ['X=' num2str(X) '.Y=' num2str(Y)];
             
             disp(['Moving to ' fname '!']);
-            try
             ms.navigateTarget(X + ms.offset, Y + ms.offset);
-            catch err
-                warning(err.message)
-            end
             
 %             if ms.image.N < 3
             ms.focusSmart();

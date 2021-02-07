@@ -215,7 +215,7 @@ classdef metastage < handle % Modules.Driver
             pause(.2);
             
             % Take a snapshot at the target Z for the user to examine the result. (remove?)
-            img = obj.image.snapImage();
+            obj.image.snapImage();
         end
     end
     
@@ -409,19 +409,13 @@ classdef metastage < handle % Modules.Driver
                     snap = round(V - o) + o;
 
                     dV = Vt - snap;
-                    
-                    dV
 
                     heading = round(vectorAngle(dV) * 4/pi) * pi/4;
 
                     dV2 = [cos(heading); sin(heading)];
                     dV2 = dV2 / max(abs(dV2));
-                    
-                    dV2
 
                     dV3 = dV2 + (snap - V);
-                    
-                    dV3
                     
                     navigateStep(obj, dV3(1), dV3(2));
                 end
@@ -439,9 +433,6 @@ classdef metastage < handle % Modules.Driver
             if any(isnan(V))
                 error('Could not register.')
             end
-            
-            Vt
-            V
             
             dV = Vt - V;
             
