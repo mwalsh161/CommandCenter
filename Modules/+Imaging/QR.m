@@ -37,7 +37,10 @@ classdef QR < Modules.Imaging
         X
         Y
         N
-        
+    end
+    properties
+        X_expected = NaN;
+        Y_expected = NaN;
     end
 
     methods(Access=private)
@@ -121,7 +124,7 @@ classdef QR < Modules.Imaging
             end
 
             % Provide a guess starting point for the convolutional algorithm.
-            options_guess = struct('ang', (obj.QR_ang + 90) * pi / 180, 'calibration', obj.calibration);
+            options_guess = struct('ang', (obj.QR_ang + 90) * pi / 180, 'calibration', obj.calibration, 'X_expected', obj.X_expected, 'Y_expected', obj.Y_expected);
             
             % Perform the convolution, 
             [v, V, options_fit, stages] = Base.QRconv(img, options_guess);
@@ -130,6 +133,11 @@ classdef QR < Modules.Imaging
             obj.X = options_fit.Vcen(1);
             obj.Y = options_fit.Vcen(2);
             obj.N = sum(~options_fit.outliers & ~isnan(V(1,:)));
+            
+            if obj.N >= 3
+                obj.X_expected = obj.X;
+                obj.Y_expected = obj.Y;
+            end
             
             %
             if obj.N > 2
@@ -256,7 +264,13 @@ classdef QR < Modules.Imaging
                 kk = kk + 1;
             end
             
-            obj.graphics.centertext.String = ['  [' num2str(options_fit.Vcen(1), '%.2f') ', ' num2str(options_fit.Vcen(2), '%.2f') ']'];
+            if any(isnan(options_fit.Vcen))
+                obj.graphics.centertext.String = '';
+                obj.graphics.center.MarkerEdgeColor = 'y';
+            else
+                obj.graphics.centertext.String = ['  [' num2str(options_fit.Vcen(1), '%.2f') ', ' num2str(options_fit.Vcen(2), '%.2f') ']'];
+                obj.graphics.center.MarkerEdgeColor = 'g';
+            end
             
             obj.graphics.p1.XData = p1x; obj.graphics.p1.YData = p1y;
             obj.graphics.p2.XData = p2x; obj.graphics.p2.YData = p2y;

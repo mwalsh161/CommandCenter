@@ -12,6 +12,15 @@ classdef metastage < handle % Modules.Driver
         fine_z =        []; %Prefs.Pointer();
     end
     
+    properties(Hidden)
+        coarse_x_last   = NaN;
+        fine_x_last     = NaN;
+        coarse_y_last   = NaN;
+        fine_y_last     = NaN;
+        coarse_z_last   = NaN;
+        fine_z_last     = NaN;
+    end
+    
     properties (GetObservable, SetObservable)
         image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image');
         
@@ -75,7 +84,7 @@ classdef metastage < handle % Modules.Driver
             elseif obj.image.N == 2     % Do a local focus with a few more frames.
                 success = obj.focus(19, 1.8);
             else                        % Do a larger local focus.
-                success = obj.focus(35, 3.4);
+                success = obj.focus(37, 3.6);
             end
         end
         function success = focus(obj, N, zspan, isfine)
@@ -100,7 +109,7 @@ classdef metastage < handle % Modules.Driver
                 if abs(zbase - zcen) > .3*zrange                % If fine is about to exceed bounds ...
                     ramp(obj.fine_z, zbase, zcen - sign(zbase - zcen)*.2*zrange, DZ/4);     % Recenter, but overshoot by .2*range...
 
-                    obj.focus(41, -80e-3, false);                % Focus coarse (dangerous, but probs fine).
+                    obj.focus(81, 80e-3, false);                % Focus coarse (dangerous, but probs fine).
                 end
             end
             
@@ -128,7 +137,9 @@ classdef metastage < handle % Modules.Driver
             
             yyaxis right;
             p2 = plot(zbase + dZ, metric2);
-            ylabel('Number of QRs Detected');
+            ylabel('Number of Self-Consistent QRs Detected');
+            
+            xlim(zbase + [min(dZ), max(dZ)])
             
             if isfine
                 xlabel(obj.fine_z.get_label());
@@ -146,7 +157,7 @@ classdef metastage < handle % Modules.Driver
                     if ii == 1
                         pause(1);
                     end
-                    pause(.5);
+                    pause(.25);
                 end
 %                 pause(.05);
                 
@@ -179,15 +190,19 @@ classdef metastage < handle % Modules.Driver
             
             success = max(metric2) > 0;     % Return success if we found at least one QR...
             
-            if success      % If success, return the Z where the most QRs were legible.
-                if max(metric2) == 1
-                    zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2)) - DZ;
+%             if success      % If success, return the Z where the most QRs were legible.
+                if max(metric2) == 0 
+                    zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2));
                 else
-                    zfin = zbase + mean(dZ(metric2 == max(metric2))) - DZ;
+                    zfin = zbase + mean(dZ(metric2 == max(metric2)));
                 end
-            else            % If no QRs were found, return to the starting point.
-                zfin = zbase;
-            end
+                
+                if isfine
+                    zfin = zfin - DZ;   % Tends to give better results.
+                end
+%             else            % If no QRs were found, return to the starting point.
+%                 zfin = zbase;
+%             end
             
             % Ramp to the desired final z.
             if isfine
@@ -351,12 +366,15 @@ classdef metastage < handle % Modules.Driver
             
             dv = obj.calibration_coarse * dV;
             
-            if norm(dv) > .5
+            if norm(dv) > .25
                 error('Don''t want to move too far.');
             end
             
             obj.coarse_x.writ(obj.coarse_x.read() + dv(1));
             obj.coarse_y.writ(obj.coarse_y.read() + dv(2));
+            
+            obj.image.X_expected = obj.image.X_expected + dV(1);
+            obj.image.Y_expected = obj.image.Y_expected + dV(2);
             
             pause(.5 + norm(dV)*.5);
             
@@ -375,8 +393,15 @@ classdef metastage < handle % Modules.Driver
             
             if norm(dV) > 3
                 while norm(dV) > 2
+%                     obj.focusSmart();
+                    
                     V = [obj.image.X; obj.image.Y];
 
+                    if any(isnan(V))
+                        warning('Could not register.')
+                        V = [obj.image.X_expected; obj.image.Y_expected];
+                    end
+            
                     if any(isnan(V))
                         error('Could not register.')
                     end
@@ -402,7 +427,22 @@ classdef metastage < handle % Modules.Driver
                 end
             end
             
+%             obj.focusSmart();
+                    
             V = [obj.image.X; obj.image.Y];
+            
+            if any(isnan(V))
+                warning('Could not register.')
+                V = [obj.image.X_expected; obj.image.Y_expected];
+            end
+            
+            if any(isnan(V))
+                error('Could not register.')
+            end
+            
+            Vt
+            V
+            
             dV = Vt - V;
             
             if norm(dV) > 3
@@ -435,6 +475,8 @@ end
 function s = sharpness(img)
     % Computes a metric for sharpness by averaging the gradients of the
     % image. Blurier images will have less gradient and thus less sharpness.
+    img = imresize(img, .5, 'bilinear');
+    
     s = mean(mean(((                    ...
         diff(img(:,1:(end-1)), [], 1) .^ 2 +    ...     % y gradient
         diff(img(1:(end-1),:), [], 2) .^ 2      ...     % x gradient

@@ -18,6 +18,12 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     l = QR_parameters.l / options_guess.calibration;
     options_guess.d = QR_parameters.d;
     
+    if isfield(options_guess, 'X_expected') && isfield(options_guess, 'Y_expected')
+        V_expected = [options_guess.X_expected; options_guess.Y_expected];
+    else
+        V_expected = [NaN; NaN];
+    end
+    
     % Step 1: remove gradients 
     flat = flatten(img);
     
@@ -30,7 +36,7 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     stages = struct('flat', flat, 'conv', conv, 'convH', convH, 'convV', convV, 'bw', bw);
     
     % Step 4: using the candidate locations, return the location of QR codes.
-    [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l);
+    [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l,  V_expected);
     
     v = [cx; cy];
     V = [CX; CY];
@@ -52,7 +58,11 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     % Step 5: fit a coordinate system to the positions of our QR codes.
     [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_guess);
     
-    Vcen = invaffine((size(img)/2)', M, b);
+    if ~any(isnan([M(:); b(:)]))
+        Vcen = invaffine((size(img)/2)', M, b);
+    else
+        Vcen = [NaN; NaN];
+    end
     
     xaxis = affine([1;0], M, [0; 0]);
     if xaxis(1) == 0
@@ -124,7 +134,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
 
     conv = convH.*convH.*convH + convV.*convV.*convV;
 end
-function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
+function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
     S = size(conv);
 
     ca0 = cos(ang0);
@@ -162,6 +172,8 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
 
     CX = NaN*cx;
     CY = NaN*cx;
+    
+    m_vectors = NaN(25, NQR);
 
     for ii = 1:NQR
         if cx(ii) + lxx < pad || cx(ii) + lxx > S(2) - pad || cy(ii) + lyy < pad || cy(ii) + lyy > S(1) - pad
@@ -176,6 +188,29 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l)
             end
 
             [CX(ii), CY(ii), ~, isQR(ii)] = interpretQR(m(:));
+            
+            if ~isQR(ii) && ~any(isnan(V_expected))
+                dist = 2;
+                
+                for jj = 1:25
+                    m_ = m(:);
+                    m_(jj) = ~m_(jj);
+                    [CX_, CY_, ~, isQR_] = interpretQR(m_(:));
+                    
+                    if isQR_
+                        dist_ = norm([CX_; CY_] - V_expected);
+                        
+                        if dist_ < dist 
+                            CX(ii) = CX_;
+                            CY(ii) = CY_;
+                            isQR(ii) = true;
+                            dist = dist_;
+                        end
+                    end
+                end
+            end
+            
+            m_vectors(:,ii) = m(:);
             
             if CX(ii) == 0 && CY(ii) == 0   % Empty bits reads as [0,0] QR, so most [0,0] are false positives.
                 isQR(ii) = false;
@@ -231,21 +266,41 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     % We want to find which candidate is correct.
     b_guesses = v - M_guess * V;
     
+    if isfield(options_guess, 'X_expected') && isfield(options_guess, 'Y_expected')
+        V_expected = [options_guess.X_expected; options_guess.Y_expected];
+    else
+        V_expected = [NaN; NaN];
+    end
+    b_expected = [256; 256] - M_guess * V_expected;     % Make not camera specific!
+    
     % Setup variables that we will change as we loop.
     mostvotes = 1;
-    b_guess = [];
-    outliers = false(1, size(b_guesses,2));
+    b_guess = [NaN; NaN];
+    outliers = true(1, size(b_guesses,2));
+    dist = 3*options_guess.d;
     
     % Radius within which b guesses are considered the same guess.
-    R = 2*options_guess.d;
+    R = options_guess.d;
     
     for ii = 1:size(b_guesses,2)                                % For every candidate...
-        votes = sum((b_guesses - b_guesses(:, ii)).^2) < R*R;   % How many other candidates agree?
-        if mostvotes <= sum(votes)                              % If this is a new record...
-            mostvotes = sum(votes);                             % Record the record.
-            b_guess = mean(b_guesses(:, votes), 2);             % And estimate b as the average.
-            outliers = ~votes;                                  % Record the candidates that were outside.
+        if ~any(isnan(b_guesses(:, ii)))
+            votes = sum((b_guesses - b_guesses(:, ii)).^2) < R*R;   % How many other candidates agree?
+            
+            if mostvotes <= sum(votes)                              % If this is a new record...
+                b_guess = mean(b_guesses(:, votes), 2);             % Estimate b as the average.
+                dist_ = norm(b_guess - b_expected);
+                
+                if sum(votes) > 1 || dist_ < dist
+                    dist = dist_;
+                    mostvotes = sum(votes);                             % Record the record.
+                    outliers = ~votes;                                  % Record the candidates that were outside.
+                end
+            end
         end
+    end
+    
+    if sum(~outliers) < 2 && ~any(isnan(b_expected)) && norm(b_guess - b_expected) > 3*options_guess.d
+        outliers(:) = true;
     end
     
 %     if mostvotes
@@ -261,6 +316,17 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
 %     p_guess = b_guess';
 %     p = fminsearch(fun, p_guess, struct('TolFun', 1, 'TolX', 1e-1));
 %     
+    
+    if isempty(v_trim)
+        M = [[NaN NaN]; [NaN NaN]];
+        b = [NaN; NaN];
+        
+        M2 = M;
+        b2 = b;
+        
+        return;
+    end
+    
     M2 = M_guess;
     b2 = b_guess;
 
@@ -285,7 +351,10 @@ function img = threshold(img)
     img = imbinarize(img);
 end
 function img = flatten(img)
-    img = imgaussfilt(img,10) - imgaussfilt(img,1);
+%     img = imgaussfilt(img,10) - imgaussfilt(img,1);
+% class(imgaussfilt(img,10))
+    img = imgaussfilt(img,10) - img;
+%     img = imgaussfilt(img,10) - imgaussfilt(img,2);
 end
 
 
