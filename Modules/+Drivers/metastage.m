@@ -71,11 +71,11 @@ classdef metastage < handle % Modules.Driver
             elseif obj.image.N == 4     % All good, probs. Maybe add an option for precise focus.
                 
             elseif obj.image.N == 3     % Do a local focus with only a few frames. 
-                success = obj.focus(7+6, 1.2);
+                success = obj.focus(13, 1.2);
             elseif obj.image.N == 2     % Do a local focus with a few more frames.
-                success = obj.focus(9+8, 1.6);
+                success = obj.focus(19, 1.8);
             else                        % Do a larger local focus.
-                success = obj.focus(15+14, 2.8);
+                success = obj.focus(35, 3.4);
             end
         end
         function success = focus(obj, N, zspan, isfine)
@@ -98,9 +98,9 @@ classdef metastage < handle % Modules.Driver
                 zbase =  obj.fine_z.read();
                     
                 if abs(zbase - zcen) > .3*zrange                % If fine is about to exceed bounds ...
-                    ramp(obj.fine_z, zbase, zcen, DZ/4);        % Recenter...
+                    ramp(obj.fine_z, zbase, zcen - sign(zbase - zcen)*.2*zrange, DZ/4);     % Recenter, but overshoot by .2*range...
 
-                    obj.focus(21, 40e-3, false);                % Focus coarse (dangerous, but probs fine).
+                    obj.focus(41, -80e-3, false);                % Focus coarse (dangerous, but probs fine).
                 end
             end
             
@@ -111,10 +111,12 @@ classdef metastage < handle % Modules.Driver
             end
             
             metric1 = NaN(1, length(dZ));
-            metric2 = NaN(1, length(dZ));
+            metric2 = metric1;
+            XX = metric1;
+            YY = metric1;
             
             if isfine
-                ramp(obj.fine_z, zbase, zbase + min(dZ), DZ/4); % Ramp to the starting point.
+                ramp(obj.fine_z, zbase, zbase + min(dZ), DZ/2); % Ramp to the starting point.
             end
             
             % Plot sharpness and #QRs.
@@ -141,8 +143,12 @@ classdef metastage < handle % Modules.Driver
                     obj.fine_z.writ(zbase + dZ(ii));
                 else
                     obj.coarse_z.writ(zbase + dZ(ii));
+                    if ii == 1
+                        pause(1);
+                    end
+                    pause(.5);
                 end
-                pause(.05);
+%                 pause(.05);
                 
                 img = obj.image.snapImage();
                 
@@ -152,14 +158,22 @@ classdef metastage < handle % Modules.Driver
                 % Should also use X & Y reasonability as a metric.
 %                 obj.image.X
 %                 obj.image.Y
+
+                XX(ii) = obj.image.X;
+                YY(ii) = obj.image.Y;
                 
                 % Give the user an idea of what's happening by plotting.
                 p1.YData = metric1;
                 p2.YData = metric2;
+                drawnow;
                 
                 switch obj.graphics.figure.Visible
                     case 'off'
                         obj.graphics.figure.Visible = 'on';
+                end
+                
+                if max(metric2) == 4 && metric2(ii) < 3
+                    break;
                 end
             end
             
@@ -167,9 +181,9 @@ classdef metastage < handle % Modules.Driver
             
             if success      % If success, return the Z where the most QRs were legible.
                 if max(metric2) == 1
-                    zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2));
+                    zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2)) - DZ;
                 else
-                    zfin = zbase + mean(dZ(metric2 == max(metric2)));
+                    zfin = zbase + mean(dZ(metric2 == max(metric2))) - DZ;
                 end
             else            % If no QRs were found, return to the starting point.
                 zfin = zbase;
@@ -177,8 +191,8 @@ classdef metastage < handle % Modules.Driver
             
             % Ramp to the desired final z.
             if isfine
-                ramp(obj.fine_z, zbase + max(dZ), zbase + min(dZ),  DZ/4); % Ramp to the starting point.
-                ramp(obj.fine_z, zbase + min(dZ), zfin,             DZ/4); % Ramp to the desired value.
+                ramp(obj.fine_z, zbase + max(dZ), zbase + min(dZ),  DZ/2); % Ramp to the starting point.
+                ramp(obj.fine_z, zbase + min(dZ), zfin,             DZ/2); % Ramp to the desired value.
             else
                 obj.coarse_z.writ(zfin);
             end
@@ -199,7 +213,7 @@ classdef metastage < handle % Modules.Driver
     
     methods
         function calibrate(obj)
-            if ~obj.focus(11, 2)
+            if ~obj.focusSmart()
                 disp('Focus onto QR codes was not successful. Try moving to an area with legible QR codes.');
                 return
             end
@@ -232,11 +246,15 @@ classdef metastage < handle % Modules.Driver
                 obj.graphics.axes = axes(obj.graphics.figure, 'DataAspectRatio', [1 1 1]);
 
                 for pp = positions  % Successively move from the current postion.
-                    pref.writ(base + pp * step);
-                    pause(.2);
-                    if ~isfine
-                        pause(1);
+                    if isfine
+                        pref.writ(base + (pp - .5) * step);
                     end
+                    pref.writ(base + pp * step);
+                    pause(.4);
+%                     pause(.2);
+%                     if ~isfine
+%                         pause(.2);
+%                     end
 
                     % At each position, find the image-feedback location.
                     obj.image.snapImage();
@@ -309,7 +327,7 @@ classdef metastage < handle % Modules.Driver
                 heading = round(vectorAngle(dV) * 4/pi) * pi/4;
 
                 for dheading = [0, 1, -1]   % center, left, right, fail
-                    ang = heading + dheading * pi/4;
+                    ang = heading %+ dheading * pi/4;
 
                     dV2 = [cos(ang); sin(ang)];
                     dV2 = dV2 / max(abs(dV2));
@@ -327,10 +345,20 @@ classdef metastage < handle % Modules.Driver
            
             dV = [dX; dY];
             
+            if norm(dV) > 3
+                error('Don''t want to move too far.');
+            end
+            
             dv = obj.calibration_coarse * dV;
+            
+            if norm(dv) > .5
+                error('Don''t want to move too far.');
+            end
             
             obj.coarse_x.writ(obj.coarse_x.read() + dv(1));
             obj.coarse_y.writ(obj.coarse_y.read() + dv(2));
+            
+            pause(.5 + norm(dV)*.5);
             
             obj.focusSmart();
         end
@@ -343,21 +371,45 @@ classdef metastage < handle % Modules.Driver
             
             dV = Vt - V;
             
+            o = [obj.offset; obj.offset];
+            
             if norm(dV) > 3
-                error('Don''t want to move too far right now.')
+                while norm(dV) > 2
+                    V = [obj.image.X; obj.image.Y];
+
+                    if any(isnan(V))
+                        error('Could not register.')
+                    end
+
+                    snap = round(V - o) + o;
+
+                    dV = Vt - snap;
+                    
+                    dV
+
+                    heading = round(vectorAngle(dV) * 4/pi) * pi/4;
+
+                    dV2 = [cos(heading); sin(heading)];
+                    dV2 = dV2 / max(abs(dV2));
+                    
+                    dV2
+
+                    dV3 = dV2 + (snap - V);
+                    
+                    dV3
+                    
+                    navigateStep(obj, dV3(1), dV3(2));
+                end
             end
             
-%             while norm(dV) > .1
-            dv = obj.calibration_coarse * dV;
+            V = [obj.image.X; obj.image.Y];
+            dV = Vt - V;
             
-            obj.coarse_x.writ(obj.coarse_x.read() + dv(1));
-            obj.coarse_y.writ(obj.coarse_y.read() + dv(2));
+            if norm(dV) > 3
+                error('We should be closer than this.')
+            end
             
-            pause(.5);
-            
-%             end
-            
-            obj.focusSmart();
+            navigateStep(obj, dV(1), dV(2));
         end
     end
     

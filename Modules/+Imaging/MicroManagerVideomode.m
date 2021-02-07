@@ -86,8 +86,7 @@ classdef MicroManagerVideomode < Imaging.MicroManager
             height = obj.core.getImageHeight();
 
             while obj.core.getRemainingImageCount() == 0 && toc(t) < obj.timeout
-                toc(t)
-                pause(.01);
+                pause(.005);
             end
             
             im = [];
