@@ -78,13 +78,13 @@ classdef metastage < handle % Modules.Driver
             if obj.image.N > 4
                 disp('Detected more than four QR codes. Need to add better checks to resolve this.')
             elseif obj.image.N == 4     % All good, probs. Maybe add an option for precise focus.
-                
+                success = obj.focus(9, .8);
             elseif obj.image.N == 3     % Do a local focus with only a few frames. 
                 success = obj.focus(13, 1.2);
             elseif obj.image.N == 2     % Do a local focus with a few more frames.
                 success = obj.focus(19, 1.8);
             else                        % Do a larger local focus.
-                success = obj.focus(37, 3.6);
+                success = obj.focus(41, 4);
             end
         end
         function success = focus(obj, N, zspan, isfine)
@@ -107,7 +107,7 @@ classdef metastage < handle % Modules.Driver
                 zbase =  obj.fine_z.read();
                     
                 if abs(zbase - zcen) > .3*zrange                % If fine is about to exceed bounds ...
-                    ramp(obj.fine_z, zbase, zcen - sign(zbase - zcen)*.2*zrange, DZ/4);     % Recenter, but overshoot by .2*range...
+                    ramp(obj.fine_z, zbase, zcen - sign(zbase - zcen)*.2*zrange, DZ/2);     % Recenter, but overshoot by .2*range...
 
                     obj.focus(81, 80e-3, false);                % Focus coarse (dangerous, but probs fine).
                 end
@@ -194,6 +194,10 @@ classdef metastage < handle % Modules.Driver
                 if max(metric2) == 0 
                     zfin = zbase + mean(dZ(metric1 > (max(metric1) + min(metric1))/2));
                 else
+%                     croppedmetric1 = metric1;
+%                     croppedmetric1(metric2 ~= max(metric2)) = 0;
+%                     
+%                     zfin = zbase + mean(dZ(croppedmetric1 == max(croppedmetric1)));
                     zfin = zbase + mean(dZ(metric2 == max(metric2)));
                 end
                 
@@ -366,7 +370,7 @@ classdef metastage < handle % Modules.Driver
             
             dv = obj.calibration_coarse * dV;
             
-            if norm(dv) > .25
+            if norm(dv) > .3
                 error('Don''t want to move too far.');
             end
             
@@ -414,6 +418,10 @@ classdef metastage < handle % Modules.Driver
 
                     dV2 = [cos(heading); sin(heading)];
                     dV2 = dV2 / max(abs(dV2));
+                    
+                    if norm(dV) > 3
+                        dV2 = 2 * dV2;
+                    end
 
                     dV3 = dV2 + (snap - V);
                     
@@ -432,6 +440,21 @@ classdef metastage < handle % Modules.Driver
             
             if any(isnan(V))
                 error('Could not register.')
+            end
+            
+            dV = Vt - V;
+            
+            if norm(dV) > 3
+                warning('We should be closer than this.')
+                
+                obj.focusSmart();
+                
+                V = [obj.image.X; obj.image.Y];
+
+                if any(isnan(V))
+                    warning('Could not register.')
+                    V = [obj.image.X_expected; obj.image.Y_expected];
+                end
             end
             
             dV = Vt - V;

@@ -7,6 +7,7 @@ classdef MicroManagerVideomode < Imaging.MicroManager
     end
     properties(SetAccess=private)
         timeout = Inf 
+        attempts = 0;
     end
     
     methods(Static)
@@ -57,7 +58,6 @@ classdef MicroManagerVideomode < Imaging.MicroManager
         end
         
         function val = set_videomode(obj, val, pref)
-            'videomode'
             if pref.value && ~val       % Turning off
                 obj.core.stopSequenceAcquisition();
             elseif val && ~pref.value   % Turning on
@@ -102,8 +102,20 @@ classdef MicroManagerVideomode < Imaging.MicroManager
                 end
             end
             
-            if obj.timeout <= toc(t)
-                error(['Camera "' obj.dev '" failed to acquire image within the timeout of ' num2str(obj.timeout) ' seconds.']);
+            if obj.timeout <= toc(t) 
+                str = ['Camera "' obj.dev '" failed to acquire image within the timeout of ' num2str(obj.timeout) ' seconds.'];
+                if obj.attempts > 0
+                    error(str);
+                else
+                    warning(str);
+
+                    obj.videomode = false;
+                    obj.reload = true;
+
+                    obj.attempts = 1;
+                    im = obj.snapImage();
+                    obj.attempts = 0;
+                end
             end
             
             if isempty(im)

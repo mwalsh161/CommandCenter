@@ -266,6 +266,16 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     % We want to find which candidate is correct.
     b_guesses = v - M_guess * V;
     
+    duplicates = false(1, size(b_guesses,2));
+    
+    for ii = 1:size(V,2)
+        dduplicates = V(1,:) == V(1, ii) & V(2,:) == V(2, ii);
+        
+        if sum(dduplicates) > 1
+            duplicates = duplicates | dduplicates;
+        end
+    end
+    
     if isfield(options_guess, 'X_expected') && isfield(options_guess, 'Y_expected')
         V_expected = [options_guess.X_expected; options_guess.Y_expected];
     else
@@ -283,8 +293,8 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     R = options_guess.d;
     
     for ii = 1:size(b_guesses,2)                                % For every candidate...
-        if ~any(isnan(b_guesses(:, ii)))
-            votes = sum((b_guesses - b_guesses(:, ii)).^2) < R*R;   % How many other candidates agree?
+        if ~any(isnan(b_guesses(:, ii))) && ~duplicates(ii)
+            votes = sum((b_guesses - b_guesses(:, ii)).^2) < R*R & ~duplicates;   % How many other candidates agree?
             
             if mostvotes <= sum(votes)                              % If this is a new record...
                 b_guess = mean(b_guesses(:, votes), 2);             % Estimate b as the average.

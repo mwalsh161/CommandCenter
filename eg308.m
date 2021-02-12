@@ -1,13 +1,15 @@
 function eg308(ms, managers)
+    folder = 'Z:\Experiments\Diamond\EG308 round 2\2021_02_10 RoMi\';
+
     % Disable inactivity!
     timerH = managers.handles.inactivity_timer;
-    managers.inactivity = false;
+    managers.inactivity = true;
     if ~isempty(timerH)
         stop(timerH);
     end
 
-    xsweep = 0:50;
-    ysweep = 0:20;
+    xsweep = 0:80;
+    ysweep = 0:80;
     
     ard =   Drivers.ArduinoServo.instance('localhost', 3);
     red =   Sources.WhiteLight.instance();
@@ -21,45 +23,57 @@ function eg308(ms, managers)
     set(a, 'YDir', 'normal');
     colormap('gray');
     
-    baseX = round(ms.image.X - ms.offset);
-    baseY = round(ms.image.Y - ms.offset);
-    ms.navigateTarget(baseX + ms.offset, baseY + ms.offset);
+    ard.angle = 0;      % No filter.
+    red.on();
+    green.off();
+    
+    baseX = 15; %round(ms.image.X - ms.offset);
+    baseY = 15; %round(ms.image.Y - ms.offset);
+%     ms.navigateTarget(baseX + ms.offset, baseY + ms.offset);
+    
+    N = 81*16 - 16;
+    
+    n = 1;
 
     for ii = 1:length(xsweep)
         for jj = 1:length(ysweep)
-            dX = xsweep(ii);
-            dY = ysweep(jj);
-            
-            if ~mod(ii, 2)
-                dY = ysweep(end+1-jj);
+            if n > N
+                dX = xsweep(ii);
+                dY = ysweep(jj);
+
+                if ~mod(ii, 2)
+                    dY = ysweep(end+1-jj);
+                end
+
+                X = baseX + dX;
+                Y = baseY + dY;
+
+    %             ms.target_X = X + ms.offset;
+    %             ms.target_Y = Y + ms.offset;
+    %             ms.targeting = true;
+
+                fname = ['X=' num2str(X) '.Y=' num2str(Y)];
+
+                disp(['Moving to ' fname '!']);
+                ms.navigateTarget(X + ms.offset, Y + ms.offset);
+
+    %             if ms.image.N < 3
+                ms.focusSmart();
+    %             end
+
+                saveas(ms.image.graphics.figure, [folder fname '.png']);
+
+                measure([folder fname '.mat']);
             end
-            
-            X = baseX + dX;
-            Y = baseY + dY;
-            
-%             ms.target_X = X + ms.offset;
-%             ms.target_Y = Y + ms.offset;
-%             ms.targeting = true;
-            
-            fname = ['X=' num2str(X) '.Y=' num2str(Y)];
-            
-            disp(['Moving to ' fname '!']);
-            ms.navigateTarget(X + ms.offset, Y + ms.offset);
-            
-%             if ms.image.N < 3
-            ms.focusSmart();
-%             end
-            
-            saveas(ms.image.graphics.figure, [fname '.png']);
-            
-            measure([fname '.mat']);
+            n = n + 1;
         end
     end
     
 
     function measure(fname)
-        angles = [0 0:60:180];
-        names = {'wl', 'g_550LP', 'g_550LP_SiVZPL', 'g_550LP_GeVZPL', 'g_550LP_640LP'};
+        angles = [0 0:60:180 0];
+%         names = {'wl', 'g_550LP', 'g_550LP_SiVZPL', 'g_550LP_GeVZPL', 'g_550LP_640LP'};
+        names = {'wlpre', 'g_550LP', 'g_550LP_GeVZPL', 'g_550LP_SiVZPL', 'g_550LP_640LP', 'wlpost'};
         
         fin.coarse_x = ms.coarse_x.read();
         fin.coarse_y = ms.coarse_y.read();
@@ -73,18 +87,32 @@ function eg308(ms, managers)
         fin.qr_Y = ms.image.Y;
         
         fin.g_exposure = 2000;
+        fin.g_exposure_SiV = 5000;
         fin.wl_exposure = 100;
         
         fin.measure_start = now;
         
         for kk = 1:length(angles)
-            ard.angle = angles(kk);
-            pause(.5);
+            disp(['    * Snapping ' names{kk} '!']);
             
-            img0 = ms.image.image.snapImage();
+            ard.angle = angles(kk);
             if kk ~= 1
+                pause(.5);
+            end
+            
+            if kk == length(angles)  % The first frame is wl, while the rest use green.
+                red.on();
+                green.off();
+            end
+            
+            img0 = uint32(ms.image.image.snapImage());
+            if kk == 4
+                for ll = 1:(ceil(fin.g_exposure_SiV/fin.wl_exposure)-1)
+                    img0 = img0 + uint32(ms.image.image.snapImage());
+                end
+            elseif kk ~= 1 && kk ~= length(angles)
                 for ll = 1:(ceil(fin.g_exposure/fin.wl_exposure)-1)
-                    img0 = img0 + ms.image.image.snapImage();
+                    img0 = img0 +uint32( ms.image.image.snapImage());
                 end
             end
             
@@ -103,17 +131,17 @@ function eg308(ms, managers)
                 green.on();
 %                 ms.image.image.exposure = fin.g_exposure;
             end
-            disp(['    * Snapped ' names{kk} '!']);
+            disp(['        ...done']);
         end
         
         fin.measure_end = now;
         
         save(fname, '-struct', 'fin');
         
-        ard.angle = 0;      % No filter.
-        red.on();
-        green.off();
-%         ms.image.image.exposure = fin.wl_exposure;
-        pause(.5);
+%         ard.angle = 0;      % No filter.
+%         red.on();
+%         green.off();
+% %         ms.image.image.exposure = fin.wl_exposure;
+%         pause(.5);
     end
 end
