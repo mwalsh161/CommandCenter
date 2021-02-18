@@ -555,12 +555,18 @@ classdef Manager < handle
                 return
             end
             default = findall(obj.panelHandle.content,'tag','default');
-            obj.frozen_state = get(allchild(default),'enable');
-            if ~iscell(obj.frozen_state)
-                % Takes care of only having a single child
-                obj.frozen_state = {obj.frozen_state};
+            
+            if isvalid(default)
+                children = allchild(default);
+                for i = 1:numel(children)
+                    if isprop(children(i), 'Enable')
+                        obj.frozen_state{i} = children(i).Enable;
+                        children(i).Enable = 'off';
+                    else
+                        obj.frozen_state{i} =  'on';    % Leave children without an Enable states as on in case there are issues.
+                    end
+                end
             end
-            set(allchild(default),'enable','off')
             obj.disabled = true;
         end
         function enable(obj)
@@ -569,10 +575,12 @@ classdef Manager < handle
                 return
             end
             default = findall(obj.panelHandle.content,'tag','default');
-            % Restore frozen state
-            children = allchild(default);
-            for i = 1:numel(children)
-                set(children(i),'enable',obj.frozen_state{i})
+            if isvalid(default)
+                % Restore frozen state
+                children = allchild(default);
+                for i = 1:numel(children)
+                    set(children(i),'enable',obj.frozen_state{i});  % Check whether children is the same size as frozen_state?
+                end
             end
             obj.disabled = false;
         end
