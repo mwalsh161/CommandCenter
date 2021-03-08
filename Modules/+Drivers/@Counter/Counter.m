@@ -69,6 +69,11 @@ classdef Counter < Modules.Driver
             end
             nsamples = obj.CounterH.AvailableSamples;
             if nsamples
+                % This line appears to fail on rare occasions.
+                % DAQ-recommended strategy includes reading fewer samples
+                % than maximum. Howevert, especally for slow rep-rate counts, this
+                % will increase the latency of measurement which may be
+                % undesired.
                 counts = mean(diff(obj.CounterH.ReadCounter(nsamples)));
                 counts = counts/(obj.dwell/1000);
                 obj.callback(counts,nsamples)
@@ -190,8 +195,11 @@ classdef Counter < Modules.Driver
             end
             obj.CounterH = obj.nidaq.CreateTask('Counter CounterObj');
             try
+                % Buffer size increased by 10x to potentially avoid a rare 
+                %  buffer issue: "The application is not able to keep up with 
+                %  the hardware acquisition."
+                buffer = 10*f*obj.update_rate;  
                 continuous = true;
-                buffer = f*obj.update_rate;
                 obj.CounterH.ConfigureCounterIn(obj.lineIn,buffer,obj.PulseTrainH,continuous)
             catch err
                 obj.reset
