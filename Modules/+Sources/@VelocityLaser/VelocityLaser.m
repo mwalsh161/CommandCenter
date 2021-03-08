@@ -55,7 +55,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         
         wheel_host =              Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
         wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
-        wheel_pos =             Prefs.MultipleChoice('OD0', 'choices', Sources.VelocityLaser.wheel_choices, 'allow_empty', false, 'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
+        wheel_pos =             Prefs.Integer(0,'min',0,'max',360,'allow_nan',false,'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
         
         diode_on =              Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
         
@@ -67,7 +67,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         TuneSetpointNPoints =   Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
     end
     properties(Constant)
-        wheel_choices = {'OD.5', 'OD1', 'OD0', 'OD2'};
+     h
     end
     properties(SetObservable,SetAccess=private)
         source_on = false;
@@ -251,9 +251,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function val = set_wheel_pos(obj,val,~)
             if ~isempty(obj.wheel)
-                index = find(ismember(obj.wheel_choices, val));
-
-                obj.wheel.angle = 60 * (index-1);
+                obj.wheel.angle = val;
             end
         end
         
