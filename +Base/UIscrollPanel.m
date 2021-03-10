@@ -215,7 +215,7 @@ classdef UIscrollPanel < handle
             end
             for i = 1:numel(children)
                 if isprop(children(i), 'Position') % Check to prevent AnnotationPane issue.
-                    children(i).Positon = children(i).Positon + [0 delta 0 0];
+                    children(i).Position = children(i).Position + [0 delta 0 0];
                 end
             end
             set(obj.content,'position',ContentPos+[0 0 0 delta]);

@@ -294,6 +294,13 @@ hObject.UserData = handles.Managers;
 % Choose default command line output for CommandCenter
 handles.output = [];
 
+% Check if scribeOverlay is a field and that it contains an annotation pane
+% https://www.mathworks.com/matlabcentral/answers/482510-annotationpane-handle-appearing-in-guide-guis-with-panel-axes-in-r2019b
+if isfield(handles,'scribeOverlay') && isa(handles.scribeOverlay(1),'matlab.graphics.shape.internal.AnnotationPane')
+    delete(handles.scribeOverlay);
+    handles = rmfield(handles, 'scribeOverlay');
+end
+
 % Update handles structure
 guidata(hObject, handles);
 delete(loading_fig)
