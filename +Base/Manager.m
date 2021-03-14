@@ -71,7 +71,7 @@ classdef Manager < handle
                     delete(remove(i));
                 end
             end
-            previousStuff = allchild(parent_menu); % Push these down to bottom
+            previousStuff = (parent_menu.Children); % Push these down to bottom
             if isempty(module_strs)
                 uimenu(parent_menu,'label','No Modules found','enable','off','tag','module');
             end

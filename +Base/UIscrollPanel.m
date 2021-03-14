@@ -32,7 +32,7 @@ classdef UIscrollPanel < handle
             end
             obj.minimizable = minimizable;
             
-            children = allchild(base);
+            children = (base.Children);
             tag = get(base,'tag');
             tempBase = get(base,'units');
             set(base,'tag',[tag '_Base'],'units','characters');
