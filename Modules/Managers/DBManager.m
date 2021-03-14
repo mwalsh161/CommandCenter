@@ -38,7 +38,7 @@ classdef DBManager < Base.Manager
         function enable(obj)
             default = findall(obj.panelHandle.content,'tag','default');
             % Restore frozen state
-            children = allchild(default);
+            children = (default.Children);
             children(end+1) = obj.handles.image_save;
             for i = 1:numel(children)
                 set(children(i),'enable',obj.frozen_state{i})
@@ -47,7 +47,7 @@ classdef DBManager < Base.Manager
         end
         function disable(obj)
             default = findall(obj.panelHandle.content,'tag','default');
-            children = allchild(default);
+            children = (default.Children);
             children(end+1) = obj.handles.image_save;
             obj.frozen_state = get(children,'enable');
             if ~iscell(obj.frozen_state)

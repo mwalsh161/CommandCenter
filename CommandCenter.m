@@ -286,6 +286,13 @@ else
     warning('CC:pref_backup_failed','Unable to locate matlabprefs.mat, no backup was made.');
 end
 
+% Check if scribeOverlay is a field and that it contains an annotation pane
+% https://www.mathworks.com/matlabcentral/answers/482510-annotationpane-handle-appearing-in-guide-guis-with-panel-axes-in-r2019b
+if isfield(handles,'scribeOverlay') && isa(handles.scribeOverlay(1),'matlab.graphics.shape.internal.AnnotationPane')
+    delete(handles.scribeOverlay);
+    handles = rmfield(handles, 'scribeOverlay');
+end
+
 % Provide some useful pointers to ManagerContainer class
 exists = evalin('base','exist(''managers'')==1&&isa(managers,''Base.ManagerContainer'')&&isvalid(managers)');
 if exists

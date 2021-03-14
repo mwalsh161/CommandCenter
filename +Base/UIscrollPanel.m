@@ -32,7 +32,7 @@ classdef UIscrollPanel < handle
             end
             obj.minimizable = minimizable;
             
-            children = allchild(base);
+            children = (base.Children);
             tag = get(base,'tag');
             tempBase = get(base,'units');
             set(base,'tag',[tag '_Base'],'units','characters');
@@ -202,7 +202,11 @@ classdef UIscrollPanel < handle
         %   Length is added at the bottom. Children moved up by delta.
         function addLength(obj,delta)
             children = allchild(obj.content);
-            set(children,'units','characters');
+            for i = 1:numel(children)
+                if isprop(children(i), 'Units') % Check to prevent AnnotationPane issue.
+                    children(i).Units = 'characters';
+                end
+            end
             set(obj.content,'units','characters');
             ContentPos = get(obj.content,'position');
             full_size = get(obj.concealer,'position');
@@ -210,8 +214,9 @@ classdef UIscrollPanel < handle
                 delta = full_size(4)-ContentPos(4);
             end
             for i = 1:numel(children)
-                pos = get(children(i),'position');
-                set(children(i),'position',pos+[0 delta 0 0]);
+                if isprop(children(i), 'Position') % Check to prevent AnnotationPane issue.
+                    children(i).Position = children(i).Position + [0 delta 0 0];
+                end
             end
             set(obj.content,'position',ContentPos+[0 0 0 delta]);
         end
@@ -219,13 +224,19 @@ classdef UIscrollPanel < handle
             set(newPanel,'units','characters');
             pos = get(newPanel,'position');
             posContent = get(obj.content,'position');
-            panels = allchild(obj.content);
-            set(panels,'units','characters')
+            children = allchild(obj.content);
+            for i = 1:numel(children)
+                if isprop(children(i), 'Units') % Check to prevent AnnotationPane issue.
+                    children(i).Units = 'characters';
+                end
+            end
             lengths = [];
-            for i = 1:numel(panels)
-                contents_pos = get(panels(i),'position');
-                lengths(end+1) = contents_pos(2);
-                lengths(end+1) = lengths(end) + contents_pos(4);
+            for i = 1:numel(children)
+                if isprop(children(i), 'Position')
+                    contents_pos = children(i).Position;
+                    lengths(end+1) = contents_pos(2);
+                    lengths(end+1) = lengths(end) + contents_pos(4);
+                end
             end
             if isempty(lengths)
                 % Top minus 1 character
