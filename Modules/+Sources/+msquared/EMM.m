@@ -37,6 +37,7 @@ classdef EMM < Sources.msquared.common_invisible
                 try
                     obj.emmHandle.ready();
                     while true
+                        disp('Checking if tuning has stopped yet. Will proceed once stopped.')
                         status = obj.emmHandle.getStatus();
                         if ~strcmp(status.tuning,'active')
                             break

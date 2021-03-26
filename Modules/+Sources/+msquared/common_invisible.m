@@ -6,9 +6,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     end
     properties
         resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
-        prefs = {'hwserver_host','PBline','pb_host','resonator_speed','resVolt2Percent','moduleName'};
+        prefs = {'hwserver_host','PB_line','pb_host','resonator_speed','resVolt2Percent','moduleName'};
         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock',...
-            'etalon_percent','etalon_voltage','resonator_percent','resonator_voltage','resonator_speed','calibrateRes','hwserver_host','moduleName','PBline','pb_host'};
+            'etalon_percent','etalon_voltage','resonator_percent','resonator_voltage','resonator_speed','calibrateRes','hwserver_host','moduleName','PB_line','pb_host'};
     end
     properties(SetObservable,GetObservable)
         moduleName = Prefs.MultipleChoice('set', 'set_moduleName', 'help_text', 'Modules will be loaded when a hwserver hostname is supplied.');
@@ -30,7 +30,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         calibrateRes =      Prefs.Boolean(false,'set','set_calibrateRes',...
                                                     'help_text','Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
         
-        PBline =            Prefs.Integer(1,'min',1,'set','set_PBline','help_text','Indexed from 1.');
+        PB_line =            Prefs.Integer(2,'min',1,'set','set_PB_line','help_text','Indexed from 1.'); 
         pb_host =           Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_pb_host');
     end
     properties(Access=protected)
@@ -42,7 +42,6 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     properties(Constant,Hidden)
         no_server = 'No Server';  % Message when not connected
     end
-
     methods(Access=protected)
         function init(obj) % Call in subclass constructor
             obj.loadPrefs;  % This will call set.(*_host) too which instantiate hardware
@@ -69,14 +68,16 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
     end
     methods
         function on(obj)
-            assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-            obj.PulseBlaster.lines(obj.PBline).state = true;
+%             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
+%             obj.PulseBlaster.lines(obj.PB_line).state = true;
+            obj.PulseBlaster.lines(obj.PB_line) = true;
             obj.source_on = true;
         end
         function off(obj)
 %             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline).state = false;
+            obj.PulseBlaster.lines(obj.PB_line) = false;
+%             obj.PulseBlaster.lines(obj.PB_line).state = false;
         end
 
         function updateStatus(obj)
@@ -333,18 +334,27 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             obj.WavelengthLock(val);
         end
 
-        function val = set_PBline(obj,val,~)
+        function val = set_PB_line(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline).state;
+%                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
             end
         end
-        function host = set_pb_host(obj,host,~)
-            err = obj.connect_driver('PulseBlaster','PulseBlaster',host);
-            if isempty(obj.PulseBlaster)
-                host = obj.no_server;
-                obj.pb_host = host; % Set explicitly because might error below if we got here
-            else
-                obj.source_on = obj.PulseBlaster.lines(obj.PBline).state;
+        function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
+            if strcmp('No Server',val)
+                obj.PulseBlaster = [];
+                delete(obj.listeners)
+                obj.source_on = false;
+                return
+            end
+            err = [];
+            try
+                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
+            catch err
+                obj.PulseBlaster = [];
+                obj.source_on = false;
+                val = 'No Server';
             end
             if ~isempty(err)
                 rethrow(err)

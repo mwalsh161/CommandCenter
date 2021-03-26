@@ -179,10 +179,10 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             
             obj.data.experiment_time = NaN(1, length(obj.scan_points));
             
-            pm = Drivers.PM100.instance();
-            wheel = Drivers.ArduinoServo.instance('localhost', 2);
+%             pm = Drivers.PM100.instance();
+%             wheel = Drivers.ArduinoServo.instance('localhost', 2);
             
-            obj.meta.resAngle = wheel.angle;
+%             obj.meta.resAngle = wheel.angle;
             
             obj.resLaser.on
             obj.repumpLaser.off
@@ -190,11 +190,11 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             obj.setLaser(0);
             pause(1)
             obj.data.freq_center = obj.resLaser.getFrequency();
-            [obj.data.resPowerCenter, obj.data.resPowerStdCenter] =    pm.get_power('units', 'mW', 'samples', 10);
+%             [obj.data.resPowerCenter, obj.data.resPowerStdCenter] =    pm.get_power('units', 'mW', 'samples', 10);
             
             obj.setLaser(obj.scan_points(1));
             pause(1)
-            [obj.data.resPowerStart, obj.data.resPowerStdStart] =      pm.get_power('units', 'mW', 'samples', 10);
+%             [obj.data.resPowerStart, obj.data.resPowerStdStart] =      pm.get_power('units', 'mW', 'samples', 10);
             
             obj.data.resPowerAfter = NaN;
             obj.data.resPowerStdAfter = NaN;
@@ -205,10 +205,10 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         function PostRun(obj)
             obj.repumpLaser.off
             
-            pm = Drivers.PM100.instance();
+%             pm = Drivers.PM100.instance();
             
             pause(.25)
-            [obj.data.resPowerAfter, obj.data.resPowerStdAfter] =   pm.get_power('units', 'mW', 'samples', 10);
+%             [obj.data.resPowerAfter, obj.data.resPowerStdAfter] =   pm.get_power('units', 'mW', 'samples', 10);
             
             obj.setLaser(0);
             obj.resLaser.off

@@ -12,7 +12,7 @@ classdef Cobolt_PB < Modules.Source
         
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
-%         PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
+        PB_running =    Prefs.Boolean(false, 'readonly', true, 'help_text', 'Boolean specifying if StaticLines program running');
         
         prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
         show_prefs =    {'PB_host', 'PB_line', 'PB_running', 'cobolt_host', 'power', 'diode_on', 'temperature', 'diode_age', 'diode_sn'};
@@ -131,14 +131,14 @@ classdef Cobolt_PB < Modules.Source
             end
             err = [];
             try
-                obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
-%                 delete(obj.listeners)
-%                 obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
-%                 obj.isRunning;
+                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
+                delete(obj.listeners)
+                obj.listeners = addlistener(obj.PulseBlaster, 'running', 'PostSet', @obj.isRunning);
+                obj.isRunning;
             catch err
                 obj.PulseBlaster = [];
-%                 delete(obj.listeners)
+                delete(obj.listeners)
                 obj.source_on = false;
                 val = 'No Server';
             end
@@ -171,32 +171,20 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
-%         function on(obj)
-%             assert(~isempty(obj.PulseBlaster), 'No host set!')
-%             obj.PulseBlaster.lines(obj.PB_line).state = true;
-%             obj.source_on = true; 
-%         end
-%         function off(obj)
-%             assert(~isempty(obj.PulseBlaster), 'No host set!')
-%             obj.source_on = false;
-%             obj.PulseBlaster.lines(obj.PB_line).state = false;
-%         end
-        
-        % Old PB code, because old PB server is still running on hwserver
-        % and I don't want to update hwserver until new PB commit is accepted.
         function on(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
-            obj.PulseBlaster.lines(obj.PB_line).state = true;
+            obj.PulseBlaster.lines(obj.PB_line) = true;
             obj.source_on = true; 
         end
         function off(obj)
             assert(~isempty(obj.PulseBlaster), 'No host set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PB_line).state = false;
+            obj.PulseBlaster.lines(obj.PB_line) = false;
         end
-%         function isRunning(obj,varargin)
-%             obj.PB_running = obj.PulseBlaster.running;
-%         end
+        
+        function isRunning(obj,varargin)
+            obj.PB_running = obj.PulseBlaster.running;
+        end
     end
 end
         

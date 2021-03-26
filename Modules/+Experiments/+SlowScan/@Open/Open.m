@@ -41,6 +41,7 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
         function s = BuildPulseSequence(obj,freqIndex)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
             %collection during resonant driving
+            obj.scan_points
             tunePoint = obj.scan_points(freqIndex);
             if obj.center_scan
                 tunePoint = tunePoint - (50-obj.percentInitialPosition);
@@ -51,6 +52,7 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
                     return % Skip point by returning false
                 end
             end
+            tunePoint
             obj.resLaser.TunePercent(tunePoint);
             s = BuildPulseSequence@Experiments.SlowScan.SlowScan_invisible(obj,freqIndex);
         end

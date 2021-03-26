@@ -140,6 +140,9 @@ if ismember('AmplitudeSensitivity',pSpecified)
     % Calculate n
     [~, ~, ~, proms] = findpeaks(yp,xp); %get list of prominences
     [f,xi] = ksdensity(proms);
+    %pad with zeros at the end in case of a super prominent peak
+    f = [f,0];
+    xi = [xi,xi(end)+median(diff(xi))];
     [~, prom_locs, prom_wids, prom_proms] = findpeaks(f,xi); %find most prominent prominences
     [~,I] = sort(prom_proms,'descend');
     sortwids = prom_wids(I);

@@ -260,6 +260,9 @@ classdef UIscrollPanel < handle
             panel = findall(obj.content,'tag',panel_tag);
             if isempty(panel)
                 error('No panel with that tag!')
+            elseif strcmp(panel_tag, 'scribeOverlay')
+                delete(panel)
+                return
             elseif numel(panel) > 1
                 error('Multiple panels with that tag!')
             end

@@ -121,7 +121,7 @@ classdef solstis < Modules.Driver
         function set_resonator_percent(obj,val)
             [~,locked,~] = obj.getWavelength();
             assert(~locked,'Laser is currently locked, remove with obj.lock_wavelength("off")');
-            assert(val >=0 && val <= 100, 'Resonator percent must be between 0 and 100');
+            assert(val >=0 && val <= 100, sprintf('Resonator percent must be between 0 and 100. Recieved %f.', val));
             obj.com('set_resonator_val',val);
         end
         

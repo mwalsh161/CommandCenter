@@ -115,6 +115,8 @@ classdef APDPulseSequence < handle
                     end
                 end
                 
+                obj.seq.repeat
+                
                 obj.time = (max(times) - min(times)) * obj.seq.repeat;
                 obj.timeout = 1.5*obj.time + 1;
                 

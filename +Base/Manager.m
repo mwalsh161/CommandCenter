@@ -577,7 +577,7 @@ classdef Manager < handle
             default = findall(obj.panelHandle.content,'tag','default');
             if isvalid(default)
                 % Restore frozen state
-                children = allchild(default);
+                children = (default.Children);
                 for i = 1:numel(children)
                     set(children(i),'enable',obj.frozen_state{i});  % Check whether children is the same size as frozen_state?
                 end

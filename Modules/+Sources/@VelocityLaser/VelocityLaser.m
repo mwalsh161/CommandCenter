@@ -19,9 +19,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %   setting
 
     properties
-        prefs = {'PBline','pb_host','velocity_host','wavemeter_host','wavemeter_channel',...
+        prefs = {'PB_line','pb_host','velocity_host','wavemeter_host','wavemeter_channel',...
                  'wheel_host', 'wheel_pin', 'wheel_pos', 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
-        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_host',...
+        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PB_line','pb_host',...
             'velocity_host','wavemeter_host','wavemeter_channel','wheel_host', 'wheel_pin', 'wheel_pos', 'TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
@@ -46,7 +46,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         TuningTimeout =         Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
         
         pb_host =               Prefs.String('No Server','set','set_pb_host','help','IP/hostname of computer with PB server');
-        PBline =                Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
+        PB_line =                Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
         
         velocity_host =         Prefs.String('No Server','set','set_velocity_host','help','IP/hostname of computer with hwserver for velocity laser');
         
@@ -198,7 +198,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~isempty(err)
                 rethrow(err)
             end
-            obj.source_on = obj.PulseBlaster.lines(obj.PBline);
+            obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
             delete(obj.listeners);
             obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
         end
@@ -290,13 +290,13 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~obj.diode_on
                 obj.activate;
             end
-            obj.PulseBlaster.lines(obj.PBline) = true;
+            obj.PulseBlaster.lines(obj.PB_line) = true;
             obj.source_on = true;
         end
         function off(obj)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline) = false;
+            obj.PulseBlaster.lines(obj.PB_line) = false;
         end
         function arm(obj)
             % Make sure calibration is available
