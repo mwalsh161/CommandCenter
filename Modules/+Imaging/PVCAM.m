@@ -19,7 +19,7 @@ classdef PVCAM < Modules.Imaging
         gain =          Prefs.MultipleChoice(3, 'choices', {1, 2, 3},   'allow_empty', false, 'set', 'set_gain',    'help', 'EM (electron multipying) gain. Higher levels imply more gain.'); % Add description
         speed =         Prefs.MultipleChoice(0, 'choices', {0},         'allow_empty', false, 'set', 'set_speed',   'help', 'Readout mode; 0 = fast?');
         
-        binning =       Prefs.MultipleChoice(1, 'choices', {1, 2},      'allow_empty', false, 'units', 'pix',       'help_text', 'Binning N =/= 1 will cause the camera to aquire data in N x N superpixels. High N means faster readout, but also reduced resolution.');   % This is camera-dependent...
+        binning =       Prefs.MultipleChoice(1, 'choices', {1, 2, 3, 4},      'allow_empty', false, 'units', 'pix',       'help_text', 'Binning N =/= 1 will cause the camera to aquire data in N x N superpixels. High N means faster readout, but also reduced resolution.');   % This is camera-dependent...
         exposure =      Prefs.Double(1000, 'min', 0, 'units', 'ms', 'help_text', 'Integration time for each frame.'); % Add better limits.
         frames =        Prefs.Integer(1,   'min', 0, 'units', '#',  'help_text', 'Number of 2D frames snapped per cycle. Frames > 1 will allow the camera to aquire data faster.');
         
@@ -145,8 +145,8 @@ classdef PVCAM < Modules.Imaging
             roi_value = {0, obj.width-1, obj.binning, 0, obj.height-1, obj.binning};   % Zero indexed.
             roi_struct = cell2struct(roi_value, roi_name, 2);
             
-            w = (roi_struct.s2 - roi_struct.s1+1)/roi_struct.sbin;
-            h = (roi_struct.p2 - roi_struct.p1+1)/roi_struct.pbin;
+            w = floor((roi_struct.s2 - roi_struct.s1+1)/roi_struct.sbin);
+            h = floor((roi_struct.p2 - roi_struct.p1+1)/roi_struct.pbin);
             
             im = NaN([w, h, ni]);
             
