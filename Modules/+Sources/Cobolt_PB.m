@@ -94,7 +94,7 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         function tf = isConnected(obj)
-            tf = ~strcmp('No Server', obj.cobolt_host) && strcmp('OK', obj.serial.com('Cobolt', '?'));
+            tf = ~strcmp('No Server', obj.cobolt_host) && ~isempty(obj.serial) && strcmp('OK', obj.serial.com('Cobolt', '?'));
             
             if ~tf
                 if strcmp('No Server', obj.cobolt_host)
@@ -130,7 +130,7 @@ classdef Cobolt_PB < Modules.Source
             
             if strcmp('No Server', val)
                 obj.serial = [];
-                obj.diode_on = false;
+                obj.armed = false;
                 return
             end
             err = [];

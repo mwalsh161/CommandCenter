@@ -88,7 +88,7 @@ classdef Source < Base.Module
         end
     end
     
-    methods(Access=private)
+    methods
         function updateCommandCenter(obj,~,~)
             if isstruct(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
                 i = obj.CC_dropdown.i;

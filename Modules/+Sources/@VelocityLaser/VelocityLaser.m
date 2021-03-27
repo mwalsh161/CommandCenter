@@ -45,8 +45,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         tuning =                Prefs.Boolean(false,'readonly',true);
         debug =                 Prefs.Boolean(false);
 
-        PB_host =               Prefs.String('No Server','set','set_pb_host','help','IP/hostname of computer with PB server');
-        PB_line =                Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
+        PB_host =               Prefs.String('No Server','set','set_PB_host','help','IP/hostname of computer with PB server');
+        PB_line =               Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PB_line','help','Indexed from 1');
 
         velocity_host =         Prefs.String('No Server','set','set_velocity_host','help','IP/hostname of computer with hwserver for velocity laser');
 
@@ -56,9 +56,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wheel_host =              Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
         wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
         wheel_pos =             Prefs.Integer(0,'min',0,'max',360,'allow_nan',false,'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
-
-        diode_on =              Prefs.Boolean(false,'set','set_diode_on','help','Power state of diode (on/off)');
-
+        
         wavemeter_active =      Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
 
         percent_setpoint =      Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
@@ -194,7 +192,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function val = set_PB_host(obj,val,~)
             err = obj.connect_driver('PulseBlaster','PulseBlaster',val);
-            obj.isRunning;
             if isempty(obj.PulseBlaster)
                 obj.PB_host = Sources.VelocityLaser.noserver;
                 if ~isempty(err)
@@ -258,22 +255,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 obj.wheel.angle = val;
             end
         end
-
-        function val = set_diode_on(obj,val,~)
-            if isnan(val);val = false;return;end %short-circuit if set to nan but keep false for settings method
-            assert(~isempty(obj.serial),'No Velocity Laser connected');
-            % This requires some time, so have msgbox appear
-            st = dbstack(1);
-            if ~any(strcmpi({st.name},'VelocityLaser.set_velocity_host'))
-                if val
-                    f = msgbox('Turning laser diode on, please wait...');
-                    obj.serial.on;
-                    delete(f);
-                else
-                    obj.serial.off;
-                end
-            end
-        end
+        
         function val = set_wavemeter_active(obj,val,~)
             if isnan(val);val=false;return;end %short-circuit if set to nan but keep false for settings method
             assert(~isempty(obj.wavemeter),'No wavemeter connected');
