@@ -1,27 +1,24 @@
 classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invisible
     % Code and methods shared by EMM and SolsTiS will be inherited from this class
 
-    properties(SetObservable,SetAccess=private)
-        source_on = false;  % Always assume on (cant be changed here)
-    end
     properties
         resVolt2Percent = struct('fcn',cfit(),'gof',[],'datetime',[]);
-        prefs = {'hwserver_host','PB_line','pb_host','resonator_speed','resVolt2Percent','moduleName'};
+        prefs = {'hwserver_host','PB_line','PB_host','resonator_speed','resVolt2Percent','moduleName'};
         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock',...
-            'etalon_percent','etalon_voltage','resonator_percent','resonator_voltage','resonator_speed','calibrateRes','hwserver_host','moduleName','PB_line','pb_host'};
+            'etalon_percent','etalon_voltage','resonator_percent','resonator_voltage','resonator_speed','calibrateRes','hwserver_host','moduleName','PB_line','PB_host'};
     end
     properties(SetObservable,GetObservable)
         moduleName = Prefs.MultipleChoice('set', 'set_moduleName', 'help_text', 'Modules will be loaded when a hwserver hostname is supplied.');
         hwserver_host = Prefs.String(Sources.msquared.common_invisible.no_server, 'set', 'set_hwserver_host');
-        
+
         tuning =            Prefs.Boolean(false,'readonly',true);
         target_wavelength = Prefs.Double(NaN,   'units','nm','set','set_target_wavelength'); % nm settable
         wavelength_lock =   Prefs.Boolean(false,'set','set_wavelength_lock'); % Settable
-        
+
         etalon_lock =       Prefs.Boolean(false,'set','set_etalon_lock');  % Settable
         etalon_percent =    Prefs.Double(NaN,   'units','%','set','set_etalon_percent','help_text','Set etalon percent. This will change the etalon_voltage that is read.');  % Settable
         etalon_voltage =    Prefs.Double(NaN,   'units','V','readonly',true);  % Readable
-        
+
         resonator_percent = Prefs.Double(NaN,   'units','%','min',0,'max',100,'set','set_resonator_percent',...
                                                     'help_text','Set resonator percent. This will change the resonator_voltage that is read.');  % Settable
         resonator_voltage = Prefs.Double(NaN,  'units','V','readonly',true);  % Readable
@@ -29,9 +26,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                                                     'help_text','Maximum % per step allowed. Lower numbers will take longer to tune.');
         calibrateRes =      Prefs.Boolean(false,'set','set_calibrateRes',...
                                                     'help_text','Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
-        
-        PB_line =            Prefs.Integer(2,'min',1,'set','set_PB_line','help_text','Indexed from 1.'); 
-        pb_host =           Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_pb_host');
+
+        PB_line =            Prefs.Integer(2,'min',1,'set','set_PB_line','help_text','Indexed from 1.');
+        PB_host =           Prefs.String(Sources.msquared.common_invisible.no_server,'set','set_PB_host');
     end
     properties(Access=protected)
         timeout = 30   % Ignore errors within this timeout on wavelength read (getWavelength)
@@ -67,17 +64,9 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
         host = loadLaser(obj);
     end
     methods
-        function on(obj)
-%             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-%             obj.PulseBlaster.lines(obj.PB_line).state = true;
-            obj.PulseBlaster.lines(obj.PB_line) = true;
-            obj.source_on = true;
-        end
-        function off(obj)
-%             assert(~isempty(obj.PulseBlaster),'No PulseBlaster IP set!')
-            obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PB_line) = false;
-%             obj.PulseBlaster.lines(obj.PB_line).state = false;
+        function val = set_source_on(obj, val, ~)
+            assert(~isempty(obj.PulseBlaster),'No IP set!')
+            obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
 
         function updateStatus(obj)
@@ -107,7 +96,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             % Put resonator at zero percent and wait to settle just in case
             obj.solstisHandle.set_resonator_percent(0);
             pause(0.5);
-            
+
             % Calls will go to driver directly since no assumptions on
             % calibration being there or accurate yet
             n = 51; %101;
@@ -124,23 +113,23 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                 if isvalid(lnH)
                     tH.String = sprintf('Calibrating: %i/%i',i,n);
                     obj.solstisHandle.set_resonator_percent(percents(i));
-                    
+
                     v0 = NaN;
                     if i > 1
                         v0 = voltages(i-1);
                     end
-                    
+
                     for tries = 1:10
                         pause(.1);
                         reply = obj.solstisHandle.getStatus();
                         v = reply.resonator_voltage;
                         voltages(i) = v;
-                        
+
                         if abs(v - v0) > 200 / n / 10
                             break;
                         end
                     end
-                    
+
                     if isvalid(lnH)
                         lnH.XData(i) = voltages(i);
                         drawnow limitrate;
@@ -150,25 +139,25 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
                     return;
                 end
             end
-            
+
             [ft,gof] = fit(voltages,percents,'poly2');
             tH.String = sprintf('adjR^2: %g',gof.adjrsquare);
             plotV = linspace(min(voltages),max(voltages),1001);
             fitbounds = predint(ft,plotV,0.95,'functional','on'); %get confidence bounds on fit
             errorfill(plotV,ft(plotV),[abs(ft(plotV)'-fitbounds(:,1)');abs(fitbounds(:,2)'-ft(plotV)')],'parent',ax);
-            
+
             subplot(2,1,1,ax);
             ax_resid = subplot(2,1,2,'parent',f);
             plot(ax_resid,voltages,percents-ft(voltages),'-o');
             ylabel(ax_resid,'Percent (%)');
             xlabel(ax_resid,'Voltage (V)');
             title(ax_resid,'Residuals');
-            
+
             answer = questdlg('Calibration satisfactory?','SolsTiS Resonator Calibration Verification','Yes','No, abort','Yes');
             if strcmp(answer,'No, abort')
                 error('Failed SolsTiS resonator calibration validation.')
             end
-            
+
             obj.resVolt2Percent.fcn = ft;
             obj.resVolt2Percent.gof = gof;
             obj.resVolt2Percent.datetime = datetime;
@@ -256,19 +245,19 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             currentPercent = obj.GetPercent;
             numberSteps = floor(abs(currentPercent-target)/obj.resonator_speed);
             direction = sign(target-currentPercent);
-            
+
             for i = 1:numberSteps
                 obj.solstisHandle.set_resonator_percent(currentPercent+(i)*direction*obj.resonator_speed);
             end
             obj.solstisHandle.set_resonator_percent(target);
-            
+
             obj.updatingVal = true;
                 obj.resonator_percent = target;
             obj.updatingVal = false;
             obj.updateStatus(); % Get voltage of resonator
         end
     end
-    
+
     methods % Set methods
         function val = set_calibrateRes(obj,~,~)
             % Check mark used to call calibration method
@@ -336,25 +325,16 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
 
         function val = set_PB_line(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-%                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
-                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             end
         end
-        function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
-            if strcmp('No Server',val)
-                obj.PulseBlaster = [];
-                delete(obj.listeners)
-                obj.source_on = false;
-                return
-            end
-            err = [];
-            try
-                obj.PulseBlaster = Drivers.PulseBlaster.StaticLines.instance(val); %#ok<*MCSUP>
-                obj.source_on = obj.PulseBlaster.lines(obj.PB_line);
-            catch err
-                obj.PulseBlaster = [];
-                obj.source_on = false;
-                val = 'No Server';
+        function host = set_PB_host(obj,host,~)
+            err = obj.connect_driver('PulseBlaster','PulseBlaster',host);
+            if isempty(obj.PulseBlaster)
+                host = obj.no_server;
+                obj.PB_host = host; % Set explicitly because might error below if we got here
+            else
+                obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             end
             if ~isempty(err)
                 rethrow(err)

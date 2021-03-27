@@ -666,6 +666,8 @@ classdef Manager < handle
                 temp = obj.load_module_str(get(hObject,'UserData'));
                 if ~isempty(temp)
                     obj.modules{end+1} = temp{1};
+                    % Set the selected module to the one that was just added.
+                    obj.setActiveModule(numel(obj.modules));
                 end
             else
                 % This means the module IS currently loaded
