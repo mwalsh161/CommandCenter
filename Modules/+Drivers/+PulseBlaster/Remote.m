@@ -22,7 +22,7 @@ classdef Remote < Modules.Driver & Drivers.PulseTimer_invisible
     
     methods(Static)
         function obj = instance(ip)
-            warning("Drivers.PulseBlaser.Remote is decrepitated and should be replaced with Drivers.PulseBlaster")
+            error("Drivers.PulseBlaser.Remote is deprecated and should be replaced with Drivers.PulseBlaster")
             mlock;
             persistent Objects
             if isempty(Objects)
