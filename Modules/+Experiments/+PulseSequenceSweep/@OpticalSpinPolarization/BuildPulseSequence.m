@@ -5,8 +5,8 @@ function s = BuildPulseSequence(obj,~)
 nCounters = obj.nCounterBins;
 
 s = sequence('OpticalSpinPolarization');
-repumpChannel = channel('repump','color','g','hardware',obj.repumpLaser.PBline-1);
-resChannel = channel('resonant','color','r','hardware',obj.resLaser.PBline-1);
+repumpChannel = channel('repump','color','g','hardware',obj.repumpLaser.PB_line-1);
+resChannel = channel('resonant','color','r','hardware',obj.resLaser.PB_line-1);
 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
 s.channelOrder = [repumpChannel, resChannel, APDchannel];
 g = node(s.StartNode,repumpChannel,'delta',0);
