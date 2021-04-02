@@ -1,105 +1,94 @@
 classdef Saturation < Modules.Experiment
-    % Continuously acquires data from the APD and Thorlabs PM100 power meter and plots them. 
-    % User should rotate the polarizer/HWP.
-    
-    properties
-        pm_data;
-        apd_data;
-        linein = 'APD1';
-        lineout = 'CounterSync';
-        acquire = false; % this tracks when the user wants to stop acquiring data
-        nsamples = 1; % number of samples the APD collects
-        wavelength = 532;
-        prefs = {'linein', 'lineout', 'acquire', 'nsamples', 'wavelength'};
-    end
+    % Saturation changes intensity on a sample using a HWP (motorised or manually moved) and monitors the APD to measure saturation. Optionally also monitors a power meter to calibrate measurement with power.
 
-    properties (SetAccess=private)
-        PM100;
-        counter;
+    properties(SetObservable,GetObservable)
+        angles = Prefs.String('0','help_text', 'Matlab expression evaluated to find angles at which to measure APDs','units','degree','set','setAngle','allow_empty',false);
+        exposure = Prefs.Double(100, 'help_text', 'Exposure time to measure APD counts','units','ms','min',0,'allow_nan',false)
+        motor_move_time = Prefs.Double(30, 'help_text', 'Maximum time allowed for the motor to move','units','s','min',0,'allow_nan',false)
+        motor_home_time = Prefs.Double(120, 'help_text', 'Maximum time allowed for the motor to home','units','s','min',0,'allow_nan',false)
+        motor_serial_number = Prefs.MultipleChoice('help_text','Serial number of APT motor controlling the HWP','set','set_motor_serial_number','allow_empty',true)
+        APD_line = Prefs.String('APD1','help_text','NiDAQ line to apd','allow_empty',false);
+        APD_sync_line = Prefs.String('CounterSync','help_text','NiDAQ synchronisation line','allow_empty',false);
+
     end
-    
-    methods(Access=private)
-        function obj = Saturation()
-            obj.loadPrefs;
-            obj.PM100 = Drivers.PM100.instance();
-            obj.counter = Drivers.Counter.instance(obj.linein,obj.lineout);
-        end
+    properties
+        prefs = {'angles','exposure','motor_move_time','motor_home_time','motor_serial_number'};  % String representation of desired prefs
+        % show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
+        %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
+    end
+    properties(SetAccess=private,Hidden)
+        % Internal properties that should not be accessible by command line
+        % Advanced users should feel free to alter these properties (keep in mind methods: abort, GetData)
+        data = [] % Useful for saving data from run method
+        meta = [] % Useful to store meta data in run method
+        abort_request = false; % Flag that will be set to true upon abort. Use in run method!
+        angle_list
+        rot %Handle for rotation mount driver
     end
 
     methods(Static)
-        function obj = instance()
-            mlock;
-            persistent Object
-            if isempty(Object) || ~isvalid(Object)
-                Object = Experiments.Saturation();
-            end
-            obj = Object;
+        % Static instance method is how to call this experiment
+        % This is a separate file
+        obj = instance()
+    end
+    methods(Access=private)
+        function obj = Saturation()
+            % Constructor (should not be accessible to command line!)
+            obj.loadPrefs; % Load prefs specified as obj.prefs
+            
+            % Find available motor serial numbers
+            mp = obj.get_meta_pref('motor_serial_number');
+            mp.choices = Drivers.APTMotor.getAvailMotors(); % set new choices
+            obj.set_meta_pref('motor_serial_number', mp);
         end
     end
 
     methods
-        run(obj,status,managers,ax)
-        
-        function delete(obj)
-            obj.PM100.delete;
-        end
+        run(obj,status,managers,ax) % Main run method in separate file
 
         function abort(obj)
-            obj.acquire = false;
+            % Callback for when user presses abort in CC
+            obj.abort_request = true;
         end
 
         function dat = GetData(obj,stageManager,imagingManager)
-        % Saves the in v. out power, the excitation wavelength, and the dwell time and number of samples for the APD
-            dat.in_power = obj.pm_data;
-            dat.out_power = obj.apd_data;            
-
-            dat.in_wavelength = obj.PM100.get_wavelength();
-            dat.dwell_time = obj.counter.dwell;
-            dat.nsamples = obj.nsamples;
+            % Callback for saving methods
+            dat.data = obj.data;
+            dat.meta = obj.meta;
         end
 
-        function  settings(obj,panelH,~,~)
-        % Creates a button for the user to stop acquiring data once it has started and a place for user to set the
-        % measurement wavelength of the PM
-            spacing = 2.25;
+        % Set methods allow validating property/pref set values
+        function newVal = setAngle(obj,val,pref)
+            obj.angle_list = str2num(val);
+            newVal = val;
+        end
 
-            uicontrol(panelH,'style','text','string','Excitation Wavelength (nm):','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*3 25 1.25]);
+        function val = set_motor_serial_number(obj,val,~)
+            if isempty(val)
+                % If '<None>', delete handle and short-circuit
+                delete(obj.rot); % Either motor obj or empty
+                obj.rot = [];
+                return
+            end
             
-            uicontrol(panelH,'style','edit','string',obj.wavelength,...
-                'units','characters','callback',@obj.set_wl,...
-                'horizontalalignment','left','position',[26 spacing*3 20 1.5]);
-
-            uicontrol(panelH,'style','text','string','APD Dwell Time:','horizontalalignment','right',...
-                'units','characters','position',[0 spacing*2 25 1.25]);
+            val_as_double = str2double(val); % must be double to instantiate motor
             
-            uicontrol(panelH,'style','edit','string',obj.counter.dwell,...
-                'units','characters','callback',@obj.set_dwell,...
-                'horizontalalignment','left','position',[26 spacing*2 20 1.5]);
+            assert(~isnan(val_as_double),'Motor SN must be a valid number.')
+            if isnan(val_as_double)
+                return
+            end
+            % Handle proper deleting of smotor driver object
+            delete(obj.rot); % Either motor obj or empty
+            obj.rot = [];
 
-            uicontrol(panelH,'style','text','string','APD Number of Samples:','horizontalalignment','right',...
-                'units','characters','position',[0 spacing 25 1.25]);
-            
-            uicontrol(panelH,'style','edit','string',obj.nsamples,...
-                'units','characters','callback',@obj.set_nsample,...
-                'horizontalalignment','left','position',[26 spacing 20 1.5]);
-        end
+            if val_as_double == 0
+                %Leave obj.rot empty if no serial number selected
+                return % Short circuit
+            end
 
-        function stop_acquire(obj, varargin)
-        % Callback function for the stop acquisition button
-            obj.acquire = false;
+            % Add new motor
+            obj.rot = Drivers.APTMotor.instance(val_as_double, [0 360]);
         end
-
-        function set_wl(obj, src, varargin)
-            obj.wavelength = str2num(get(src, 'string'));
-        end
-
-        function set_dwell(obj, src, varargin)
-            obj.counter.dwell = str2num(get(src, 'string'));
-        end
-
-        function set_nsample(obj, src, varargin)
-            obj.nsamples = str2num(get(src, 'string'));
-        end
+        
     end
 end
