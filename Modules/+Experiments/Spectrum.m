@@ -159,6 +159,14 @@ classdef Spectrum < Modules.Experiment
             obj.WinSpec.abort;
         end
         
+        function data = measure(obj)
+            N = 1024;
+            
+            ii = randi(N);
+            
+            data.intensity = rand(1, N) + (5+5*rand())*exp(-(((1:N) - ii)/10).^2);
+            data.wavelength = linspace(600, 640, N);
+        end
         function dat = GetData(obj,~,~)
             dat = [];
             if ~isempty(obj.data)

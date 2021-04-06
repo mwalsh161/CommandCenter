@@ -73,7 +73,7 @@ classdef Sweep < handle & Base.Measurement
                 e = Experiments.Spectrum.instance;
 
 %                 obj = Base.Sweep({e}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 81)});
-                obj = Base.Sweep({a1}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 11)});
+                obj = Base.Sweep({e, a1}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 11)});
                 
                 return;
             end
@@ -236,7 +236,7 @@ classdef Sweep < handle & Base.Measurement
 % 			[sub{1:length(L)}] = ind2sub(L, obj.index);
 %             sub = cell2mat(sub);
 
-			A = 1:obj.length();
+			A = 1:obj.ndims();
             
             ind = NaN*A;
             vec = NaN*A;
@@ -275,7 +275,7 @@ classdef Sweep < handle & Base.Measurement
             obj.gotoIndex(obj.index);
 
             % Slow aquisition
-            if ~obj.flags.isNIDAQ
+            if ~obj.NIDAQ.isNIDAQ
                 while (obj.index <= N || obj.flags.isContinuous) && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
 %                     obj.controller.gui.toggle.Value
                     obj.tick();

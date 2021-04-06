@@ -10,7 +10,7 @@ classdef SweepProcessed < handle
 	end
 
 	properties (Constant)
-		axisOptions = {'sum', 'mean', 'median', 'min', 'max', 'snap'};
+		squeezeOptions = {'sum', 'mean', 'median', 'min', 'max', 'snap'};
 	end
 
 	properties (Hidden, SetAccess=private)
@@ -158,7 +158,7 @@ classdef SweepProcessed < handle
 
 			% Axes
 			for ii = 1:N
-				levellist = [obj.axisOptions];
+				levellist = [obj.squeezeOptions];
 
                 name = obj.s.sdims{ii}.get_label();
                 
@@ -184,8 +184,9 @@ classdef SweepProcessed < handle
 					str = upper(obj.v.axesDisplayedNames{-val});
 					vis1 = 'off';
 					vis2 = 'on';
-				end
+                end
 
+                % Dropdown menu for how to 'squeeze' the data along this axis into something displayable. e.g. meaning the data.
 				obj.tab.axes(ii) = uicontrol(obj.tab.tab, 	'Style', 'popupmenu',...
 															'String', levellist,...
 															'Value', obj.sliceOptions(ii),...
@@ -196,6 +197,7 @@ classdef SweepProcessed < handle
 					 										'Position', popuppos,...
                                                             'Callback', @obj.updateSliceOptions_Callback);
 
+                % If an axis is a display axis, then this frozen dropdown displays which axis (X or Y) is selected.
 				obj.tab.frozen(ii) = uicontrol(obj.tab.tab, 'Style', 'popupmenu',...
 															'String', {str},...
 															'Value', 1,...
@@ -205,6 +207,7 @@ classdef SweepProcessed < handle
 															'Units', 'characters',...
 					 										'Position', popuppos);
 
+                % Index over which the data should be squeezed.
 				obj.tab.edit(ii) = uicontrol(obj.tab.tab,   'Style', 'edit',...
 															'String', obj.slice{ii},...
 															'Visible', vis1,...
@@ -266,7 +269,7 @@ classdef SweepProcessed < handle
 %                             removesnap = obj.s.inputs{ii}.inputAxes{jj}.display_only;
                             removesnap = dims__{jj}.display_only;
 
-                            levellist = obj.axisOptions(1:(end-removesnap));
+                            levellist = obj.squeezeOptions(1:(end-removesnap));
 
                             name = regexprep(dims__{jj}.get_label(), {['^' names_.(sd{ll})]}, {''});
 
@@ -325,14 +328,15 @@ classdef SweepProcessed < handle
         end
 
 		function process(obj)
-%             disp(['processing ' num2str(obj.x)])
-            
             if ~obj.I || ~obj.enabled
                 return
             end
             
-% 			s_ = size(obj.s.data{obj.I});
-%             obj.s.measurements
+            first = find(obj.sliceOptions == length(obj.squeezeOptions), 1);
+            if ~isempty(first)  % Update snap for any axis in snap mode.
+                obj.slice{first} = '=';
+            end
+            
             sd = obj.s.subdata;
 			s_ = size(obj.s.data.(sd{obj.I}).dat);
 
@@ -345,15 +349,11 @@ classdef SweepProcessed < handle
             
             p = subsref(obj.s.data.(sd{obj.I}).dat, S);
             
-%             p
-            
-%             obj.v.displayAxesMeasNum
-            
             relevant = obj.v.displayAxesMeasNum == 0 | obj.v.displayAxesMeasNum == obj.I; % Look for axes which are either global (0) or related to this input (obj.I)
             
-            opts = obj.sliceOptions(relevant(2:end))   % Ignore the first axis, which is None
+            opts = obj.sliceOptions(relevant(2:end));   % Ignore the first axis, which is None
             
-            for ii = 1:(length(obj.axisOptions)-1)  % Iterate through the non-snap options
+            for ii = 1:(length(obj.squeezeOptions)-1)  % Iterate through the non-snap options
                 d = D(opts == ii);
                 
                 if ~isempty(d)
@@ -375,53 +375,31 @@ classdef SweepProcessed < handle
                 end
             end
             
-			scandim = obj.sliceOptions < 0;
-			
+			scandim = obj.sliceOptions < 0;         % The slices with negative values are our x and y data.
 			xy = abs(obj.sliceOptions(scandim));
             
-            tmp = obj.processed;
-            
-            size(p)
+            tmp = obj.processed;        % Make a copy of the old data for comparison later.
 			
 			if length(xy) == 2 && diff(xy) > 0		% Transpose the data if the viewer order is reversed from the full data order. Only works for 2D; make generic.
-% 				new = squeeze(p)';
-%                 e = all(obj.processed(:) == squeeze(p)'
                 obj.processed = squeeze(p)';
             else
                 obj.processed = squeeze(p);
             end
             
-%             tic
-            tmp2 = obj.processed;
+            % Lastly, we want to determine whether our processed data actually changed, and only display if so.
+            tmp2 = obj.processed;       % Make a copy of the new data for comparison. 
             
-            tmp(isnan(tmp)) = Inf;
-            tmp2(isnan(tmp2)) = Inf;
-            
-            s1 = size(tmp);
-            s2 = size(tmp2);
+            tmp(isnan(tmp)) = Inf;  tmp2(isnan(tmp2)) = Inf;    % Comparison does not work with NaN, so replace these with Inf
+            s1 = size(tmp);         s2 = size(tmp2);            % Use inexpensive size checks first.
             
             if length(s1) ~= length(s2) || ~all(s1 == s2) || ~all(tmp(:) == tmp2(:))
-                obj.dataChanged_Callback(0,0);
+                obj.dataChanged_Callback(0,0);  % If there was a change, replot the data.
             end
-%             toc
-            
-%             obj.processed
-            
-%             obj.dataChanged_Callback(0,0);
         end
 
         function updateSlice_Callback(obj, src, ~)
-%             src
-%             obj.slice
-%             src.UserData
-%             src.Value
-%             try
             obj.slice{src.UserData} = src.String;
-%             catch err
-%                 rethrow(err)
-%             end
             obj.v.process();
-%             obj.normalize(false);
         end
 		function set.slice(obj, slice)
             old = obj.slice;
@@ -433,7 +411,6 @@ classdef SweepProcessed < handle
                         slice_ = slice{ii};
                         slice_(isspace(slice_)) = [];
                         
-
                         scan = obj.v.displayAxesScans{ii+1}; %#ok<*MCSUP>
                         indices = 1:length(scan);
                         
@@ -441,17 +418,17 @@ classdef SweepProcessed < handle
                         
 %                         slice_
 
-                        if slice_(1) == '=' %|| obj.sliceOptions == length(obj.axisOptions)
+                        if slice_(1) == '=' || obj.sliceOptions(ii) == length(obj.squeezeOptions)
                             val = NaN;%#ok
-                            if slice_(1) == '='
+                            if slice_(1) == '=' && length(slice_) > 1
                                 val = eval(slice_(2:end));
                             else
-                                val = obj.v.displayAxesObjects{ii+1}.value;
+                                obj.v.displayAxesObjects{ii+1}
+                                val = obj.v.displayAxesObjects{ii+1}.read();
                             end
                             
-                            dif = abs(scan - val);
-                            indices = 1:length(scan);
-                            obj.slice{ii} = min(indices(min(dif) == dif));
+                            dif = abs(scan - val)
+                            obj.slice{ii} = find(min(dif) == dif, 1);
                             
                             indices = obj.slice{ii};
                             
@@ -473,7 +450,7 @@ classdef SweepProcessed < handle
 %                         obj.tab.edit(ii).String = obj.slice{ii};
                         obj.tab.edit(ii).Tooltip = ['Indices: [ ' num2str(indices) ' ] = ' 10 'Values: [ ' num2str(scan(indices)) ' ] '   obj.v.displayAxesObjects{ii+1}.unit];
                         
-                        if obj.sliceOptions == length(obj.axisOptions)
+                        if obj.sliceOptions == length(obj.squeezeOptions)
                             obj.tab.edit(ii).Tooltip = [obj.tab.edit(ii).Tooltip 10 'The the current real value is ' num2str(obj.v.displayAxesObjects{ii+1}.value) ' ' obj.v.displayAxesObjects{ii+1}.unit 10 'This parameter is set automatically by the ''snap'' option.'];
                         end
                     end
@@ -492,13 +469,11 @@ classdef SweepProcessed < handle
         end
         
         function updateSliceOptions_Callback(obj, src, ~)
-%             src
             obj.sliceOptions(src.UserData) = src.Value;
             obj.v.process();
-%             obj.normalize(false);a
         end
 		function set.sliceOptions(obj, sliceOptions)
-%             assert(all(sliceOptions > 0 & sliceOptions <= obj.axisOptions))
+%             assert(all(sliceOptions > 0 & sliceOptions <= obj.squeezeOptions))
             
             old = obj.sliceOptions;
 			obj.sliceOptions = sliceOptions;
@@ -506,7 +481,7 @@ classdef SweepProcessed < handle
 			if ~isempty(obj.tab)	% If we have a panel...
                 for ii = 1:length(obj.sliceOptions)
                     
-                    if obj.sliceOptions(ii) == length(obj.axisOptions) % If snap
+                    if obj.sliceOptions(ii) == length(obj.squeezeOptions) % If snap
                         if obj.v.displayAxesObjects{ii+1}.display_only
                             obj.sliceOptions(ii) = old(ii);
                             if obj.sliceOptions(ii) > 0

@@ -46,7 +46,7 @@ classdef SweepViewer < handle
         rendering = false;
     end
 	properties (Constant, Hidden)
-        fpsTarget = 5;
+        fpsTarget = 10;
     end
 
 	properties (SetObservable, SetAccess=private)   % 
@@ -67,6 +67,11 @@ classdef SweepViewer < handle
             if isempty(ax_)
                 f = figure('units', 'pixels', 'numbertitle', 'off', 'MenuBar', 'None');
                 obj.ax = axes(f);
+                
+                obj.ax.Position = [.1, .1, .85, .85];
+%                 obj.ax.Units
+%                 
+%                 error('sdfs')
             else
                 obj.ax = ax_;
                 obj.ax.Toolbar = [];
@@ -547,8 +552,9 @@ classdef SweepViewer < handle
             
             if ~obj.rendering
                 obj.rendering = true;
+                
                 if ~isempty(obj.ax) && isvalid(obj.ax)
-                    if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget || ~obj.timerposted
+                    if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget
 %                         disp('datachanged_Callback Postponed');
                         if ~obj.timerposted         % If a timer has not been sent off to remind us to update...
                             t = timer('TimerFcn', @obj.datachanged_Callback, 'ExecutionMode', 'singleShot', 'StartDelay', ceil(2000/obj.fpsTarget)/1000);
