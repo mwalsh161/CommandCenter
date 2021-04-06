@@ -16,9 +16,9 @@ classdef BooleanField < Prefs.Inputs.LabelControlBasic
                 obj.ui.Value = logical(val);
                 obj.ui.Style = obj.uistyle;
                 if obj.ui.UserData  % Copy of read_only
-                    obj.ui.Enable = 'on';
-                else
                     obj.ui.Enable = 'off';
+                else
+                    obj.ui.Enable = 'on';
                 end
             end
         end

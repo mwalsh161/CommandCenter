@@ -18,7 +18,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 %         prefs = {'hwserver_host','PB_line','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
 %         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
 %             'etalon_percent','etalon_voltage','hwserver_host','moduleName','PB_line','pb_host','resonator_tune_speed','calibrateRes'};
-        prefs = {};
+%         prefs = {};
         show_prefs = {};
     end
     
@@ -38,8 +38,11 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         moduleName =        Prefs.MultipleChoice('set', 'set_moduleName', 'help_text', 'Modules will be loaded when a hwserver hostname is supplied.');
         hwserver_host =     Prefs.String(Sources.Msquared.no_server, 'set', 'set_hwserver_host');
         
+        % REFRESH
+        refresh =           Prefs.Button('Poll hwserver', 'set', 'set_refresh');
+        
         % WAVELENGTH prefs
-        active_module =     Prefs.MultipleChoice(Sources.Msquared.moduleNIR, 'readonly', true, 'choices', {Sources.Msquared.moduleUV, Sources.Msquared.moduleVIS, Sources.Msquared.moduleNIR}, ... %{'ECD-X', 'EMM', 'SolsTiS'}, ...
+        active_module =     Prefs.MultipleChoice(Sources.Msquared.moduleNIR, 'readonly', true, 'choices', {Sources.Msquared.no_server, Sources.Msquared.moduleUV, Sources.Msquared.moduleVIS, Sources.Msquared.moduleNIR}, ... %{'ECD-X', 'EMM', 'SolsTiS'}, ...
                                                                     'help_text', '350-525, 515-582/580-661, 700-1100');
         
 %         setpoint =          Prefs.Double(NaN,   'units', 'nm',  'set', 'set_target_frequency', ...
@@ -71,7 +74,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         % ETALON prefs
         do_etalon_lock =    Prefs.Boolean(false,                'set', 'set_do_etalon_lock', ...
                                                                     'help_text', 'Note that disabling this auto-disables do_wavelength_lock, as the etalon must be locked for the wavelength to be locked.');
-        etalon_lock =       Prefs.Boolean(false,                'readonly', true, ... 'allow_nan', true, ... 'set', 'set_etalon_lock', ...
+        etalon_lock =       Prefs.Boolean(false,                'readonly', true, 'allow_nan', true, ... 'set', 'set_etalon_lock', ...
                                                                     'help_text', '!!!');
         etalon_percent =    Prefs.Double(NaN,   'units', '%',   'set', 'set_etalon_percent', 'min', 0, 'max', 100, ...
                                                                     'help_text', 'Set etalon percent. This will change the etalon_voltage that is read.');
@@ -81,7 +84,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         % RESONATOR prefs
         do_wavelength_lock= Prefs.Boolean(false,                'set', 'set_do_wavelength_lock', ...
                                                                     'help_text', 'Default for whether to hold the wavelength lock after coarse tuning. When using an external voltage or the resonator percentage to finely tune the laser, this should be *off*, lest this active feedback negates your desired tuning.');
-        wavelength_lock =   Prefs.Boolean(false,                'readonly', true, ... 'allow_nan', true, ... 'set', 'set_wavelength_lock', ...
+        wavelength_lock =   Prefs.Boolean(false,                'readonly', true, 'allow_nan', true, ... 'set', 'set_wavelength_lock', ...
                                                                     'help_text', 'Whether the laser is currently using the wavemeter for closed loop locking to the setpoint. Note that this is different from the resonator lock, which is not implemented in this interface.');
         resonator_percent = Prefs.Double(NaN,   'units', '%',   'set', 'set_resonator_percent', 'min', 0, 'max', 100,...
                                                                     'help_text', 'Set resonator percent. This will change the resonator_voltage that is read.');
@@ -221,18 +224,24 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.active_module = module;
 
             if strcmp(module, obj.moduleVIS)
-                out = obj.com('set_wavelength', 'EMM', target, .1); % last arg is timeout
-            
-                out
+                obj.emm_setpoint = target;
+                try
+                    out = obj.com('set_wavelength', 'EMM', target, .1); % last arg is timeout
                 
-                if out.status ~= 0
-    %                 obj.setpoint_ = NaN;
-                    obj.updatingVal = false;
-                    error('Failed to set target')
+                    if out.status ~= 0
+        %                 obj.setpoint_ = NaN;
+                        obj.updatingVal = false;
+                        error('Failed to set target')
+                    end
+                catch
+                    % expected
                 end
+            else
+                obj.emm_setpoint = NaN;
             end
             
             nir_wavelength = obj.determineNIRWavelength(target);
+            obj.solstis_setpoint = nir_wavelength;
             out = obj.com('set_wavelength', 'solstis', nir_wavelength, 0); % last arg is timeout
             
             if out.status ~= 0
@@ -281,11 +290,18 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 end
             catch
                 host = Sources.Msquared.no_server;
+                obj.active_module = host;
+                obj.status = host;
             end
         end
         function val = set_moduleName(obj,val,~)
             obj.getFrequency();
         end
+        
+        function val = set_refresh(obj,val,~)
+            obj.getFrequency();
+        end
+        
         function val = set_PB_line(obj,val,~)
             if ~isempty(obj.PulseBlaster)
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
@@ -332,7 +348,9 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.com('set_resonator_val', 'solstis', val);
         end
         function val = set_do_wavelength_lock(obj, val, ~)
-            obj.do_etalon_lock = val;
+            if ~obj.do_etalon_lock && val
+                obj.do_etalon_lock = true;
+            end
             obj.com('lock_wavelength', 'solstis', obj.lockList{val+1});
             if val
                 try
@@ -380,6 +398,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.callStatus();
             wavelength = obj.determineResultingWavelength();
             freq = obj.c/wavelength;
+            obj.setpoint = freq;
         end
     end
     
