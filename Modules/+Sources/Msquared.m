@@ -2,7 +2,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     %MSQUARED is a driverless unified class for SolsTiS, EMM, and ECD-X control.
     
     properties(Access=private, Hidden)
-        hwserver = [];          % TCPIP handle to the python hardwareserver for laser and wavemeter connectivity.
+        hwserver = [];          % TCPIP handle to the python hardware server for laser and wavemeter connectivity.
         PulseBlaster = [];      % Handle to the appropriate Drivers.PulseBlaster.
         updatingVal = false;    % Flag to prevent attempting to tune to multiple wavelengths at once.
         output_monitor = 0;     % Output of the SolsTiS photodiode. Used for determining whether the laser is armed.
