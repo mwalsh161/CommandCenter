@@ -1,24 +1,18 @@
 classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
-    %MSQUARED is a driverless unified class for SolsTiS and EMM control.
-    
-    % Discussion points:
-    %  - Return data in freq? Prevents issues with c definition or vacuum vs air
-    %  - static module names?
+    %MSQUARED is a driverless unified class for SolsTiS, EMM, and ECD-X control.
     
     properties(Access=private, Hidden)
-        hwserver = [];
-        updatingVal = false;
+        hwserver = [];          % TCPIP handle to the python hardwareserver for laser and wavemeter connectivity.
+        PulseBlaster = [];      % Handle to the appropriate Drivers.PulseBlaster.
+        updatingVal = false;    % Flag to prevent 
+        output_monitor = 0;     % Output of the SolsTiS photodiode. Used for determining whether the laser is armed.
     end
     
     properties(SetAccess=protected)
-        range = [-Inf Inf]; %Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
+        range = [-Inf Inf];     % Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
     end
     
     properties
-%         prefs = {'hwserver_host','PB_line','pb_host','resonator_tune_speed','resVolt2Percent','moduleName'};
-%         show_prefs = {'tuning','target_wavelength','wavelength_lock','etalon_lock','resonator_percent','resonator_voltage',...
-%             'etalon_percent','etalon_voltage','hwserver_host','moduleName','PB_line','pb_host','resonator_tune_speed','calibrateRes'};
-%         prefs = {};
         show_prefs = {};
     end
     
@@ -35,66 +29,61 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     
     properties(SetObservable,GetObservable)
         % BASE prefs
-        moduleName =        Prefs.MultipleChoice('set', 'set_moduleName', 'help_text', 'Modules will be loaded when a hwserver hostname is supplied.');
-        hwserver_host =     Prefs.String(Sources.Msquared.no_server, 'set', 'set_hwserver_host');
-        
-        % REFRESH
-        refresh =           Prefs.Button('Poll hwserver', 'set', 'set_refresh');
+        moduleName =        Prefs.MultipleChoice('set', 'set_moduleName', ...
+                                                                    'help_text', 'Modules will be loaded when a hwserver hostname is supplied.');
+        hwserver_host =     Prefs.String(Sources.Msquared.no_server, 'set', 'set_hwserver_host', ...
+                                                                    'help_text', 'The host for the laser and wavemeter');
+        refresh =           Prefs.Button('Poll hwserver',       'set', 'set_refresh', ...
+                                                                    'help_text', 'Get information (voltages, wavelengths, states) from the laser and wavemeters');
         
         % WAVELENGTH prefs
-        active_module =     Prefs.MultipleChoice(Sources.Msquared.moduleNIR, 'readonly', true, 'choices', {Sources.Msquared.no_server, Sources.Msquared.moduleUV, Sources.Msquared.moduleVIS, Sources.Msquared.moduleNIR}, ... %{'ECD-X', 'EMM', 'SolsTiS'}, ...
-                                                                    'help_text', '350-525, 515-582/580-661, 700-1100');
-        
-%         setpoint =          Prefs.Double(NaN,   'units', 'nm',  'set', 'set_target_frequency', ...
-%                                                                     'help_text', '!!!');
         setpoint_ =         Prefs.Double(NaN,   'units', 'nm',  'set', 'set_target_wavelength', ...
-                                                                    'help_text', '!!!');
-        status =            Prefs.String(Sources.Msquared.no_server, 'readonly', true);
-        tuning =            Prefs.Boolean(NaN, 'readonly', true, 'allow_nan', true);
+                                                                    'help_text', 'Use this knob to tune the laser to a certain wavelength. The laser will decide the appropriate module to use based on the chosen wavelength');
+        active_module =     Prefs.MultipleChoice(Sources.Msquared.moduleNIR, 'readonly', true, 'allow_empty', true, 'choices', {Sources.Msquared.no_server, Sources.Msquared.moduleUV, Sources.Msquared.moduleVIS, Sources.Msquared.moduleNIR}, ... %{'ECD-X', 'EMM', 'SolsTiS'}, ...
+                                                                    'help_text', 'ECD-X (350-525), EMM (515-582/580-661), SolsTiS (700-1100)');
+        status =            Prefs.String(Sources.Msquared.no_server, 'readonly', true, ...
+                                                                    'help_text', 'Current tuning status of the laser.');
+        tuning =            Prefs.Boolean(NaN, 'readonly', true, 'allow_nan', true, ...
+                                                                    'help_text', 'Required by TunableLaser_invisible. True if status == tuning.');
+%         emm_crystal =       Prefs.Integer(2,   'readonly', true, 'set', 'set_fitted_oven', ...
+%                                                                     'help_text', 'Crystal being used: 1,2,3. This also sets range');
         
         % WAVEMETER prefs
-        NIR_channel =       Prefs.Integer(6,    'min', 1, 'max', 8, ...
-                                                                    'help_text', 'Wavemeter channel for this msquared laser''s SolsTiS. Indexed from 1.');
-        VIS_channel =       Prefs.Integer(7,    'min', 1, 'max', 8, ...
-                                                                    'help_text', 'Wavemeter channel for this msquared laser''s EMM. Indexed from 1.');
+        solstis_setpoint =  Prefs.Double(NaN,   'units', 'nm',  'readonly', true, ...
+                                                                    'help_text', 'Target wavelength for the SolsTiS Ti:Saph');
+        emm_setpoint =      Prefs.Double(NaN,   'units', 'nm',  'readonly', true, ...
+                                                                    'help_text', 'Target wavelength for the alignment of the EMM PPLN');
         NIR_wavelength =    Prefs.Double(NaN,   'units', 'nm',  'readonly', true, ...
                                                                     'help_text', 'Wavemeter output for the current wavelength of this msquared laser''s SolsTiS. Additionally, this is double the ECD-X output wavelength, if this module is used.');
         VIS_wavelength =    Prefs.Double(NaN,   'units', 'nm',  'readonly', true, ...
                                                                     'help_text', 'Wavemeter output for the current wavelength of this msquared laser''s EMM, if an EMM is connected.');
         diff_wavelength =   Prefs.Double(1950,  'units', 'nm',  'readonly', true, ...
                                                                     'help_text', 'Calculated EMM difference wavelength that is used to target EMM wavelengths via controlling the SolsTiS via 1/EMM_wl = 1/SolsTiS_wl - 1/diff_wl. This wavelength is roughly 1950, but is calculated and updated based on wavemeter measurments to catch and compensate drift.');
-        
-%         emm_c = Prefs.Integer(1,'readonly',true,'set','set_fitted_oven',...
-%             'help_text','Crystal being used: 1,2,3. This also sets range');
-        emm_setpoint =      Prefs.Double(NaN,   'units', 'nm',  'readonly', true, ...
-                                                                    'help_text', 'Target wavelength for the alignment of the EMM PPLN');
-        solstis_setpoint =  Prefs.Double(NaN,   'units', 'nm',  'readonly', true, ...
-                                                                    'help_text', 'Target wavelength for the SolsTiS Ti:Saph');
-        
+        NIR_channel =       Prefs.Integer(6,    'min', 1, 'max', 8, ...
+                                                                    'help_text', 'Wavemeter channel for this msquared laser''s SolsTiS. Indexed from 1.');
+        VIS_channel =       Prefs.Integer(7,    'min', 1, 'max', 8, ...
+                                                                    'help_text', 'Wavemeter channel for this msquared laser''s EMM. Indexed from 1.');
+                                                                
         % ETALON prefs
         do_etalon_lock =    Prefs.Boolean(false,                'set', 'set_do_etalon_lock', ...
-                                                                    'help_text', 'Note that disabling this auto-disables do_wavelength_lock, as the etalon must be locked for the wavelength to be locked.');
+                                                                    'help_text', 'Default for whether to hold the etalon lock. Note that disabling this auto-disables do_wavelength_lock, as the etalon must be locked for the wavelength to be locked.');
         etalon_lock =       Prefs.Boolean(false,                'readonly', true, 'allow_nan', true, ... 'set', 'set_etalon_lock', ...
-                                                                    'help_text', '!!!');
+                                                                    'help_text', 'Whether a lock is applied to the etalon.');
         etalon_percent =    Prefs.Double(NaN,   'units', '%',   'set', 'set_etalon_percent', 'min', 0, 'max', 100, ...
-                                                                    'help_text', 'Set etalon percent. This will change the etalon_voltage that is read.');
+                                                                    'help_text', 'Apply fine tuning to the etalon in units of percent of total range (0 -> 200 V).');
         etalon_voltage =    Prefs.Double(NaN,   'units', 'V',   'readonly', true, ...
-                                                                    'help_text', '!!!');
+                                                                    'help_text', 'The amount of fine tuning upon the etalon. Interact with this via etalon_percent.');
         
         % RESONATOR prefs
         do_wavelength_lock= Prefs.Boolean(false,                'set', 'set_do_wavelength_lock', ...
-                                                                    'help_text', 'Default for whether to hold the wavelength lock after coarse tuning. When using an external voltage or the resonator percentage to finely tune the laser, this should be *off*, lest this active feedback negates your desired tuning.');
+                                                                    'help_text', 'Default for whether to hold the wavelength lock. When using an external voltage or the resonator percentage to finely tune the laser, this should be *off*, lest this active feedback negates your desired tuning.');
         wavelength_lock =   Prefs.Boolean(false,                'readonly', true, 'allow_nan', true, ... 'set', 'set_wavelength_lock', ...
                                                                     'help_text', 'Whether the laser is currently using the wavemeter for closed loop locking to the setpoint. Note that this is different from the resonator lock, which is not implemented in this interface.');
         resonator_percent = Prefs.Double(NaN,   'units', '%',   'set', 'set_resonator_percent', 'min', 0, 'max', 100,...
-                                                                    'help_text', 'Set resonator percent. This will change the resonator_voltage that is read.');
+                                                                    'help_text', 'Apply fine tuning to the resonator in units of percent of total range (0 -> 200 V).');
         resonator_voltage = Prefs.Double(NaN,   'units', 'V',   'readonly', true, ...
-                                                                    'help_text', '!!!');
-%         resonator_speed =   Prefs.Double(2,     'units',        '%/step','min',0,'allow_nan',false,...
-%                                                                     'help_text', 'Maximum change in resonator percent per step allowed. Lower numbers will take longer to tune.');
-%         calibrateRes =      Prefs.Boolean(false,                'set', 'set_calibrateRes',...
-%                                                                     'help_text', 'Begin resonator voltage -> percent calibration (changes resVolt2Percent).');
-        
+                                                                    'help_text', 'The amount of fine tuning upon the resonator. Interact with this via resonator_percent.');
+
         % PULSEBLASTER prefs
         PB_line =           Prefs.Integer(1, 'min', 1, 'set', 'set_PB_line', 'help_text', 'Indexed from 1.');
         PB_host =           Prefs.String(Sources.Msquared.no_server, 'set', 'set_PB_host');
@@ -107,7 +96,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     methods(Static)
-        function obj = instance()
+        function obj = instance()                   % Standard instance method to prevent duplication.
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
@@ -118,7 +107,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     end
     
     methods
-        function reply = com(obj, fn, varargin)
+        function reply = com(obj, fn, varargin)     % Helper function for hwsever communication (fills in moduleName and deals with reserved clients).
             try
                 reply = obj.hwserver.com(obj.moduleName, fn, varargin{:});
             catch err
@@ -141,18 +130,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 rethrow(err);
             end
         end
-        function reply = com_blocking(obj,fn,varargin)
-            obj.hwserver.connection.Timeout = obj.blocking_timeout;
-            try
-                reply = obj.com(fn,varargin{:});
-            catch err
-                obj.hwserver.connection.Timeout = obj.default_timeout;
-                rethrow(err);
-            end
-            obj.hwserver.connection.Timeout = obj.default_timeout;
-        end
         
-        function callGetWavelength(obj)
+        function callGetWavelength(obj)             % Calls the solstis method 'get_wavelength' and fills prefs in.
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver)
                 obj.status = obj.no_server;
                 obj.tuning = false;
@@ -167,7 +146,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.wavelength_lock = logical(reply.lock_status);
             end
         end
-        function callStatus(obj)
+        function callStatus(obj)                    % Calls the solstis method 'status' and fills prefs in.
             % Get status report from SolsTiS laser and update fields
 %             obj.updatingVal = true;
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver)
@@ -175,6 +154,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.etalon_voltage = NaN;
 %                 obj.resonator_lock = false;
                 obj.resonator_voltage = NaN;
+                obj.output_monitor = 0;
             else
                 reply = obj.com('status', 'solstis');
                 
@@ -182,11 +162,13 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.etalon_voltage =    reply.etalon_voltage;
 %                 obj.resonator_lock =    strcmp(reply.cavity_lock,'on');
                 obj.resonator_voltage = reply.resonator_voltage;
+                obj.output_monitor =    reply.output_monitor;
             end
             
             obj.callGetWavelength()
         end
-        function getWavemeterWavelength(obj)
+        
+        function getWavemeterWavelength(obj)        % Measures the output wavelength directly from the wavemeter. Also uses the EMM channel if the EMM module is active.
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver)
                 obj.NIR_wavelength =  NaN;
                 obj.VIS_wavelength =  NaN;
@@ -195,6 +177,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
 
                 if strcmp(obj.determineModule(obj.setpoint_), obj.moduleVIS)
+                    obj.com('SetSwitcherSignalStates', obj.VIS_channel, 1, 1);
                     obj.VIS_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.VIS_channel, 0);
 
                     if obj.VIS_wavelength > 0 && obj.NIR_wavelength > 0
@@ -204,22 +187,18 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                             obj.diff_wavelength = diff_wavelength_;
                         end
                     end
+                else
+                    obj.com('SetSwitcherSignalStates', obj.VIS_channel, 0, 0);
                 end
             end
         end
     end
     
     methods
-        function tune(obj, target)
-            % This is the tuning method that interacts with hardware
-            % target in nm
+        function tune(obj, target)                  % This is the tuning method that interacts with hardware (target in nm)
             assert(~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver), 'No hwserver host!')
-%             assert(target>obj.c/max(obj.range)&&target<obj.c/min(obj.range),sprintf('Wavelength must be in range [%g, %g] nm!!',obj.c./obj.range))
             
             obj.updatingVal = true;
-%             obj.setpoint_ = target;
-            
-
             module = obj.determineModule(target);
             obj.active_module = module;
 
@@ -252,8 +231,10 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.tuning = true;
             obj.updatingVal = false;
             
+            obj.getFrequency();
+            
 %             pause(1) % Wait for msquared to start tuning
-            obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency)
+            obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency each tick)
             
             if      ~obj.do_etalon_lock
                 obj.com('lock_wavelength', 'solstis', obj.lockList{1});
@@ -267,10 +248,23 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     end
     
     methods
-        function val = set_source_on(obj, val, ~)
+        function val = set_source_on(obj, val, ~)   % 'Fast' modulation method -- usually the PulseBlaster.
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             obj.PulseBlaster.lines(obj.PB_line).state = val;
         end
+        function val = set_armed(obj, val, ~)       % Checks if the laser is outputting power (i.e. has been armed) and complains if result was contradictory.
+            obj.getFrequency(); 
+            
+            if val ~= (obj.output_monitor > .01)    % If we are setting armed to an incorrect value...
+                val = ~val;
+                if val
+                    warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
+                else
+                    warndlg(['Request to blackout laser. Laser is on, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser off'], 'Blackout (Sources.Msquared)')
+                end
+            end
+        end
+        
         function host= set_hwserver_host(obj, host, ~)
             try
                 obj.hwserver = hwserver(host); %#ok<CPROPLC>
@@ -298,7 +292,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.getFrequency();
         end
         
-        function val = set_refresh(obj,val,~)
+        function val = set_refresh(obj,val,~)       % Polls hwserver by calling getFrequency().
             obj.getFrequency();
         end
         
@@ -317,56 +311,51 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             end
         end
         
-        function val = set_target_wavelength(obj, val, ~)
+        function val = set_target_wavelength(obj, val, ~)   % Calls the tune() method.
             if isnan(val); return; end % Short circuit on NaN
+            if obj.updatingVal; return; end
             obj.tune(val);
         end
         
         function val = set_etalon_percent(obj, val, ~)
             if isnan(val); return; end % Short circuit on NaN
             obj.getFrequency();
-            assert(~obj.etalon_lock, 'Laser is currently locked.');
+%             assert(~obj.etalon_lock, 'Laser is currently locked.');
+            obj.do_etalon_lock = false;
             obj.com('set_etalon_val', 'solstis', val);
         end
-        function val = set_do_etalon_lock(obj, val, ~)
-            if obj.do_wavelength_lock && ~val
+        function val = set_do_etalon_lock(obj, val, pref)
+            if val == pref.value; return; end
+            if obj.do_wavelength_lock && ~val   % Wavelength lock cannot be on without etalon lock.
                 obj.do_wavelength_lock = false;
             end
             obj.com('set_etalon_lock', 'solstis', obj.lockList{val+1});
             obj.getFrequency();
         end
-%         function val = set_etalon_lock(obj, val, ~)
-%             if isnan(val); return; end % Short circuit on NaN
-%             if ~obj.updatingVal
-%             end
-%         end
         
         function val = set_resonator_percent(obj, val, ~)
             if isnan(val); return; end % Short circuit on NaN
             obj.getFrequency();
-            assert(~obj.wavelength_lock, 'Laser is currently locked.');
+%             assert(~obj.wavelength_lock, 'Laser is currently locked.');
+            obj.do_wavelength_lock = false;
             obj.com('set_resonator_val', 'solstis', val);
         end
-        function val = set_do_wavelength_lock(obj, val, ~)
-            if ~obj.do_etalon_lock && val
+        function val = set_do_wavelength_lock(obj, val, pref)
+            if val == pref.value; return; end
+            if ~obj.do_etalon_lock && val       % Wavelength lock cannot be on without etalon lock.
                 obj.do_etalon_lock = true;
             end
             obj.com('lock_wavelength', 'solstis', obj.lockList{val+1});
-            if val
-                try
-                    obj.tune(obj.setpoint_)
-                catch
-                    obj.getFrequency();
-                end
-            else
+%             if val
+%                 try
+%                     obj.tune(obj.setpoint_)
+%                 catch
+%                     obj.getFrequency();
+%                 end
+%             else
                 obj.getFrequency();
-            end
-        end
-%         function val = set_wavelength_lock(obj, val, ~)
-%             if isnan(val); return; end % Short circuit on NaN
-%             if ~obj.updatingVal
 %             end
-%         end
+        end
     end
     
     methods     % TunableLaser_invisible methods
@@ -408,16 +397,18 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 wavelength = obj.setpoint_;
             end
             
-            emm_crystal = 2;    % EMM crystal. For now, the second (582-661 nm) crystal is the only one enabled. In the future, this should reference a pref.
+            emm_crystal = 2;    % For now, the second (582-661 nm) crystal is the only one enabled. In the future, this should reference a pref.
             
             if     wavelength >= 515 && wavelength <= 582 && emm_crystal == 1   % For the 515-525 nm range where crystal 1 EMM and ECD-X have overlap, prefer EMM. There should be some way to override.
-                module = Sources.Msquared.moduleVIS; %'EMM';
+                module = Sources.Msquared.moduleVIS;    %'EMM';
             elseif wavelength >= 350 && wavelength <= 525
-                module = Sources.Msquared.moduleUV;  %'ECD-X';
+                module = Sources.Msquared.moduleUV;     %'ECD-X';
+            elseif wavelength >= 515 && wavelength <= 582 && emm_crystal ~= 2
+                error('Crystal is currently hard-coded to 2, and EMM wavelengths in the 515-582 nm range are unavailible. Change crystal and/or remove hardcoding to fix.')
             elseif wavelength >= 580 && wavelength <= 661 && emm_crystal == 2
-                module = Sources.Msquared.moduleVIS; %'EMM';
-            elseif wavelength >= 700 && wavelength <= 1100
-                module = Sources.Msquared.moduleNIR; %'SolsTiS';
+                module = Sources.Msquared.moduleVIS;    %'EMM';
+            elseif wavelength >= 700 && wavelength <= 1000
+                module = Sources.Msquared.moduleNIR;    %'SolsTiS';
             else
                 module = '';    % Return empty if the wavelength is invalid. Easy to check with isempty().
             end

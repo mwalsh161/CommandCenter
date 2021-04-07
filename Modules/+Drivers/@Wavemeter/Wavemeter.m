@@ -126,11 +126,17 @@ classdef Wavemeter < Modules.Driver
                 output = obj.com(cmd,obj.channel,0);
             end
             if output <= 0
-                if output == -1
-                    msg = 'Low signal';
+                if output == 0 || output == -5 || output == -6 || output == -15
+                    msg = 'Not Available';
+                elseif output == -1
+                    msg = 'No signal';
                 elseif output == -2
-                    msg = 'High signal';
+                    msg = 'Bad signal';
                 elseif output == -3
+                    msg = 'Low signal';
+                elseif output == -4
+                    msg = 'High signal';
+                elseif output == -14
                     msg = 'Out of Range';
                 else
                     msg = sprintf('Unknown error code: %g',output);
