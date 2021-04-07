@@ -4,12 +4,12 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     properties(Access=private, Hidden)
         hwserver = [];          % TCPIP handle to the python hardwareserver for laser and wavemeter connectivity.
         PulseBlaster = [];      % Handle to the appropriate Drivers.PulseBlaster.
-        updatingVal = false;    % Flag to prevent 
+        updatingVal = false;    % Flag to prevent attempting to tune to multiple wavelengths at once.
         output_monitor = 0;     % Output of the SolsTiS photodiode. Used for determining whether the laser is armed.
     end
     
     properties(SetAccess=protected)
-        range = [-Inf Inf];     % Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
+        range = [-Inf Inf];     % Ignoring limits for now. % Sources.TunableLaser_invisible.c./[700,1000]; %tunable range in THz
     end
     
     properties
@@ -23,8 +23,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         
         no_server = 'No Server';
         
-        statusList = {'Open Loop', 'No Wavemeter', 'Tuning', 'Closed Loop'}
-        lockList = {'off', 'on'}
+        statusList = {'Open Loop', 'No Wavemeter', 'Tuning', 'Closed Loop'};    % Interpretation of msquared status (see callGetWavelength).
+        lockList = {'off', 'on'};                                               % Used to convert logical 0/1 to 'off'/'on' for comms with the laser.
     end
     
     properties(SetObservable,GetObservable)
@@ -91,8 +91,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     
     methods(Access=private)
         function obj = Msquared()
-            obj.loadPrefs;      % This will call set.(*_host) too which instantiate hardware
-            obj.getFrequency(); % Redundant with set.(*_host) but useful for if no host pref
+            obj.loadPrefs;      % This will call set_hwserver_host, which will instantiate the hardware.
+            obj.getFrequency(); % Update prefs based on current values.
         end
     end
     methods(Static)
@@ -106,7 +106,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     
-    methods
+    methods     % Helper methods for communication/datapolling.
         function reply = com(obj, fn, varargin)     % Helper function for hwsever communication (fills in moduleName and deals with reserved clients).
             try
                 reply = obj.hwserver.com(obj.moduleName, fn, varargin{:});
@@ -142,13 +142,12 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 
                 obj.status = obj.statusList{reply.status+1};
                 obj.tuning = reply.status == 2;
-%                 obj.wavelength = reply.current_wavelength;
+%                 obj.wavelength = reply.current_wavelength;    % We will preference the wavemeter.
                 obj.wavelength_lock = logical(reply.lock_status);
             end
         end
         function callStatus(obj)                    % Calls the solstis method 'status' and fills prefs in.
             % Get status report from SolsTiS laser and update fields
-%             obj.updatingVal = true;
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver)
                 obj.etalon_lock = NaN;
                 obj.etalon_voltage = NaN;
@@ -194,7 +193,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     
-    methods
+    methods     % The meat of this tunable source.
         function tune(obj, target)                  % This is the tuning method that interacts with hardware (target in nm)
             assert(~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver), 'No hwserver host!')
             
@@ -247,7 +246,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     
-    methods
+    methods     % Pref set methods.
         function val = set_source_on(obj, val, ~)   % 'Fast' modulation method -- usually the PulseBlaster.
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             obj.PulseBlaster.lines(obj.PB_line).state = val;
@@ -320,7 +319,6 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function val = set_etalon_percent(obj, val, ~)
             if isnan(val); return; end % Short circuit on NaN
             obj.getFrequency();
-%             assert(~obj.etalon_lock, 'Laser is currently locked.');
             obj.do_etalon_lock = false;
             obj.com('set_etalon_val', 'solstis', val);
         end
@@ -336,7 +334,6 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function val = set_resonator_percent(obj, val, ~)
             if isnan(val); return; end % Short circuit on NaN
             obj.getFrequency();
-%             assert(~obj.wavelength_lock, 'Laser is currently locked.');
             obj.do_wavelength_lock = false;
             obj.com('set_resonator_val', 'solstis', val);
         end
@@ -361,7 +358,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     methods     % TunableLaser_invisible methods
         function TuneCoarse(obj, target)
             obj.TuneSetpoint(target);
-            obj.wavelength_lock = false;
+            obj.do_wavelength_lock = false;
         end
         function TunePercent(obj, target)
             assert(target >= 0 && target <= 100, 'Target must be a percentage')
@@ -369,13 +366,6 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
         function TuneSetpoint(obj, target)
             obj.tune(obj.c/target);
-            
-            if ~obj.do_wavelength_lock
-                obj.wavelength_lock = false;
-            end
-            if ~obj.do_etalon_lock
-                obj.etalon_lock = false;
-            end
         end
         function percent = GetPercent(obj)
             obj.getFrequency();
@@ -386,13 +376,13 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.getWavemeterWavelength();
             obj.callStatus();
             wavelength = obj.determineResultingWavelength();
-            freq = obj.c/wavelength;
+            freq = obj.c/wavelength;    % Not sure if this should be used; imprecise.
             obj.setpoint = freq;
         end
     end
     
-    methods     % Identity functions.
-        function module = determineModule(obj, wavelength)
+    methods     % Module interpretation functions.
+        function module = determineModule(obj, wavelength)                  % Determines the module most appropriate for the target wavelength. If wavelength is not given, uses wavelength = obj.setpoint_
             if nargin < 2
                 wavelength = obj.setpoint_;
             end
@@ -413,7 +403,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 module = '';    % Return empty if the wavelength is invalid. Easy to check with isempty().
             end
         end
-        function nir_wavelength = determineNIRWavelength(obj, wavelength)
+        function nir_wavelength = determineNIRWavelength(obj, wavelength)   % Determines the SolsTiS setpoint based on the target wavelength, with the same caviats as above.
             if nargin < 2
                 wavelength = obj.setpoint_;
             end
@@ -429,7 +419,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     nir_wavelength = NaN;
             end
         end
-        function resulting_wavelength = determineResultingWavelength(obj)
+        function resulting_wavelength = determineResultingWavelength(obj)   % Interprets the results from the two wavemeter channels to return the resulting wavelength.
             if nargin < 2
                 wavelength = obj.setpoint_;
             end
