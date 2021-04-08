@@ -12,7 +12,7 @@ classdef APDPulseSequence < handle
         time            % Expected time for the sequence (sec).
         timeout         % Padded timeout (sec).
     end
-    
+
     methods
         function obj = APDPulseSequence(ni,pb,seq)
             obj.ni = ni;
@@ -67,7 +67,7 @@ classdef APDPulseSequence < handle
         function start(obj,MaxCounts,overrideMinDuration)
             % Max expected counts per gate as input
             % See sequence.compile for overrideMinDuration
-            
+
             if nargin < 3
                 overrideMinDuration = false;
             end
@@ -98,30 +98,10 @@ classdef APDPulseSequence < handle
                 obj.tasks(i).Start;
             end
             try
-                [program,s] = obj.seq.compile(overrideMinDuration);
-                
-                N = length(s);
-                times = NaN(1,N);
-                
-                for ii = 1:N
-                    if strcmp(s(ii).node.units, 'ns')
-                        times(ii) = s(ii).t / 1e9;
-                    elseif strcmp(s(ii).node.units, 'us')
-                        times(ii) = s(ii).t / 1e6;
-                    elseif strcmp(s(ii).node.units, 'ms')
-                        times(ii) = s(ii).t / 1e3;
-                    else
-                        error(['Units ' num2str(s(1).node.units) ' not recognized.'])
-                    end
-                end
-                
-                obj.time = (max(times) - min(times)) * obj.seq.repeat;
+                [program, ~, ~, obj.time] = obj.seq.compile(overrideMinDuration);
+
                 obj.timeout = 1.5*obj.time + 1;
-                
-                disp(obj.time)
-                disp(obj.timeout)
-                
-%                 obj.pb.open;
+
                 obj.pb.load(program);
                 obj.pb.start;
             catch err
@@ -166,7 +146,7 @@ classdef APDPulseSequence < handle
                         end
                     end
                 end
-                
+
                 if toc(t) >= obj.timeout
                     error('APDPulseSequence operation timed out without reading samples from DAQ. Make sure that PulseBlaster pulses are reaching the DAQ!')
                 end
