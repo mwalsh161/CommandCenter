@@ -5,6 +5,7 @@ classdef TunableLaser_invisible < handle
     %   tuning: flag indicating laser is still tuning (should be updated on
     %       getFrequency calls)
     %   setpoint: frequency in THz where the laser was last told to be set
+    %   locked: true if laser is in a closed-loop state, false otherwise
     %   range: the tunable range of the laser in THz
     %Methods:
     %   TuneCoarse: Tune coarse tuning method to a unit-value
@@ -19,6 +20,9 @@ classdef TunableLaser_invisible < handle
     end
     properties(SetObservable,GetObservable)
         setpoint = Prefs.Double(NaN,'readonly',true,'units','THz');
+    end
+    properties(SetObservable,GetObservable)
+        locked = Prefs.Boolean(false,'readonly',true);
     end
     properties(Abstract,SetAccess=protected)
         range
