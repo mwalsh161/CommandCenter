@@ -295,7 +295,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             
             if val ~= (obj.output_monitor > .01)    % If we are setting armed to an incorrect value...
                 val = ~val;
-                if val
+                if ~val
                     warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
                 else
                     warndlg(['Request to blackout laser. Laser is on, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser off'], 'Blackout (Sources.Msquared)')

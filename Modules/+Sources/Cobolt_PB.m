@@ -17,7 +17,7 @@ classdef Cobolt_PB < Modules.Source
         PulseBlaster                % pulseblaster handle
     end
     properties
-        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
+        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power'};
         show_prefs =    {'PB_host', 'PB_line', 'cobolt_host', 'power', 'diode_sn', 'diode_age', 'temperature'}; 
     end
     methods(Access=protected)
@@ -113,7 +113,7 @@ classdef Cobolt_PB < Modules.Source
         function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
             if strcmp('No Server',val)
                 obj.PulseBlaster = [];
-                obj.source_on = false;
+                obj.source_on = NaN;
                 return
             end
             err = [];
@@ -122,7 +122,7 @@ classdef Cobolt_PB < Modules.Source
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             catch err
                 obj.PulseBlaster = [];
-                obj.source_on = false;
+                obj.source_on = NaN;
                 val = 'No Server';
             end
             if ~isempty(err)
@@ -134,7 +134,7 @@ classdef Cobolt_PB < Modules.Source
 
             if strcmp('No Server', val)
                 obj.serial = [];
-                obj.diode_on = false;
+                obj.armed = NaN;
                 return
             end
             err = [];
@@ -147,6 +147,7 @@ classdef Cobolt_PB < Modules.Source
                 obj.power = obj.get_power();
             catch err
                 obj.serial = [];
+                obj.armed = NaN;
                 val = 'No Server';
             end
             if ~isempty(err)
