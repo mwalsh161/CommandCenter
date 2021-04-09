@@ -26,6 +26,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         
         statusList = {'Open Loop', 'No Wavemeter', 'Tuning', 'Closed Loop'};    % Interpretation of msquared status (see callGetWavelength).
         lockList = {'off', 'on'};                                               % Used to convert logical 0/1 to 'off'/'on' for comms with the laser.
+        
+        emm_tolerance = .001 % nm                                               % If we are further away than this, assumed bad diff_wavelength estimate.
     end
     
     properties(SetObservable,GetObservable)
@@ -214,6 +216,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.updatingVal = true;
             obj.active_module = module;
 
+            % If necessary, tune the EMM PPLN setpoint
             if strcmp(module, obj.moduleVIS)
                 obj.emm_setpoint = target;
                 try
@@ -241,9 +244,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     failcount = failcount + 1;
                 else
                     obj.tuning = true;
-
                     obj.getFrequency();
-
+                    
                     obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency each tick)
                 
                     if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
@@ -256,7 +258,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                             failcount = failcount + 1;
                         end
                         
-                        pause(.5);
+                        pause(.5);          % After a little bit, continue with the while loop to tune back.
                     end
                 end
                 
@@ -269,7 +271,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if failcount > 10
                 error('Failed to set the SolsTiS wavelength ten times, aborting tuning attempt.')
             end
-                
+            
+            % Unlock if desired.
             if      ~obj.do_etalon_lock
                 obj.com('lock_wavelength', 'solstis', obj.lockList{1});
                 obj.com('set_etalon_lock', 'solstis', obj.lockList{1});
@@ -277,9 +280,10 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.com('lock_wavelength', 'solstis', obj.lockList{1});
             end
             
+            % Update values.
             obj.getFrequency();
             
-            if strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > .001 % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
+            if strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
                 obj.tune(target)    % Try tuning again.
             end
         end
@@ -326,7 +330,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.status = host;
             end
         end
-        function val = set_moduleName(obj,val,~)
+        function val = set_moduleName(obj,val,~)    % Polls hwserver by calling getFrequency(). Important to do to update settings.
             obj.getFrequency();
         end
         
@@ -448,25 +452,25 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             
             switch obj.determineModule(wavelength)  % Use our other function to determine which mode we are in.
                 case Sources.Msquared.moduleUV  %'ECD-X'
-                    nir_wavelength = 2*wavelength;                                  % ECD-X is a freqeuncy doubler, wavelength halver.
+                    nir_wavelength = 2*wavelength;                                  % ECD-X is a frequency doubler, wavelength halver.
                 case Sources.Msquared.moduleVIS %'EMM'
-                    nir_wavelength = 1./(1./wavelength - 1/obj.diff_wavelength);    % EMM is a sum freqency module.
+                    nir_wavelength = 1./(1./wavelength - 1/obj.diff_wavelength);    % EMM is a sum frequency module.
                 case Sources.Msquared.moduleNIR %'SolsTiS'
                     nir_wavelength = wavelength;                                    % SolsTiS is itself.
                 otherwise
                     nir_wavelength = NaN;
             end
         end
-        function resulting_wavelength = determineResultingWavelength(obj)   % Interprets the results from the two wavemeter channels to return the resulting wavelength.
+        function resulting_wavelength = determineResultingWavelength(obj, wavelength)   % Interprets the results from the two wavemeter channels to return the resulting wavelength.
             if nargin < 2
                 wavelength = obj.setpoint_;
             end
             
             switch obj.determineModule(wavelength)  % Use our other function to determine which mode we are in.
                 case Sources.Msquared.moduleUV  %'ECD-X'
-                    resulting_wavelength = obj.NIR_wavelength/2;                     % ECD-X is a freqeuncy doubler, wavelength halver.
+                    resulting_wavelength = obj.NIR_wavelength/2;                     % ECD-X is a frequency doubler, wavelength halver.
                 case Sources.Msquared.moduleVIS %'EMM'
-                    resulting_wavelength = obj.VIS_wavelength;                       % EMM is a sum freqency module.
+                    resulting_wavelength = obj.VIS_wavelength;                       % EMM is a sum frequency module.
                 case Sources.Msquared.moduleNIR %'SolsTiS'
                     resulting_wavelength = obj.NIR_wavelength;                       % SolsTiS is itself.
                 otherwise
