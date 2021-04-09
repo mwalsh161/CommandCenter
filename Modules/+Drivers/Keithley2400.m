@@ -1,7 +1,7 @@
 classdef Keithley2400 < Modules.Driver
     %KEITHLEY2400 Interfaces with the eponymous signal generator.
     
-    properties (SetAccess=protected)
+    properties (SetAccess=protected, Hidden)
         GPIBAddr            % GPIB address
         RsrcName            % Resource name of the VISA instrument
         VisaHandle          % Handle of the VISA object
@@ -21,7 +21,7 @@ classdef Keithley2400 < Modules.Driver
     % Constructor functions
     methods (Static)
         function obj = instance(GPIBAddr)
-%             mlock;
+            mlock;
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.Keithley2400.empty(1,0);
@@ -92,7 +92,7 @@ classdef Keithley2400 < Modules.Driver
         end
         function init(obj)
             obj.output =    obj.get_output();
-            obj.mode =      obj.get_mode();
+%             obj.mode =      obj.get_mode();
             obj.voltage =   obj.get_voltage();
             obj.current =   obj.get_current();
         end
@@ -118,7 +118,7 @@ classdef Keithley2400 < Modules.Driver
 %         function mode = get_mode(obj)
         
         % Setpoint voltage
-        function set_voltage(obj, val, ~)
+        function val = set_voltage(obj, val, ~)
             obj.cmd(['sour:volt:lev:imm:ampl ' num2str(val)]);
         end
         function voltage = get_voltage(obj)
@@ -126,7 +126,7 @@ classdef Keithley2400 < Modules.Driver
         end
         
         % Setpoint current
-        function set_current(obj, val, ~)
+        function val = set_current(obj, val, ~)
             obj.cmd(['sour:curr:lev:imm:ampl ' num2str(val)]);
         end
         function current = get_current(obj)
