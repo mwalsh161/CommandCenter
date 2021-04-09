@@ -135,7 +135,7 @@ classdef Keithley2400 < Modules.Driver
         
         % Measure voltage
         function voltage = measureVoltage(obj)
-            voltage = str2double(strtok(obj.query('meas:VOLT:DC?'),','));  % returned measuremnet consists of 5 numbers, the first is voltage
+            voltage = str2double(strtok(obj.query('meas:VOLT:DC?'),','));  % returned measurement consists of 5 numbers, the first is voltage
         end
         
         % Measure current
