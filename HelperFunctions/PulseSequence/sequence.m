@@ -394,30 +394,34 @@ classdef sequence < handle
             end
             
         end
-        function [instructionSet,seqOut,instInfo,time] = compile(obj,overrideMinDuration, defaultLines_)
+        function [instructionSet,seqOut,instInfo,time] = compile(obj,overrideMinDuration, defaultLinesUser)
             % repeat puts a loop around the full thing. If Inf, a branch
             % statement is used instead. If more than a single command can
             % handle, nested loops will be used
             % First and last instruction create mandatory pause of at least
             % 12.5 ns between repeats
-            %   The last instruction is given default of obj.minDurration
-            % If overrideMinDuration, the compiler will make sure all
+            % The overrideMinDuration instruction is given default of obj.minDurration
+            %   If overrideMinDuration, the compiler will make sure all
             %   instructions are atleast minduration, and fix and warn you
             %   if not.
+            % The defaultLinesUser instruction tells the compiler to set any channels that are 
+            %   unused by the pulsesequence to the value in defaultLinesUser. This is useful if one wants 
+            %   to leave, say, the state of a laser unchanged while other lines are modulated. If no
+            %   argument is given, all unmodulated channels are set to off.
             if nargin < 2
                 overrideMinDuration = false;
                 defaultLines_ = zeros(1,24);
             end
-            if nargin < 2
-                overrideMinDuration = false;
+            if nargin < 3
+                defaultLinesUser = zeros(1,24);    % No default if no argument is given.
             end
             
             chans = obj.getSequenceChannels;
             
-            assert(numel(defaultLines_) <= 24 && length(defaultLines_) == numel(defaultLines_), 'defaultLines_ must be a vector with length less than 24 inclusive.');
+            assert(numel(defaultLinesUser) <= 24 && length(defaultLinesUser) == numel(defaultLinesUser), 'defaultLinesUser must be a vector with length less than 24 inclusive.');
             
             defaultLines = zeros(1,24);
-            defaultLines(1:numel(defaultLines_)) = defaultLines_;  % In case defaultLines_ is a column vector or has fewer elemeents
+            defaultLines(1:numel(defaultLinesUser)) = defaultLinesUser;  % In case defaultLinesUser is a column vector or has fewer elements
             defaultLines([chans.hardware] + 1) = 0;                % Any channel that is used should start off. Turned zero indexing into one indexing.
             defaultLines = fliplr(defaultLines);                   % Little endian.
             
@@ -655,4 +659,3 @@ classdef sequence < handle
     end
     
 end
-

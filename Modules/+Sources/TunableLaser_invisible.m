@@ -33,10 +33,13 @@ classdef TunableLaser_invisible < handle
     methods
         function trackFrequency(obj,varargin)
             target = NaN;
+            
             if nargin > 1
                 target = varargin{1};
             end
+            
             t = tic; % Start clock
+            
             [f,new] = UseFigure('TunableLaser.trackFrequency');
             if new % Prepare axes
                 set(f,'name','TunableLaser.trackFrequency','NumberTitle','off');
@@ -50,6 +53,7 @@ classdef TunableLaser_invisible < handle
                 ylabel(f.UserData.ax(2),'|dF| (dTHz)');
                 set(f.UserData.ax(2),'yscale','log');
             end
+            
             ax = f.UserData.ax;
             ax(1).Title.String = sprintf('Tuning %s',class(obj));
             delete(ax(1).Children); % Clean up from last time
@@ -58,6 +62,8 @@ classdef TunableLaser_invisible < handle
             freqH = plot(ax(1),NaN,NaN,'r-o','DisplayName','Current Frequency');
             dfreqH = plot(ax(2),NaN,NaN,'r-o');
             legend(ax(1),'show');
+            
+            freq = obj.getFrequency;
             n = 0;
             while obj.tuning
                 freq = obj.getFrequency;
@@ -72,12 +78,13 @@ classdef TunableLaser_invisible < handle
                 end
                 drawnow limitrate;
             end
+            
             freqH.Color = lines(1);
             dfreqH.Color = lines(1);
             ax(1).Title.String = class(obj);
         end
         function obj = TunableLaser_invisible()
-            obj.show_prefs = [{'setpoint','locked'},obj.show_prefs];
+            obj.show_prefs = [{'setpoint'},obj.show_prefs];
         end
         function TuneCoarse(~,varargin)
             error('Method TuneCoarse not defined')

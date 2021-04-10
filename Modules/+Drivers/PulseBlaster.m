@@ -52,21 +52,14 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             end
             obj.spawnLines();
         end
-        function spawnLines(obj)
+        function spawnLines(obj)                            % Spawns Drivers.PulseBlaster.Line objects mapping to hardware PulseBlaster lines.
             state = obj.getLines();
 
             for ii = 1:length(state)    % Eventually, have a system to only initialize certain lines (based on a pref) and to name them.
                 obj.lines = [obj.lines Drivers.PulseBlaster.Line.instance(obj, ii)];
             end
         end
-        function killLines(obj)
-            delete(obj.lines);
-        end
-        function updateLines(obj, state)
-            if isempty(obj.lines)
-                return
-            end
-                
+        function updateLines(obj, state)                    % Updates the state of the Drivers.PulseBlaster.Line objects with the state of the Drivers.PulseBlaster
             if nargin == 1
                 state = obj.getLines();
             end
@@ -84,7 +77,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     end
     methods
         function delete(obj)
-            obj.killLines();
+            delete(obj.lines);
             delete(obj.connection);
         end
         function response = com(obj, varargin)              % Communication helper function.

@@ -16,6 +16,10 @@ classdef Cobolt_PB < Modules.Source
         serial                      % hwserver handle
         PulseBlaster                % pulseblaster handle
     end
+    properties
+        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
+        show_prefs =    {'PB_host', 'PB_line', 'cobolt_host', 'power', 'diode_sn', 'diode_age', 'temperature'}; 
+    end
     methods(Access=protected)
         function obj = Cobolt_PB()
             obj.loadPrefs; % note that this calls set.host

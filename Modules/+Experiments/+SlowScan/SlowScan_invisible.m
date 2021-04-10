@@ -12,6 +12,9 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
         repumpTime_us = 1; %us
         resOffset_us = 0.1;
         resTime_us = 0.1;
+        wavemeter_override = false;
+        wavemeter_channel = 1;
+        wavemeter = [];
     end
     properties
         scan_points = []; %frequency points, either in THz or in percents
@@ -29,7 +32,7 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
     methods
         function obj = SlowScan_invisible()
             obj.path = 'APD1';
-            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','repumpTime_us','resOffset_us','resTime_us'}]; %additional preferences not in superclass
+            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','repumpTime_us','resOffset_us','resTime_us','wavemeter_override','wavemeter_channel'}]; %additional preferences not in superclass
         end
         function s = BuildPulseSequence(obj,freqIndex)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
@@ -56,6 +59,9 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
         function PreRun(obj,~,managers,ax)
             %prepare frequencies
             obj.data.freqs_measured = NaN(obj.averages,length(obj.scan_points));
+            if obj.wavemeter_override
+                obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
+            end
             %prepare axes for plotting
             hold(ax,'on');
             %plot data
@@ -79,7 +85,11 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
         end
         function UpdateRun(obj,~,~,ax,average,freqIndex)
             %pull frequency that latest sequence was run at
-            obj.data.freqs_measured(average,freqIndex) = obj.resLaser.getFrequency;
+            if obj.wavemeter_override
+                obj.data.freqs_measured(average,freqIndex) = obj.wavemeter.getFrequency;
+            else
+                obj.data.freqs_measured(average,freqIndex) = obj.resLaser.getFrequency;
+            end
             
             if obj.averages > 1
                 averagedData = squeeze(nanmean(obj.data.sumCounts,3));

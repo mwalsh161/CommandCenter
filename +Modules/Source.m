@@ -79,6 +79,7 @@ classdef Source < Base.Module
             end
         end
     end
+    
     methods(Sealed)     % Methods for backwards compatibility with code that uses the old arm() and blackout() methods. Now simply wraps armed.
         function arm(obj)
             obj.armed = true;
@@ -87,7 +88,7 @@ classdef Source < Base.Module
             obj.armed = false;
         end
     end
-
+    
     methods(Hidden)
         function updateCommandCenter(obj,~,~)
             if isstruct(obj.CC_dropdown) && isvalid(obj.CC_dropdown.h)
