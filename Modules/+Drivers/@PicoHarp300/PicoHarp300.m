@@ -185,7 +185,7 @@ classdef PicoHarp300 < Modules.Driver
         end
 
         function PH_SetBinning(obj,Binning)
-            assert(ismember(Binning,[0:obj.MAXBINSTEPS-1]),'Binnign must be an integer between 0 and %d',obj.MAXBINSTEPS-1);
+            assert(ismember(Binning,[0:obj.MAXBINSTEPS-1]),'Binning must be an integer between 0 and %d',obj.MAXBINSTEPS-1);
             [ret] = calllib('PHlib','PH_SetBinning',obj.DeviceNr,Binning);
             assert(ret==0,sprintf('PH_SetBinning error %ld.',ret));
         end
