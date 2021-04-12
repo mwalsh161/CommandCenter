@@ -111,7 +111,6 @@ classdef PicoHarp300 < Modules.Driver
                 [ret, Serial] = calllib('PHlib', 'PH_OpenDevice', i, SerialPtr);
                 if (ret==0)       % Grab any PicoHarp we successfully opened
                     dev = cat(1,dev,i);
-                    %dev(found)=i; %keep index to devices we may want to use
                     Serials = cat(1,Serials,Serial);
                 end
             end
@@ -126,10 +125,6 @@ classdef PicoHarp300 < Modules.Driver
                 [ret] = calllib('PHlib', 'PH_Initialize', dev(i), obj.MODE_HIST);
             end
             if ret~=0
-%                 errmsg = [];
-%                 for j=1:length(dev)
-%                     errmsg = strcat(strjoin({'Device index: ',num2str(dev(j)),' S/N: ', Serials{j}}), '\n', errmsg);
-%                 end
                 error('Error initializing PicoHarp300\nDevice index: %d S/N: %s', dev(i), Serials{i})
             end
             pause(0.2); % Note: after Init or SetSyncDiv you must allow 100 ms for valid new count rate readings
@@ -190,7 +185,7 @@ classdef PicoHarp300 < Modules.Driver
         end
 
         function PH_SetBinning(obj,Binning)
-            assert(ismember(Binning,[0:obj.MAXBINSTEPS-1]),'Binnign must be an integer between 0 and %d',obj.MAXBINSTEPS-1);
+            assert(ismember(Binning,[0:obj.MAXBINSTEPS-1]),'Binning must be an integer between 0 and %d',obj.MAXBINSTEPS-1);
             [ret] = calllib('PHlib','PH_SetBinning',obj.DeviceNr,Binning);
             assert(ret==0,sprintf('PH_SetBinning error %ld.',ret));
         end

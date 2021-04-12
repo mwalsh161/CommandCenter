@@ -2,7 +2,7 @@ classdef g2 < Experiments.AutoExperiment.AutoExperiment_invisible
     %Spec automatically takes g2 at sites
     
     properties
-        prerun_functions = {'preSpec'};
+        prerun_functions = {'preg2'};
         patch_functions = {''};
     end
     methods(Static)
@@ -78,7 +78,7 @@ classdef g2 < Experiments.AutoExperiment.AutoExperiment_invisible
             %turn laser off after running
             obj.imaging_source.off;
         end
-        function preSpec(obj,exp)
+        function preg2(obj,exp)
             obj.imaging_source.on;
         end
     end

@@ -297,12 +297,14 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function val = set_armed(obj, val, ~)       % Checks if the laser is outputting power (i.e. has been armed) and complains if result was contradictory.
             obj.getFrequency(); 
             
-            if val ~= (obj.output_monitor > .01)    % If we are setting armed to an incorrect value...
-                val = ~val;
-                if ~val
-                    warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
-                else
+            isarmed = (obj.output_monitor > .01);   % We can tell that the laser is armed if the output monitor is reading power.
+            
+            if val ~= isarmed                       % If we are setting armed to an incorrect value...
+                val = ~val;                         % ...then prevent this incorrect setting...
+                if val                              % And send warning messages.
                     warndlg(['Request to blackout laser. Laser is on, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser off'], 'Blackout (Sources.Msquared)')
+                else
+                    warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
                 end
             end
         end
