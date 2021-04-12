@@ -317,8 +317,6 @@ classdef task < handle
             obj.LibraryFunction('DAQmxWriteAnalogF64',obj,NVoltagesPerLine, AutoStart, obj.dev.WriteTimeout, obj.dev.DAQmx_Val_GroupByChannel, Voltages, [],[]);
             obj.clock = struct('src',clkLine,'freq','ext');
             % Allow regeneration of samples (e.g. dont clear FIFO)
-%             g = obj.LibraryFunction('DAQmxGetAOUseOnlyOnBrdMem',obj,lines)
-%             obj.LibraryFunction('DAQmxSetAOUseOnlyOnBrdMem',obj,lines, true);
             obj.LibraryFunction('DAQmxSetWriteRegenMode',obj,obj.dev.DAQmx_Val_AllowRegen);
             obj.Verify
         end
@@ -348,10 +346,7 @@ classdef task < handle
             try
                 obj.LibraryFunction('DAQmxSetDOOutputDriveType',obj,lines,type);
             catch err
-                % It seems that some DAQs do not support
-                % DAQmxSetDOOutputDriveType. It's probably fine to just
-                % ignore this, as the default is likely
-                % DAQmx_Val_ActiveDrive (which means LO == 0V and HI == 5V)
+                warning('It seems that some DAQs do not support DAQmxSetDOOutputDriveType. It''s probably fine to just ignore this, as the default is likely DAQmx_Val_ActiveDrive (which means LO == 0V and HI == 5V)')
             end
             
             % timing of the channel is set to that of the digial clock
@@ -361,7 +356,6 @@ classdef task < handle
             obj.LibraryFunction('DAQmxWriteDigitalLines',obj,NStatesPerLine,AutoStart,obj.dev.WriteTimeout,obj.dev.DAQmx_Val_GroupByChannel,States,[],[]);
             obj.clock = struct('src',clkLine,'freq','ext');
             % Allow regeneration of samples (e.g. dont clear FIFO)
-%             obj.LibraryFunction('DAQmxSetDOUseOnlyOnBrdMem',obj,lines, true);
             obj.LibraryFunction('DAQmxSetWriteRegenMode',obj,obj.dev.DAQmx_Val_AllowRegen);
             obj.Verify
         end
