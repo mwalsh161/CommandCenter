@@ -15,6 +15,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
     %       readonly - boolean specifying if GUI control should be editable (e.g. "enabled")
     %       display_only - boolean specifying if saved as Pref when module unloaded
     %       set* - syntax: val = set(val, pref)
+    %       get* - syntax: val = get(val, pref)
     %       custom_validate* - syntax: custom_validate(val, pref)
     %       custom_clean* - syntax: val = custom_clean(val, pref)
     %       ui - class specifying UI type (value class)
@@ -52,12 +53,11 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current Pref
     %   architecture with this)
 
-    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.Input}) % getEvent: Avoid calling custom_* methods when "getting" unless altered by a get listener
+    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.Input})
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
-%     properties%(SetAccess=private)
-%         value_ = {[], @(a)true};
-%     end
+    
+    
     properties (Abstract, Hidden)
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
@@ -238,6 +238,24 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                     
             pr.addPref(module_instance, obj);
         end
+        
+        function tf = isnumeric(~)
+            tf = false;
+        end
+        
+        function data = decode(saved)
+            data = saved;
+        end
+        function saved = encode(data)
+            if ismember('Base.Pref',superclasses(data))
+                % THIS SHOULD NOT HAPPEN, but haven't figured
+                % out why it does sometimes yet
+                data = data.value;
+%                 warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
+            end
+            saved = data;
+        end
+        
         % These methods are called prior to the data being set to "value"
         % start set -> validate -> clean -> complete set
         function validate(obj,val) %#ok<INUSD>
@@ -246,6 +264,9 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function val = clean(obj,val) %#ok<INUSL>
             % May throw an error if not valid
         end
+    end
+    
+    methods % UI Stuff
         % This provides on opportunity to format or add to help_text
         % property upon creation. It is called via get.help_text, meaning
         % it will not be bypassed when retrieving obj.help_text.
@@ -307,9 +328,6 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             else
                 label = str;
             end
-        end
-        function tf = isnumeric(~)
-            tf = false;
         end
     end
 
@@ -383,7 +401,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             obj.initialized = true;
         end
     end
-    methods
+    
+    methods     % Get and set methods
         function summary = validationSummary(obj,indent,varargin)
             % Used to construct more helpful error messages when validation fails
             % Displays all properties that aren't hidden or defined in
@@ -505,7 +524,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function val = read(obj)
             val = obj.read_fn();    % Add code to make sure read_fn is valid?
         end
-        function tf = writ(obj, val)
+        function tf =  writ(obj, val)
             tf = obj.writ_fn(val);
         end
         function listener = addlistener(obj, event, callback)

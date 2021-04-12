@@ -41,6 +41,35 @@ classdef ModuleInstance < Base.Pref
             % Saving prefs don't support reloading with input params, so leave out drivers
             obj.ui.module_types = {'Experiment','Stage','Imaging','Source','Database'};
         end
+        
+        function data = decode(obj, saved)
+            if obj.HasDefault && any(ismember([{class(obj.DefaultValue)}; superclasses(obj.DefaultValue)], {'Base.Module','Prefs.ModuleInstance'}))
+                if isempty(saved)       % Means it is the default value, and not set
+                    error('No saved data.')   % Error to prevent setting the value.
+                end
+                for j = 1:length(saved)
+                    data(j) = eval(sprintf('%s.instance', saved{j})); % Grab instance(s) from string
+                end
+            end
+        end
+        function tosave = encode(data)
+            if ismember('Base.Pref',superclasses(data))
+                % THIS SHOULD NOT HAPPEN, but haven't figured
+                % out why it does sometimes yet
+                data = data.value;
+%                 warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
+            end
+                        
+            if ismember('Base.Module',superclasses(data))
+                tosave = {};
+                for j = 1:length(data)
+                    tosave{end+1} = class(data(j)); %#ok<AGROW>
+                end
+            else
+                error('Data was not a Base.Module.')
+            end
+        end
+        
         function set_ui_value(obj,val)
             obj.ui.set_value(val);
         end

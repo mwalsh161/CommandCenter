@@ -9,9 +9,6 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
     %   If there is a Constant property "visible" and it is set to false,
     %   this will prevent CommandCenter from displaying it.
     
-    properties(SetAccess=private,Hidden)
-        namespace                   % Namespace for saving prefs
-    end
     properties(Access=private)
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         StructOnObject_state = 'on';% To restore after deleting
@@ -32,28 +29,6 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
 
     methods(Static)
         [code,f] = uibuild(block,varargin)
-    end
-    methods(Static,Sealed)
-        function [namespace,CC_handle] = get_namespace(classname)
-            % This function returns the formatted namespace string to be used with MATLAB prefs
-            % It is recommended to be called using either mfilename or class to help construct input:
-            %   ... obj.get_namespace(class(obj));
-            %   ... Base.Module.get_namespace(mfilename('class'))
-
-            % isvector takes care of non-empty too
-            assert(ischar(classname) && isvector(classname),'classname must be a non-empty character vector.')
-            % Convert periods in classname to underscores
-            name = strrep(classname,'.','_');
-            assert(isvarname(name),'converting "." to "_" was not sufficient to turn classname into a valid variable name in MATLAB.')
-            
-            CC_handle = findall(0,'name','CommandCenter');
-            if isempty(CC_handle)
-                pre = '';
-            else
-                pre = getappdata(CC_handle,'namespace_prefix');
-            end
-            namespace = [pre name];
-        end
     end
     methods
         function obj = Module()
@@ -151,151 +126,6 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 end
             end
             obj.(hObj.Name)(to_remove) = []; % Remove if not valid
-        end
-        function datastruct = prefs2struct(obj,datastruct)
-            if nargin < 2
-                datastruct = struct();
-            else
-                assert(isstruct(datastruct),'First argument must be a struct!')
-            end
-            if isprop(obj,'prefs')
-                assert(iscell(obj.prefs),'Property "prefs" must be a cell array')
-                for i = 1:numel(obj.prefs)
-                    if ~ischar(obj.prefs{i})
-                        warning('MODULE:prefs2struct','Error on loadPrefs (position %i): %s',i,'Must be a string!')
-                        continue
-                    end
-                    val = obj.(obj.prefs{i});
-                    if contains('Base.Module',superclasses(val))
-                        temps = struct('name',{},'prefs',{});
-                        for j = 1:length(val)
-                            temp.name = class(val(j));
-                            temp.prefs = val(j).prefs2struct; % Recurse as necessary
-                            temps(j) = temp;
-                        end
-                        val = temps;
-                    end
-                    datastruct.(obj.prefs{i}) = val;
-                end
-            else
-                warning('MODULE:prefs2struct','No prefs defined for %s!',class(obj))
-            end
-        end
-        function savePrefs(obj)
-            % This method is called in the Module destructor (this file),
-            % so the user doesn't need to worry about calling it.
-            %
-            % Saves any property in the obj.pref cell array
-            
-            % if namespace isn't set, means error in constructor
-            if isempty(obj.namespace)
-                return
-            end
-            assert(ischar(obj.namespace),'Namespace must be a string!')
-            if isprop(obj,'prefs')
-                for i = 1:numel(obj.prefs)
-                    if ~ischar(obj.prefs{i})
-                        warning('MODULE:save_prefs','Error on savePrefs (position %i): %s',i,'Must be a string!')
-                        continue
-                    end
-                    try
-                        val = obj.(obj.prefs{i});
-                        if ismember('Base.Module',superclasses(val))
-                            temp = {};
-                            for j = 1:length(val)
-                                temp{end+1} = class(val(j));
-                            end
-                            val = temp;
-                        end
-                        if ismember('Base.Pref',superclasses(val))
-                            % THIS SHOULD NOT HAPPEN, but haven't figured
-                            % out why it does sometimes yet
-                            val = val.value;
-                            warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
-                        end
-                        setpref(obj.namespace,obj.prefs{i},val);
-                    catch err
-                        warning('MODULE:save_prefs','Error on savePrefs. Skipped pref ''%s'': %s',obj.prefs{i},err.message)
-                    end
-                end
-            end
-        end
-        function varargout = loadPrefs(obj,varargin)
-            % loadPrefs is a useful method to load any saved prefs. Not
-            % called by default, because order might matter to user.
-            % Loads prefs listed in obj.prefs cell array
-            % If output is requested, the warnings will not occur, rather the
-            %   errors will be returned in a struct where the field name corresponds
-            %   to the pref that errored and the value is the MException
-            % Optional input allows only loading a subset of prefs or not loading them:
-            %   prepending a '-' will indicate the instruction to not load that pref
-            %   e.g. loadPrefs('pref1') will only load pref1 (if it is a pref)
-            %        loadPrefs('-pref2') will load all but pref2
-            varargout{1} = struct();
-            if ~isprop(obj,'prefs')
-                varargout = varargout(1:nargout);
-                return
-            end
-            assert(all(ismember(strrep(varargin,'-',''), obj.prefs)),'Make sure all inputs in loadPrefs are also in obj.prefs')
-            % if namespace isn't set, means error in constructor
-            if isempty(obj.namespace)
-                varargout = varargout(1:nargout);
-                return
-            end
-            assert(ischar(obj.namespace),'Namespace must be a string!')
-            if isprop(obj,'prefs')
-                assert(iscell(obj.prefs),'Property "prefs" must be a cell array')
-                prefs = obj.prefs;
-                skip = {};
-                if ~isempty(varargin)
-                    % Separate into prefs and skip prefs. If prefs is empty, perhaps user only supplied skip prefs
-                    mask = cellfun(@(a)a(1)=='-',varargin);
-                    prefs = varargin(~mask);
-                    skip = cellfun(@(a)a(2:end),varargin(mask),'uniformoutput',false);
-                    if isempty(prefs)
-                        prefs = obj.prefs;
-                    end
-                end
-                obj.pref_set_try = true;  % try block for validation (caught after setting below)
-                for i = 1:numel(prefs)
-                    if ismember(prefs{i},skip)
-                        continue
-                    end
-                    if ~ischar(prefs{i})
-                        warning('MODULE:load_prefs','Error on loadPrefs (position %i): %s',i,'Must be a string!')
-                        continue
-                    end
-                    if ispref(obj.namespace,prefs{i})
-                        pref = getpref(obj.namespace,prefs{i});
-                        try
-                            mp = findprop(obj,prefs{i});
-                            if mp.HasDefault && any(ismember([{class(mp.DefaultValue)}; superclasses(mp.DefaultValue)],...
-                                            {'Base.Module','Prefs.ModuleInstance'}))
-                                if isempty(pref)% Means it is the default value, and not set
-                                    continue
-                                end
-                                for j = 1:length(pref)
-                                    temp(j) = eval(sprintf('%s.instance',pref{j})); % Grab instance(s) from string
-                                end
-                                pref = temp;
-                            end
-                            obj.(prefs{i}) = pref;
-                            if ~isempty(obj.last_pref_set_err)
-                                % Effectively brings a listener "thread" to the main one
-                                rethrow(obj.last_pref_set_err);
-                            end
-                        catch err
-                            if nargout
-                                varargout{1}.(prefs{i}) = err;
-                            else
-                                warning('MODULE:load_prefs','Error on loadPrefs (%s): %s',prefs{i},err.message)
-                            end
-                        end
-                    end
-                end
-                obj.pref_set_try = false;
-                varargout = varargout(1:nargout);
-            end
         end
     end
     methods

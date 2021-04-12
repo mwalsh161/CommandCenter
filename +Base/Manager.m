@@ -250,7 +250,7 @@ classdef Manager < handle
         function update_settings(obj)
             scrollPanel = obj.panelHandle;
             % Clear all but default
-            oldPanels = allchild(scrollPanel.content);
+            oldPanels = scrollPanel.content.Children;
             for i = 1:numel(oldPanels)
                 tag = get(oldPanels(i),'tag');
                 if ~strcmp(tag,'default')
@@ -274,7 +274,7 @@ classdef Manager < handle
                     obj.error(msg);
                 else
                     % Adjust length of panel to fit contents.
-                    contents = allchild(settings_panel);
+                    contents = settings_panel.Children;
                     ncontents = numel(contents);
                     set(contents,'units','characters')
                     positions = [0, NaN(1,ncontents)]; % 0, bottom1, top1, bottom2, top2, ...
@@ -555,12 +555,12 @@ classdef Manager < handle
                 return
             end
             default = findall(obj.panelHandle.content,'tag','default');
-            obj.frozen_state = get(allchild(default),'enable');
+            obj.frozen_state = get(default.Children,'enable');
             if ~iscell(obj.frozen_state)
                 % Takes care of only having a single child
                 obj.frozen_state = {obj.frozen_state};
             end
-            set(allchild(default),'enable','off')
+            set(default.Children,'enable','off')
             obj.disabled = true;
         end
         function enable(obj)
@@ -570,7 +570,7 @@ classdef Manager < handle
             end
             default = findall(obj.panelHandle.content,'tag','default');
             % Restore frozen state
-            children = allchild(default);
+            children = default.Children;
             for i = 1:numel(children)
                 set(children(i),'enable',obj.frozen_state{i})
             end

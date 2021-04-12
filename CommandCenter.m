@@ -202,16 +202,18 @@ try
     % Convert panels to scrollPanels
     set(textH,'String', 'Making Panels'); drawnow;
     loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
-    handles.reload_CData = loaded_vars.im;
+    handles.reload_CData = loaded_vars.im;  % Maybe switch to char(0x21BB)
     handles.panelStage = Base.UIscrollPanel(handles.panelStage);
+    handles.panelMetaStage = Base.UIscrollPanel(handles.panelMetaStage);
     handles.panelImage = Base.UIscrollPanel(handles.panelImage);
     handles.panelSource = Base.UIscrollPanel(handles.panelSource);
     handles.panelExperiment = Base.UIscrollPanel(handles.panelExperiment);
     handles.panelSave = Base.UIscrollPanel(handles.panelSave);
-    controls = {handles.panelStage, handles.panelImage, handles.panelSource,...
+    controls = {handles.panelStage, handles.panelMetaStage, handles.panelImage, handles.panelSource,...
         handles.panelExperiment, handles.panelSave, handles.panelGit};
     Base.UIScrollPanelContainer(handles.LeftPanel,controls,5);
     Base.Resizable(handles.panelStage);
+    Base.Resizable(handles.panelMetaStage);
     Base.Resizable(handles.panelImage);
     Base.Resizable(handles.panelSource);
     Base.Resizable(handles.panelExperiment);
@@ -239,6 +241,9 @@ try
     % Init managers
     set(textH,'String', 'Loading StageManager'); drawnow;
     handles.Managers.Stages = StageManager(handles);
+    
+    set(textH,'String', 'Loading MetaStageManager'); drawnow;
+    handles.Managers.MetaStage = MetaStageManager(handles);
     
     set(textH,'String', 'Loading Experiment Modules');
     handles.Managers.Experiment = ExperimentManager(handles);

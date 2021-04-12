@@ -16,6 +16,9 @@ classdef PrefHandler < handle
     %   inheritance, one should explicity call the class hierarchy that
     %   uses this prior to any others.
 
+    properties(SetAccess=private,Hidden)
+        namespace                   % Namespace for saving prefs
+    end
     properties(Access = private)
         temp_prop = struct();
         ls = struct(); % internal listeners
@@ -205,7 +208,175 @@ classdef PrefHandler < handle
         end
 
     end
-    methods(Access = private)
+    methods(Static,Sealed)
+        function [namespace,CC_handle] = get_namespace(classname)
+            % This function returns the formatted namespace string to be used with MATLAB prefs
+            % It is recommended to be called using either mfilename or class to help construct input:
+            %   ... obj.get_namespace(class(obj));
+            %   ... Base.Module.get_namespace(mfilename('class'))
+
+            % isvector takes care of non-empty too
+            assert(ischar(classname) && isvector(classname),'classname must be a non-empty character vector.')
+            % Convert periods in classname to underscores
+            name = strrep(classname,'.','_');
+            assert(isvarname(name),'converting "." to "_" was not sufficient to turn classname into a valid variable name in MATLAB.')
+            
+            CC_handle = findall(0,'name','CommandCenter');
+            if length(CC_handle) > 1
+                warning('Found more than one CommandCenter handle. Have you opened more than one instance of CC? Choosing the first one.')
+                CC_handle = CC_handle(1);
+            end
+            
+            if isempty(CC_handle)
+                pre = '';
+            else
+                pre = getappdata(CC_handle,'namespace_prefix');
+            end
+            namespace = [pre name];
+        end
+    end
+    methods(Sealed)                     % 
+        function datastruct = prefs2struct(obj,datastruct)
+            if nargin < 2
+                datastruct = struct();
+            else
+                assert(isstruct(datastruct),'First argument must be a struct!')
+            end
+            if isprop(obj,'prefs')
+                assert(iscell(obj.prefs),'Property "prefs" must be a cell array')
+                for i = 1:numel(obj.prefs)
+                    if ~ischar(obj.prefs{i})
+                        warning('MODULE:prefs2struct','Error on loadPrefs (position %i): %s',i,'Must be a string!')
+                        continue
+                    end
+                    val = obj.(obj.prefs{i});
+                    if contains('Base.Module',superclasses(val))
+                        temps = struct('name',{},'prefs',{});
+                        for j = 1:length(val)
+                            temp.name = class(val(j));
+                            temp.prefs = val(j).prefs2struct; % Recurse as necessary
+                            temps(j) = temp;
+                        end
+                        val = temps;
+                    end
+                    datastruct.(obj.prefs{i}) = val;
+                end
+            else
+                warning('MODULE:prefs2struct','No prefs defined for %s!',class(obj))
+            end
+        end
+        function savePrefs(obj)
+            % This method is called in the Module destructor (this file),
+            % so the user doesn't need to worry about calling it.
+            %
+            % Saves any property in the obj.pref cell array
+            
+            % if namespace isn't set, means error in constructor
+            if isempty(obj.namespace)
+                return
+            end
+            assert(ischar(obj.namespace),'Namespace must be a string!')
+            
+            
+            if isprop(obj,'prefs')
+                for i = 1:numel(obj.prefs) %#ok<*MCNPN>
+                    if ~ischar(obj.prefs{i})
+                        warning('MODULE:save_prefs','Error on savePrefs (position %i): %s',i,'Must be a string!')
+                        continue
+                    end
+                    try
+                        mp = findprop(obj,obj.prefs{i});
+                        
+                        try %#ok<TRYNC>
+                            setpref(obj.namespace, obj.prefs{i}, mp.encode(obj.(obj.prefs{i})));
+                        end
+                    catch err
+                        warning('MODULE:save_prefs','Error on savePrefs. Skipped pref ''%s'': %s',obj.prefs{i},err.message)
+                    end
+                end
+            end
+        end
+        function varargout = loadPrefs(obj,varargin)
+            % loadPrefs is a useful method to load any saved prefs. Not
+            % called by default, because order might matter to user.
+            % Loads prefs listed in obj.prefs cell array
+            % If output is requested, the warnings will not occur, rather the
+            %   errors will be returned in a struct where the field name corresponds
+            %   to the pref that errored and the value is the MException
+            % Optional input allows only loading a subset of prefs or not loading them:
+            %   prepending a '-' will indicate the instruction to not load that pref
+            %   e.g. loadPrefs('pref1') will only load pref1 (if it is a pref)
+            %        loadPrefs('-pref2') will load all but pref2
+            
+            % First check prefs.
+            varargout{1} = struct();
+            if ~isprop(obj,'prefs')
+                varargout = varargout(1:nargout);
+                return
+            end
+            assert(iscell(obj.prefs),'Property "prefs" must be a cell array')
+            assert(all(ismember(strrep(varargin,'-',''), obj.prefs)),'Make sure all inputs in loadPrefs are also in obj.prefs')
+            
+            % Then check namespace.
+            if isempty(obj.namespace) % if namespace isn't set, means error in constructor
+                varargout = varargout(1:nargout);
+                return
+            end
+            assert(ischar(obj.namespace),'Namespace must be a string!')
+            
+            % Separate into prefs and skip prefs. If prefs is empty, perhaps user only supplied skip prefs.
+            prefs = obj.prefs;
+            skip = {};
+            if ~isempty(varargin)
+                mask = cellfun(@(a)a(1)=='-',varargin);
+                prefs = varargin(~mask);
+                skip = cellfun(@(a)a(2:end),varargin(mask),'uniformoutput',false);
+                if isempty(prefs)
+                    prefs = obj.prefs;
+                end
+            end
+            
+            obj.pref_set_try = true;  % try block for validation (caught after setting below)
+            for i = 1:numel(prefs)
+                if ismember(prefs{i},skip)          % Pass on prefs that should be skipped.
+                    continue
+                end
+                if ~ischar(prefs{i})                % Pass on pref labels that are (for whatever strange reason) not strings.
+                    warning('MODULE:load_prefs','Error on loadPrefs (position %i): %s',i,'Must be a string!')
+                    continue
+                end
+                
+                if ispref(obj.namespace,prefs{i})   % If we have data saved to set the pref to...
+                    data = getpref(obj.namespace,prefs{i});     % ...Grab that data...
+                    try
+                        mp = findprop(obj,prefs{i});
+                        
+                        % For most prefs, mp.decode is the identity. However, some prefs carry runtime information which must be encoded to something
+                        % savable on save and decoded to something runable on load. For this reason, the metapref deals with interpretation. In order
+                        % to prevent unwanted overwriting of the default value, the decode function has the option to error.
+                        try  %#ok<TRYNC>
+                            temp = mp.decode(data);
+                            obj.(prefs{i}) = temp;
+                        end
+                        
+                        if ~isempty(obj.last_pref_set_err)  % This could use better commenting. Not sure what it does.
+                            % Effectively brings a listener "thread" to the main one
+                            rethrow(obj.last_pref_set_err);
+                        end
+                    catch err
+                        if nargout
+                            varargout{1}.(prefs{i}) = err;
+                        else
+                            warning('MODULE:load_prefs','Error on loadPrefs (%s): %s',prefs{i},err.message)
+                        end
+                    end
+                end
+            end
+            obj.pref_set_try = false;
+            varargout = varargout(1:nargout);
+        end
+    end
+    methods(Access = private)           % Listener functions.
         function prop_listener_ctrl(obj,name,enabled)
             % name: string name of property
             % enabled: true/false
@@ -223,9 +394,6 @@ classdef PrefHandler < handle
                 end
             end
         end
-    end
-
-    methods(Access = private)
         function preflistener_deleted(obj,el,~)
             % Clean-up method for preflisteners (unless obj already deleted)
             if isvalid(obj)
@@ -236,7 +404,6 @@ classdef PrefHandler < handle
                     ) = [];
             end
         end
-
         function execute_external_ls(obj,prop,event)
             for i = 1:length(obj.external_ls.(prop.Name).(event.EventName))
                 % Do not allow recursive calls and only call Enabled ones
@@ -269,7 +436,6 @@ classdef PrefHandler < handle
             obj.execute_external_ls(prop,event);
             obj.prop_listener_ctrl(prop.Name,true);
         end
-
         function post(obj,prop,event)
             % Disable other listeners on this since we will be both getting
             % and setting this prop in this method
@@ -307,7 +473,7 @@ classdef PrefHandler < handle
         end
     end
 
-    methods (Hidden, Access=?Base.Pref)
+    methods (Hidden, Access=?Base.Pref) % read and writ calls.
         % These functions have the same functionality as pre() post() called successivly, except with two
         % out of four fewer calls to obj.prop_listener_ctrl(prop,tf), which is the limiting time factor.
         function tf = writProp(obj,prop,val)

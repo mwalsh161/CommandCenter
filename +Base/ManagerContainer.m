@@ -7,6 +7,7 @@ classdef ManagerContainer < handle
         DB
         Experiment
         Sources
+        MetaStage
         Stages
         Imaging
         Logger

@@ -2,7 +2,7 @@ classdef Cobolt_PB < Modules.Source
     % Cobolt_PB controls the Cobolt via USB and fast diode modulation via pulseblaster
 
     properties(SetObservable, GetObservable)
-        cobolt_host =   Prefs.String('No Server', 'set', 'set_cobolt_host', 'help', 'IP/hostname of computer with hwserver for velocity laser');
+        host =          Prefs.String('No Server', 'set', 'set_host', 'help', 'IP/hostname of computer with hwserver for Cobolt laser');
         power =         Prefs.Double(NaN, 'set', 'set_power', 'min', 0, 'unit', 'mW');
 
         diode_sn =      Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'help', 'Serial number for the diode');
@@ -17,8 +17,8 @@ classdef Cobolt_PB < Modules.Source
         PulseBlaster                % pulseblaster handle
     end
     properties
-        prefs =         {'cobolt_host', 'PB_line', 'PB_host', 'power', 'diode_on'};
-        show_prefs =    {'PB_host', 'PB_line', 'cobolt_host', 'power', 'diode_sn', 'diode_age', 'temperature'}; 
+        prefs =         {'host', 'PB_line', 'PB_host', 'power', 'armed'};
+        show_prefs =    {'PB_host', 'PB_line', 'host', 'power', 'diode_sn', 'diode_age', 'temperature'}; 
     end
     methods(Access=protected)
         function obj = Cobolt_PB()
@@ -50,14 +50,16 @@ classdef Cobolt_PB < Modules.Source
         end
         
         function val = set_source_on(obj, val, ~)
-            obj.PulseBlaster.lines(obj.PB_line).state = val;
+            if ~isempty(obj.PulseBlaster)
+                obj.PulseBlaster.lines(obj.PB_line).state = val;
+            end
         end
         function val = set_armed(obj, val, ~)   % Turn the diode on or off.
             if obj.isConnected()
                 if val
                     errorIfNotOK(obj.serial.com('Cobolt', '@cobas', 0));    % No autostart
                     errorIfNotOK(obj.serial.com('Cobolt', 'em'));           % Enter Modulation Mode
-                    errorIfNotOK(obj.serial.com('Cobolt', 'l1'));
+                    errorIfNotOK(obj.serial.com('Cobolt', 'l1'));           % Laser on
                 else
                     errorIfNotOK(obj.serial.com('Cobolt', 'l0'));           % Laser off
                 end
@@ -97,59 +99,41 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         function tf = isConnected(obj)
-            tf = ~strcmp('No Server', obj.cobolt_host) && strcmp('OK', obj.serial.com('Cobolt', '?'));
+            tf = ~strcmp('No Server', obj.host);
 
-            if ~tf
-                if strcmp('No Server', obj.cobolt_host)
-                    error('Host not set!');
+            if tf
+                tf = strcmp('OK', obj.serial.com('Cobolt', '?'));
+                
+                if ~tf
+                    obj.host = 'No Server';
                 end
-                host = obj.cobolt_host;
-                obj.set_cobolt_host(obj,'No Server');
-                error(['Cobolt not found at host "' host '"!']);
             end
         end
 
         function val = set_pb_host(obj,val,~) %this loads the pulseblaster driver
-            if strcmp('No Server',val)
-                obj.PulseBlaster = [];
-                obj.source_on = false;
-                return
-            end
-            err = [];
             try
                 obj.PulseBlaster = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
                 obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
-            catch err
+            catch
                 obj.PulseBlaster = [];
-                obj.source_on = false;
+                obj.source_on = NaN;
                 val = 'No Server';
             end
-            if ~isempty(err)
-                rethrow(err)
-            end
         end
-        function val = set_cobolt_host(obj,val,~) %this loads the hwserver driver
+        function val = set_host(obj,val,~) %this loads the hwserver driver
             delete(obj.serial);
 
-            if strcmp('No Server', val)
-                obj.serial = [];
-                obj.diode_on = false;
-                return
-            end
-            err = [];
             try
                 obj.serial = hwserver(val); %#ok<*MCSUP>
 
-                obj.temperature = obj.get_temperature();
-                obj.diode_sn = obj.get_diode_sn();
-                obj.diode_age = obj.get_diode_age();
-                obj.power = obj.get_power();
-            catch err
+                obj.temperature =   obj.get_temperature();
+                obj.diode_sn =      obj.get_diode_sn();
+                obj.diode_age =     obj.get_diode_age();
+                obj.power =         obj.get_power();
+            catch
                 obj.serial = [];
+                obj.armed = NaN;
                 val = 'No Server';
-            end
-            if ~isempty(err)
-                rethrow(err)
             end
         end
     end

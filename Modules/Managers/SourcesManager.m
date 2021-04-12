@@ -34,7 +34,7 @@ classdef SourcesManager < Base.Manager
 
         % Callback for active_module.source_on
         function state_toggle(obj,varargin)
-            if obj.active_module.source_on
+            if obj.active_module.source_on == true
                 set(obj.handles.sources_toggle,'String','Off','Value',1)
                 set(obj.handles.sources_toggle,'callback',@obj.turn_off)
             else
