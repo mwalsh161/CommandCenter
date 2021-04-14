@@ -1,6 +1,6 @@
 classdef fooobar < foobar
-    properties(SetAccess=private)
-        z
+    properties
+        z = 4
     end
     
     methods

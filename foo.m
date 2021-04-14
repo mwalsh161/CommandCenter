@@ -1,7 +1,7 @@
 classdef foo < matlab.mixin.Heterogeneous
     properties
-        x
-        y
+        x = 1
+        y = 2
     end
     
     methods

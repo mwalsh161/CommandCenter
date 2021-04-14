@@ -1,19 +1,19 @@
 classdef PrefRegister < Base.Singleton
-    % PREFREGISTER records every Base.Pref that is created. Base.PrefHandler notifies
-    % Base.PrefRegister via the .addPref(parent, pref) function. The Base.PrefHandler itself is also
+    % PREFREGISTER records every Base.Pref that is created. Base.Module notifies
+    % Base.PrefRegister via the .addPref(parent, pref) function. The Base.Module itself is also
     % recorded, and Base.PrefRegister checks if this object is deleted before reporting Base.Prefs to the
     % user. Note that memory is session-based.
     
     properties (SetAccess = private)
         % Format:
         %
-        %   register.PrefHandler1_name.parent           : Base.PrefHandler
+        %   register.Module1_name.parent           : Base.Module
         %
-        %   register.PrefHandler1_name.prefs.pref1_name : Base.Pref
-        %   register.PrefHandler1_name.prefs.pref2_name : Base.Pref
-        %   register.PrefHandler1_name.prefs....
+        %   register.Module1_name.prefs.pref1_name : Base.Pref
+        %   register.Module1_name.prefs.pref2_name : Base.Pref
+        %   register.Module1_name.prefs....
         %
-        %   register.PrefHandler2_name....
+        %   register.Module2_name....
         %
         %   register....
         %
@@ -43,6 +43,8 @@ classdef PrefRegister < Base.Singleton
             % When a submenu is clicked, `callback` is called with the clicked Base.Pref as argument. This is
             % intended to return the clicked Base.Pref to whichever UI element requested the menu in the first
             % place.
+            
+            assert(nargin > 2, 'Base.PrefRegister.getMenu: parentObject (figure or uimenu) and callback (function_handle) must be provided as arguments of getMenu().')
             
             assert(nargin(callback) == 1, 'Base.PrefRegister.getMenu: Callback must accept exactly one argument.');
             assert(mod(numel(varargin), 2) == 0, 'Base.PrefRegister.getMenu expects an even number of ''Name'', Value pairs.');

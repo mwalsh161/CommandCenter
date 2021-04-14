@@ -21,7 +21,7 @@ classdef Reference < Base.Pref
         end
         
         % Functions that actually write (set) and read (get) the hardware, with overhead.
-        function [obj, val] = set_value(obj,val)
+        function [obj, val] = set_value(obj, val)
 %             if ~isempty(val)
                 if isempty(obj.pref)
 %                     error('No reference to set.');
@@ -31,7 +31,7 @@ classdef Reference < Base.Pref
                 end
 %             end
         end
-        function val = get_value(obj)
+        function val = get_value(obj, ~)
             if isempty(obj.pref)
                 val = NaN;
             else

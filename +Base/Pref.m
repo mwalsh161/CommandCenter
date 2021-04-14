@@ -53,7 +53,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current Pref
     %   architecture with this)
 
-    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.Input, ?Base.Pref})
+    properties (Hidden, SetAccess={?Base.Module, ?Base.Input, ?Base.Pref})
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
     
@@ -62,28 +62,28 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
     end
-    properties (Hidden, SetAccess=?Base.PrefHandler)
-    	getEvent = false;                   % This is reserved for PrefHandler.post to avoid calling set methods on a get event
+    properties (Hidden, SetAccess=?Base.Module)
+    	getEvent = false;                   % This is reserved for Module.post to avoid calling set methods on a get event
     end
     properties (Hidden, Access=private)
         initialized = false;                % Flag to prevent the Pref from being used until it has been fully constructed.
     end
 
-    properties (Hidden)     % Used by Pref and PrefHandler so Pref can retain access to PrefHandler. Set in Base.Pref.bind(PrefHandler)
-        read_fn     = [];                   % Calls val = PrefHandler.readProp(prop), with the appropriate arguments already filled in.
-        writ_fn     = [];                   % Calls tf = PrefHandler.writProp(prop, val), with the appropriate arguments already filled in.
+    properties (Hidden)     % Used by Pref and Module so Pref can retain access to Module. Set in Base.Pref.bind(Module)
+        read_fn     = [];                   % Calls val = Module.readProp(prop), with the appropriate arguments already filled in.
+        writ_fn     = [];                   % Calls tf = Module.writProp(prop, val), with the appropriate arguments already filled in.
 
-        listen_fn   = [];                   % Calls PrefHandler.addlistener(prop, event, callback), with the appropriate arguments already filled in.
+        listen_fn   = [];                   % Calls Module.addlistener(prop, event, callback), with the appropriate arguments already filled in.
     end
     properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefRegister, ?Drivers.NIDAQ.out, ?Base.Sweep})
-        % Stores the a string name of the parent PrefHandler subclass for reference. Note that the pref
-        % stored in the PrefHandler will _not_ know the singleton_id of the class, but PrefRegister will
-        % return a string with the singleton_id appended in [class(PrefHandler) '(''' singleton_id ''')']
+        % Stores the a string name of the parent Module subclass for reference. Note that the pref
+        % stored in the Module will _not_ know the singleton_id of the class, but PrefRegister will
+        % return a string with the singleton_id appended in [class(Module) '(''' singleton_id ''')']
         % form.
         parent_class = '';
     end
-    properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefHandler, ?Drivers.NIDAQ.out, ?Base.Sweep})
-        property_name = '';                 % Name of the property in PrefHandler that this Pref fondles.
+    properties (Hidden, SetAccess={?Base.Pref, ?Base.Module, ?Drivers.NIDAQ.out, ?Base.Sweep})
+        property_name = '';                 % Name of the property in Module that this Pref fondles.
     end
 
     properties % {default, validation function}
@@ -91,7 +91,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         unit = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
 
-    properties %(Hidden) %, SetAccess = ?Base.PrefHandler)
+    properties %(Hidden) %, SetAccess = ?Base.Module)
         help_text = {'', @(a)validateattributes(a,{'char'},{'vector'})};
     end
     
@@ -100,7 +100,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         readonly = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % If true, this is only used for display, and not saved as a pref
         display_only = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
-        % Used by Base.PrefHandler to handle non class-based prefs
+        % Used by Base.Module to handle non class-based prefs
         auto_generated = {false, @(a)validateattributes(a,{'logical'},{'scalar'})};
         % optional functions supplied by user (function or char vector; validated in set methods)
         %   Called directly after built-in validation
@@ -118,7 +118,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         end
         function obj = bind(obj,module_instance)
             % This method is called when the meta-pref is set in
-            % PrefHandler. It is intended to give the Pref an opportunity
+            % Module. It is intended to give the Pref an opportunity
             % to bind a method of the module_instance.
             % Can also use to check/verify input/output
             obj.parent_class = class(module_instance);
@@ -243,10 +243,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             tf = false;
         end
         
-        function data = decode(saved)
+        function data = decode(~, saved)
             data = saved;
         end
-        function saved = encode(data)
+        function saved = encode(~, data)
             if ismember('Base.Pref',superclasses(data))
                 % THIS SHOULD NOT HAPPEN, but haven't figured
                 % out why it does sometimes yet
@@ -493,7 +493,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             [obj, obj.value] = obj.set_value(val);
         end
         function val = get.value(obj)
-            val = obj.get_value();
+            val = obj.get_value(obj.value);
         end
         function [obj, val] = set_value(obj, val)
             if ~obj.getEvent
@@ -517,11 +517,9 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 end
             end
         end
-        function val = get_value(obj)
+        function val = get_value(obj, val)
             if ~isempty(obj.get) && obj.initialized %#ok<*MCSUP>
                 val = obj.get(obj);
-            else
-                val = obj.value;
             end
         end
         

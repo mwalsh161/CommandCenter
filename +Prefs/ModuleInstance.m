@@ -52,7 +52,7 @@ classdef ModuleInstance < Base.Pref
                 end
             end
         end
-        function tosave = encode(data)
+        function tosave = encode(~, data)
             if ismember('Base.Pref',superclasses(data))
                 % THIS SHOULD NOT HAPPEN, but haven't figured
                 % out why it does sometimes yet
