@@ -18,6 +18,10 @@ classdef PrefHandler < handle
 
     properties(SetAccess=private,Hidden)
         namespace                   % Namespace for saving prefs
+        StructOnObject_state = 'on';% To restore after deleting
+    end
+    properties
+        logger                      % Handle to log object
     end
     properties(Access = private)
         temp_prop = struct();
@@ -38,7 +42,7 @@ classdef PrefHandler < handle
         PrefHandler_indentation = 2;
     end
 
-    methods
+    methods                             % Constructor and basic metapref stuff.
         % This requires SetObservable to be true, and careful use of
         % temp_prop in case a set method sets a different property. MATLAB
         % states the order listeners are executed is undefined, so there is
@@ -49,9 +53,9 @@ classdef PrefHandler < handle
             mc = metaclass(obj);
             props = mc.PropertyList;
             props = props([props.HasDefault]);
-            external_ls_struct.PreSet = Base.PrefListener.empty(1,0);
+            external_ls_struct.PreSet =  Base.PrefListener.empty(1,0);
             external_ls_struct.PostSet = Base.PrefListener.empty(1,0);
-            external_ls_struct.PreGet = Base.PrefListener.empty(1,0);
+            external_ls_struct.PreGet =  Base.PrefListener.empty(1,0);
             external_ls_struct.PostGet = Base.PrefListener.empty(1,0);
 
             for i = 1:length(props)
@@ -95,6 +99,69 @@ classdef PrefHandler < handle
                     obj.set_meta_pref(prop.Name, pref);
                 end
             end
+            
+            warnStruct = warning('off','MATLAB:structOnObject');
+            obj.StructOnObject_state = warnStruct.state;
+            [obj.namespace,hObject] = obj.get_namespace(class(obj));
+            
+            if isempty(hObject) 
+                obj.logger = Base.Logger_console();
+                return
+            end
+            mods = getappdata(hObject,'ALLmodules');
+            obj.logger = getappdata(hObject,'logger');
+            mods{end+1} = obj;
+            setappdata(hObject,'ALLmodules',mods)
+            obj.logger.log(['Initializing ' class(obj)])
+            % ******************************************************************
+            % *************************[NOW LEGACY]*****************************
+            % **********should be handled in class-based prefs******************
+            % ******************************************************************
+            % Garbage collect for Base.Modules properties
+            mc = metaclass(obj);
+            mp = mc.PropertyList;
+            legacy_warning = false;
+            for i = 1:length(mp)
+                if mp(i).HasDefault && contains('Base.Module',superclasses(mp(i).DefaultValue))
+                    legacy_warning = true;
+                    addlistener(obj,mp(i).Name,'PostSet',@obj.module_garbage_collect);
+                end
+            end
+            if legacy_warning
+                warning('CC:legacy','Deleted-module garbage collection is legacy. Update to class-based pref!')
+            end
+            % Go through and re-construct deleted modules (note they can't
+            % be private or protected) This is necessary because MATLAB
+            % only builds default properties once per MATLAB session,
+            % meaning re-instantiation might result with deleted props
+            % Note: This will fail when using heterogeneous arrays, as the
+            % superclass will not be able to determine the original class
+            % type. One can get around this by instantaiting in the
+            % constructor instead of as a DefaultValue
+            mc = metaclass(obj);
+            props = mc.PropertyList;
+            props = props([props.HasDefault]);
+            for i = 1:length(props)
+                prop = props(i);
+                val = prop.DefaultValue;
+                if contains('Base.Module',superclasses(val))
+                    for j = 1:length(val) % Could be an array
+                        try % If we fail on any in the array, might as well give up since it wont work as expected anyway!
+                            if ~isvalid(obj.(prop.Name)(j))
+                                obj.(prop.Name)(j) = eval(sprintf('%s.instance',class(obj.(prop.Name)(j))));
+                            end
+                        catch err
+                            msg = sprintf('Was not able to reinstantiate %s! Might need to restart MATLAB and report this error: %s',err.message);
+                            obj.logger.log(msg,obj.logger.ERROR);
+                            rethrow(err)
+                        end
+                    end
+                end
+            end
+            % ******************************************************************
+            % *********************(includes callbacks)*************************
+            % *************************[END LEGACY]*****************************
+            % ******************************************************************
         end
 
         function varargout = addlistener(obj,varargin)
@@ -208,7 +275,7 @@ classdef PrefHandler < handle
         end
 
     end
-    methods(Static,Sealed)
+    methods(Static,Sealed)              % Namespace is used to determine where prefs are saved.
         function [namespace,CC_handle] = get_namespace(classname)
             % This function returns the formatted namespace string to be used with MATLAB prefs
             % It is recommended to be called using either mfilename or class to help construct input:
@@ -235,7 +302,7 @@ classdef PrefHandler < handle
             namespace = [pre name];
         end
     end
-    methods(Sealed)                     % 
+    methods(Sealed)                     % Functions dealing with prefs.
         function datastruct = prefs2struct(obj,datastruct)
             if nargin < 2
                 datastruct = struct();

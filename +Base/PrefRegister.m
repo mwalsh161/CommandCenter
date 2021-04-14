@@ -40,7 +40,7 @@ classdef PrefRegister < Base.Singleton
     methods
         function menu = getMenu(obj, parentObject, callback, varargin)
             % .getMenu returns a uimenu object with Base.PrefHanders as menus and child Base.Prefs as submenus.
-            % When a submenu is clicked, `callback` is called with the cliced Base.Pref as argument. This is
+            % When a submenu is clicked, `callback` is called with the clicked Base.Pref as argument. This is
             % intended to return the clicked Base.Pref to whichever UI element requested the menu in the first
             % place.
             
@@ -50,13 +50,17 @@ classdef PrefRegister < Base.Singleton
             modules = sort(fields(obj.register));
             
             if isempty(parentObject)
-                parentObject = figure;
+                parentObject = figure('name','Select Module','IntegerHandle','off','menu','none','HitTest','off',...
+                'toolbar','none','visible','off','units','characters','resize','off');
+                parentObject.Position(3:4) = [20 ,0];
             end
             
             switch parentObject.Type
                 case 'figure'
-                    menu = uicontextmenu; %('Parent', parent);
-                    parentObject.UIContextMenu = menu;
+%                     menu = uicontextmenu; %('Parent', parent);
+%                     parentObject.UIContextMenu = menu;
+                    menu = uimenu(parentObject,'Text', 'Prefs');
+                    parentObject.Visible = 'on';
                 case {'uicontextmenu', 'uimenu'}
                     menu = parentObject;
                 otherwise

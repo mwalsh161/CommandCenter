@@ -1,8 +1,7 @@
 classdef FileField < Prefs.Inputs.LabelControlBasic
     %FILEFIELD displays a file on a pushbutton
 
-    properties % Add units in
-        units = gobjects(1)
+    properties
         empty_string = '';
     end
     properties(Hidden)

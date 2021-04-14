@@ -53,7 +53,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current Pref
     %   architecture with this)
 
-    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.Input})
+    properties (Hidden, SetAccess={?Base.PrefHandler, ?Base.Input, ?Base.Pref})
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
     
@@ -310,7 +310,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             % This wraps ui.link_callback; careful overloading
             obj.ui.link_callback({callback,obj});
         end
-        function obj = adjust_UI(obj,varargin)
+        function adjust_UI(obj,varargin)
             % This wraps ui.adjust_UI; careful overloading
             obj.ui.adjust_UI(varargin{:});
         end
@@ -387,7 +387,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 end
 
                 if isempty(obj.name)
-                    obj.name = obj.property_name;
+                    obj.name = strrep(obj.property_name, '_', ' ');
                 end
 
                 % Finally assign default (dont ignore if empty, because
@@ -489,7 +489,13 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         end
         
         % Functions that actually write (set) and read (get) the hardware, with overhead.
-        function obj = set.value(obj,val)
+        function obj = set.value(obj, val)
+            [obj, obj.value] = obj.set_value(val);
+        end
+        function val = get.value(obj)
+            val = obj.get_value();
+        end
+        function [obj, val] = set_value(obj, val)
             if ~obj.getEvent
                 val = obj.clean(val);
                 if ~isempty(obj.custom_clean) && obj.initialized
@@ -510,9 +516,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                     obj.custom_validate(val,obj);
                 end
             end
-            obj.value = val;
         end
-        function val = get.value(obj)
+        function val = get_value(obj)
             if ~isempty(obj.get) && obj.initialized %#ok<*MCSUP>
                 val = obj.get(obj);
             else

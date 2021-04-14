@@ -199,6 +199,11 @@ try
     handles.logger.log(['Using namespace prefix: "',...
         getappdata(hObject,'namespace_prefix') '"'],handles.logger.DEBUG)
     
+    if ismac
+        handles.panelData.Position(1) = 400;
+        handles.LeftPanel.Position(3) = 390;
+    end
+    
     % Convert panels to scrollPanels
     set(textH,'String', 'Making Panels'); drawnow;
     loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
@@ -383,9 +388,9 @@ end
 stop(handles.inactivity_timer);
 delete(handles.inactivity_timer)
 handles.logger.sendLogs;  % Send logs to server
-delete(handles.logger)
 delete(wait)
 delete(hObject)
+delete(handles.logger)
 [path,~,~] = fileparts(mfilename('fullpath'));
 if exist(fullfile(path,'dbquit.m'),'file') % Disable override
     delete(fullfile(path,'dbquit.m'));

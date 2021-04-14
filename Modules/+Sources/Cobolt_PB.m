@@ -76,7 +76,7 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         function val = get_power(obj, ~)
-            val = obj.serial.com('Cobolt', 'glmp?');    % Get laser modulation power (mW)
+            val = obj.com('glmp?');             % Get laser modulation power (mW)
         end
         function val = get_temperature(obj, ~)
             val = obj.com('rbpt?');

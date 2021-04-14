@@ -6,7 +6,7 @@ classdef debug < Modules.Imaging
         % NOTE: my_string should be added at end as setting, but not saved like pref
         %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
         prefs = {'file','old_style','fyi','my_old_array','my_array','my_array2','my_module','my_integer','my_double','my_logical'};
-       % show_prefs = {'fyi','my_integer','my_double'};
+       show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
     properties(GetObservable,SetObservable)
@@ -15,8 +15,9 @@ classdef debug < Modules.Imaging
                            'readonly',true);
         my_old_array = [1,2,3];
         file = Prefs.File();
-        my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0,'set','testSet');
-        my_array2 = Prefs.DoubleArray([1,2;3,4],'hide_label',true,'props',{'RowName',{'this','that'},'ColumnName',{'foo','bar'}});
+        reftest = Prefs.Reference();
+%         my_array = Prefs.DoubleArray([1,2;3,4],'allow_nan',false,'min',0,'set','testSet');
+%         my_array2 = Prefs.DoubleArray([1,2;3,4],'hide_label',true,'props',{'RowName',{'this','that'},'ColumnName',{'foo','bar'}});
         my_integer = Prefs.Integer('min',0,'help_text','indexed from 0');
         my_double = Prefs.Double('name','This double has a super long name!','unit','um','min',-50,'max',50);
         my_string = Prefs.String('Enter value here','allow_empty',false);

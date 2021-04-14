@@ -2,6 +2,25 @@ classdef Input
 % INPUT Abstract class for input UIs in settings
 %   Used by class-based prefs (stored in Prefs.Inputs)
 
+    methods % Overload by subclass
+        % Provide function to get the label (without the ": " part)
+        % Important to do it this way to allow MATLAB to make the proper extent
+        %   when generating the label uicontrol for "label_width_px"
+        function labeltext = get_label(~,pref)
+            name = pref.name;
+
+            if isempty(name)
+                name = strrep(pref.property_name, '_', ' ');
+            end
+
+            if ~isempty(pref.unit)
+                labeltext = sprintf('%s [%s]', name, pref.unit);
+            else
+                labeltext = name;
+            end
+        end
+    end
+    
     methods(Abstract)
         % Prepare an appropriate UI container in parent no lower than yloc_px
         %   and no wider than width_px (parent width) and return:

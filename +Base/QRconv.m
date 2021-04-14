@@ -367,22 +367,18 @@ function img = flatten(img)
 %     img = imgaussfilt(img,10) - imgaussfilt(img,2);
 end
 
-
-
 function v_ = affine(v, M, b)
     % v and v_ are either column vectors (2x1) or arrays of column vectors (2xN) of the same size
     % M is a matrix (2x2)
     % b is a column vector (2x1)
     v_ = M * v + b;
 end
-
 function v = invaffine(v_, M, b)
     % v and v_ are either column vectors (2x1) or arrays of column vectors (2xN) of the same size
     % M is a matrix (2x2)
     % b is a column vector (2x1)
     v = M \ (v_ - b);
 end
-
 function fom = leastsquares(v_, v, M, b)
     fom = sum(sum((v_ - affine(v, M, b)).^2));
 end

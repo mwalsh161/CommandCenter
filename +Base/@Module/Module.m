@@ -11,10 +11,6 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
     
     properties(Access=private)
         prop_listeners              % Keep track of preferences in the GUI to keep updated
-        StructOnObject_state = 'on';% To restore after deleting
-    end
-    properties
-        logger                      % Handle to log object
     end
     properties(Access=protected)
         module_delete_listener      % Used in garbage collecting
@@ -32,68 +28,6 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
     end
     methods
         function obj = Module()
-            warnStruct = warning('off','MATLAB:structOnObject');
-            obj.StructOnObject_state = warnStruct.state;
-            [obj.namespace,hObject] = obj.get_namespace(class(obj));
-            
-            if isempty(hObject) 
-                obj.logger = Base.Logger_console();
-                return
-            end
-            mods = getappdata(hObject,'ALLmodules');
-            obj.logger = getappdata(hObject,'logger');
-            mods{end+1} = obj;
-            setappdata(hObject,'ALLmodules',mods)
-            obj.logger.log(['Initializing ' class(obj)])
-            % ******************************************************************
-            % *************************[NOW LEGACY]*****************************
-            % **********should be handled in class-based prefs******************
-            % ******************************************************************
-            % Garbage collect for Base.Modules properties
-            mc = metaclass(obj);
-            mp = mc.PropertyList;
-            legacy_warning = false;
-            for i = 1:length(mp)
-                if mp(i).HasDefault && contains('Base.Module',superclasses(mp(i).DefaultValue))
-                    legacy_warning = true;
-                    addlistener(obj,mp(i).Name,'PostSet',@obj.module_garbage_collect);
-                end
-            end
-            if legacy_warning
-                warning('CC:legacy','Deleted-module garbage collection is legacy. Update to class-based pref!')
-            end
-            % Go through and re-construct deleted modules (note they can't
-            % be private or protected) This is necessary because MATLAB
-            % only builds default properties once per MATLAB session,
-            % meaning re-instantiation might result with deleted props
-            % Note: This will fail when using heterogeneous arrays, as the
-            % superclass will not be able to determine the original class
-            % type. One can get around this by instantaiting in the
-            % constructor instead of as a DefaultValue
-            mc = metaclass(obj);
-            props = mc.PropertyList;
-            props = props([props.HasDefault]);
-            for i = 1:length(props)
-                prop = props(i);
-                val = prop.DefaultValue;
-                if contains('Base.Module',superclasses(val))
-                    for j = 1:length(val) % Could be an array
-                        try % If we fail on any in the array, might as well give up since it wont work as expected anyway!
-                            if ~isvalid(obj.(prop.Name)(j))
-                                obj.(prop.Name)(j) = eval(sprintf('%s.instance',class(obj.(prop.Name)(j))));
-                            end
-                        catch err
-                            msg = sprintf('Was not able to reinstantiate %s! Might need to restart MATLAB and report this error: %s',err.message);
-                            obj.logger.log(msg,obj.logger.ERROR);
-                            rethrow(err)
-                        end
-                    end
-                end
-            end
-            % ******************************************************************
-            % *********************(includes callbacks)*************************
-            % *************************[END LEGACY]*****************************
-            % ******************************************************************
         end
     end 
     methods(Sealed)
@@ -224,17 +158,18 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 try
                     mp = obj.get_meta_pref(setting_names{i});
                 catch err
-                    warning('Skipped pref "%s":\n%s',setting_names{i},err.message)
+                    warning('Skipped pref "%s":\n%s', setting_names{i}, err.message)
                     continue
                 end
                 if isempty(mp.name) % Default to setting (i.e. property) name
-                    mp.name = strrep(setting_names{i},'_',' ');
+                    mp.name = strrep(setting_names{i}, '_', ' ');
                 end
-                if ismember(setting_names{i},readonly_settings)
+                if ismember(setting_names{i}, readonly_settings)
                     mp.readonly = true; % Allowing readonly_prefs to override
                 end
+                
                 % Make UI element and add to panelH (note mp is not a handle class)
-                [mp,height_px,label_size(i)] = mp.make_UI(panelH,panelH_loc,widthPx, margin);
+                [mp,height_px,label_size(i)] = mp.make_UI(panelH, panelH_loc, widthPx, margin);
                 mp = mp.link_callback(@obj.settings_callback);
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
@@ -255,7 +190,7 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
             if ~isnan(suggested_label_width) % All must have been NaN for this to be false
                 for i = 1:nsettings
                     if ~isnan(label_size(i)) % no error in fetching mp
-                        mps{i} = mps{i}.adjust_UI(suggested_label_width, margin);
+                        mps{i}.adjust_UI(suggested_label_width, margin);
                         obj.set_meta_pref(setting_names{i},mps{i});
                         lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
@@ -270,6 +205,7 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end
+            
             % set method might notify "update_settings"
             mp = obj.get_meta_pref(mp.property_name);
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
@@ -284,6 +220,7 @@ classdef Module < Base.Singleton & Base.PrefHandler & matlab.mixin.Heterogeneous
                 % provide a button to the user in the errordlg figure to
                 % reload settings.
             end
+            
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
                 try
                     val_help = mp.validationSummary(obj.PrefHandler_indentation);
