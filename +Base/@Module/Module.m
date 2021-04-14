@@ -24,43 +24,29 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
     %   inheritance, one should explicity call the class hierarchy that
     %   uses this prior to any others.
     
-    properties(Access=protected)
-        module_delete_listener      % Used in garbage collecting
-    end
     properties(Abstract,Constant,Hidden)
         modules_package;
     end
-    
-    properties%(Access=private)
-        prop_listeners              % Keep track of preferences in the GUI to keep updated
+    properties%(SetAccess=private,Hidden)
+        namespace                   % Namespace for saving prefs
     end
-    properties%(Access = private)
+    properties
+        logger = [];                % Handle to logger object
+    end
+    
+    properties(Hidden, Access=protected)    % Internal flags/variables for dealing with certain cases.
+        last_pref_set_err = [];
+        pref_set_try = false;       % If true, when setting, post listener will not throw the error. It will still populate last_pref_set_err. Think of this as a way to implement a try/catch block
+        module_delete_listener      % Used in garbage collecting
+        StructOnObject_state = 'on';% To restore after deleting
+    end
+    
+    properties(Access=private)              % Pref storage variables.
+        prop_listeners              % Keep track of preferences in the GUI to keep updated
         temp_prop = struct();
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
         implicit_mps = struct(); % When settings are made, all implicit ("old-style") meta props will go here
-    end
-
-    properties%(SetAccess=private,Hidden)
-        namespace                   % Namespace for saving prefs
-        StructOnObject_state = 'on';% To restore after deleting
-    end
-    properties
-        logger                      % Handle to log object
-    end
-    
-    
-    properties(Hidden, SetAccess = private)
-        last_pref_set_err = [];
-    end
-    properties(Hidden, SetAccess = protected)
-        % If true, when setting, post listener will not throw the error.
-        % It will still populate last_pref_set_err. Think of this as a way
-        % to implement a try/catch block
-        pref_set_try = false;
-    end
-    properties(Hidden)
-        validation_indentation = 2;
     end
     
     events
@@ -483,7 +469,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             
             if ~isempty(err) % catch for both try blocks: Reset to old value and present errordlg
                 try
-                    val_help = mp.validationSummary(obj.validation_indentation);
+                    val_help = mp.validationSummary(2); % Indent 2.
                 catch val_help_err
                     val_help = sprintf('Failed to generate validation help:\n%s',...
                         getReport(val_help_err,'basic','hyperlinks','off'));

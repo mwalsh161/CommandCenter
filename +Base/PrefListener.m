@@ -16,7 +16,7 @@ classdef (ConstructOnLoad) PrefListener < handle
         Recursive = false;
     end
     properties(Access={?Base.Module})
-        % Used internally for PrefHandler
+        % Used internally for Module
         executing = false;
         PropertyName = '';
     end
