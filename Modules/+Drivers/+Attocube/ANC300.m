@@ -1,4 +1,4 @@
-classdef Attos < Modules.Driver
+classdef ANC300 < Modules.Driver
     %ATTOS
     %
     % * == implemented in MATLAB interface.
@@ -68,7 +68,7 @@ classdef Attos < Modules.Driver
             mlock;
             persistent Objects
             if isempty(Objects)
-                Objects = Drivers.Attos.empty(1,0);
+                Objects = Drivers.Attocubes.ANC300.empty(1,0);
             end
             for i = 1:length(Objects)
                 if isvalid(Objects(i)) && isequal(port, Objects(i).singleton_id)
@@ -76,13 +76,13 @@ classdef Attos < Modules.Driver
                     return
                 end
             end
-            obj = Drivers.Attos(port);
+            obj = Drivers.Attocubes.ANC300(port);
             obj.singleton_id = port;
             Objects(end+1) = obj;
         end
     end
     methods (Access=private)
-        function obj = Attos(port)
+        function obj = ANC300(port)
             assert(~isempty(port));
             assert(ischar(port));
             
@@ -97,14 +97,14 @@ classdef Attos < Modules.Driver
         function spawnLines(obj)
             for ii = 1:7    % Max number of possible lines according to manual
                 try         % Try to make a line; an expected error will occur if the line does not exist.
-                    obj.lines = [obj.lines Drivers.Attos.Line.instance(obj, ii)];
+                    obj.lines = [obj.lines Drivers.Attocubes.ANC300.Line.instance(obj, ii)];
                 catch        % Do something error-specfic?
                     % Do nothing.
                 end
             end
             
             if isempty(obj.lines)
-                warning(['Could not find any lines in Drivers.Attos(''' obj.port ''').'])
+                warning(['Could not find any lines in Drivers.Attocubes.ANC300(''' obj.port ''').'])
             end
         end
         function killLines(obj)
@@ -118,12 +118,12 @@ classdef Attos < Modules.Driver
                 assert(length(varargin) == 2)
                 if ischar(varargin{2}) && strcmp(varargin{2}, 'c')
                     warning('Continuous mode is dangerous and disabled in this MATLAB interface. Truncating to maxsteps.')
-                    varargin{2} = Drivers.Attos.maxsteps;
+                    varargin{2} = Drivers.Attocubes.ANC300.maxsteps;
                 elseif isnumeric(varargin{2}) 
                     assert(varargin{2} > 0, ['Expected positive integer steps. Received ' num2str(varargin{2})])
-                    if varargin{2} > Drivers.Attos.maxsteps
-                        warning([num2str(varargin{2}) ' steps is greater than maxsteps = ' num2str(Drivers.Attos.maxsteps) '. Truncating to maxsteps.'])
-                        varargin{2} = Drivers.Attos.maxsteps;
+                    if varargin{2} > Drivers.Attocubes.ANC300.maxsteps
+                        warning([num2str(varargin{2}) ' steps is greater than maxsteps = ' num2str(Drivers.Attocubes.ANC300.maxsteps) '. Truncating to maxsteps.'])
+                        varargin{2} = Drivers.Attocubes.ANC300.maxsteps;
                     end
                 end
             end
