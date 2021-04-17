@@ -19,7 +19,7 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
         %   label_width_px: the width of an optional label component. Used
         %       to justify all labels in adjust_UI. Return 0 if not needed.
         function [obj, height_px, label_width_px] = make_UI(obj, pref, parent, yloc_px, width_px)
-            reference = pref.value;
+            reference = pref.reference;
             
             obj.yloc_px = yloc_px;
             obj.width_px = width_px;
@@ -79,15 +79,15 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
 
         % Given a value, update the UI objects
         function set_value(obj,val)
-            margin_px(1) = obj.label.Position(1);
-            suggested_label_width_px = obj.label.Position(3);
-%             obj.ui.Position(3) = obj.label.Parent.Position(3) - (suggested_label_width_px + margin_px(1) + margin_px(2));
-            margin_px(2) = obj.label.Parent.Position(3) - (suggested_label_width_px + margin_px(1) + obj.ui.Position(3));
-            
-            delete(obj.ui)
-            delete(obj.label)
-            delete(obj.unit)
-            delete(obj.geear)
+%             margin_px(1) = obj.label.Position(1);
+%             suggested_label_width_px = obj.label.Position(3);
+% %             obj.ui.Position(3) = obj.label.Parent.Position(3) - (suggested_label_width_px + margin_px(1) + margin_px(2));
+%             margin_px(2) = obj.label.Parent.Position(3) - (suggested_label_width_px + margin_px(1) + obj.ui.Position(3));
+%             
+%             delete(obj.ui)
+%             delete(obj.label)
+%             delete(obj.unit)
+%             delete(obj.geear)
             
             
             
@@ -95,7 +95,8 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
         end
         % Retrieve the value from UI and return it
         function val = get_value(obj)
-            val = obj.gear.UserData;    % Return the pref saved in UserData.
+            obj.ui.
+%             val = obj.gear.UserData;    % Return the pref saved in UserData.
         end
     end
 

@@ -24,24 +24,24 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
     %   inheritance, one should explicity call the class hierarchy that
     %   uses this prior to any others.
     
-    properties(Abstract,Constant,Hidden)
+    properties(Abstract, Constant, Hidden)
         modules_package;
     end
-    properties%(SetAccess=private,Hidden)
+    properties(SetAccess=private,Hidden)
         namespace                   % Namespace for saving prefs
     end
     properties
         logger = [];                % Handle to logger object
     end
     
-    properties(Hidden, Access=protected)    % Internal flags/variables for dealing with certain cases.
+    properties(SetAccess=private, Hidden)   % Internal flags/variables for dealing with certain cases.
         last_pref_set_err = [];
         pref_set_try = false;       % If true, when setting, post listener will not throw the error. It will still populate last_pref_set_err. Think of this as a way to implement a try/catch block
         module_delete_listener      % Used in garbage collecting
         StructOnObject_state = 'on';% To restore after deleting
     end
     
-    properties(Access=private)              % Pref storage variables.
+    properties(SetAccess=private, Hidden)   % Pref storage variables.
         prop_listeners              % Keep track of preferences in the GUI to keep updated
         temp_prop = struct();
         ls = struct(); % internal listeners
@@ -499,7 +499,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 
             % isvector takes care of non-empty too
             assert(ischar(classname) && isvector(classname),'classname must be a non-empty character vector.')
-            Convert periods in classname to underscores
+            % Convert periods in classname to underscores
             name = strrep(classname,'.','_');
             assert(isvarname(name),'converting "." to "_" was not sufficient to turn classname into a valid variable name in MATLAB.')
             
