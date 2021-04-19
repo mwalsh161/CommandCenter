@@ -13,8 +13,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     end
     
     properties
-        prefs = {'hwserver_host', 'moduleName', 'center_percent', 'do_etalon_lock', 'do_wavelength_lock', 'NIR_channel', 'VIS_channel', 'PB_line', 'PB_host'}
-        show_prefs = {};
+        prefs = {'hwserver_host', 'moduleName', 'center_percent', 'do_etalon_lock', 'do_wavelength_lock', 'NIR_channel', 'VIS_channel', 'PB_line', 'PB_host', 'wheel_host', 'wheel_pin', 'wheel_pos'}
+        show_prefs = {'wheel_host', 'wheel_pin', 'wheel_pos',};
     end
     
     properties (Constant, Hidden)
@@ -92,6 +92,11 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         % PULSEBLASTER prefs
         PB_host =           Prefs.String(Sources.Msquared.no_server, 'set', 'set_PB_host');
         PB_line =           Prefs.Integer(1, 'min', 1, 'set', 'set_PB_line', 'help_text', 'Indexed from 1.');
+        
+        %OD WHEEL prefs
+        wheel_host =              Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
+        wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
+        wheel_pos =             Prefs.Integer(0,'min',0,'max',360,'allow_nan',false,'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
     end
     
     methods(Access=private)
@@ -393,6 +398,32 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 end
             else
                 obj.getFrequency();
+            end
+        end 
+        
+        %wheel set methods
+        function val = set_wheel_host(obj,val,~)
+            err = obj.connect_driver('wheel', 'ArduinoServo', val, obj.wheel_pin);
+            if isempty(obj.wheel)
+                if ~isempty(err)
+                    rethrow(err)
+                end
+                val = 'No Server';
+                return
+            end
+            if ~isempty(err)
+                rethrow(err)
+            end
+        end
+        function val = set_wheel_pin(obj,val,~)
+            err = obj.connect_driver('wheel', 'ArduinoServo', obj.wheel_host, val);
+            if ~isempty(err)
+                rethrow(err)
+            end
+        end
+        function val = set_wheel_pos(obj,val,~)
+            if ~isempty(obj.wheel)
+                obj.wheel.angle = val;
             end
         end
     end
