@@ -72,6 +72,7 @@ try
                 dat = reshape(p.YData,obj.nCounterBins,[])';
                 obj.data.sumCounts(j,indices{:},:) = sum(dat);
                 obj.data.stdCounts(j,indices{:},:) = std(dat);
+%                 apdPS.pb.stop;
             end
             obj.UpdateRun(status,managers,ax,j,indices{:});
         end
