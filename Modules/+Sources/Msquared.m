@@ -13,8 +13,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     end
     
     properties
-        prefs = {'hwserver_host', 'moduleName', 'center_percent', 'do_etalon_lock', 'do_wavelength_lock', 'NIR_channel', 'VIS_channel', 'PB_line', 'PB_host', 'wheel_host', 'wheel_pin', 'wheel_pos'}
-        show_prefs = {'wheel_host', 'wheel_pin', 'wheel_pos',};
+        prefs = {'hwserver_host', 'moduleName', 'center_percent', 'do_etalon_lock', 'do_wavelength_lock', 'NIR_channel', 'VIS_channel', 'PB_line', 'PB_host', 'wheel_pin', 'wheel_pos'}
+        show_prefs = {};
     end
     
     properties (Constant, Hidden)
@@ -94,8 +94,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         PB_line =           Prefs.Integer(1, 'min', 1, 'set', 'set_PB_line', 'help_text', 'Indexed from 1.');
         
         %OD WHEEL prefs
-        wheel_host =              Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
-        wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
+        wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
         wheel_pos =             Prefs.Integer(0,'min',0,'max',360,'allow_nan',false,'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
     end
     
@@ -120,8 +119,18 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function reply = com(obj, fn, varargin)     % Helper function for hwsever communication (fills in moduleName and deals with reserved clients).
             if isempty(obj.moduleName); return; end
             
+            attempts = 3;
+            
             try
-                reply = obj.hwserver.com(obj.moduleName, fn, varargin{:});
+                reply = [];
+                while attempts > 0 && isempty(reply)
+                    try
+                        reply = obj.hwserver.com(obj.moduleName, fn, varargin{:});
+                    catch
+                        warning('Msquared failed to reply.')
+                    end
+                    attempts = attempts - 1;
+                end
             catch err
                 if contains(err.message, 'Another client was using')
                     % Grab line with exception in it
@@ -402,28 +411,10 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end 
         
         %wheel set methods
-        function val = set_wheel_host(obj,val,~)
-            err = obj.connect_driver('wheel', 'ArduinoServo', val, obj.wheel_pin);
-            if isempty(obj.wheel)
-                if ~isempty(err)
-                    rethrow(err)
-                end
-                val = 'No Server';
-                return
-            end
-            if ~isempty(err)
-                rethrow(err)
-            end
-        end
-        function val = set_wheel_pin(obj,val,~)
-            err = obj.connect_driver('wheel', 'ArduinoServo', obj.wheel_host, val);
-            if ~isempty(err)
-                rethrow(err)
-            end
-        end
         function val = set_wheel_pos(obj,val,~)
-            if ~isempty(obj.wheel)
-                obj.wheel.angle = val;
+            if ~isempty(obj.hwserver)
+%                 obj.wheel.angle = val;
+                obj.hwserver.com('Arduino', ['s ' num2str(obj.wheel_pin) ' ' num2str(val)]);
             end
         end
     end

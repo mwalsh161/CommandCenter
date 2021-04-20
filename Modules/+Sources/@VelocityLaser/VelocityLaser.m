@@ -19,9 +19,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
     %   setting
 
     properties
-        prefs = {'PBline','pb_host','velocity_host','wavemeter_host','wavemeter_channel',...
+        prefs = {'PB_line','pb_host','velocity_host','wavemeter_host','wavemeter_channel',...
                  'wheel_host', 'wheel_pin', 'wheel_pos', 'cal_local','TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints'};
-        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PBline','pb_host',...
+        show_prefs = {'PB_status','tuning','diode_on','wavemeter_active','PB_line','pb_host',...
             'velocity_host','wavemeter_host','wavemeter_channel','wheel_host', 'wheel_pin', 'wheel_pos', 'TuningTimeout','TuneSetpointAttempts','TuneSetpointNPoints','debug'};
     end
     properties(SetAccess={?Base.Module})
@@ -46,14 +46,14 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         TuningTimeout =         Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
         
         pb_host =               Prefs.String('No Server','set','set_pb_host','help','IP/hostname of computer with PB server');
-        PBline =                Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PBline','help','Indexed from 1');
+        PB_line =               Prefs.Integer(12,'min',1,'allow_nan',false,'set','set_PB_line','help','Indexed from 1');
         
         velocity_host =         Prefs.String('No Server','set','set_velocity_host','help','IP/hostname of computer with hwserver for velocity laser');
         
         wavemeter_host =        Prefs.String('No Server','set','set_wavemeter_host','help','IP/hostname of computer with hwserver for wavemeter');
         wavemeter_channel =     Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
         
-        wheel_host =              Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
+        wheel_host =            Prefs.String('No Server', 'set','set_wheel_host', 'help', 'IP/hostname of computer with hwserver for Arduino-controlled filter wheel.');
         wheel_pin =             Prefs.Integer(2, 'min',2, 'max', 13, 'allow_nan', false, 'set', 'set_wheel_pin', 'help', 'Pin on the Arduino corresponding to the filter wheel servo.');
         wheel_pos =             Prefs.Integer(0,'min',0,'max',360,'allow_nan',false,'set' ,'set_wheel_pos' ,'help', 'Current position of the Arduino-controlled filter wheel. The wheel weaves as the wheel wills.');
         
@@ -186,7 +186,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         
         function val = set_pb_host(obj,val,~)
-            err = obj.connect_driver('PulseBlaster','PulseBlaster.StaticLines',val);
+            err = obj.connect_driver('PulseBlaster','PulseBlaster',val);
             obj.isRunning;
             if isempty(obj.PulseBlaster)
                 obj.pb_host = 'No Server';
@@ -198,13 +198,13 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~isempty(err)
                 rethrow(err)
             end
-            obj.source_on = obj.PulseBlaster.lines(obj.PBline);
+            obj.source_on = obj.PulseBlaster.lines(obj.PB_line).state;
             delete(obj.listeners);
             obj.listeners = addlistener(obj.PulseBlaster,'running','PostSet',@obj.isRunning);
         end
-        function val = set_PBline(obj,val,~)
+        function val = set_PB_line(obj,val,~)
             if ~isempty(obj.PulseBlaster)
-                obj.source_on = obj.PulseBlaster.lines(val);
+                obj.source_on = obj.PulseBlaster.lines(val).state;
             end
         end
         
@@ -290,13 +290,13 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
             if ~obj.diode_on
                 obj.activate;
             end
-            obj.PulseBlaster.lines(obj.PBline) = true;
+            obj.PulseBlaster.lines(obj.PB_line).state = true;
             obj.source_on = true;
         end
         function off(obj)
             assert(~isempty(obj.PulseBlaster),'No IP set!')
             obj.source_on = false;
-            obj.PulseBlaster.lines(obj.PBline) = false;
+            obj.PulseBlaster.lines(obj.PB_line).state = false;
         end
         function arm(obj)
             % Make sure calibration is available
