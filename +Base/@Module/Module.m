@@ -421,16 +421,22 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 
                 % Make UI element and add to panelH (note mp is not a handle class)
                 [mp,height_px,label_size(i)] = mp.make_UI(panelH, panelH_loc, widthPx, margin);
-                mp = mp.link_callback(@obj.settings_callback);
+                if isprop(mp, 'reference') && ~isempty(mp.reference)
+                    obj2 = mp.reference.parent;
+                    mp = mp.link_callback(@obj2.settings_callback);
+                else
+                    mp = mp.link_callback(@obj.settings_callback);
+                end
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
-                %obj.set_meta_pref(setting_names{i},mp);
+                obj.set_meta_pref(setting_names{i}, mp);
 %                 try
                     mp.set_ui_value(mp.value); % Update to current value
 %                 catch err
 %                     warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
 %                         setting_names{i},class(mp.value),err.message)
 %                 end
+                obj.set_meta_pref(setting_names{i}, mp);
             end
             
             % Adjust the UI such that label widths are nice.
@@ -445,7 +451,13 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     if ~isnan(label_size(i)) % no error in fetching mp
                         mps{i}.adjust_UI(suggested_label_width, margin);
                         obj.set_meta_pref(setting_names{i},mps{i});
-                        lsh(end+1) = obj.addlistener(setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
+                        if isprop(mps{i}, 'reference')
+                            if ~isempty(mps{i}.reference)
+                                lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)(obj.settings_listener(struct('Name', mps{i}.property_name), mps{i})));
+                            end
+                        else
+                            lsh(end+1) = obj.addlistener(setting_names{i}, 'PostSet', @(el,~)(obj.settings_listener(el, mps{i})));
+                        end
                     end
                 end
             end
@@ -455,15 +467,17 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             obj.pref_set_try = true;  % try block for validation
             try % try block for retrieving UI value
                 obj.(mp.property_name) = mp.get_validated_ui_value();
+%                 obj.(mp.property_name) = obj.(mp.property_name);
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end
             
             % set method might notify "update_settings"
-            mp = obj.get_meta_pref(mp.property_name);
+%             mp = obj.get_meta_pref(mp.property_name);
             obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
             try
                 mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+%                 mp.set_ui_value(mp.read()); % clean methods may have changed it
             catch err
                 error('MODULE:UI',['Failed to (re)set value in UI. ',... 
                        'Perhaps got deleted during callback? ',...
@@ -667,8 +681,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 
                 if ispref(obj.namespace,prefs{i})   % If we have data saved to set the pref to...
                     data = getpref(obj.namespace,prefs{i});     % ...Grab that data...
+                    data
                     try
-                        mp = findprop(obj,prefs{i});
+%                         mp = findprop(obj,prefs{i});
+                        mp = obj.get_meta_pref(prefs{i});
+                        mp
                         
                         % For most prefs, mp.decodeValue is the identity. However, some prefs carry runtime information which must be encoded to something
                         % savable on save and decoded to something runable on load. For this reason, the metapref deals with interpretation. In order
@@ -781,6 +798,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         end
         function execute_external_ls(obj,prop,event)
             for i = 1:length(obj.external_ls.(prop.Name).(event.EventName))
+                i
                 % Do not allow recursive calls and only call Enabled ones
                 if  obj.external_ls.(prop.Name).(event.EventName)(i).Enabled && ...
                         (obj.external_ls.(prop.Name).(event.EventName)(i).Recursive || ...

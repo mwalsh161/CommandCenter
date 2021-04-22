@@ -30,25 +30,24 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             
             if isempty(reference)
                 reference = Prefs.Empty();
-                reference.name = pref.name;
                 reference.unit = [];
             end
             
+            temp = reference.name;
+            reference.name = [pref.name ' ' char(0x27A4) ' ' reference.name]; % reference.parent.encodeReadable(true) '.'
+            
             [reference.ui, height_px, label_width_px] = reference.ui.make_UI(reference, parent, yloc_px, width_px, margin_px);
+            
+            reference.name = temp;
             
             obj.ui = reference.ui.ui;
             obj.label = reference.ui.label;
 %             if isprop(reference.ui, 'unit')
 %                 obj.unit = reference.ui.unit;
 %             end
-            
-            obj
-            
-%             obj.ui
-            
-%             uicontrol('String', char(0x2699));
 
-            obj.gear
+%             'here'
+%             reference.ui
 
             obj.gear = uicontrol(parent,...
                         'Style', obj.uistyle,...
@@ -83,10 +82,16 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             
             obj.label.ForegroundColor = 'b';
             
-            obj.gear.Position(1) = reference.ui.ui.Position(1) + reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
             obj.gear.Position(2) = reference.ui.ui.Position(2);
             obj.gear.Position(3) = reference.ui.ui.Position(4);
             obj.gear.Position(4) = reference.ui.ui.Position(4);
+            
+            if isprop(reference.ui, 'unit') && isgraphics(reference.ui.unit)
+                obj.gear.Position(1) = reference.ui.unit.Position(1) + reference.ui.unit.Position(3) - reference.ui.ui.Position(4);
+                reference.ui.unit.Position(1) = reference.ui.unit.Position(1) - reference.ui.ui.Position(4);
+            else
+                obj.gear.Position(1) = reference.ui.ui.Position(1) + reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
+            end
             
             reference.ui.ui.Position(3) = reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
             
@@ -113,13 +118,14 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
 %             delete(obj.unit)
 %             delete(obj.gear)
             
-            
+            obj.gear.UserData.ui.set_value(val);
             
 %             obj.ui.String = val;
         end
         % Retrieve the value from UI and return it
         function val = get_value(obj)
-            val = []
+%             val = []
+            val = obj.gear.UserData.ui.get_value();
 %             obj.ui.
 %             val = obj.gear.UserData;    % Return the pref saved in UserData.
         end

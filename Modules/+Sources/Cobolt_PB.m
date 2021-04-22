@@ -68,9 +68,11 @@ classdef Cobolt_PB < Modules.Source
             end
         end
         
-        function val = set_power(obj, val, ~)
-            if obj.isConnected && ~isnan(val)
+        function val = set_power(obj, val, pref)
+            if obj.isConnected
                 errorIfNotOK(obj.serial.com('Cobolt', 'slmp', val));    % Set laser modulation power (mW)
+            elseif ~isnan(val) && isnan(pref.value)
+                error('Cannot set power without a connection.');
             else
                 val = NaN;
             end

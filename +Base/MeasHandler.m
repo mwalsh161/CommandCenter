@@ -155,10 +155,10 @@ classdef (HandleCompatible) MeasHandler
 
 	methods
 		function obj = MeasHandler()
-            if ~isa(obj, 'Base.Pref') && ~isa(obj, 'Base.Sweep')
-                mr = Base.MeasurementRegister.instance();
-                mr.addMeasurement(obj);
-            end
+%             if ~isa(obj, 'Base.Pref') && ~isa(obj, 'Base.Sweep')
+%                 mr = Base.MeasurementRegister.instance();
+%                 mr.addMeasurement(obj);
+%             end
             
 %             obj.names = 'aquatic sea mammals';
 %             obj.units = 'mammals';
