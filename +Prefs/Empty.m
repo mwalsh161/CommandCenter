@@ -3,7 +3,7 @@ classdef Empty < Prefs.Numeric
 
     properties (Hidden)
         default = NaN;
-        ui = [];
+        ui = Prefs.Inputs.TitleField;
     end
     properties (Hidden)
         min = NaN;

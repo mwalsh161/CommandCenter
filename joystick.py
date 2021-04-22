@@ -1,11 +1,13 @@
 import pygame, socket
+import numpy as np
 
 pygame.init()
 
 # Loop until the user clicks the close button.
 done = False
 debug = False
-thresh = 3.1e-05
+# thresh = 3.1e-05
+thresh = .1
 
 # Used to manage how fast the screen updates.
 clock = pygame.time.Clock()
@@ -58,14 +60,20 @@ while not done:
                 joystick = pygame.joystick.Joystick(0)
                 joystick.init()
                     
-                somethinghappened = False;
+                # somethinghappened = False;
 
-                if name == "Xbox 360 Controller":
-                    dict['ax'] =   joystick.get_axis(0);
-                    dict['ay'] =  -joystick.get_axis(1);
-                    dict['ax2'] =  joystick.get_axis(3);
-                    dict['ay2'] = -joystick.get_axis(4);
-                    dict['az'] =  (joystick.get_axis(5) - joystick.get_axis(2))/2;
+                if "Xbox" in name:
+                    def axisFunction(x):
+                        if np.abs(x) - thresh < 0:
+                            return 0
+                        else:
+                            return np.sign(x) * (np.abs(x)-thresh)*(np.abs(x)-thresh) / (1-thresh) / (1-thresh)
+                    
+                    dict['ax'] =   axisFunction(joystick.get_axis(0));
+                    dict['ay'] =  -axisFunction(joystick.get_axis(1));
+                    dict['ax2'] =  axisFunction(joystick.get_axis(3));
+                    dict['ay2'] = -axisFunction(joystick.get_axis(4));
+                    dict['az'] =  (axisFunction(joystick.get_axis(5)) - axisFunction(joystick.get_axis(2)))/2;
                     
                     for ax in ['ax', 'ay', 'ax2', 'ay2', 'az']:
                         if abs(dict[ax]) > thresh:
@@ -78,7 +86,7 @@ while not done:
                             done2 = True                    # Flag that we are done so we exit this loop.
                         elif event.type == pygame.JOYBUTTONDOWN:
                             if event.joy == 0:
-                                somethinghappened = True
+                                # somethinghappened = True
                                 if   event.button == 14:    # +x
                                     dict['bx'] += 1
                                 elif event.button == 13:    # -x
@@ -108,6 +116,7 @@ while not done:
                                 elif event.button == 9:     # back
                                     dict['back'] = 1
                                 elif event.button == 10:     # home
+                                    done2 = True
                                     dict['home'] = 1
                 
                 if debug:
@@ -144,8 +153,10 @@ while not done:
                         hat = joystick.get_hat(i)
                         print("Hat {} value: {}".format(i, str(hat)))
                 
-                if somethinghappened:
-                    clientsocket.send((str(dict).replace('\'', '"') + '\n').encode('utf-8'))
+                # if somethinghappened:
+                dict_small = {key:val for key, val in dict.items() if val != 0}
+                if len(dict_small) > 0:
+                    clientsocket.send((str(dict_small).replace('\'', '"') + '\n').encode('utf-8'))
                 
                 # Limit to 20 frames per second.
                 clock.tick(10)

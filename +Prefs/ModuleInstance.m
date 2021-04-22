@@ -42,17 +42,7 @@ classdef ModuleInstance < Base.Pref
             obj.ui.module_types = {'Experiment','Stage','Imaging','Source','Database'};
         end
         
-        function data = decode(obj, saved)
-            if obj.HasDefault && any(ismember([{class(obj.DefaultValue)}; superclasses(obj.DefaultValue)], {'Base.Module','Prefs.ModuleInstance'}))
-                if isempty(saved)       % Means it is the default value, and not set
-                    error('No saved data.')   % Error to prevent setting the value.
-                end
-                for j = 1:length(saved)
-                    data(j) = eval(sprintf('%s.instance', saved{j})); % Grab instance(s) from string
-                end
-            end
-        end
-        function tosave = encode(~, data)
+        function tosave = encodeValue(~, data)
             if ismember('Base.Pref',superclasses(data))
                 % THIS SHOULD NOT HAPPEN, but haven't figured
                 % out why it does sometimes yet
@@ -62,11 +52,25 @@ classdef ModuleInstance < Base.Pref
                         
             if ismember('Base.Module',superclasses(data))
                 tosave = {};
+                
                 for j = 1:length(data)
-                    tosave{end+1} = class(data(j)); %#ok<AGROW>
+%                     tosave{end+1} = class(data(j)); %#ok<AGROW>
+                    tosave{end+1} = data(j).encode(); %#ok<AGROW>
                 end
             else
                 error('Data was not a Base.Module.')
+            end
+        end
+        function [data, obj] = decodeValue(obj, saved)
+            if obj.HasDefault && any(ismember([{class(obj.DefaultValue)}; superclasses(obj.DefaultValue)], {'Base.Module','Prefs.ModuleInstance'}))
+                if isempty(saved)               % Means it should be the default value, and we want to avoid setting.
+                    error('No saved data.')     % Error to prevent setting the value.
+                end
+                
+                for j = 1:length(saved)
+%                     data(j) = eval(sprintf('%s.instance', saved{j})); % Grab instance(s) from string
+                    data(j) = Base.Module.decode(saved{j}); % Grab instance(s) from string
+                end
             end
         end
         

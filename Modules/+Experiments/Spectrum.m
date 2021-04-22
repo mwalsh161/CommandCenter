@@ -40,8 +40,6 @@ classdef Spectrum < Modules.Experiment
             
             obj.path = 'spectrometer';
             
-            obj.measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
-                                Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
             try
                 obj.loadPrefs; % Load prefs should load WinSpec via set.ip
             catch err % Don't need to raise alert here
@@ -49,6 +47,9 @@ classdef Spectrum < Modules.Experiment
                     rethrow(err)
                 end
             end
+            
+            obj.measurements = [Base.Meas([1 1024], 'field', 'intensity',  'unit', 'arb') ...
+                                Base.Meas([1 1024], 'field', 'wavelength', 'unit', 'nm')];
         end
     end
     methods(Static)

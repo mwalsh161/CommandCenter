@@ -5,19 +5,7 @@ classdef PrefRegister < Base.Singleton
     % user. Note that memory is session-based.
     
     properties (SetAccess = private)
-        % Format:
-        %
-        %   register.Module1_name.parent           : Base.Module
-        %
-        %   register.Module1_name.prefs.pref1_name : Base.Pref
-        %   register.Module1_name.prefs.pref2_name : Base.Pref
-        %   register.Module1_name.prefs....
-        %
-        %   register.Module2_name....
-        %
-        %   register....
-        %
-        register = struct();
+        register = {};
     end
     
     methods (Access = private)
@@ -38,18 +26,37 @@ classdef PrefRegister < Base.Singleton
     end
         
     methods
+        function removeDead(obj)
+            for ii = length(obj.register):-1:1
+                if isempty(obj.register{ii}.parent) || ~isvalid(obj.register{ii}.parent)
+                    obj.register(ii) = [];
+                end
+            end
+        end
+        function modules = getModules(obj, isHTML)
+            if nargin < 2
+                isHTML = false;
+            end
+            
+            modules = cell(1, length(obj.register));
+            for ii = 1:length(obj.register)
+                modules{ii} = obj.register{ii}.parent.encodeReadable(isHTML);
+            end
+        end
         function menu = getMenu(obj, parentObject, callback, varargin)
             % .getMenu returns a uimenu object with Base.PrefHanders as menus and child Base.Prefs as submenus.
             % When a submenu is clicked, `callback` is called with the clicked Base.Pref as argument. This is
             % intended to return the clicked Base.Pref to whichever UI element requested the menu in the first
             % place.
-            
             assert(nargin > 2, 'Base.PrefRegister.getMenu: parentObject (figure or uimenu) and callback (function_handle) must be provided as arguments of getMenu().')
             
-            assert(nargin(callback) == 1, 'Base.PrefRegister.getMenu: Callback must accept exactly one argument.');
+            nargin(callback)
+            
+%             assert(nargin(callback) == 1, 'Base.PrefRegister.getMenu: Callback must accept exactly one argument.');
             assert(mod(numel(varargin), 2) == 0, 'Base.PrefRegister.getMenu expects an even number of ''Name'', Value pairs.');
             
-            modules = sort(fields(obj.register));
+            obj.removeDead()
+            [modules, I] = sort(obj.getModules(true));
             
             if isempty(parentObject)
                 parentObject = figure('name','Select Module','IntegerHandle','off','menu','none','HitTest','off',...
@@ -61,7 +68,7 @@ classdef PrefRegister < Base.Singleton
                 case 'figure'
 %                     menu = uicontextmenu; %('Parent', parent);
 %                     parentObject.UIContextMenu = menu;
-                    menu = uimenu(parentObject,'Text', 'Prefs');
+                    menu = uimenu(parentObject, 'Text', 'Prefs');
                     parentObject.Visible = 'on';
                 case {'uicontextmenu', 'uimenu'}
                     menu = parentObject;
@@ -73,63 +80,59 @@ classdef PrefRegister < Base.Singleton
             
             if ~isempty(modules)
                 for ii = 1:length(modules)
-                    if isempty(obj.register.(modules{ii}).parent) || ~isvalid(obj.register.(modules{ii}).parent)
-                        obj.register = rmfield(obj.register, modules{ii});      % Remove the field if the module has been deleted
-                    else
-                        prefs = fields(obj.register.(modules{ii}).prefs);
+                    prefs = fields(obj.register{I(ii)}.prefs);
 
-                        folder = uimenu(menu);
+                    folder = uimenu(menu);
 
-                        localpreffound = false;
+                    localpreffound = false;
 
-                        for jj = 1:length(prefs)    % First fields will always be .parent
-                            pref = obj.register.(modules{ii}).prefs.(prefs{jj});
+                    for jj = 1:length(prefs)    % First fields will always be .parent
+                        pref = obj.register{I(ii)}.prefs.(prefs{jj});
 
-                            shouldAdd = true;
+                        shouldAdd = true;
 
-                            for kk = 1:2:numel(varargin)    % Check that it satisfies the properties in varargin
-                                name = varargin{kk};
-                                value = varargin{kk+1};
+                        for kk = 1:2:numel(varargin)    % Check that it satisfies the properties in varargin
+                            name = varargin{kk};
+                            value = varargin{kk+1};
 
-                                assert(ischar(name), 'Base.PrefRegister.getMenu requires that Names in Name, Value pairs be strings')
+                            assert(ischar(name), 'Base.PrefRegister.getMenu requires that Names in Name, Value pairs be strings')
 
-                                if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref. Change this to include hidden properties?
-                                    shouldAdd = shouldAdd && isequal(pref.(name), value);
-                                else                 
-                                    shouldAdd = false;
-                                end
-                            end
-
-                            if shouldAdd
-                                preffound = true;
-                                localpreffound = true;
-
-                                parent_classFull = makeParentString(obj.register.(modules{ii}).parent, pref, true);
-                                pref.parent_class = parent_classFull;
-
-                                folder.Label = ['<html>' parent_classFull];
-
-                                readonly = '';
-                                if pref.readonly
-                                    readonly = ', <font face="Courier" color="blue"><i>readonly</i></font>';
-                                end
-
-                                prefclass = strsplit(class(pref), '.');
-
-                                label = ['<html>' pref.get_label() ' (<font face="Courier" color="green">.' pref.property_name '</font>, <font face="Courier" color="blue">' prefclass{end} '</font>' readonly ')</html>'];
-
-                                uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
+                            if isprop(pref, name) || ismethod(pref, name)   % If the property is not equal to the value, or the property does not exist, then the user doesn't want this pref. Change this to include hidden properties?
+                                shouldAdd = shouldAdd && isequal(pref.(name), value);
+                            else                 
+                                shouldAdd = false;
                             end
                         end
 
-                        if ~localpreffound
-                            delete(folder);
+                        if shouldAdd
+                            preffound = true;
+                            localpreffound = true;
+
+                            parent_classFull = obj.register{I(ii)}.parent.encodeReadable(true); %makeParentString(obj.register.(modules{ii}).parent, pref, true);
+%                                 pref.parent_class = parent_classFull;
+
+                            folder.Label = ['<html>' parent_classFull];
+
+                            readonly = '';
+                            if pref.readonly
+                                readonly = ', <font face="Courier" color="blue"><i>readonly</i></font>';
+                            end
+
+                            prefclass = strsplit(class(pref), '.');
+
+                            label = ['<html>' pref.get_label() ' (<font face="Courier" color="green">.' pref.property_name '</font>, <font face="Courier" color="blue">' prefclass{end} '</font>' readonly ')</html>'];
+
+                            uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
                         end
+                    end
+
+                    if ~localpreffound
+                        delete(folder);
                     end
                 end
             end
             
-            if isempty(fields(obj.register))
+            if isempty(obj.register)
                 uimenu(menu, 'Label', '<html>No Modules found', 'Enable', 'off', 'Tag', 'module');
                 return
             end
@@ -158,53 +161,18 @@ classdef PrefRegister < Base.Singleton
     methods
         function addPref(obj, parent, pref)
             % Adds pref to the register under the field corresponding to the parent.
-            parent_name = pref.parent_class;
-            parent_name = strrep(parent_name, '.', '_');
-            
-            if ~isfield(obj.register, parent_name)
-                obj.register.(parent_name).parent = parent;
-            elseif isvalid(obj.register.(parent_name).parent)
-                if ~isequal(obj.register.(parent_name).parent, parent)    % If this class isn't the same class...
-                    pref.parent_class = [pref.parent_class '_'];    % ...then add an underscore and recurse.
-                    obj.addPref(parent, pref)
+            for ii = 1:length(obj.register)
+                if isequal(obj.register{ii}.parent, parent)
+                    obj.register{ii}.prefs.(pref.property_name) = pref;
+                    
                     return;
                 end
-            elseif ~isvalid(obj.register.(parent_name).parent)
-                obj.register.(parent_name).parent = parent;
             end
 
-            obj.register.(parent_name).prefs.(pref.property_name) = pref;   % This still works if set_meta_pref is called on the same pref.
+            obj.register{end+1} = struct('parent', pref.parent, 'prefs', struct(pref.property_name, pref));
         end
         function delete(obj)
             obj.register = [];    % Prevent objects from being deleted by getting rid of reference to the struct beforehand. Note that record of these objects will be erased.
         end
-    end
-end
-
-function str = makeParentString(parent, pref, isHTML)
-    str = strrep(strip(pref.parent_class, '_'), '_', '.');
-    disp('singleton_id:')
-    parent.singleton_id
-    if ~isempty(parent.singleton_id)
-        if ischar(parent.singleton_id)
-            str2 = ['''' parent.singleton_id ''''];
-        else
-            try 
-                str2 = mat2str(parent.singleton_id);
-            catch
-                str2 = '';
-            end
-        end
-        
-        str2
-        
-        if ~isempty(str2)
-            if isHTML
-                str = [str '(<font face="Courier New" color="purple">' str2 '</font>)'];
-            else
-                str = [str '(' str2 ')'];
-            end
-        end
-        str
     end
 end

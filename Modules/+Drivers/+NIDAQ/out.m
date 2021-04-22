@@ -71,7 +71,8 @@ classdef out < handle
             pref = Prefs.Double('name', obj.name, 'unit', 'V', 'min', limits(1), 'max', limits(2));
 %             pref.property_name = [lower(dev.DeviceChannel) '_' lower(line)];
             pref.property_name = strrep(lower(pname), '/', '_');
-            pref.parent_class = class(dev);
+%             pref.parent_class = class(dev);
+            pref.parent = dev;
             
             pref.writ_fn = @(x)(obj.writ(x));
             pref.read_fn = @()(obj.read());

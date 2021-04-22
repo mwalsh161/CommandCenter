@@ -52,7 +52,6 @@ classdef Singleton < handle
                 warning('SINGLETON:delete','Was not able to purge function from memory!')
             end
         end
-        
     end
     
 end

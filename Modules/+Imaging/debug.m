@@ -5,11 +5,13 @@ classdef debug < Modules.Imaging
         maxROI = [-1 1; -1 1];
         % NOTE: my_string should be added at end as setting, but not saved like pref
         %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
-        prefs = {'file','old_style','fyi','my_old_array','my_array','my_array2','my_module','my_integer','my_double','my_logical'};
+        prefs = {'file','old_style','fyi','my_old_array','my_array','my_array2','my_module','my_integer','my_double','my_logical', 'reftest', 'reference'};
        show_prefs = {'fyi','my_integer','my_double'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
     properties(GetObservable,SetObservable)
+        reference = Prefs.Reference();
+        
         fyi = Prefs.String('This is for your info',...
                            'help_text','This is a readonly string.',...
                            'readonly',true);

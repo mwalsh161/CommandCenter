@@ -80,7 +80,9 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         % stored in the Module will _not_ know the singleton_id of the class, but PrefRegister will
         % return a string with the singleton_id appended in [class(Module) '(''' singleton_id ''')']
         % form.
-        parent_class = '';
+%         parent_class = '';
+        
+        parent = [];
     end
     properties (Hidden, SetAccess={?Base.Pref, ?Base.Module, ?Drivers.NIDAQ.out, ?Base.Sweep})
         property_name = '';                 % Name of the property in Module that this Pref fondles.
@@ -121,7 +123,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             % Module. It is intended to give the Pref an opportunity
             % to bind a method of the module_instance.
             % Can also use to check/verify input/output
-            obj.parent_class = class(module_instance);
+%             obj.parent_class = class(module_instance);
+            obj.parent = module_instance;
             
 %             if isa(obj, 'Base.Measurement') % This needs to be after pref is initialized and filled with property_name, but before it is fully bound.
 %                 obj.sizes = struct(obj.property_name, [1 1]);
@@ -233,7 +236,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                     end
                 end
             end
-
+            
             pr = Base.PrefRegister.instance();
                     
             pr.addPref(module_instance, obj);
@@ -242,18 +245,8 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function tf = isnumeric(~)
             tf = false;
         end
-        
-        function data = decode(~, saved)
-            data = saved;
-        end
-        function saved = encode(~, data)
-            if ismember('Base.Pref',superclasses(data))
-                % THIS SHOULD NOT HAPPEN, but haven't figured
-                % out why it does sometimes yet
-                data = data.value;
-%                 warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
-            end
-            saved = data;
+        function tf = isequal(obj, obj2)
+            tf = ismember('Base.Pref', superclasses(obj2)) && strcmp(obj.property_name, obj2.property_name) && isequal(obj.parent, obj2.parent);
         end
         
         % These methods are called prior to the data being set to "value"
@@ -265,72 +258,40 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             % May throw an error if not valid
         end
     end
-    
-    methods % UI Stuff
-        % This provides on opportunity to format or add to help_text
-        % property upon creation. It is called via get.help_text, meaning
-        % it will not be bypassed when retrieving obj.help_text.
-        % NOTE: https://undocumentedmatlab.com/blog/multi-line-tooltips
-        function text = get_help_text(obj,help_text_prop)
-            summary_text = obj.validationSummary(2);
-            if isempty(summary_text)
-                summary_text = '  None'; % indent 2
+    methods(Hidden)
+        % Function (and inverse) to transform the value of the pref into something that can be saved, then recovered.
+        function saved = encodeValue(~, data)
+            if ismember('Base.Pref',superclasses(data))
+                % THIS SHOULD NOT HAPPEN, but haven't figured
+                % out why it does sometimes yet
+                data = data.value;
+%                 warning('Listener for %s seems to have been deleted before savePrefs!',obj.prefs{i});
             end
-            summary_text = strrep(summary_text,'>','&gt;');
-            summary_text = strrep(summary_text,'<','&lt;');
-            if ~isempty(help_text_prop)
-                text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
-                                 help_text_prop, summary_text);
-            else
-                text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
-                                 summary_text);
-            end
-            if obj.auto_generated
-                text = [text '<br/><font color="red">This pref was auto generated and deprecated. Consider replacing with class-based pref.</font>'];
-            end
-            text = strip(strrep(text, newline, '<br/>'));
+            saved = data;
         end
-        % These methods are used to get/set the value and cast it to the
-        % correct type before returning. This does not need to validate or
-        % clean further!
-        % If this cannot be performed, throw an error with error ID set to
-        % 'SETTINGS:bad_ui_val'
-        function val = get_ui_value(obj)
-            val = obj.ui.get_value();
+        function [data, obj] = decodeValue(obj, saved)
+            data = saved;
         end
-        function set_ui_value(obj,val)
-            % Note: not required that val == obj.value
-            obj.ui.set_value(val);
+        
+        % Function (and inverse) to transform the pref itself into something that can be saved, then recovered.
+        function identity = encode(obj)
+            identity = struct('parent', obj.parent.encode(), 'pref', obj.property_name);
         end
-        function [obj,height_px,label_width_px] = make_UI(obj,varargin)
-            % This wraps ui.make_UI; careful overloading
-            [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
-        end
-        function obj = link_callback(obj,callback)
-            % This wraps ui.link_callback; careful overloading
-            obj.ui.link_callback({callback,obj});
-        end
-        function adjust_UI(obj,varargin)
-            % This wraps ui.adjust_UI; careful overloading
-            obj.ui.adjust_UI(varargin{:});
-        end
-        function label = get_label(obj)
-            % Uses the ui object to make a label (usually '<name> [<unit>]' pair)
-%             label = obj.ui.get_label(obj);
-            str = obj.name;
-
-            if isempty(str)
-                str = strrep(obj.property_name, '_', ' ');
-            end
-
-            if ~isempty(obj.unit)
-                label = sprintf('%s [%s]', str, obj.unit);
-            else
-                label = str;
+    end
+    methods(Static, Hidden)
+        function obj = decode(identity)
+            assert(isfield(identity, 'parent'))
+            assert(isfield(identity, 'pref'))
+            
+            try
+                parent = Base.Module.decode(identity.parent);
+                obj = parent.get_meta_pref(identity.pref);
+            catch err
+                warning(err.message)
+                obj = [];
             end
         end
     end
-
     methods(Sealed)
         function val = get_validated_ui_value(obj)
             % Note this is an extra layer primarily for backwards compatibility
@@ -399,6 +360,73 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                 rethrow(err);
             end
             obj.initialized = true;
+        end
+    end
+    
+    methods % UI Stuff
+        % This provides on opportunity to format or add to help_text
+        % property upon creation. It is called via get.help_text, meaning
+        % it will not be bypassed when retrieving obj.help_text.
+        % NOTE: https://undocumentedmatlab.com/blog/multi-line-tooltips
+        function text = get_help_text(obj,help_text_prop)
+            summary_text = obj.validationSummary(2);
+            if isempty(summary_text)
+                summary_text = '  None'; % indent 2
+            end
+            summary_text = strrep(summary_text,'>','&gt;');
+            summary_text = strrep(summary_text,'<','&lt;');
+            if ~isempty(help_text_prop)
+                text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
+                                 help_text_prop, summary_text);
+            else
+                text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
+                                 summary_text);
+            end
+            if obj.auto_generated
+                text = [text '<br/><font color="red">This pref was auto generated and deprecated. Consider replacing with class-based pref.</font>'];
+            end
+            text = strip(strrep(text, newline, '<br/>'));
+        end
+        function label = get_label(obj)
+            % Uses the ui object to make a label (usually '<name> [<unit>]' pair)
+%             label = obj.ui.get_label(obj);
+            str = obj.name;
+
+            if isempty(str)
+                str = strrep(obj.property_name, '_', ' ');
+            end
+
+            if ~isempty(obj.unit)
+                label = sprintf('%s [%s]', str, obj.unit);
+            else
+                label = str;
+            end
+        end
+        
+        % These methods are used to get/set the value and cast it to the
+        % correct type before returning. This does not need to validate or
+        % clean further!
+        % If this cannot be performed, throw an error with error ID set to
+        % 'SETTINGS:bad_ui_val'
+        function val = get_ui_value(obj)
+            val = obj.ui.get_value();
+        end
+        function set_ui_value(obj,val)
+            % Note: not required that val == obj.value
+            obj.ui.set_value(val);
+        end
+        function obj = link_callback(obj,callback)
+            % This wraps ui.link_callback; careful overloading
+            obj.ui.link_callback({callback,obj});
+        end
+        
+        function [obj,height_px,label_width_px] = make_UI(obj,varargin)
+            % This wraps ui.make_UI; careful overloading
+            [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
+        end
+        function adjust_UI(obj,varargin)
+            % This wraps ui.adjust_UI; careful overloading
+            obj.ui.adjust_UI(varargin{:});
         end
     end
     

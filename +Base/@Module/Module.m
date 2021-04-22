@@ -53,7 +53,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         update_settings % Listened to by CC to allow modules to request settings to be reloaded
     end
 
-    methods(Static)
+    methods(Static)                     % Michael's uibuild stuff.
         [code,f] = uibuild(block,varargin)
     end
     methods                             % Inactive function.
@@ -106,11 +106,14 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         sprintf('Class-based pref ''%s'' in class ''%s'' must be defined to be GetObservable and SetObservable.', prop.Name, class(obj)));
                     % Grap meta pref before listeners go active to pass to set_meta_pref
                     pref = obj.(prop.Name);
+                    
+%                     class(obj)
+%                     superclasses(obj)
 
-                    obj.ls.(prop.Name)    = addlistener(obj, prop.Name, 'PreSet',  @obj.pre);
-                    obj.ls.(prop.Name)(2) = addlistener(obj, prop.Name, 'PostSet', @obj.post);
-                    obj.ls.(prop.Name)(3) = addlistener(obj, prop.Name, 'PreGet',  @obj.pre);
-                    obj.ls.(prop.Name)(4) = addlistener(obj, prop.Name, 'PostGet', @obj.post);
+                    obj.ls.(prop.Name)    = obj.addlistener(prop.Name, 'PreSet',  @obj.pre);
+                    obj.ls.(prop.Name)(2) = obj.addlistener(prop.Name, 'PostSet', @obj.post);
+                    obj.ls.(prop.Name)(3) = obj.addlistener(prop.Name, 'PreGet',  @obj.pre);
+                    obj.ls.(prop.Name)(4) = obj.addlistener(prop.Name, 'PostGet', @obj.post);
 
                     obj.external_ls.(prop.Name) = external_ls_struct;
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
@@ -337,8 +340,8 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         end
     end
     
-    methods                             % Settings construction
-        function settings = get_settings(obj)
+    methods(Hidden)                     % UI settings construction
+        function settings = get_settings(obj)       % Get the names of the prefs that should be displayed in settings. Used by obj.settings().
             % Override to change how settings are acquired
             % Must output cell array of strings
             % Order matters; first is on top, last is at the bottom.
@@ -363,7 +366,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         %   your settings, if you aren't careful, you will have an
         %   inconsitency and confusion will follow.
         %   See documentation for how the default settings works below
-        function settings(obj,panelH,pad,margin)
+        function settings(obj,panelH,pad,margin)    % Arranges appropriate uicontrols for prefs inside a desired panel (usually the one owned by the relevant Manager).
             % panelH: handle to the MATLAB panel
             % pad: double; vertical distance in pixels to leave between UI elements
             % margin: 1x2 double; additional space in pixels to leave on [left, right]
@@ -389,13 +392,15 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 readonly_settings = obj.readonly_prefs;
             end
             
+            % Grab the list of settings from get_settings()
             try
                 setting_names = obj.get_settings();
             catch err
-                error('Error fetching settings names:\n%s',getReport(err,'basic','hyperlinks','off'));
+                error('Error fetching settings names:\n%s', getReport(err,'basic','hyperlinks','off'));
             end
             nsettings = length(setting_names);
 
+            % Make the uicontrol elements with each metapref's make_UI().
             panelH_loc = pad;
             mps = cell(1,nsettings); % meta pref
             label_size = NaN(1,nsettings);
@@ -427,9 +432,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 %                         setting_names{i},class(mp.value),err.message)
 %                 end
             end
+            
+            % Adjust the UI such that label widths are nice.
             max_label_width = widthPx/2;
             suggested_label_width = max(label_size(label_size < max_label_width)); % px
-            if isempty(suggested_label_width)
+            if isempty(suggested_label_width) || any(label_size > max_label_width)
                 suggested_label_width = max_label_width;
             end
             lsh = Base.PrefListener.empty;
@@ -438,11 +445,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     if ~isnan(label_size(i)) % no error in fetching mp
                         mps{i}.adjust_UI(suggested_label_width, margin);
                         obj.set_meta_pref(setting_names{i},mps{i});
-                        lsh(end+1) = addlistener(obj,setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
+                        lsh(end+1) = obj.addlistener(setting_names{i},'PostSet',@(el,~)obj.settings_listener(el,mps{i}));
                     end
                 end
             end
-            addlistener(panelH,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Clean up listeners
+            addlistener(panelH,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Listeners for cleanup
         end
         function settings_callback(obj,~,~,mp)
             obj.pref_set_try = true;  % try block for validation
@@ -517,6 +524,66 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             namespace = [pre name];
         end
     end
+    methods                             % In the case where a module instance needs to be saved, identity = obj.encode() records the information required to recreate a runtime instance as a struct.
+        function identity = encode(obj, includestate)
+            if nargin < 2
+                includestate = false;
+            end
+            
+            if isempty(obj.singleton_id)
+                identity = struct('name', class(obj));
+            else
+                assert(ischar(obj.singleton_id) || isnumeric(obj.singleton_id), 'Encoding is limited to modules which have displayable (string or numeric) or empty singleton IDs, for now.')
+                identity = struct('name', class(obj), 'singleton_id', obj.singleton_id);
+            end
+            
+            if includestate
+                identity.state = obj.prefs2struct();
+            end
+        end
+        function str = encodeReadable(obj, isHTML)
+            if nargin < 2
+                isHTML = false;
+            end
+            
+            str = class(obj);
+            if ~isempty(obj.singleton_id)
+                if ischar(obj.singleton_id)
+                    str2 = ['''' obj.singleton_id ''''];
+                elseif isnumeric(obj.singleton_id)
+                    try 
+                        str2 = mat2str(obj.singleton_id);
+                    catch
+                        str2 = '';
+                    end
+                end
+
+                if ~isempty(str2)
+                    if isHTML
+                        str = [str '(<font face="Courier New" color="purple">' str2 '</font>)'];
+                    else
+                        str = [str '(' str2 ')'];
+                    end
+                end
+            end
+        end
+    end
+    methods(Static)                     % The static function obj = decode(identity) acts as the inverse of encode(), and recovers the runtime instanced described by identity.
+        function obj = decode(identity)
+            if ischar(identity)
+                identity = struct('name', identity);
+            end
+            
+            assert(isstruct(identity))
+            assert(isfield(identity, 'name'))
+
+            if isfield(identity, 'singleton_id')
+                obj = eval(sprintf('%s.instance(''%s'')', identity.name, identity.singleton_id));
+            else
+                obj = eval(sprintf('%s.instance()', identity.name));
+            end
+        end
+    end
     methods(Sealed)                     % Functions for saving, loading, and databasing prefs.
         function savePrefs(obj)
             % This method is called in the Module destructor (this file),
@@ -540,7 +607,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     try
                         mp = obj.get_meta_pref(obj.prefs{i});
                         
-                        setpref(obj.namespace, obj.prefs{i}, mp.encode( obj.(obj.prefs{i}) ));
+                        setpref(obj.namespace, obj.prefs{i}, mp.encodeValue( obj.(obj.prefs{i}) ));
                     catch err
                         warning('MODULE:save_prefs','Error on savePrefs. Skipped pref ''%s'': %s',obj.prefs{i},err.message)
                     end
@@ -603,12 +670,14 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     try
                         mp = findprop(obj,prefs{i});
                         
-                        % For most prefs, mp.decode is the identity. However, some prefs carry runtime information which must be encoded to something
+                        % For most prefs, mp.decodeValue is the identity. However, some prefs carry runtime information which must be encoded to something
                         % savable on save and decoded to something runable on load. For this reason, the metapref deals with interpretation. In order
                         % to prevent unwanted overwriting of the default value, the decode function has the option to error.
                         try  %#ok<TRYNC>
-                            temp = mp.decode(data);
+                            [temp, mp] = mp.decodeValue(data);
+                            mp.value = temp;
                             obj.(prefs{i}) = temp;
+                            obj.set_meta_pref(mp.property_name, mp);
                         end
                         
                         if ~isempty(obj.last_pref_set_err)  % This could use better commenting. Not sure what it does.
@@ -654,7 +723,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         end
                         val = temps;
                     else
-                        val = mp.encode(obj.(obj.prefs{i}));
+                        val = mp.encodeValue(obj.(obj.prefs{i}));
                     end
                     datastruct.(obj.prefs{i}) = val;
                 end

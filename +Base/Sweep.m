@@ -108,8 +108,8 @@ classdef Sweep < handle & Base.Measurement
             defaultname = 'Sweep';  % Fix me.
             
 			% Check measurements
-            assert(numel(obj.measurements_) == length(obj.measurements_), '')
-            assert(numel(obj.measurements_) > 0, '')
+            assert(numel(obj.measurements_) == length(obj.measurements_), 'Measurements must be a 1xN vector.')
+            assert(numel(obj.measurements_) > 0, 'Cannot generate a sweep without measurements.')
             
             obj.NIDAQ.isMeasurementNIDAQ = false(1, numel(obj.measurements_));
             
@@ -168,7 +168,8 @@ classdef Sweep < handle & Base.Measurement
                         tf = tf && isNIDAQ(pref.prefs(ii));
                     end
                 else
-                    tf = strcmp(pref.parent_class, 'Drivers.NIDAQ.dev');
+%                     tf = strcmp(pref.parent_class, 'Drivers.NIDAQ.dev');
+                    tf = strcmp(class(pref.parent), 'Drivers.NIDAQ.dev');
                 end
             end
             function checkPref(pref)

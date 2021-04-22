@@ -54,12 +54,12 @@ classdef SweepEditor < handle
 
 %             size(obj.pdata, 2)
 
-            for ii = 1:size(obj.pdata, 1)-1
-                obj.pdata{ii,1} = [obj.pdata{ii,1} num2str(ii)];
-            end
-            for ii = 1:size(obj.mdata, 1)-1
-                obj.mdata{ii,1} = [obj.mdata{ii,1} num2str(ii)];
-            end
+%             for ii = 1:size(obj.pdata, 1)-1
+%                 obj.pdata{ii,1} = [obj.pdata{ii,1} num2str(ii)];
+%             end
+%             for ii = 1:size(obj.mdata, 1)-1
+%                 obj.mdata{ii,1} = [obj.mdata{ii,1} num2str(ii)];
+%             end
 
             padding = 30;
 
@@ -236,6 +236,7 @@ classdef SweepEditor < handle
             pr = Base.PrefRegister.instance();
             pr.getMenu(obj.pmenu, @(x)(obj.setRow(x, true)), 'readonly', false, 'isnumeric', true);
             
+            
             % Measurement Menu
             obj.mmenu = uicontextmenu(obj.f);
 
@@ -246,10 +247,10 @@ classdef SweepEditor < handle
             
             uimenu(obj.mmenu, 'Label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
 
-%             mr = Base.MeasurementRegister.instance();
-%             mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
-%             
-%             obj.mmenu.Children(end-4).Separator = 'on';
+            mr = Base.MeasurementRegister.instance();
+            mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
+            
+            obj.mmenu.Children(end-4).Separator = 'on';
         end
     end
     
@@ -427,7 +428,7 @@ classdef SweepEditor < handle
                     for ii = 1:length(obj.prefs)
                         if obj.pselected ~= ii
                             if isequal(instrument, obj.prefs{ii})
-                                warning('Base.SweepEditor: Cannot add duplicate pref.')
+                                helpdlg(sprintf('Cannot add duplicate pref: %s.%s.', instrument.parent.encodeReadable(), instrument.property_name))
                                 return;
                             end
                         end
@@ -446,16 +447,19 @@ classdef SweepEditor < handle
                 end
             else
                 if obj.mselected == 0
-                    cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
-                    
-                    obj.mdata(end:(end+size(cm, 1)-1), :) = cm;
-                    
-                    obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
+%                     cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
+%                     
+%                     obj.mdata(end:(end+size(cm, 1)-1), :) = cm;
+%                     
+%                     obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
                     
                     obj.measurements{end+1} = instrument;
                 else
-                    helpdlg('Setting measurements currently disabled due to implementation complexity.');
+                    obj.measurements{obj.mselected} = instrument;
+%                     helpdlg('Setting measurements currently disabled due to implementation complexity.');
                 end
+                
+                obj.mdataGenerate();
 %                 if obj.mselected == 0
 %                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
 %                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
@@ -475,6 +479,17 @@ classdef SweepEditor < handle
             end
             
             obj.update();
+        end
+        function mdataGenerate(obj)
+            obj.mdata = []; %centerCharsMeasurements(obj.makeMeasurementRow([]));
+            
+            for ii = 1:length(obj.measurements)
+                cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
+
+                obj.mdata(end:(end+size(cm, 1)-1), :) = cm;
+            end
+            
+            obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
         end
         function moveRow(obj, direction, isPrefs)
             if isPrefs
@@ -574,7 +589,7 @@ classdef SweepEditor < handle
                 
                 x = p.read();
 
-                d = {'<html><font color=red><b>',     ['<i>' p.parent_class], formatMainName(str, p.property_name), p.unit, p.min, p.max, m, dx, M, N, false, makeSweepStr(m, M, dx), p.min, x, p.max };
+                d = {'<html><font color=red><b>',     ['<i>' p.parent.encodeReadable(true)], formatMainName(str, p.property_name), p.unit, p.min, p.max, m, dx, M, N, false, makeSweepStr(m, M, dx), p.min, x, p.max };
 %                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ', '<b>Piezo Z (ao3)', 'V', 0, 10, 0,    .1,    1,   11,  '0:.1:1' };
             end
         end

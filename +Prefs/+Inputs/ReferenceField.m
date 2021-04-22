@@ -18,7 +18,9 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
         %   height_px: extent of UI constructed (not including any padding)
         %   label_width_px: the width of an optional label component. Used
         %       to justify all labels in adjust_UI. Return 0 if not needed.
-        function [obj, height_px, label_width_px] = make_UI(obj, pref, parent, yloc_px, width_px)
+%                         [mp,height_px,label_size(i)] = mp.make_UI(panelH, panelH_loc, widthPx, margin);
+        function [obj, height_px, label_width_px] = make_UI(obj, pref, parent, yloc_px, width_px, margin_px)
+            assert(isprop(pref, 'reference'), 'Pref using Inputs.ReferenceField must have a ''reference'' property.')
             reference = pref.reference;
             
             obj.yloc_px = yloc_px;
@@ -28,23 +30,34 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             
             if isempty(reference)
                 reference = Prefs.Empty();
+                reference.name = pref.name;
+                reference.unit = [];
             end
             
-            [obj, height_px, label_width_px] = reference.ui.make_UI(reference, parent, yloc_px, width_px);
+            [reference.ui, height_px, label_width_px] = reference.ui.make_UI(reference, parent, yloc_px, width_px, margin_px);
             
-            obj.ui = reference.ui;
-            obj.label = reference.label;
-            if isprop(reference, 'unit')
-                obj.unit = reference.unit;
-            end
+            obj.ui = reference.ui.ui;
+            obj.label = reference.ui.label;
+%             if isprop(reference.ui, 'unit')
+%                 obj.unit = reference.ui.unit;
+%             end
             
-            uicontrol('String', char(0x2699));
+            obj
+            
+%             obj.ui
+            
+%             uicontrol('String', char(0x2699));
 
-            obj.gear = uicontrol(parent, 'Style', obj.uistyle,...
-                        'HorizontalAlignment','left',...
+            obj.gear
+
+            obj.gear = uicontrol(parent,...
+                        'Style', obj.uistyle,...
+                        'String', char(0x2699),...
+                        'HorizontalAlignment','center',...
                         'Units', 'pixels',...
                         'Tag', tag,...
-                        'Enable', enabled,...
+                        'Enable', 'on',...
+                        'Callback', @pref.set_reference_Callback,...
                         'UserData', reference);
             obj.ui.Position(2) = yloc_px;
         end
@@ -61,17 +74,28 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
         % pref the opportunity to readjust positions if desired. Likewise,
         % margin specifies [left, right] margins in pixels requested by CC.
         function adjust_UI(obj, suggested_label_width_px, margin_px)
-            adjust_UI@Prefs.Inputs.CharField(obj,suggested_label_width_px, margin_px);
+%             adjust_UI@Prefs.Inputs.CharField(obj,suggested_label_width_px, margin_px);
+%             adjust_UI@Prefs.Inputs.CharField(obj,suggested_label_width_px, margin_px);
+
+            reference = obj.gear.UserData;
+
+            reference.ui.adjust_UI(suggested_label_width_px, margin_px);
             
-            obj.gear.Position(1) = obj.label.Position(2);
-            obj.gear.Position(2) = obj.label.Position(2);
+            obj.label.ForegroundColor = 'b';
             
-            if isgraphics(obj.unit) % unit exist
-                unit_space = obj.unit.Position(3);
-                obj.unit.Position(1) = obj.unit.Parent.Position(3) - (unit_space + margin_px(2));
-            end
-            obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
-                                (suggested_label_width_px + unit_space + sum(margin_px));
+            obj.gear.Position(1) = reference.ui.ui.Position(1) + reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
+            obj.gear.Position(2) = reference.ui.ui.Position(2);
+            obj.gear.Position(3) = reference.ui.ui.Position(4);
+            obj.gear.Position(4) = reference.ui.ui.Position(4);
+            
+            reference.ui.ui.Position(3) = reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
+            
+%             if isgraphics(obj.unit) % unit exist
+%                 unit_space = obj.unit.Position(3);
+%                 obj.unit.Position(1) = obj.unit.Parent.Position(3) - (unit_space + margin_px(2));
+%             end
+%             obj.ui.Position(3) = obj.label.Parent.Position(3) - ...
+%                                 (suggested_label_width_px + unit_space + sum(margin_px));
         end
         
         % To check if the UI is valid
@@ -87,7 +111,7 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
 %             delete(obj.ui)
 %             delete(obj.label)
 %             delete(obj.unit)
-%             delete(obj.geear)
+%             delete(obj.gear)
             
             
             
@@ -95,7 +119,8 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
         end
         % Retrieve the value from UI and return it
         function val = get_value(obj)
-            obj.ui.
+            val = []
+%             obj.ui.
 %             val = obj.gear.UserData;    % Return the pref saved in UserData.
         end
     end
