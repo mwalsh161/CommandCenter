@@ -73,7 +73,7 @@ classdef Sweep < handle & Base.Measurement
                 e = Experiments.Spectrum.instance;
 
 %                 obj = Base.Sweep({e}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 81)});
-                obj = Base.Sweep({e, a1}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 11)});
+                obj = Base.Sweep({e, a1, a2}, {a1, a2}, {linspace(0, 1, 21), linspace(3, 5, 41)});
                 
                 return;
             end

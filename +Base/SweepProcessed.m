@@ -427,7 +427,7 @@ classdef SweepProcessed < handle
                                 val = obj.v.displayAxesObjects{ii+1}.read();
                             end
                             
-                            dif = abs(scan - val)
+                            dif = abs(scan - val);
                             obj.slice{ii} = find(min(dif) == dif, 1);
                             
                             indices = obj.slice{ii};

@@ -681,11 +681,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 
                 if ispref(obj.namespace,prefs{i})   % If we have data saved to set the pref to...
                     data = getpref(obj.namespace,prefs{i});     % ...Grab that data...
-                    data
+%                     data
                     try
 %                         mp = findprop(obj,prefs{i});
                         mp = obj.get_meta_pref(prefs{i});
-                        mp
+%                         mp
                         
                         % For most prefs, mp.decodeValue is the identity. However, some prefs carry runtime information which must be encoded to something
                         % savable on save and decoded to something runable on load. For this reason, the metapref deals with interpretation. In order
@@ -798,7 +798,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         end
         function execute_external_ls(obj,prop,event)
             for i = 1:length(obj.external_ls.(prop.Name).(event.EventName))
-                i
+%                 i
                 % Do not allow recursive calls and only call Enabled ones
                 if  obj.external_ls.(prop.Name).(event.EventName)(i).Enabled && ...
                         (obj.external_ls.(prop.Name).(event.EventName)(i).Recursive || ...

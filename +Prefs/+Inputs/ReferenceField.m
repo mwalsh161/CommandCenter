@@ -34,7 +34,10 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             end
             
             temp = reference.name;
-            reference.name = [pref.name ' ' char(0x27A4) ' ' reference.name]; % reference.parent.encodeReadable(true) '.'
+%             ptr = char(0x27A4);
+%             ptr = char(0x262.5E);
+            ptr = char(0x2799);
+            reference.name = [pref.name ' ' ptr ' ' reference.name]; % reference.parent.encodeReadable(true) '.'
             
             [reference.ui, height_px, label_width_px] = reference.ui.make_UI(reference, parent, yloc_px, width_px, margin_px);
             

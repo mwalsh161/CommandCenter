@@ -46,7 +46,7 @@ classdef SweepViewer < handle
         rendering = false;
     end
 	properties (Constant, Hidden)
-        fpsTarget = 10;
+        fpsTarget = 5;
     end
 
 	properties (SetObservable, SetAccess=private)   % 
@@ -550,29 +550,34 @@ classdef SweepViewer < handle
                 delete(src)
             end
             
-            if ~obj.rendering
-                obj.rendering = true;
-                
-                if ~isempty(obj.ax) && isvalid(obj.ax)
-                    if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget
-%                         disp('datachanged_Callback Postponed');
-                        if ~obj.timerposted         % If a timer has not been sent off to remind us to update...
-                            t = timer('TimerFcn', @obj.datachanged_Callback, 'ExecutionMode', 'singleShot', 'StartDelay', ceil(2000/obj.fpsTarget)/1000);
-                            obj.timerposted = true; % And prevent new timers from being made until this one has been received or enough time has elapsed.
-                            start(t)
+%             if ~obj.rendering                                                   % If we are not currently rendering,
+%                 obj.rendering = true;                                           % Then try to render.
+%                 
+%                 try
+                    if ~isempty(obj.ax) && isvalid(obj.ax)                      % If we still should render,
+                        if (now - obj.drawnowLast)*24*60*60 < 1/obj.fpsTarget   % Check to see if rendering now would exceed the fps target.
+    %                         disp('datachanged_Callback Postponed');
+                            if ~obj.timerposted                                 % If we have not already, remind ourselves to update after fps target has past...
+                                t = timer('TimerFcn', @obj.datachanged_Callback, 'ExecutionMode', 'singleShot', 'StartDelay', 2/obj.fpsTarget);
+                                obj.timerposted = true;                         % And prevent new timers from being made until this one has been received or enough time has elapsed.
+                                start(t);
+                            end
+%                             obj.rendering = false;
+                        else
+    %                         disp('datachanged_Callback Accepted');
+                            obj.drawnowLast = now;                              % Record that we processed a frame right now.
+                            obj.process();                                      % Actually process a frame.
+                            obj.timerposted = false;                            % Allow the user to post another timer.
+%                             obj.rendering = false;
                         end
-                        obj.rendering = false;
-                    else
-%                         disp('datachanged_Callback Accepted');
-                        obj.process();
-                        obj.drawnowLast = now;
-                        obj.timerposted = false;
-                        obj.rendering = false;
                     end
-                end
-            else
-%                 disp('datachanged_Callback Denied');
-            end
+%                 catch
+%                     disp('datachanged_Callback Error');
+%                     obj.rendering = false;
+%                 end
+%             else
+% %                 disp('datachanged_Callback Denied');
+%             end
         end
         function [isNone, enabled] = isNoneEnabled(obj)
             isNone = obj.axesDisplayed == 1;

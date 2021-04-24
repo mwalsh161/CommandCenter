@@ -5,6 +5,7 @@ classdef MetaStage < Base.Module
         x = Prefs.Reference();
         y = Prefs.Reference();
         z = Prefs.Reference();
+        poll = Prefs.Button('Update');
     end
     properties(SetAccess=immutable)
         name;
@@ -13,7 +14,25 @@ classdef MetaStage < Base.Module
         modules_package = 'MetaStage';
     end
     
-    methods
+    methods(Static)
+        function obj = instance(name)
+            mlock;
+            persistent Objects
+            if isempty(Objects)
+                Objects = Modules.MetaStage.empty(1,0);
+            end
+            for i = 1:length(Objects)
+                if isvalid(Objects(i)) && isequal(name,Objects(i).singleton_id)
+                    obj = Objects(i);
+                    return
+                end
+            end
+            obj = Modules.MetaStage(name);
+            obj.singleton_id = name;
+            Objects(end+1) = obj;
+        end
+    end
+    methods(Access=private)
         function obj = MetaStage(name)
             obj.name = name;
         end
