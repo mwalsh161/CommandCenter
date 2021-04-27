@@ -63,6 +63,7 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
             end
             obj.percentInitialPosition = obj.resLaser.GetPercent;
             PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
+            obj.resLaser.goto_resonator_percent(obj.scan_points(1));
         end  
         function PostRun(obj,~,managers,ax)
             if obj.post_scan_tune_max

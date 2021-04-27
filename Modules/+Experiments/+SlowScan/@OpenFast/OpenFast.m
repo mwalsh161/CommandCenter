@@ -8,18 +8,18 @@ classdef OpenFast < Experiments.SlowScan.SlowScan_invisible
     %   initial percentage is prior to starting sweep. This can be quite
     %   useful in combination with tune_coarse for lasers that don't leave
     %   the percent centered at 50 after tuning.
-    %
+    %l
     % NOTE: plotting averages over average loop, which might not be same
     % frequencies, or even close if laser mode hops. All averages are saved.
 
+    properties(SetObservable,GetObservable,AbortSet)
+        tune_coarse =           Prefs.Boolean(true,     'help_text', 'Whether to tune to the coarse value before the scan.');
+        center_scan =           Prefs.Boolean(false,    'help_text', 'When true, percents will be shifted after tune_coarse completes to compensate position of percent.');
+        post_scan_tune_max =    Prefs.Boolean(true,     'help_text', 'Whether to tune to the maximum value after the scan has completed.');
+    end
     properties(SetObservable,AbortSet)
-        freq_THz = 470;
-        tune_coarse = false;
-        center_scan = false; % When true, percents will be shifted after tune_coarse completes to compensate position of percent
-        percents = 'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
-        solstisDriver = Drivers.msquared.solstis.empty(1,0);
-        scan_points_initial = [];
-        scan_points_correction = 0;
+        freq_THz =      470;
+        percents =      'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
     end
     properties(SetAccess=private,Hidden)
         percentInitialPosition = 50; % used to center scan if user wants
@@ -35,65 +35,58 @@ classdef OpenFast < Experiments.SlowScan.SlowScan_invisible
     methods(Access=private)
         function obj = OpenFast()
             obj.scan_points = eval(obj.percents);
-            obj.prefs = [{'freq_THz','center_scan','tune_coarse','percents'}, obj.prefs];
+            obj.prefs = [{'freq_THz','center_scan','tune_coarse','post_scan_tune_max','percents'}, obj.prefs];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
     
     methods
+        run(obj,status,managers,ax) % Main run method in separate file
         function s = BuildPulseSequence(obj,freqIndex)
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
             %collection during resonant driving
-            tunePoint = obj.scan_points(freqIndex) + obj.scan_points_correction;
-%             if obj.center_scan
-%                 tunePoint = tunePoint - (50-obj.percentInitialPosition);
-%                 % Only allow skipping points if center_scan enabled;
-%                 % otherwise user entered a bad range for percents should error
-%                 if tunePoint < 0 || tunePoint > 100
-%                     s = false;
-%                     return % Skip point by returning false
-%                 end
-%             end
+            tunePoint = obj.scan_points(freqIndex);
+            if obj.center_scan
+                tunePoint = tunePoint - (50-obj.percentInitialPosition);
+                % Only allow skipping points if center_scan enabled;
+                % otherwise user entered a bad range for percents should error
+                if tunePoint < 0 || tunePoint > 100
+                    s = false;
+                    return % Skip point by returning false
+                end
+            end
             %obj.resLaser.TunePercent(tunePoint);
-            %obj.solstisDriver.set_resonator_percent(tunePoint);
-            assert(tunePoint>=0 && tunePoint<=100, 'Resonator percent must be between 0 and 100');
-            obj.solstisDriver.com('set_resonator_val',tunePoint);
             s = BuildPulseSequence@Experiments.SlowScan.SlowScan_invisible(obj,freqIndex);
         end
         function PreRun(obj,~,managers,ax)
-            %obj.solstisDriver = obj.resLaser.solstisHandle;
-            obj.solstisDriver = Drivers.msquared.solstis;
-            obj.scan_points_initial = obj.scan_points;
             if obj.tune_coarse
                 obj.resLaser.TuneCoarse(obj.freq_THz);
             end
             obj.percentInitialPosition = obj.resLaser.GetPercent;
-            %
-%             if obj.center_scan
-%                 obj.scan_points = obj.scan_points - mean(obj.scan_points) + obj.percentInitialPosition;
-%                 if min(obj.scan_points)<0
-%                     obj.scan_points = obj.scan_points + abs(min(obj.scan_points));
-%                 elseif max(obj.scan_points)>100
-%                 	obj.scan_points = obj.scan_points - (max(obj.scan_points)-100);
-%                 end
-%             end
-            %
-            if obj.center_scan
-                obj.scan_points_correction = obj.percentInitialPosition - mean(obj.scan_points);
-                if min(obj.scan_points+obj.scan_points_correction)<0
-                    obj.scan_points_correction = obj.scan_points_correction + abs(min(obj.scan_points+obj.scan_points_correction));
-                elseif max(obj.scan_points+obj.scan_points_correction)>100
-                	obj.scan_points_correction = obj.scan_points_correction - (max(obj.scan_points+obj.scan_points_correction)-100);
-                end
-            else
-                obj.scan_points_correction = 0;
-            end
-            %
-            obj.resLaser.TunePercent(obj.scan_points(1)+obj.scan_points_correction);
             PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
+            obj.resLaser.goto_resonator_percent(obj.scan_points(1));
         end
-        function PostRun(obj,~,~,~)
-            obj.scan_points = obj.scan_points_initial;
+        function UpdateRun(obj,status,managers,ax,average,freqIndex)
+            tunePoint = obj.scan_points(freqIndex);
+            obj.resLaser.TunePercent(tunePoint);
+            UpdateRun@Experiments.SlowScan.SlowScan_invisible(obj,status,managers,ax,average,freqIndex);
+        end
+        function PostRun(obj,~,managers,ax)
+            if obj.post_scan_tune_max
+                x = obj.data.freqs_measured;
+                y = obj.data.sumCounts;
+
+                % Find the frequency of the maximum value.
+                arg = find(y == nanmax(y));
+                if isempty(arg)
+                    target_max = NaN;
+                else
+                    target_max = x(arg(1));
+                end
+                
+                obj.meta.post_scan_freq_max = target_max;
+                obj.resLaser.tune(obj.resLaser.c/target_max);
+            end
         end
         function set.percents(obj,val)
             numeric_vals = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input

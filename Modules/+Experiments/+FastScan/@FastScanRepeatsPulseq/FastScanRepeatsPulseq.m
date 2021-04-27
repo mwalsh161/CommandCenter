@@ -14,9 +14,11 @@ classdef FastScanRepeatsPulseq < Modules.Experiment
         pb_IP = 'None Set';
         repumpTime = 1; %ms
         resDelay = 1; %ms
+        wavemeter_channel = 7;
+        wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 7, false);
     end
     properties
-        prefs = {'start_V','stop_V','dwell_ms','total_time','repetitions','repumpTime','resDelay','repumpLaser','resLaser','pb_IP'};  % String representation of desired prefs
+        prefs = {'start_V','stop_V','dwell_ms','total_time','repetitions','repumpTime','resDelay','repumpLaser','resLaser','pb_IP','wavemeter_channel','wavemeter'};  % String representation of desired prefs
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -78,13 +80,18 @@ classdef FastScanRepeatsPulseq < Modules.Experiment
                 obj.pb_IP = val;
             end
             try
-                obj.pbH = Drivers.PulseBlaster.Remote.instance(val); %#ok<*MCSUP>
+                obj.pbH = Drivers.PulseBlaster.instance(val); %#ok<*MCSUP>
                 obj.pb_IP = val;
             catch err
                 obj.pbH = [];
                 obj.pb_IP = 'None Set';
                 rethrow(err);
             end
+        end
+        
+        function set.wavemeter_channel(obj,val)
+            obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', val, false);
+            obj.wavemeter_channel = val;
         end
         
     end

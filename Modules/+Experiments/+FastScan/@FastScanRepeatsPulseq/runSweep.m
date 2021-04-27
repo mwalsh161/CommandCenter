@@ -66,8 +66,8 @@ function runSweep( obj,status,managers,ax )
         InitCLK.Start;
         InitCLK.WaitUntilTaskDone;
         
-        emmLaser = Sources.msquared.EMM.instance;
-        startFreq = emmLaser.getFrequency;
+        %emmLaser = Sources.msquared.EMM.instance;
+        startFreq = obj.wavemeter.getFrequency;
         obj.data.startFreq = startFreq;
         
         sweepInit.Clear;
@@ -86,7 +86,7 @@ function runSweep( obj,status,managers,ax )
             
             %%%%%sweep start_V to stop_V
             pause(0.4);
-            all_freqs(2*k-1,1) = emmLaser.getFrequency;
+            all_freqs(2*k-1,1) = obj.wavemeter.getFrequency;
             
             MeasCLK = ni.CreateTask('Measurement PT');
             MeasCLK.ConfigurePulseTrainOut(MeasSync,1/dwell,nsamples_APD);
@@ -118,13 +118,16 @@ function runSweep( obj,status,managers,ax )
                 n = counter.AvailableSamples;
                 raw_data(ii+1:ii+n) = counter.ReadCounter(n);
                 plt.YData = diff(raw_data);
+                %all_data(2*k-1,:) = diff(raw_data);
                 ii = ii + n;
             end
             while ~sweep.IsTaskDone; drawnow; end
             
             all_data(2*k-1,:) = plt.YData;
             pause(0.4);
-            all_freqs(2*k-1,2) = emmLaser.getFrequency;
+            all_freqs(2*k-1,2) = obj.wavemeter.getFrequency;
+            
+            plt.XData = linspace(0,(all_freqs(2*k-1,2)-all_freqs(2*k-1,1))*1e3,nsamples_APD-1);
             
             MeasCLK.Clear;
             SweepCLK.Clear;
@@ -142,7 +145,7 @@ function runSweep( obj,status,managers,ax )
             pause(obj.resDelay*1e-3);
             
             pause(0.4);
-            all_freqs(2*k,2) = emmLaser.getFrequency;
+            all_freqs(2*k,2) = obj.wavemeter.getFrequency;;
             
             MeasCLK = ni.CreateTask('Measurement PT');
             MeasCLK.ConfigurePulseTrainOut(MeasSync,1/dwell,nsamples_APD);
@@ -181,7 +184,9 @@ function runSweep( obj,status,managers,ax )
             plt.YData = flip(plt.YData);
             all_data(2*k,:) = plt.YData;
             pause(0.4);
-            all_freqs(2*k,1) = emmLaser.getFrequency;
+            all_freqs(2*k,1) = obj.wavemeter.getFrequency;
+            
+            plt.XData = linspace(0,(all_freqs(2*k,2)-all_freqs(2*k,1))*1e3,nsamples_APD-1);
             
             MeasCLK.Clear;
             SweepCLK.Clear;
