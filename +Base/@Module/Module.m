@@ -453,7 +453,8 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         obj.set_meta_pref(setting_names{i},mps{i});
                         if isprop(mps{i}, 'reference')
                             if ~isempty(mps{i}.reference)
-                                lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)(obj.settings_listener(struct('Name', mps{i}.property_name), mps{i})));
+%                                 lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)(obj.settings_listener(struct('Name', mps{i}.property_name), mps{i})));
+                                lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)( mps{i}.set_ui_value(mps{i}.reference.parent.(mps{i}.reference.property_name)) ));
                             end
                         else
                             lsh(end+1) = obj.addlistener(setting_names{i}, 'PostSet', @(el,~)(obj.settings_listener(el, mps{i})));
@@ -555,12 +556,21 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 identity.state = obj.prefs2struct();
             end
         end
-        function str = encodeReadable(obj, isHTML)
+        function str = encodeReadable(obj, isHTML, isSimple)
             if nargin < 2
                 isHTML = false;
             end
+            if nargin < 3
+                isSimple = false;
+            end
             
             str = class(obj);
+            
+            if isSimple
+                fullname = strsplit(str,'.');
+                str = fullname{end};
+            end
+            
             if ~isempty(obj.singleton_id)
                 if ischar(obj.singleton_id)
                     str2 = ['''' obj.singleton_id ''''];
@@ -875,6 +885,10 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 
             % Disable other listeners on this since we will be both getting
             % and setting this prop in this method
+%             obj
+%             obj.temp_prop
+%             obj.temp_prop.x
+%             prop.Name
             obj.prop_listener_ctrl(prop.Name,false);
             % Stash prop
             obj.temp_prop.(prop.Name) = obj.(prop.Name);
@@ -891,6 +905,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             % Update stash, then copy back to prop (get listeners can alter
             % obj.(prop.Name) as well as the obvious SetEvent does)
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
+%             new_val
             try
                 new_val.getEvent = false;
                 new_val.value = obj.(prop.Name); % validation occurs here

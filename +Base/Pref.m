@@ -76,16 +76,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         listen_fn   = [];                   % Calls Module.addlistener(prop, event, callback), with the appropriate arguments already filled in.
     end
     properties (Hidden, SetAccess={?Base.Pref, ?Base.PrefRegister, ?Drivers.NIDAQ.out, ?Base.Sweep})
-        % Stores the a string name of the parent Module subclass for reference. Note that the pref
-        % stored in the Module will _not_ know the singleton_id of the class, but PrefRegister will
-        % return a string with the singleton_id appended in [class(Module) '(''' singleton_id ''')']
-        % form.
-%         parent_class = '';
-        
         parent = [];
     end
     properties (Hidden, SetAccess={?Base.Pref, ?Base.Module, ?Drivers.NIDAQ.out, ?Base.Sweep})
-        property_name = '';                 % Name of the property in Module that this Pref fondles.
+        property_name = '';                 % Name of the property (variable) in Module that this Pref fondles.
     end
 
     properties % {default, validation function}

@@ -160,16 +160,22 @@ classdef SweepViewer < handle
             obj.menus.ctsMenu(2) = uimenu(obj.menus.menu, 'Label', ['G: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{2});
             obj.menus.ctsMenu(3) = uimenu(obj.menus.menu, 'Label', ['B: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{3});
 
-            obj.menus.pixMenu = uimenu(obj.menus.menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard, 'Separator', 'on');
             obj.menus.indMenu = uimenu(obj.menus.menu, 'Label', 'Index: [ ~~~~, ~~~~ ]',          'Callback', @copyLabelToClipboard);
+            obj.menus.pixMenu = uimenu(obj.menus.menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard, 'Separator', 'on');
             obj.menus.posMenu = uimenu(obj.menus.menu, 'Label', 'Position: [ ~~~~ --, ~~~~ -- ]', 'Callback', @copyLabelToClipboard);
 
-            mGoto = uimenu(obj.menus.menu,  'Label', 'Goto', 'Separator', 'on');
-                uimenu(mGoto,               'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 1, 0}); %#ok<*NASGU>
-                uimenu(mGoto,               'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 0, 0});
-                uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotoPostion_Callback, 1, 1});
-                uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotoPostion_Callback, 0, 1});
+            uimenu(obj.menus.posMenu, 'Label', 'Goto', 'Callback', {@obj.gotoPostion_Callback, 1, 0}); %#ok<*NASGU>
+            uimenu(obj.menus.pixMenu, 'Label', 'Goto', 'Callback', {@obj.gotoPostion_Callback, 0, 0});
+                
+%             mGoto = uimenu(obj.menus.menu,  'Label', 'Goto', 'Separator', 'on');
+%                 uimenu(mGoto,               'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 1, 0}); %#ok<*NASGU>
+%                 uimenu(mGoto,               'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 0, 0});
+%                 uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotoPostion_Callback, 1, 1}, 'Enable', 'off');
+%                 uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotoPostion_Callback, 0, 1}, 'Enable', 'off');
 
+            uimenu(obj.menus.ctsMenu(1), 'Label', 'Set as Minimum', 'Callback', {@obj.minmax_Callback, 0});
+            uimenu(obj.menus.ctsMenu(1), 'Label', 'Set as Maximum', 'Callback', {@obj.minmax_Callback, 1});
+                
 %             mNorm = uimenu(obj.menus.menu,  'Label', 'Normalization');
 %                 uimenu(mNorm,               'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
 %                 uimenu(mNorm,               'Label', 'Set as Maximum',              'Callback', {@obj.minmax_Callback, 1});
@@ -567,6 +573,7 @@ classdef SweepViewer < handle
     %                         disp('datachanged_Callback Accepted');
                             obj.drawnowLast = now;                              % Record that we processed a frame right now.
                             obj.process();                                      % Actually process a frame.
+                            drawnow;
                             obj.timerposted = false;                            % Allow the user to post another timer.
 %                             obj.rendering = false;
                         end
@@ -602,14 +609,19 @@ classdef SweepViewer < handle
                     obj.sp{ii}.process();
 %                     label = obj.s.inputs{obj.sp{ii}.I}.get_label();
 %                     titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii} ) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
-                    label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1};
+%                     label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1};
+%                     label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1};
+%                     label = obj.s.measurements_{obj.sp{ii}.I}.getLabels();
+%                     obj.s.measurements
+%                     obj.s.measurements{obj.sp{ii}.I}
+                    label = obj.s.measurements(obj.sp{ii}.I).get_label();
 
-                    titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii}) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
+                    titledata = [titledata sprintf('\\color[rgb]{%f, %f, %f}%s\\color[rgb]{0, 0, 0}, ', obj.colors{ii}, label)]; %#ok<AGROW>
                 end
             end
 
             if any(enabled)
-                title(obj.ax, titledata(1:end-2));  % Remove last ', '
+                title(obj.ax, titledata(1:end-2));  % Remove last ', ' % , 'interpreter', 'latex'
             else
                 title('');
             end
@@ -710,11 +722,6 @@ classdef SweepViewer < handle
             end
 
             obj.setPtr(3, [NaN, NaN]);
-
-%             pause(0.001);
-            drawnow
-            pause(0.001);
-%             drawnow expose
         end
 
 		function axeschanged_Callback(obj, src, ~)
@@ -882,6 +889,7 @@ classdef SweepViewer < handle
             x = src.SelectedTab.UserData;
             assert(isnumeric(x))
             assert(x > 0 && x <= 3)
+            obj.sp{x}.makePanel();
 %             obj.sp{x}.I = obj.sp{x}.I;  % Tell it to update.
             obj.sp{x}.normalize(false)
         end

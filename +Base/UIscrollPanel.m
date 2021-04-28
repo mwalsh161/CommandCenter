@@ -238,7 +238,8 @@ classdef UIscrollPanel < handle
                 error('newPanel is wider than content panel!')
             end
             % Add the necessary lenght, then add to the origin!
-            delta = bottom-pos(4)-0.25;
+%             delta = bottom-pos(4)-0.25;
+            delta = bottom-pos(4);
             if delta < 0
                 obj.addLength(abs(delta))
                 delta = 0;

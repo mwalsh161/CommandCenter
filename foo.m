@@ -4,6 +4,12 @@ classdef foo < matlab.mixin.Heterogeneous
         y = 2
     end
     
+    methods (Static)
+        function c = getclass()
+            c = mfilename('class')
+        end
+    end
+    
     methods
         function obj = foo()
             

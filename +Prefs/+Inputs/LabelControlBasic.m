@@ -70,9 +70,6 @@ classdef LabelControlBasic < Base.Input
             end
         end
         function set_value(obj,val)
-            obj
-            obj.ui
-            obj.ui.String
             obj.ui.String = val;
         end
         function val = get_value(obj)

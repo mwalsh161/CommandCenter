@@ -165,7 +165,8 @@ classdef Spectrum < Modules.Experiment
             
             ii = randi(N);
             
-            data.intensity = rand(1, N) + (5+5*rand())*exp(-(((1:N) - ii)/10).^2);
+            data.intensity.dat = rand(1, N) + (5+5*rand())*exp(-(((1:N) - ii)/10).^2);
+            data.intensity.std = sqrt(data.intensity.dat);
             data.wavelength = linspace(600, 640, N);
         end
         function dat = GetData(obj,~,~)

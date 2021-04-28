@@ -2,10 +2,10 @@ classdef MetaStage < Base.Module
     %METASTAGE Wrapper for three Prefs.References
     
     properties(GetObservable, SetObservable)
-        x = Prefs.Reference();
-        y = Prefs.Reference();
-        z = Prefs.Reference();
-        poll = Prefs.Button('Update');
+        X = Prefs.Reference();
+        Y = Prefs.Reference();
+        Z = Prefs.Reference();
+%         poll = Prefs.Button('Update Positions');
     end
     properties(SetAccess=immutable)
         name;

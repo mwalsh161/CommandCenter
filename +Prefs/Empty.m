@@ -34,5 +34,8 @@ classdef Empty < Prefs.Numeric
         function tf = isnumeric(~)      % We want this one to have min/max while not being numeric.
             tf = false;
         end
+        function tf = isempty(~)
+            tf = true;
+        end
     end
 end

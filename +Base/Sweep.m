@@ -220,9 +220,6 @@ classdef Sweep < handle & Base.Measurement
             D = [];
             
             for ii = 1:length(obj.measurements_)
-%                 ii
-%                 obj.measurements_{ii}
-%                 obj.measurements_{ii}.dimensions()
                 D = [D obj.measurements_{ii}.dimensions()]; %#ok<AGROW>
             end
         end
@@ -314,7 +311,7 @@ classdef Sweep < handle & Base.Measurement
 
             for ii = 1:length(obj.sdims)
                 if isa(obj.sdims{ii}, 'Prefs.Paired')
-                    
+                
                 else
                     obj.NIDAQ.tasks(kk) = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.sdims{ii}.name]);
                     configureTask(obj.sdims{ii}, obj.NIDAQ.tasks(kk));
@@ -494,7 +491,7 @@ classdef Sweep < handle & Base.Measurement
         function fillMeasurementProperties(obj)
             obj.measurements = [];
             
-            digits = floor(max(length(obj.measurements_), 0)) + 1;
+            digits = ceil(log10(max(length(obj.measurements_), 0) + 1));
             
             for ii = 1:length(obj.measurements_)
                 tag = sprintf(sprintf('m%%0%ii_', digits), ii);

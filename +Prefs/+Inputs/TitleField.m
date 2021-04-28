@@ -10,6 +10,7 @@ classdef TitleField < Prefs.Inputs.LabelControlBasic
             % Here, widths will all be taken care of in adjust_UI
             [obj,height_px,label_width_px] = make_UI@Prefs.Inputs.LabelControlBasic(obj,pref,parent,yloc_px,width_px,margin);
             obj.ui.String = 'Empty Reference';
+            obj.ui.HorizontalAlignment = 'Center';
         end
 %         function adjust_UI(obj,suggested_label_width_px,margin_px)
 %             obj.ui.String = 'Empty Reference';

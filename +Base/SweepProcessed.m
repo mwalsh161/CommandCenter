@@ -46,7 +46,7 @@ classdef SweepProcessed < handle
 			obj.v = v;
 			obj.x = x;
             
-			L = obj.s.ndims() + sum(obj.s.measurementDimensions())
+			L = obj.s.ndims() + sum(obj.s.measurementDimensions());
 
             obj.sliceDefault =      num2cell(ones(1, L));
 			obj.sliceDefault(:) =   {':'};
@@ -61,39 +61,42 @@ classdef SweepProcessed < handle
             end
 
 			if ~isempty(obj.v.panel) && ~isempty(obj.v.panel.tabgroup) %#ok<*ALIGN>
-				obj.makePanel();
-                obj.v.panel.tabgroup.SelectedTab = obj.tab.tab;
+                obj.tab.tab = uitab('Parent', obj.v.panel.tabgroup, 'Title', obj.v.names{obj.x}, 'UserData', obj.x);
+				obj.tab.tab
+                obj.makePanel();
+%                 obj.v.panel.tabgroup.SelectedTab = obj.tab.tab;
             end
             
-%             obj.v.displayAxesMeasNum
-            
-%             so = obj.sliceOptions;
-
-% 			if obj.x > max(obj.v.displayAxesMeasNum)
-            obj.v.displayAxesMeasNum
+            % Set default 
 			if obj.x > max(abs(obj.v.displayAxesMeasNum))
 				obj.I = 0;
             else
 				obj.I = x;
             end
             
-%             prop = findprop(obj, 'processed');
-%             obj.listeners.processed = event.proplistener(obj, prop, 'PostSet', @obj.dataChanged_Callback);
-
 			obj.process();
         end
         
         function makePanel(obj)
-			if ~isempty(obj.tab)
+            % If we do not need to make a UI, return.
+			if isempty(obj.v.panel)
 				return
-			end
+            end
+            % If we are not yet visible, return.
+            obj.tab.tab
+            obj.v.panel.tabgroup.SelectedTab
+			if ~isequal(obj.tab.tab, obj.v.panel.tabgroup.SelectedTab)
+				return
+            end
+            % if we have already made the panel, return.
+			if isfield(obj.tab, 'input')
+				return
+            end
 
 			padding = .4;
 			ch = 1.4;
 
 			% Tab construction
-			obj.tab.tab = uitab('Parent', obj.v.panel.tabgroup, 'Title', obj.v.names{obj.x}, 'UserData', obj.x);
-
 			obj.tab.tab.Units = 'characters';
 			width = obj.tab.tab.InnerPosition(3);
 			height = obj.tab.tab.InnerPosition(4)-1.5*ch;
@@ -328,12 +331,14 @@ classdef SweepProcessed < handle
         end
 
 		function process(obj)
+            % Short-circuit if no meas is selected, or it is disabled.
             if ~obj.I || ~obj.enabled
                 return
             end
             
+            % Update snap for any axis in snap mode.
             first = find(obj.sliceOptions == length(obj.squeezeOptions), 1);
-            if ~isempty(first)  % Update snap for any axis in snap mode.
+            if ~isempty(first)
                 obj.slice{first} = '=';
             end
             
@@ -359,7 +364,9 @@ classdef SweepProcessed < handle
                 if ~isempty(d)
                     switch ii
                         case 1  % sum
+                            p2 = nanmean(p, d);
                             p = nansum(p, d);
+                            p(isnan(p2)) = NaN;
                         case 2  % mean
                             p = nanmean(p, d);
                         case 3  % median
@@ -414,7 +421,9 @@ classdef SweepProcessed < handle
                         scan = obj.v.displayAxesScans{ii+1}; %#ok<*MCSUP>
                         indices = 1:length(scan);
                         
-                        slice_ = strrep(slice_, 'end', num2str(length(scan)));
+                        if ischar(slice_)
+                            slice_ = strrep(slice_, 'end', num2str(length(scan)));
+                        end
                         
 %                         slice_
 
@@ -423,7 +432,7 @@ classdef SweepProcessed < handle
                             if slice_(1) == '=' && length(slice_) > 1
                                 val = eval(slice_(2:end));
                             else
-                                obj.v.displayAxesObjects{ii+1}
+%                                 obj.v.displayAxesObjects{ii+1}
                                 val = obj.v.displayAxesObjects{ii+1}.read();
                             end
                             
@@ -540,7 +549,7 @@ classdef SweepProcessed < handle
 				obj.enabledUI = false;
             end
 
-			if ~isempty(obj.tab)	% If we have a panel...
+			if ~isempty(obj.tab) && isfield(obj.tab, 'input')	% If we have a panel...
                 for ii = 1:length(obj.sliceOptions)
                     if any(ii+1 == obj.v.axesDisplayed)   % If an axis is a slice axis...
                         indices = 1:length(obj.v.axesDisplayedNames);
@@ -612,7 +621,7 @@ classdef SweepProcessed < handle
 				obj.enabled = false;
 			end
 
-			if ~isempty(obj.tab)
+			if ~isempty(obj.tab) && isfield(obj.tab, 'input')
                 str = 'off';
 
                 if enabledUI
@@ -766,7 +775,8 @@ classdef SweepProcessed < handle
                 if normAuto
                     obj.tab.scale.box.InteractionsAllowed = 'none';
                     
-                    obj.v.process();
+%                     obj.v.process();
+                    obj.process();
                     obj.normalize(true);
                 else
                     obj.tab.scale.box.InteractionsAllowed = 'all';

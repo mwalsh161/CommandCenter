@@ -68,13 +68,6 @@ classdef Reference < Base.Pref
 %         end
         
         % Calls to set value are now redirected to the pref that is being referenced.
-        function [obj, val] = set_value(obj, val)
-            if isempty(obj.reference)
-%                 error('No reference to set.');
-            else
-                obj.reference.writ(val);
-            end
-        end
         function val = get_value(obj, ~)
             if isempty(obj.reference)
                 val = NaN;
@@ -82,6 +75,23 @@ classdef Reference < Base.Pref
                 val = obj.reference.read();
             end
         end
+        function [obj, val] = set_value(obj, val)
+            if isempty(obj.reference)
+%                 error('No reference to set.');
+            else
+                obj.reference.writ(val);
+            end
+        end
+        
+%         function val = get_ui_value(obj)
+%             val = obj.ui.get_value();
+%         end
+        function set_ui_value(obj,val)
+            if ~isempty(obj.reference)
+                obj.ui.set_value(val);
+            end
+        end
+        
         function val = read(obj)
             val = obj.reference.read();
         end

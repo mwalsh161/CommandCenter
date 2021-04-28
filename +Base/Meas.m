@@ -10,6 +10,8 @@ classdef Meas < handle %matlab.mixin.Heterogeneous
         size    = [];       % Size of numeric data returned by this Meas.
         dims    = {};       % 
         scans   = {};       % 
+        
+        
     end
     
     methods
@@ -78,6 +80,13 @@ classdef Meas < handle %matlab.mixin.Heterogeneous
                 obj.dims =  p.Results.dims;
                 obj.scans = p.Results.scans;
                 
+                if isempty(obj.dims)
+                    
+                end
+                if isempty(obj.scans)
+                    
+                end
+                
                 % Assign props
 %                 for ii = 1:nprops
 %                     mp = mps(ii);
@@ -129,6 +138,14 @@ classdef Meas < handle %matlab.mixin.Heterogeneous
         end
         function obj = set.scans(obj, val)
             obj.scans = val;
+        end
+        
+        function label = get_label(obj)
+            if isempty(obj.unit)
+                label = obj.name;
+            else
+                label = sprintf('%s [%s]', obj.name, obj.unit);
+            end
         end
         
 %         function md = metadata(obj)

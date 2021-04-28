@@ -206,8 +206,6 @@ try
     
     % Convert panels to scrollPanels
     set(textH,'String', 'Making Panels'); drawnow;
-    loaded_vars = load(fullfile(path,'static','reload_icon.mat'));
-    handles.reload_CData = loaded_vars.im;  % Maybe switch to char(0x21BB)
     handles.panelStage = Base.UIscrollPanel(handles.panelStage);
     handles.panelMetaStage = Base.UIscrollPanel(handles.panelMetaStage);
     handles.panelImage = Base.UIscrollPanel(handles.panelImage);
