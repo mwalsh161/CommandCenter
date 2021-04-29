@@ -14,8 +14,8 @@ classdef ButtonField < Prefs.Inputs.LabelControlBasic
         function set_value(~,~)
             % Do nothing.
         end
-        function val = get_value(~)
-            val = false;
+        function val = get_value(obj)
+            val = obj.ui.String;
         end
     end
 end

@@ -107,6 +107,8 @@ classdef EMM < Modules.Driver
             try  % Might not be a good IP, so try only
                 % Give control back to solstis ICE BLOC
                 obj.com('set_wavelength',800,false,'infrared');
+                pause(1);
+                obj.abort_tune;
                 obj.com('close');
             catch err
             end

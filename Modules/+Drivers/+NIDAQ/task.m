@@ -343,7 +343,11 @@ classdef task < handle
 
             % create a digital out channel
             obj.CreateChannels('DAQmxCreateDOChan',lines,'',obj.dev.DAQmx_Val_ChanPerLine);
-            obj.LibraryFunction('DAQmxSetDOOutputDriveType',obj,lines,type);
+            try
+                obj.LibraryFunction('DAQmxSetDOOutputDriveType',obj,lines,type);
+            catch err
+                warning('It seems that some DAQs do not support DAQmxSetDOOutputDriveType. It''s probably fine to just ignore this, as the default is likely DAQmx_Val_ActiveDrive (which means LO == 0V and HI == 5V)')
+            end
             
             % timing of the channel is set to that of the digial clock
             obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkLine,Freq, obj.dev.DAQmx_Val_Rising, obj.dev.DAQmx_Val_FiniteSamps,NStatesPerLine);

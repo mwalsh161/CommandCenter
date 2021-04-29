@@ -65,10 +65,12 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             end
 
             obj.linesEnabled = false;
-
-            for ii = 1:length(state)
-                if isnumeric(obj.lines(ii).state)           % Avoid disturbing mid-pref-switch.
-                    obj.lines(ii).state = state(ii);        % Update state without communicating with hardware.
+            
+            if ~isempty(obj.lines)
+                for ii = 1:length(state)
+                    if isnumeric(obj.lines(ii).state)           % Avoid disturbing mid-pref-switch.
+                        obj.lines(ii).state = state(ii);        % Update state without communicating with hardware.
+                    end
                 end
             end
 
@@ -137,7 +139,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             s.repeat = Inf;
 
             l = getLines(obj);
-            
+
             for ii = 1:length(l)
                 ch(ii) = channel(num2str(ii), 'hardware', ii-1);    %#ok<AGROW> % Should unify indexing!
             end
