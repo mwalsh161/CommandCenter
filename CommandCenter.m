@@ -35,7 +35,7 @@ function varargout = CommandCenter(varargin)
 
 % Edit the above text to modify the response to help CommandCenter
 
-% Last Modified by GUIDE v2.5 22-Apr-2021 18:42:01
+% Last Modified by GUIDE v2.5 28-Apr-2021 20:31:58
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -206,12 +206,14 @@ try
     
     % Convert panels to scrollPanels
     set(textH,'String', 'Making Panels'); drawnow;
-    handles.panelStage = Base.UIscrollPanel(handles.panelStage);
-    handles.panelMetaStage = Base.UIscrollPanel(handles.panelMetaStage);
-    handles.panelImage = Base.UIscrollPanel(handles.panelImage);
-    handles.panelSource = Base.UIscrollPanel(handles.panelSource);
-    handles.panelExperiment = Base.UIscrollPanel(handles.panelExperiment);
-    handles.panelSave = Base.UIscrollPanel(handles.panelSave);
+    handles.panelStage =        Base.UIscrollPanel(handles.panelStage);
+    handles.panelMetaStage =    Base.UIscrollPanel(handles.panelMetaStage);
+    handles.panelImage =        Base.UIscrollPanel(handles.panelImage);
+    handles.panelSource =       Base.UIscrollPanel(handles.panelSource);
+    handles.panelSweeping =     Base.UIscrollPanel(handles.panelSweeping);
+    handles.panelExperiment =   Base.UIscrollPanel(handles.panelExperiment);
+    handles.panelDrivers =      Base.UIscrollPanel(handles.panelDrivers);
+    handles.panelSave =         Base.UIscrollPanel(handles.panelSave);
     
     % Convert Axes panels to Split panels
     handles.AxesPanels = Base.SplitPanel(handles.panel_im,handles.panel_exp,'horizontal');
@@ -260,17 +262,20 @@ try
     set(textH,'String', 'Preparing GUI'); drawnow;
     set(textH,'String', 'Done'); drawnow;
     
-    controls = {handles.panelStage, handles.panelMetaStage, handles.panelImage, handles.panelSource,...
-        handles.panelExperiment, handles.panelSave, handles.panelGit};
-    Base.UIScrollPanelContainer(handles.LeftPanel,controls,5);
+%     controls = {handles.panelStage, handles.panelMetaStage, handles.panelImage, handles.panelSource,...
+%         handles.panelSweeping, handles.panelExperiment, handles.panelDrivers, handles.panelSave, handles.panelGit};
+    controls = {handles.panelGit, handles.panelStage, handles.panelMetaStage, handles.panelImage, handles.panelSource,...
+        handles.panelSweeping, handles.panelExperiment, handles.panelDrivers, handles.panelSave};
+    Base.UIScrollPanelContainer(handles.LeftPanel, controls, 2);
+    
     Base.Resizable(handles.panelStage);
     Base.Resizable(handles.panelMetaStage);
     Base.Resizable(handles.panelImage);
     Base.Resizable(handles.panelSource);
+    Base.Resizable(handles.panelSweeping);
     Base.Resizable(handles.panelExperiment);
+    Base.Resizable(handles.panelDrivers);
     Base.Resizable(handles.panelSave);
-    
-    drawnow
 catch err
     delete(loading_fig)
     delete(handles.inactivity_timer)
@@ -317,13 +322,13 @@ if strcmp(handles.inactivity_timer.Running,'off')
     start(handles.inactivity_timer);
 end
 
-drawnow
-
 handles.panelStage.minimize();
 handles.panelMetaStage.minimize();
 handles.panelImage.minimize();
 handles.panelSource.minimize();
+handles.panelSweeping.minimize();
 handles.panelExperiment.minimize();
+handles.panelDrivers.minimize();
 handles.panelSave.minimize();
 
 drawnow
@@ -950,3 +955,17 @@ function menu_metastage_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 handles.Managers.MetaStage.getAvail(hObject);
+
+
+% --------------------------------------------------------------------
+function menu_sweeping_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_sweeping (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------------
+function menu_drivers_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_drivers (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
