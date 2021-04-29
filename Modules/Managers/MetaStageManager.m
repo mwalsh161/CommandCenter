@@ -214,6 +214,17 @@ classdef MetaStageManager < Base.Manager
             end
         end
         function initializeJoystick(obj, address)
+%             splt = split(address, ':');
+%             switch length(splt)
+%                 case 1
+%                     address = splt{1};
+%                     port = 4000;
+%                 case 2
+%                     
+%                 otherwise
+%                     
+%             end
+            
             [obj.joytcpip, hello] = connectSmart(address);
             
             if isempty(obj.joytcpip)

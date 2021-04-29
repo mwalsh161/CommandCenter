@@ -244,26 +244,8 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         function val = getFrequency(obj)
             val = obj.wavemeter.getFrequency();
         end
-<<<<<<< HEAD
-        function isRunning(obj,varargin)
-            if isempty(obj.PulseBlaster)
-                obj.PB_status = 'Not Connected';
-            else
-                obj.running = obj.PulseBlaster.running;
-                if obj.running
-                    obj.PB_status = 'Running';
-                else
-                    obj.PB_status = 'Unknown State, to update, change state.';
-                end
-            end
-        end
         function calibrate(obj,ax)
             %calibrates the frequency as read by the wavemeter to the
-=======
-
-        function calibrate(obj,ax)
-            %calibrates the frequency as read by the wavemeter to the
->>>>>>> b06c3f9ec8ce1cf4c7de754d783a216c4fb27ae4
             %wavelength as set by the diode motor
             if ~obj.armed || ~obj.wavemeter_active
                 answer = questdlg('Unarmed; Arm laser on for calibration?','Unarmed', 'Yes','No','No');

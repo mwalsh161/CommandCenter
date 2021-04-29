@@ -59,31 +59,38 @@ classdef Manager < handle
     end
     
     methods(Static)
-        function getAvailModules(package,parent_menu,fun_callback,fun_in_use)
+        function getAvailModules(package, parent_menu, fun_callback, fun_in_use)
             path = fileparts(fileparts(mfilename('fullpath'))); % Root CommandCenter/
-            [prefix,module_strs,packages] = Base.GetClasses(path,'Modules',package);  % Returns name without package name
+            [prefix, module_strs, packages] = Base.GetClasses(path, 'Modules', package);  % Returns name without package name
+            
             % Alphabetic order
             packages = sortrows(packages');
             module_strs = sortrows(module_strs');
-            remove = findall(parent_menu,'tag','module');
+            
+            remove = findall(parent_menu, 'tag', 'module');
             for i = 1:length(remove)
                 if remove ~= parent_menu
                     delete(remove(i));
                 end
             end
+            
             previousStuff = allchild(parent_menu); % Push these down to bottom
             if isempty(module_strs)
-                uimenu(parent_menu,'label','No Modules found','enable','off','tag','module');
+                uimenu(parent_menu, 'label', 'No Modules found', 'enable', 'off', 'tag', 'module');
             end
+            
             for i = 1:numel(packages)
-                package = fullfile(['+' strrep(prefix(1:end-1),'.','/+')],['+' packages{i}]);
-                h = uimenu(parent_menu,'label',packages{i},'tag','module');
-                Base.Manager.getAvailModules(package,h,fun_callback,fun_in_use); % Recursively call to populate
+                package = fullfile(['+' strrep(prefix(1:end-1),'.','/+')], ['+' packages{i}]);
+                h = uimenu(parent_menu, 'label', packages{i}, 'tag', 'module');
+                Base.Manager.getAvailModules(package, h, fun_callback, fun_in_use); % Recursively call to populate
             end
+            
             for i = 1:numel(module_strs)
                 module_str = module_strs{i};
                 module_fullstr = [prefix module_str];
                 checked = 'off';
+%                 module_fullstr
+%                 nargin([module_fullstr '.instance'])
                 if fun_in_use([prefix module_str])
                     checked = 'on';
                     if strcmp(parent_menu.Tag,'module') && ~startswith(parent_menu.Label,'<html>')
@@ -92,10 +99,11 @@ classdef Manager < handle
                             parent_menu.Label);
                     end
                 end
-                h = uimenu(parent_menu,'label',module_str,'checked',checked,...
-                    'callback',fun_callback,'tag','module');
+                h = uimenu(parent_menu, 'label', module_str, 'checked', checked,...
+                    'callback', fun_callback, 'tag', 'module');
                 h.UserData = module_fullstr;
             end
+            
             for i = 1:length(previousStuff)
                 previousStuff(i).Position = h.Position + i - 1;
             end
