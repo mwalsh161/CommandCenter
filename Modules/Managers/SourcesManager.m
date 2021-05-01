@@ -9,7 +9,6 @@ classdef SourcesManager < Base.Manager
             obj = obj@Base.Manager(Modules.Source.modules_package,handles,handles.panelSource,handles.sources_select);
             obj.loadPrefs;
             obj.blockOnLoad = handles.menu_sources;
-            set(handles.sources_select,'ButtonDownFcn',@obj.sourcesClick);
         end
         
         % Callback to turn laser on

@@ -12,7 +12,7 @@ classdef APDPulseSequence < handle
         time            % Expected time for the sequence (sec).
         timeout         % Padded timeout (sec).
     end
-    
+
     methods
         function obj = APDPulseSequence(ni,pb,seq)
             obj.ni = ni;
@@ -67,7 +67,7 @@ classdef APDPulseSequence < handle
         function start(obj,MaxCounts,overrideMinDuration)
             % Max expected counts per gate as input
             % See sequence.compile for overrideMinDuration
-            
+
             if nargin < 3
                 overrideMinDuration = false;
             end
@@ -99,9 +99,9 @@ classdef APDPulseSequence < handle
             end
             try
                 [program, ~, ~, obj.time] = obj.seq.compile(overrideMinDuration);
-                
+
                 obj.timeout = 1.5*obj.time + 1;
-                
+
                 obj.pb.load(program);
                 obj.pb.start;
             catch err
@@ -146,7 +146,7 @@ classdef APDPulseSequence < handle
                         end
                     end
                 end
-                
+
                 if toc(t) >= obj.timeout
                     error('APDPulseSequence operation timed out without reading samples from DAQ. Make sure that PulseBlaster pulses are reaching the DAQ!')
                 end

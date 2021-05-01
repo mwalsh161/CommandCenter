@@ -225,7 +225,7 @@ classdef(Abstract) common_invisible < Modules.Source & Sources.TunableLaser_invi
             obj.updateStatus(); % Get voltage of resonator
         end
     end
-    
+
     methods % Set methods
         function val = set_calibrateRes(obj,~,~)
             % Check mark used to call calibration method

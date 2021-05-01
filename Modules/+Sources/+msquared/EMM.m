@@ -147,6 +147,15 @@ classdef EMM < Sources.msquared.common_invisible
             obj.etalon_lock = true;  % We don't know at this point anything about etalon if not locked
             obj.updatingVal = false;
         end
+        %temp modification to get emm wavelength
+        function [wavelength] = getWavelength(obj)
+            try
+                response = obj.emmHandle.hwserver.com('wavemeter','GetSummary');
+                wavelength = response([response.channel] == 7).wavelength;
+            catch
+                wavelength = 0;
+            end
+        end
 
         function delete(obj)
             errs = {};
