@@ -62,8 +62,8 @@ classdef PrefRegister < Base.Singleton
             
             if isempty(parentObject)
                 parentObject = figure('name','Select Module','IntegerHandle','off','menu','none','HitTest','off',...
-                 'WindowStyle','modal','toolbar','none','visible','off','units','characters','resize','off');
-                parentObject.Position(3:4) = [40 ,0];
+                 'toolbar','none','visible','off','units','characters','resize','off');
+                parentObject.Position(3:4) = [60 ,0];
             end
             
             switch parentObject.Type
@@ -125,7 +125,9 @@ classdef PrefRegister < Base.Singleton
                             label = ['<html>' pref.get_label() ' (<font face="Courier" color="green">.' pref.property_name '</font>, <font face="Courier" color="blue">' prefclass{end} '</font>' readonly ')</html>'];
 
                             if deleteAfter
-                                uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(delete(parentObject)&&callback(pref)));
+                                uimenu(folder, 'Text', label, 'UserData', struct('callback', callback, 'pref', pref), 'Callback', @menu_Callback);
+%                                 uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(delete(s.Parent)&&delete(s)&&callback(pref)));
+%                                 uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(test(s,e),callback(pref)));
                             else
                                 uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
                             end
@@ -181,4 +183,12 @@ classdef PrefRegister < Base.Singleton
             obj.register = [];    % Prevent objects from being deleted by getting rid of reference to the struct beforehand. Note that record of these objects will be erased.
         end
     end
+end
+
+function menu_Callback(s,~)
+    s.UserData.callback(s.UserData.pref);
+    while isa(s, 'matlab.ui.container.Menu')
+        s = s.Parent;
+    end
+    delete(s)
 end

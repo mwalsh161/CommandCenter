@@ -27,6 +27,7 @@ serversocket.listen(5)
 
 while not done:
     print('Waiting for connection.')
+    print(serversocket)
     # accept connections from outside
     (clientsocket, address) = serversocket.accept()
     

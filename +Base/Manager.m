@@ -20,12 +20,12 @@ classdef Manager < handle
     %   A manager can subclass this as a "simple" manager as well in which
     %   all module related methods will error
     
-    properties(Hidden)
-        prefs = {'settings_vertical_pad_px','settings_horizontal_margin_px'};
-    end
     properties
-        settings_vertical_pad_px = 5; % pixels between setting UIs
-        settings_horizontal_margin_px = 20 % Additional pixels on left & right margins*
+        prefs = {};
+    end
+    properties(Constant)
+        settings_vertical_pad_px = 4; % pixels between setting UIs
+        settings_horizontal_margin_px = 10 % Additional pixels on left & right margins*
         % * NOTE: this can be easily extended to 1x2 if Base.propedit gains support for that
     end
     properties(Access=protected)
@@ -304,8 +304,12 @@ classdef Manager < handle
                     m = 20;
                     h = 20;
                     dividing_p = uipanel(temp,'units','pixels','Position',[0 0 wpx(3) h+2],'BorderType','none');
-                    uicontrol(dividing_p, 'string', char(0x21BB), 'FontSize', 14, 'style', 'push', 'units', 'pixels', 'position', [m 2 h h],...
-                              'callback', @(~,~)obj.update_settings, 'tooltip', 'Refresh Settings');
+                    uicontrol(dividing_p,   'string', char(0x21BB),...
+                                            'style', 'push',...
+                                            'units', 'pixels',...
+                                            'position', [m 2 h h],...
+                                            'callback', @(~,~)obj.update_settings,...
+                                            'tooltip', 'Refresh Settings');
                     if ~isempty(contents)
                         uipanel(dividing_p, 'units', 'pixels', 'Position', [1.5*m+h h/2+1 wpx(3)-(3*m+h) 1],...
                                 'BackgroundColor', [.5 .5 .5], 'BorderType', 'none');
