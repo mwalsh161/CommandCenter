@@ -2,7 +2,7 @@ classdef Cobolt_PB < Modules.Source
     % Cobolt_PB controls the Cobolt via USB and fast diode modulation via pulseblaster
 
     properties(SetObservable, GetObservable)
-        cobolt_host =   Prefs.String(Sources.Cobolt_PB.noserver, 'set', 'set_cobolt_host', 'help', 'IP/hostname of computer with hwserver for the Cobolt laser');
+        cobolt_host =   Prefs.String(Sources.Cobolt_PB.noserver, 'set', 'set_host', 'help', 'IP/hostname of computer with hwserver for the Cobolt laser');
         power =         Prefs.Double(NaN, 'set', 'set_power', 'min', 0, 'unit', 'mW');
 
         diode_sn =      Prefs.Double(NaN, 'allow_nan', true, 'readonly', true, 'help', 'Serial number for the diode');

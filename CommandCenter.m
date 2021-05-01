@@ -335,6 +335,7 @@ drawnow
 
 function inactivity(timerH,~)
 error('Bootstrap to disable inactivity timer.');
+
 [path,~,~] = fileparts(mfilename('fullpath'));
 if ~exist(fullfile(path,'dbquit.m'),'file')
     copyfile(fullfile(path,'dbquit_disabled.m'),fullfile(path,'dbquit.m'));

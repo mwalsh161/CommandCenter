@@ -195,6 +195,7 @@ classdef Spectrum < Modules.Experiment
             obj.set_meta_pref('grating', g);
         end
         function val = get_grating(obj, ~)
+            val = '';
             if ~isempty(obj.WinSpec)
                 grating_info = obj.WinSpec.gratings_avail(obj.WinSpec.grating);
                 obj.grating = obj.gratingFormat(grating_info);

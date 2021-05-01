@@ -5,11 +5,11 @@ classdef SweepEditor < handle
     %   Base.SweepEditor(sweep)         % Where sweep is a Base.Sweep. Fills the GUI with the settings in sweep.
 
     properties (Constant, Hidden)
-        pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X1',       'Step',     'X2',       'N',         'Pair',      'Sweep',       'OMin',     'Guess',    'OMax'};
-        peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true,         false,        true,       true,       true]; 
-        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          40,          80,            0,          0,          0,};
-        pwidthsopt =    {20,        160,       160,        40,         40,         40,         0,           0,          0,          0,          0,           0,             40,         40,         40,};
-        pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric',   'char',        'numeric',  'numeric',  'numeric'};
+        pheaders =      {'#',       'Parent',  'Pref',     'Unit',     'Min',      'Max',      'X1',       'Step',     'X2',       'N',         'Pair',    'ZigZag',   'Sweep',     'OMin',     'Guess',    'OMax'};
+        peditable =     [false,     false,     false,      false,      false,      false,      true,       true,       true,       true,        true,       true,       false,      true,       true,       true]; 
+        pwidths =       {20,        160,       160,        40,         40,         40,         40,         40,         40,         40,          40,         50,         80,         0,          0,          0,};
+        pwidthsopt =    {20,        160,       160,        40,         40,         40,         0,           0,          0,          0,          0,          0,       	0,          40,         40,         40,};
+        pformat =       {'char',    'char',    'char',     'char',     'numeric',  'numeric',  'numeric',  'numeric',  'numeric',  'numeric',   'numeric',  'numeric',  'char',    'numeric',  'numeric',  'numeric'};
         
         mheaders =  {'#',       'Parent',       'Measurement', 'Size',    'Unit',     'Exposure'};
         meditable = [false,     false,         false,       false,      false,      true];
@@ -46,20 +46,8 @@ classdef SweepEditor < handle
 
     methods     % Setup
 		function obj = SweepEditor(varargin)
-%             obj.pdata = [ centerChars(obj.makePrefRow(x)) ; centerChars(obj.makePrefRow(y)) ; centerChars(obj.makePrefRow(bool)) ; centerChars(obj.makePrefRow([])) ];
-%             obj.mdata = [ centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow(0)) ; centerChars(obj.makeMeasurementRow([])) ];
             obj.pdata = centerCharsPrefs(obj.makePrefRow([]));
             obj.mdata = centerCharsMeasurements(obj.makeMeasurementRow([]));
-
-
-%             size(obj.pdata, 2)
-
-%             for ii = 1:size(obj.pdata, 1)-1
-%                 obj.pdata{ii,1} = [obj.pdata{ii,1} num2str(ii)];
-%             end
-%             for ii = 1:size(obj.mdata, 1)-1
-%                 obj.mdata{ii,1} = [obj.mdata{ii,1} num2str(ii)];
-%             end
 
             padding = 30;
 
@@ -79,7 +67,7 @@ classdef SweepEditor < handle
             obj.f.Position(3) = w;
             obj.f.Position(4) = h + padding;
             
-            movegui(obj.f, 'center')
+            movegui(obj.f, 'center');
             
             % uicontrols
             dp = 115;
@@ -91,9 +79,9 @@ classdef SweepEditor < handle
                                                     'Units', 'pixels',...
                                                     'Callback', @obj.generate_Callback,...
                                                     'Position', p + [0 -1 0 2]*4);    p(1) = p(1) + dp;
+            
                                                 
-                                                
-            obj.gui.timePointText       = uicontrol('String', 'Single Time (sec):',...
+            obj.gui.timePointText       = uicontrol('String', 'Single Dwell (sec):',...
                                                     'Tooltip', 'User-generated anticipated time for all of the measurements at each point.',...
                                                     'Style', 'text',...
                                                     'HorizontalAlignment', 'right',...
@@ -133,8 +121,8 @@ classdef SweepEditor < handle
                                                 
                                                 
             obj.gui.continuous          = uicontrol('String', 'Continuous',...
-                                                    'Tooltip', ['Whether to continue repeating the measurement(s)' 10,...
-                                                                'continuously after the sweep is finished. Data is' 10,...
+                                                    'Tooltip', ['Whether to continue repeating the measurement(s)' newline,...
+                                                                'continuously after the sweep is finished. Data is' newline,...
                                                                 'circshifted. Behaves like a Counter if Time is the only axis.'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
@@ -142,9 +130,9 @@ classdef SweepEditor < handle
                                                     'Callback', @obj.setContinuous_Callback,...
                                                     'Position', p);    p(1) = p(1) + dp*.8;
             obj.gui.optimize            = uicontrol('String', 'Optimize',...
-                                                    'Tooltip', ['(NotImplemented) Instead of scanning across every point' 10,...
-                                                                'in an N-dimensional grid, Optimize uses fminsearch() (Nelder-Mead) to' 10,...
-                                                                'find the *maximum* of the *first measurement* over the' 10,...
+                                                    'Tooltip', ['(NotImplemented) Instead of scanning across every point' newline,...
+                                                                'in an N-dimensional grid, Optimize uses fminsearch() (Nelder-Mead) to' newline,...
+                                                                'find the *maximum* of the *first measurement* over the' newline,...
                                                                 'N-dimensional space'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
@@ -152,18 +140,19 @@ classdef SweepEditor < handle
                                                     'Callback', @obj.setOptimize_Callback,...
                                                     'Position', p);    p(1) = p(1) + dp*.8;
             obj.gui.returnToInitial     = uicontrol('String', 'Return to Initial',...
-                                                    'Tooltip', ['(NotImplemented) Returns the N-dimensional space to its'  10,...
-                                                                'initial state after the sweep is finished. Incompatible' 10,...
+                                                    'Tooltip', ['(NotImplemented) Returns the N-dimensional space to its'  newline,...
+                                                                'initial state after the sweep is finished. Incompatible' newline,...
                                                                 'with Optimize and Optimize Afterward'],...
                                                     'Style', 'checkbox',...
-                                                    'Value', true,...
+                                                    'Value', false,...
                                                     'Units', 'pixels',...
                                                     'Enable', 'off',...
                                                     'Position', p);    p(1) = p(1) + dp;
             obj.gui.optimizeAfterSweep  = uicontrol('String', 'Optimize Afterward',...
-                                                    'Tooltip', ['(NotImplemented) Unlike Optimize, Optimize Afterward sweeps'  10,...
-                                                                'over the full  N-dimensional space and then finds the'  10,...
-                                                                '*maximum* of the *first measurement*. NotImplemented for N > 1.'],...
+                                                    'Tooltip', ['Unlike Optimize, Optimize Afterward sweeps'  newline,...
+                                                                'over the full  space, analyzes the data to find the'  newline,...
+                                                                '*maximum* of the *first measurement*, and goes to', newline,...
+                                                                'that maximum. NotImplemented for N > 1.'],...
                                                     'Style', 'checkbox',...
                                                     'Units', 'pixels',...
                                                     'Enable', 'off',...
@@ -186,10 +175,6 @@ classdef SweepEditor < handle
                                 'UIContextMenu', obj.pmenu,...
                                 'ButtonDownFcn', @obj.buttondown_Callback,...
                                 'UserData', apt);
-
-%             jScrollPane = findjobj(obj.pt);
-%             jtable = jScrollPane.getViewport.getView;
-%             rh = jtable.getRowHeight()
 
             xlim(apt, [0, ptPosition(3)]);
             ylim(apt, [0, ptPosition(4)/rh] - 3*(~ismac)/rh);
@@ -309,7 +294,7 @@ classdef SweepEditor < handle
             
             obj.gui.timeTotal.String = datestrCustom(str2double(obj.gui.numPoints.String) * str2double(obj.gui.timePoint.String));
             
-            % Checks for continuous
+            % Checks for continuous. Renames time unit to "ago" for scans ago if continuous.
             if numel(obj.prefs) > 0
                 if isa(obj.prefs{1}, 'Prefs.Time') && ~obj.gui.optimize.Value
                     obj.gui.continuous.Enable = 'on';
@@ -337,30 +322,16 @@ classdef SweepEditor < handle
                 obj.gui.continuous.Value = false;
             end
             
+            % Checks for optimize afterward. Currently blocks for N > 1 prefs.
+            if numel(obj.prefs) == 1 && ~isa(obj.prefs{1}, 'Prefs.Time')
+                obj.gui.optimizeAfterSweep.Enable = 'on';
+            else
+                obj.gui.optimizeAfterSweep.Enable = 'off';
+                obj.gui.optimizeAfterSweep.Value = false;
+            end
+            
             obj.pt.Data = obj.pdata;
             obj.mt.Data = obj.mdata;
-
-%             rold = size(obj.pt.Data, 1);
-%             rnew = size(obj.pdata, 1);
-%             rdiff = rnew - rold;
-% 
-%             if rdiff > 0
-%                 obj.pt.Data{end + rdiff, 1} = [];
-%             elseif rdiff < 0
-%                 obj.pt.Data(end:end+rdiff, :) = [];
-%             end
-% 
-%             for ii = 1:numel(obj.pt.Data)
-%                 if ~isequal(obj.pt.Data{ii}, obj.pdata{ii})
-%                     obj.pt.Data{ii} = obj.pdata{ii};
-%                 end
-%             end
-% 
-%             for ii = 1:numel(obj.mt.Data)
-%                 if ~isequal(obj.mt.Data{ii}, obj.mdata{ii})
-%                     obj.mt.Data{ii} = obj.mdata{ii};
-%                 end
-%             end
         end
         
         function setRowNumbers(obj, isPrefs)
@@ -481,15 +452,22 @@ classdef SweepEditor < handle
             obj.update();
         end
         function mdataGenerate(obj)
-            obj.mdata = []; %centerCharsMeasurements(obj.makeMeasurementRow([]));
+            mdata_ = centerCharsMeasurements(obj.makeMeasurementRow([]));
+            
+            jj = 1;
             
             for ii = 1:length(obj.measurements)
+                instrument = obj.measurements{ii};
                 cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
-
-                obj.mdata(end:(end+size(cm, 1)-1), :) = cm;
+                
+                mdata_(jj:(jj+size(cm, 1)-1), :) = cm;
+                
+                jj = jj + size(cm, 1);
             end
             
-            obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
+            mdata_(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
+            
+            obj.mdata = mdata_;
         end
         function moveRow(obj, direction, isPrefs)
             if isPrefs
@@ -550,8 +528,7 @@ classdef SweepEditor < handle
         
         function d = makePrefRow(~, p)          % Make a uitable row for a pref.
             if isempty(p)
-%                 d = {'<html><font color=blue><b>+', '<i>...', '<b>... <font face="Courier" color="gray">(...)</font>', '...', [], [], [], [], [], [], [], [] };
-                d = {'<html><font color=blue><b>+', '', '<font color="gray"><i>Right Click to Add Prefs', '', [], [], [], [], [], [], [], [], [], [], [] };
+                d = {'<html><font color=blue><b>+', '', '<font color="gray"><i>Right Click to Add Prefs', '', [], [], [], [], [], [], [], [], [], [], [] , [] };
             else
                 str = p.name;
 
@@ -562,7 +539,6 @@ classdef SweepEditor < handle
                 N = 11;
                 m = p.min;
                 M = p.max;
-%                 dx = .1;
                 
                 if m == -Inf && M == Inf
                     m =  -100;
@@ -589,8 +565,7 @@ classdef SweepEditor < handle
                 
                 x = p.read();
 
-                d = {'<html><font color=red><b>',     ['<i>' p.parent.encodeReadable(true)], formatMainName(str, p.property_name), p.unit, p.min, p.max, m, dx, M, N, false, makeSweepStr(m, M, dx), p.min, x, p.max };
-%                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ', '<b>Piezo Z (ao3)', 'V', 0, 10, 0,    .1,    1,   11,  '0:.1:1' };
+                d = {'<html><font color=red><b>',     ['<i>' p.parent.encodeReadable(true)], formatMainName(str, p.property_name), p.unit, p.min, p.max, m, dx, M, N, false, false, makeSweepStr(m, M, dx), p.min, x, p.max };
             end
         end
         function d = makeMeasurementRow(~, m)   % Make a uitable row for a measurement
@@ -605,9 +580,15 @@ classdef SweepEditor < handle
                 
                 d = [];
                 
+                if ismember('Base.Pref', superclasses(m))
+                    parent = m.parent.encodeReadable(true);
+                else
+                    parent = m.encodeReadable(true);
+                end
+                
                 for ii = 1:length(subdata)
                     sd = subdata{ii};
-                    d = [d ; {'<html><font color=red><b>',   ['<i>' class(m)], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }]; %#ok<AGROW>
+                    d = [d ; {'<html><font color=red><b>',   ['<i>' parent], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }]; %#ok<AGROW>
                 end
                 
 %                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', [1 1024], 'cts/sec', 0 };
@@ -738,14 +719,14 @@ classdef SweepEditor < handle
                     end
                 else
                     switch obj.pheaders{evt.Indices(2)}
-                        case 'X1'   % 7
+                        case 'X1'       % 7
                             X0 = min(M, max(m, ndata));
                             if isInteger, X0 = round(X0); end
                             if isBoolean, X0 = logical(X0); end
                             obj.pdata{r, 7} = X0;
 
                             obj.updateStep(r);
-                        case 'Step'   % 8
+                        case 'Step'     % 8
                             Step = ndata;
 
                             if obj.pdata{r, 8} > 0 && Step > 0 || obj.pdata{r, 8} < 0 && Step < 0
@@ -757,14 +738,14 @@ classdef SweepEditor < handle
                             else
                                 good = false;
                             end
-                        case 'X2'   % 9
+                        case 'X2'       % 9
                             X1 = max(m, min(M, ndata));
                             if isInteger, X1 = round(X1); end
                             if isBoolean, X1 = logical(X1); end
                             obj.pdata{r, 9} = X1;
 
                             obj.updateStep(r);
-                        case 'N'   % 10
+                        case 'N'        % 10
                             N = round(ndata);
                             if N < 2
                                 good = false;
@@ -777,6 +758,8 @@ classdef SweepEditor < handle
                             else
                                 good = false;
                             end
+                        case 'ZigZag'   % 12
+                            obj.pdata{r, 12} = ndata;
                     end
                 end
                 
@@ -821,13 +804,13 @@ classdef SweepEditor < handle
                     obj.pdata = obj.pt.Data;
                     obj.pdata{r, ind(2)} = evt.PreviousData;
                 else
-                    obj.pdata{r, 12} = makeSweepStr(obj.pdata{r, 7}, obj.pdata{r, 9}, obj.pdata{r, 8});
+                    obj.pdata{r, 13} = makeSweepStr(obj.pdata{r, 7}, obj.pdata{r, 9}, obj.pdata{r, 8});
                 end
                 
                 if ~strcmp(evt.EventName, 'CellEditNoUpdate')
                     obj.update();
                 end
-            else
+            else    % Measurements edit; currently nothing here.
                 
             end
         end

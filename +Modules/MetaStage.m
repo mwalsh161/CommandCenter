@@ -5,7 +5,16 @@ classdef MetaStage < Base.Module
         X = Prefs.Reference();
         Y = Prefs.Reference();
         Z = Prefs.Reference();
-%         poll = Prefs.Button('Update Positions');
+        
+        poll = Prefs.Button('Update Positions');
+        
+        key_step_x = Prefs.Double();
+        key_step_y = Prefs.Double();
+        key_step_z = Prefs.Double();
+        
+        joy_step_x = Prefs.Double();
+        joy_step_y = Prefs.Double();
+        joy_step_z = Prefs.Double();
     end
     properties(SetAccess=immutable)
         name;

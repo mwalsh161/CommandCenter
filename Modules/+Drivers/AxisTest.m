@@ -1,5 +1,9 @@
 classdef AxisTest < Modules.Driver
 
+    properties
+        prefs = {'x', 'y', 'hwp', 'voltage', 'bool', 'read_only'}
+    end
+    
     properties (GetObservable, SetObservable)
         x = Prefs.Double(0, 'unit', 'um', 'min', 0, 'max', 10, 'name', 'Test x', 'help', 'Prefs.Double Test as a x axis.');
         y = Prefs.Double(0, 'unit', 'um', 'min', 0, 'max', 10, 'name', 'Test y', 'help', 'Prefs.Double Test as a y axis.');

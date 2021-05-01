@@ -113,14 +113,6 @@ classdef MetaStageManager < Base.Manager
 %             set(handles.stage_negZ,'callback',@(~,~)obj.single_jog(-1,3))
 %             obj.update_gui = 'on'; % set.update_gui will create listener
         end
-        function delete(obj)
-            % Clean up timers if necessary (not this shouldn't be necessary, but makes for debugging issues easier!)
-%             delete(timerfindall('tag',mfilename))
-%             delete(obj.listeners)
-%             if ~isempty(obj.fig)&&isobject(obj.fig)&&isvalid(obj.fig)
-%                 delete(obj.fig)
-%             end
-        end
         
         % Return string representation of modules
         function strs = get_modules_str(obj,~)
@@ -129,20 +121,20 @@ classdef MetaStageManager < Base.Manager
                 strs{i} = obj.modules{i}.singleton_id;
             end
         end
-        function disable(obj)
-            if obj.disabled > 0
-                obj.disabled = obj.disabled + 1;
-                return
-            end
-            obj.disabled = true;
-        end
-        function enable(obj)
-            if obj.disabled > 1
-                obj.disabled = obj.disabled - 1;
-                return
-            end
-            obj.disabled = false;
-        end
+%         function disable(obj)
+%             if obj.disabled > 0
+%                 obj.disabled = obj.disabled + 1;
+%                 return
+%             end
+%             obj.disabled = true;
+%         end
+%         function enable(obj)
+%             if obj.disabled > 1
+%                 obj.disabled = obj.disabled - 1;
+%                 return
+%             end
+%             obj.disabled = false;
+%         end
     end
     methods(Access=protected)
         function active_module_changed(obj, varargin)

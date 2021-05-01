@@ -615,12 +615,15 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             %
             % Saves any property in the obj.pref cell array
             
+            'here'
+            
             % if namespace isn't set, means error in constructor
             if isempty(obj.namespace)
                 return
             end
             assert(ischar(obj.namespace),'Namespace must be a string!')
             
+            'there'
             
             if isprop(obj,'prefs')
                 for i = 1:numel(obj.prefs) %#ok<*MCNPN>

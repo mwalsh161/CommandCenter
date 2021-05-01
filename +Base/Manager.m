@@ -337,7 +337,6 @@ classdef Manager < handle
                 end
             end
         end
-
     end
     methods
         function tasks = inactive(obj)
@@ -472,6 +471,7 @@ classdef Manager < handle
             addlistener(obj,'modules','PostSet',@obj.master_modules_changed);
             addlistener(obj,'active_module','PostSet',@obj.master_active_module_changed);
         end
+        
         % Destructor
         function delete(obj)
             obj.savePrefs;
@@ -518,6 +518,7 @@ classdef Manager < handle
                 obj.handles.logger.log(msg,level);
             end
         end
+        
         % Use to call methods in active_module (takes care of error handling)
         function varargout = sandboxed_function(obj,fn_specs,varargin)
             % sandboxed_function(fun_handle,input1,input2,...)
@@ -566,8 +567,8 @@ classdef Manager < handle
                 obj.disabled = obj.disabled + 1;
                 return
             end
-            default = findall(obj.panelHandle.content,'tag','default');
-            obj.frozen_state = get(default.Children,'enable');
+            default = findall(obj.panelHandle.content, 'tag', 'default');
+            obj.frozen_state = get(default.Children, 'enable');
             if ~iscell(obj.frozen_state)
                 % Takes care of only having a single child
                 obj.frozen_state = {obj.frozen_state};
@@ -580,11 +581,15 @@ classdef Manager < handle
                 obj.disabled = obj.disabled - 1;
                 return
             end
-            default = findall(obj.panelHandle.content,'tag','default');
+            default = findall(obj.panelHandle.content, 'tag', 'default');
             % Restore frozen state
             children = default.Children;
             for i = 1:numel(children)
-                set(children(i),'enable',obj.frozen_state{i})
+                try
+                    set(children(i), 'enable', obj.frozen_state{i})
+                catch
+                    
+                end
             end
             obj.disabled = false;
         end

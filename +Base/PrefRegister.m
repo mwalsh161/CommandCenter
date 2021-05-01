@@ -58,10 +58,12 @@ classdef PrefRegister < Base.Singleton
             obj.removeDead()
             [modules, I] = sort(obj.getModules(true));
             
+            deleteAfter = isempty(parentObject);
+            
             if isempty(parentObject)
                 parentObject = figure('name','Select Module','IntegerHandle','off','menu','none','HitTest','off',...
-                'toolbar','none','visible','off','units','characters','resize','off');
-                parentObject.Position(3:4) = [20 ,0];
+                 'WindowStyle','modal','toolbar','none','visible','off','units','characters','resize','off');
+                parentObject.Position(3:4) = [40 ,0];
             end
             
             switch parentObject.Type
@@ -122,7 +124,11 @@ classdef PrefRegister < Base.Singleton
 
                             label = ['<html>' pref.get_label() ' (<font face="Courier" color="green">.' pref.property_name '</font>, <font face="Courier" color="blue">' prefclass{end} '</font>' readonly ')</html>'];
 
-                            uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
+                            if deleteAfter
+                                uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(delete(parentObject)&&callback(pref)));
+                            else
+                                uimenu(folder, 'Text', label, 'UserData', pref, 'Callback', @(s,e)(callback(pref)));
+                            end
                         end
                     end
 
