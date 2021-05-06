@@ -232,6 +232,11 @@ classdef metastage < handle % Modules.Driver
     
     methods
         function calibrate(obj)
+            if isempty(obj.graphics.figure) || ~isvalid(obj.graphics.figure)
+                obj.graphics.figure = figure('Visible', 'off');
+            end
+            obj.graphics.axes = axes(obj.graphics.figure, 'DataAspectRatio', [1 1 1]);
+
             if ~obj.focusSmart()
                 disp('Focus onto QR codes was not successful. Try moving to an area with legible QR codes.');
                 return
@@ -261,9 +266,6 @@ classdef metastage < handle % Modules.Driver
                 Vs = NaN(2, length(positions));
                 kk = 1;
                 
-                delete(obj.graphics.axes);
-                obj.graphics.axes = axes(obj.graphics.figure, 'DataAspectRatio', [1 1 1]);
-
                 for pp = positions  % Successively move from the current postion.
                     if isfine
                         pref.writ(base + (pp - .5) * step);
