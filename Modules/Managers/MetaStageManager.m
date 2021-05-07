@@ -268,15 +268,21 @@ classdef MetaStageManager < Base.Manager
                 if strcmp(hello, 'No Server') && strcmp(host, 'localhost')
                     disp('Starting server')
                     system('python startjoystick.py');
+                    
+                    pause(.5)
 
                     [t, hello] = connect(host);
                 end
             end
             function [t, hello] = connect(host)
                 try
-                    t = tcpclient(host, 4000, "ConnectTimeout", 1, "Timeout", 1);
+                    t = tcpclient(host, 4001);
+                    
+                    t
 
                     hello = t.readline();
+                    
+                    hello
 
                     if isempty(hello) || strcmp(hello, 'No Joystick')
                         t.flush();
@@ -289,7 +295,8 @@ classdef MetaStageManager < Base.Manager
                     else
                         configureCallback(t, "terminator", @callbackFcn)
                     end
-                catch
+                catch err
+                    warning(err.message)
                     t = [];
                     hello = 'No Server';
                 end

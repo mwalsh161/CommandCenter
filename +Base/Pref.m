@@ -514,9 +514,9 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function obj = set.value(obj, val)
             [obj, obj.value] = obj.set_value(val);
         end
-        function val = get.value(obj)
-            val = obj.get_value(obj.value);
-        end
+%         function val = get.value(obj)
+%             val = obj.get_value(obj.value);
+%         end
         function [obj, val] = set_value(obj, val)
             if ~obj.getEvent
                 val = obj.clean(val);

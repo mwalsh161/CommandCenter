@@ -1,9 +1,3 @@
-/* MyMEXFunction
- * Adds second input to each  
- * element of first input
- * a = MyMEXFunction(a,b);
-*/
-
 #include "mex.hpp"
 #include "mexAdapter.hpp"
 
@@ -11,19 +5,6 @@
 
 using namespace matlab::data;
 using matlab::mex::ArgumentList;
-
-
-// struct GDSDATE {    // Helper struture encapsulating the GDSII date structure.
-//     int16_t year;
-//     int16_t month;
-//     int16_t day;
-//     int16_t hour;
-//     int16_t minute;
-//     int16_t second;
-// 
-//     void setLocal();
-//     GDSDATE es();   // Endian swap.
-// };
 
 inline uint16_t endianSwap(uint16_t x) {
     return  ( (x & 0x00FF) << 8 ) |
@@ -92,35 +73,21 @@ class MexFunction : public matlab::mex::Function {
     // ArrayFactory factory;
 public:
     void operator()(ArgumentList outputs, ArgumentList inputs) {
-        // TypedArrayRef<MATLABString> STR = std::move(inputs[0]);
-        // std::string str = std::string(STR[0]);
         std::shared_ptr<matlab::engine::MATLABEngine> matlabPtr = getEngine();
         ArrayFactory factory;
         
-        
-//         matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("Entry") }));
-        
-        CellArray imageCell = std::move(inputs[0]);
-        
-//         matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("0") }));
-            
-        TypedArrayRef<MATLABString> inArrayRef1 = imageCell[0];
-        
-//         matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("1") }));
-        
-        std::string fname = std::string(inArrayRef1[0]);
+        CharArray fname_ = inputs[0];
+        std::string fname = fname_.toAscii();
         
         std::string expression = "";
         
-        if (imageCell.getNumberOfElements() > 1) {
-            TypedArrayRef<MATLABString> inArrayRef2 = imageCell[1];
-            expression = std::string(inArrayRef2[0]);
+        if (inputs.size() > 1) {
+            CharArray expression_ = inputs[1];
+            expression = expression_.toAscii();
             matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("Using regex('" + expression + "').") }));
         } else {
             matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("Not using regex.") }));
         }
-        
-//         matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("Got Inputs") }));
         
         // References:  http://www.cnf.cornell.edu/cnf_spie9.html
         //              http://www.rulabinsky.com/cavd/text/chapc.html
@@ -160,7 +127,12 @@ public:
         
 //         matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("Got to while") }));
 
-        while (going) {
+        int i = 0;
+        
+        
+        while (going && i < 20) {
+            i += 1;
+            
             fread(&header, sizeof(uint32_t), 1, f);
             
             header = endianSwap(header);
@@ -171,8 +143,12 @@ public:
             
             uint16_t rt =           (header & 0x0000FFFF);              // The record and the token.
             
-        //        printf("Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
+            char str3[128];
+            
+            sprintf(str3, "Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
 
+            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
+            
             if (token == 0 && length > 0) {
                 throw std::runtime_error("DEVICE::importGDS(std::string): Header says that we should not expect data, but gives non-zero length");
                 // Error; expected no data.
@@ -201,6 +177,10 @@ public:
                 free(buffer);
                 buffer = malloc(bufsize);
             }
+            
+            sprintf(str3, "Length = %i, size = %i, count = %i\n", length, size, length/size);
+
+            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
 
             if (length) { fread(buffer, size, length/size, f); }
             
@@ -274,20 +254,13 @@ public:
                     if (isText) {
                         str = std::string( (char*)buffer, length );
 
-                        if (expression.size() == 0 || std::regex_match(str, std::regex(expression))) {
+                        if (expression.size() == 0 || (expression.size() == 1 && str[0] == expression[0]) || std::regex_match(str, std::regex(expression))) {
                             text.push_back(str);
                             x.push_back(x0);
                             y.push_back(y0);
                             l.push_back(l0);
                             t.push_back(t0);
                         }
-//                         } else {
-//                             l.pop_back();
-//                             t.pop_back();
-// 
-//                             x.pop_back();
-//                             y.pop_back();
-//                         }
                     }
                     isText = false;
                     break;
