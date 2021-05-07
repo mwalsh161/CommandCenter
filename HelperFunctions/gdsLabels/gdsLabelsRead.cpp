@@ -143,7 +143,7 @@ public:
             
             uint16_t rt =           (header & 0x0000FFFF);              // The record and the token.
             
-            char str3[64];
+            char str3[128];
             
             sprintf(str3, "Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
 
@@ -177,6 +177,10 @@ public:
                 free(buffer);
                 buffer = malloc(bufsize);
             }
+            
+            sprintf(str3, "Length = %i, size = %i, count = %i\n", length, size, length/size);
+
+            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
 
             if (length) { fread(buffer, size, length/size, f); }
             

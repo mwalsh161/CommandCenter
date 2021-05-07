@@ -53,7 +53,7 @@ classdef Conex_CC < Modules.Driver
             if obj.isConnected()
                 obj.com('ID?');    % Get laser modulation power (mW)
 
-                val = fscanf(obj.s);
+                val = strip(fscanf(obj.s));
             else
                 val = 'Not Connected';
             end
@@ -74,19 +74,25 @@ classdef Conex_CC < Modules.Driver
                 val = NaN;
             end
         end
-        function val = set_position(obj, val, ~)
+        function val = set_position(obj, val, pref)
             obj.com('ST');                  % Stop any current movement
             
             obj.get_state();
             
             t = tic;
             while strcmp(obj.get_raw_state(), '28') && toc(t) < 1; pause(.01); end    % Wait while decellerating.
-            
+
             obj.get_state()
             
 %             obj.com(['SE' num2str(val)]);   % Tell the axes to goto the desired position.
 %             fprintf(obj.s, 'SE');               
             obj.com(['PA' num2str(val/1e3)]);   % Tell the axes to goto the desired position.
+            
+%             T = 
+%             
+%             t = tic;
+%             while strcmp(obj.get_raw_state(), '28') && toc(t) < 1; pause(.01); end    % Wait while decellerating.
+
         end
         function val = set_velocity(obj, val, ~)
             obj.com(['VA' num2str(val/1e3)]);   % Tell the axes to goto the desired position.
@@ -110,6 +116,7 @@ classdef Conex_CC < Modules.Driver
                 val = NaN;
             end
         end
+        
         function [state, err] = get_raw_state(obj, ~)
             obj.com('TS');   % Tell the axes to goto the desired position.
             str = fscanf(obj.s);

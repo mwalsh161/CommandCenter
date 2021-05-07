@@ -1,4 +1,4 @@
 import subprocess, datetime
 
-subprocess.call('pip install pygame', shell=True)
-subprocess.Popen('python joystick.py', shell=True)
+subprocess.call('activate base&&pip install pygame', shell=True)
+subprocess.Popen('activate base&&python joystick.py', shell=True)

@@ -21,7 +21,7 @@ serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 # bind the socket to a public host, and a well-known port
 # serversocket.bind((socket.gethostname(), 4000))
-serversocket.bind(('localhost', 4000))
+serversocket.bind(('localhost', 4001))
 # become a server socket
 serversocket.listen(5)
 
@@ -30,6 +30,8 @@ while not done:
     print(serversocket)
     # accept connections from outside
     (clientsocket, address) = serversocket.accept()
+
+    print(clientsocket)
     
     done2 = False
     
