@@ -147,6 +147,8 @@ classdef dev < Modules.Driver
             end
         end
     end
+    
+    % Base methods
     methods(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.task})
         function obj = dev(DeviceChannel)
             obj.DeviceChannel = DeviceChannel;
@@ -230,6 +232,15 @@ classdef dev < Modules.Driver
             delete(ctr)
         end
     end
+    
+    % Pref handler methods (overwrites Module methods)
+    methods
+        function addlistener()
+            
+        end
+    end
+    
+    % view() methods
     methods(Access={?Drivers.NIDAQ.dev,?Drivers.NIDAQ.in,?Drivers.NIDAQ.out,?Drivers.NIDAQ.task,?timer})
         %% View callbacks
         function close(obj,varargin)
@@ -377,6 +388,8 @@ classdef dev < Modules.Driver
             obj.removeOutLine(line);
         end
     end
+    
+    % Hardware methods
     methods
         function [varargout] = LibraryFunction(obj,FunctionName,varargin)
             % use this function to call arbitrary library functions from
