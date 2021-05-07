@@ -37,7 +37,7 @@ classdef MetaStageManager < Base.Manager
             
             h = 20;
             p = 2;         % Padding.
-            m = 20;        % Margin.
+            m = Base.Manager.settings_horizontal_margin_px;        % Margin.
             
             panel.Units = 'pixels';
             base.Units = 'pixels';
@@ -50,7 +50,7 @@ classdef MetaStageManager < Base.Manager
             B = (w+p)/6;
             b = B-p;
             
-            H = 2*B+2*p+h;
+            H = 2*B+3*p+h;
             
             base.Position(2) = base.Position(2) - (w/2 - base.Position(4));
             base.Position(4) = H;
@@ -59,8 +59,8 @@ classdef MetaStageManager < Base.Manager
             panel.Position(4) = H;
             pos = panel.Position;
             
-            dropdown =  uicontrol(panel, 'Style', 'popupmenu', 'String', {''}, 'Value', 1,  'Position', [m,         H-h-p, w-h-p,   h]);
-            gear =      uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699),     'Position', [w+m-h-p,   H-h-p, h,       h], 'FontSize', 14);
+            dropdown =  uicontrol(panel, 'Style', 'popupmenu', 'String', {''}, 'Value', 1,  'Position', [m,         H-h-p, w,   h]);
+%             gear =      uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699),     'Position', [w+m-h-p,   H-h-p, h,       h]);
             
             y = H-h-2*p-2*B;
             x = m + 2*B;
@@ -72,13 +72,15 @@ classdef MetaStageManager < Base.Manager
             mx =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25C0), 'Callback', @(~,~)obj.step(-1,1), 'Tooltip', 'Left (-x)', 'Position', [x     y   b b]);
             my =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BC), 'Callback', @(~,~)obj.step(-1,2), 'Tooltip', 'Down (-y)', 'Position', [x+B   y   b b]);
             py =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25B2), 'Callback', @(~,~)obj.step(+1,2), 'Tooltip', 'Up (+y)',   'Position', [x+B   y+B b b]);
-            px =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BA), 'Callback', @(~,~)obj.step(+1,1), 'Tooltip', 'Right (+x)', 'Position', [x+2*B y   b b]);
+            px =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BA), 'Callback', @(~,~)obj.step(+1,1), 'Tooltip', 'Right (+x)','Position', [x+2*B y   b b]);
             
-            mz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2297), 'Callback', @(~,~)obj.step(-1,3), 'Tooltip', 'In (-z)', 'Position', [x+3*B y   b b], 'FontSize', 20, 'FontWeight', 'bold');
-            pz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2299), 'Callback', @(~,~)obj.step(+1,3), 'Tooltip', 'Out (+z)', 'Position', [x+3*B y+B b b], 'FontSize', 20, 'FontWeight', 'bold');
+            mz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2297), 'Callback', @(~,~)obj.step(-1,3), 'Tooltip', 'In (-z)',  'Position', [x+3*B y   b b], 'FontSize', 15);
+            pz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2299), 'Callback', @(~,~)obj.step(+1,3), 'Tooltip', 'Out (+z)', 'Position', [x+3*B y+B b b], 'FontSize', 15);
             
             x = m;
             y = H-2*h-2*p;
+            
+            h = h-2;
             
             key =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y 2*b h]);
             joy =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y-h 2*b h]);
@@ -173,7 +175,13 @@ classdef MetaStageManager < Base.Manager
         end
         function joystick_Callback(obj, src, ~)
             if length(obj.modules) > 1
-                obj.joystick = src.Value;
+                if verLessThan('matlab','9.9')
+                    errordlg(['Joystick requires MATLAB >= 2020b. You have ' version('-release') '.'], 'Joystick Versioning')
+                    obj.joystick = false;
+                    src.Value = false;
+                else
+                    obj.joystick = src.Value;
+                end
             else
                 obj.joystick = false;
                 src.Value = 0;
@@ -206,6 +214,7 @@ classdef MetaStageManager < Base.Manager
             end
         end
         function initializeJoystick(obj, address)
+            
 %             splt = split(address, ':');
 %             switch length(splt)
 %                 case 1
@@ -221,6 +230,7 @@ classdef MetaStageManager < Base.Manager
             
             if isempty(obj.joytcpip)
                 obj.joyserver.String = 'No Server';
+                obj.joystatus.String = hello;
             else
                 obj.joystick = true;
                 obj.joyserver.String = address;

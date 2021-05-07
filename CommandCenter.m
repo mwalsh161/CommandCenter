@@ -266,7 +266,7 @@ try
 %         handles.panelSweeping, handles.panelExperiment, handles.panelDrivers, handles.panelSave, handles.panelGit};
     controls = {handles.panelGit, handles.panelStage, handles.panelMetaStage, handles.panelImage, handles.panelSource,...
         handles.panelSweeping, handles.panelExperiment, handles.panelDrivers, handles.panelSave};
-    Base.UIScrollPanelContainer(handles.LeftPanel, controls, 2);
+    Base.UIScrollPanelContainer(handles.LeftPanel, controls, 4);
     
     Base.Resizable(handles.panelStage);
     Base.Resizable(handles.panelMetaStage);
