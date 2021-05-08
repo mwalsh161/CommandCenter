@@ -235,8 +235,21 @@ classdef dev < Modules.Driver
     
     % Pref handler methods (overwrites Module methods)
     methods
-        function addlistener()
-            
+        function varargout = addlistener(obj,varargin)
+            % el = addlistener(hSource,EventName,callback)
+            % el = addlistener(hSource,PropertyName,EventName,callback)
+            varargout = {};
+            if nargin == 4 && isfield(obj.external_ls,varargin{1}) % externals_ls field names are all pref properties
+                el = Base.PrefListener(obj,varargin{:});
+                obj.external_ls.(varargin{1}).(varargin{2})(end+1) = el;
+                addlistener(el,'ObjectBeingDestroyed',@obj.preflistener_deleted);
+            else
+                el = addlistener@handle(obj,varargin{:});
+                el = Base.PrefListener(el); % Wrap it to make array compatible
+            end
+            if nargout
+                varargout = {el};
+            end
         end
     end
     
