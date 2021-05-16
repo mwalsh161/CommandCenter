@@ -454,10 +454,15 @@ classdef SweepProcessed < handle
                         end
                         
                         assert(all(indices > 0 & indices <= length(scan)))
-
+                        
+%                         size(indices)
+%                         size(scan)
+%                         size(scan(indices))
+%                         num2str(scan(indices))
+%                         num2str(scan(indices)')
 % 
-%                         obj.tab.edit(ii).String = obj.slice{ii};
-                        obj.tab.edit(ii).Tooltip = ['Indices: [ ' num2str(indices) ' ] = ' 10 'Values: [ ' num2str(scan(indices)) ' ] '   obj.v.displayAxesObjects{ii+1}.unit];
+%                         obj.tab.edit(ii).String = obj.slice{ii};indices
+                        obj.tab.edit(ii).Tooltip = 'Tooltip disabled'; %['Indices: [ ' num2str(indices') ' ] = ' 10 'Values: [ ' num2str(scan(indices)') ' ] '   obj.v.displayAxesObjects{ii+1}.unit];
                         
                         if obj.sliceOptions == length(obj.squeezeOptions)
                             obj.tab.edit(ii).Tooltip = [obj.tab.edit(ii).Tooltip 10 'The the current real value is ' num2str(obj.v.displayAxesObjects{ii+1}.value) ' ' obj.v.displayAxesObjects{ii+1}.unit 10 'This parameter is set automatically by the ''snap'' option.'];

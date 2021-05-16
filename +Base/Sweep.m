@@ -52,7 +52,8 @@ classdef Sweep < handle & Base.Measurement
                         'isPrefNIDAQ',          false,...
                         'isMeasurementNIDAQ',   false,...
                         'dev',                  [],...
-                        'tasks',                [],...
+                        'out',             [],...
+                        'in',              [],...
                         'pulseTrain',           [],...
                         'lastCount',            [],...  % integer array with size tasks
                         'dwell',                [],...  % seconds (temp variable until a better solution is written)
@@ -88,7 +89,7 @@ classdef Sweep < handle & Base.Measurement
 %                 obj.sdims =         obj.data.metadata.dims;
 %                 obj.sscans =        obj.data.metadata.scans;
             else
-                obj.measurements_ =  varargin{1};
+                obj.measurements_ = varargin{1};
                 obj.sdims =         varargin{2};
                 obj.sscans =        varargin{3};
 
@@ -103,12 +104,21 @@ classdef Sweep < handle & Base.Measurement
 %                     obj.name = varargin{5};
                     obj.dwell = varargin{5};
                 end
+
+                if nargin > 5
+                    obj.name = varargin{6};
+                end
             end
             
             defaultname = 'Sweep';  % Fix me.
             
+            if isempty(obj.name)
+                obj.name = defaultname;
+            end
+            
 			% Check measurements
-            assert(numel(obj.measurements_) == length(obj.measurements_), 'Measurements must be a 1xN vector.')
+            assert(iscell(obj.measurements_), 'Measurements must be a cell array.')
+            assert(numel(obj.measurements_) == length(obj.measurements_), 'Measurements must be a 1xN cell array.')
             assert(numel(obj.measurements_) > 0, 'Cannot generate a sweep without measurements.')
             
             obj.NIDAQ.isMeasurementNIDAQ = false(1, numel(obj.measurements_));
@@ -132,6 +142,7 @@ classdef Sweep < handle & Base.Measurement
                 for ii = 1:numel(obj.sdims)
                     checkPref(obj.sdims{ii})
                     checkScan(obj.sscans{ii}, obj.sdims{ii});
+                    obj.sscans{ii} = obj.sscans{ii}(:);
 
                     obj.NIDAQ.isPrefNIDAQ(ii) = isNIDAQ(obj.sdims{ii});
 
@@ -143,16 +154,11 @@ classdef Sweep < handle & Base.Measurement
                 error('NotImplemented');
             end
             
-            if isempty(obj.name)
-                obj.name = defaultname;
-            end
-            
-            if all(obj.NIDAQ.isPrefNIDAQ) && all(obj.NIDAQ.isMeasurementNIDAQ) && false
+            if all(obj.NIDAQ.isPrefNIDAQ) && all(obj.NIDAQ.isMeasurementNIDAQ)
                 obj.NIDAQ.isNIDAQ = true;
                 
                 obj.NIDAQ.dev = obj.measurements_{1}.dev;
-                
-                obj.setupNIDAQ();
+                obj.NIDAQ.dwell = obj.dwell;
             end
             
             obj.fillMeasurementProperties();
@@ -279,11 +285,53 @@ classdef Sweep < handle & Base.Measurement
                     obj.tick();
                 end
             else
-                % Not Implemented.
-                error()
+                obj.setupNIDAQ();
+                pause(1)
+                for ii = 1:length(obj.NIDAQ.out.tasks)
+                    obj.NIDAQ.out.tasks{ii}.Start;
+                end
+                pause(1)
+                for ii = 1:length(obj.NIDAQ.in.tasks)
+                    obj.NIDAQ.in.tasks{ii}.Start;
+                end
+                pause(1)
+                obj.NIDAQ.pulseTrain.Start;
+                pause(1)
+                
+                going = true;
+                sd = obj.subdata;
+                
+                while isvalid(obj.NIDAQ.in.tasks{1}) && going
+                    going = false;
+                    for kk = 1:length(obj.NIDAQ.in.tasks)
+                        samples = obj.NIDAQ.in.tasks{kk}.AvailableSamples;
+                        if samples
+                            obj.NIDAQ.in.raw{kk}(obj.NIDAQ.in.index(kk):(obj.NIDAQ.in.index(kk) + samples - 1)) = obj.NIDAQ.in.tasks{kk}.ReadCounter(samples);
+                            obj.NIDAQ.in.index(kk) = obj.NIDAQ.in.index(kk) + samples;
+
+                            obj.data.(sd{kk}).dat = diff(obj.NIDAQ.in.raw{kk}) / obj.NIDAQ.dwell;
+                        end
+                        
+                        going = going || (~obj.NIDAQ.in.tasks{kk}.IsTaskDone || obj.NIDAQ.in.tasks{kk}.AvailableSamples);
+
+                        obj.index = min(obj.NIDAQ.in.index);
+
+                        if ~isempty(obj.controller) && isvalid(obj.controller)
+                            obj.controller.setIndex();
+                        end
+                    end
+                end
+                
+                for ii = 1:length(obj.NIDAQ.out.tasks)
+                    obj.NIDAQ.out.tasks{ii}.Clear;
+                end
+                for ii = 1:length(obj.NIDAQ.in.tasks)
+                    obj.NIDAQ.in.tasks{ii}.Clear;
+                end
+                obj.NIDAQ.pulseTrain.Clear;
             end
 
-            if obj.controller.running
+            if ~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.running
                 obj.controller.running = false;
             end
 
@@ -292,92 +340,92 @@ classdef Sweep < handle & Base.Measurement
     end
     methods (Access=private, Hidden)
         function setupNIDAQ(obj)
-            error('NotImplemented');
+            obj.NIDAQ.dev.ClearAllTasks
+%             error('NotImplemented');
             
-            obj.NIDAQ.timer = timer('ExecutionMode', 'fixedRate', 'name', ['Sweep ' obj.name],...
-                'period', obj.NIDAQ.updateRate, 'timerfcn', @obj.updateNIDAQ);
+%             obj.NIDAQ.timer = timer('ExecutionMode', 'fixedRate', 'name', ['Sweep ' obj.name],...
+%                 'period', obj.NIDAQ.updateRate, 'timerfcn', @obj.updateNIDAQ);
             
-            obj.PulseTrainH = obj.NIDAQ.dev.CreateTask('Counter PulseTrain');
+            obj.NIDAQ.pulseTrain = obj.NIDAQ.dev.CreateTask([obj.name ' PulseTrain']);
             
             f = 1/obj.NIDAQ.dwell;
 %             try
-                obj.NIDAQ.pulseTrain.ConfigurePulseTrainOut('CounterSync', f);  % Change this?
+                obj.NIDAQ.pulseTrain.ConfigurePulseTrainOut('SweepSync', f);  % Change this?
 %             catch err
 %                 rethrow(err)
 %             end
             
+            s = obj.size();
+            obj.NIDAQ.out.tasks = {};
+            obj.NIDAQ.in.tasks = {};
+            obj.NIDAQ.in.raw = {};
+            obj.NIDAQ.in.index = [];
 
             kk = 1;
 
             for ii = 1:length(obj.sdims)
-                if isa(obj.sdims{ii}, 'Prefs.Paired')
-                
-                else
-                    obj.NIDAQ.tasks(kk) = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.sdims{ii}.name]);
-                    configureTask(obj.sdims{ii}, obj.NIDAQ.tasks(kk));
-                end
+%                 if isa(obj.sdims{ii}, 'Prefs.Paired')
+%                 
+%                 else
+                    obj.NIDAQ.out.tasks{kk} = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.sdims{ii}.name]);
+                    out = obj.NIDAQ.dev.getLines(obj.sdims{ii}.name, 'out');
+                    out
+                    out.name
+                    
+                    sthis = s;
+                    sthis(ii) = 1;
+                    sweep = repmat(shiftdim(obj.sscans{ii}, ii-1), sthis);
+                    
+                    sweep = [sweep(:); sweep(end)];
+                    
+%                     obj.NIDAQ.dev.GetTaskByName('AnalogWrite')
+                    
+                    pause(1)
+                    
+                    switch out.type
+                        case 'analog'
+                            obj.NIDAQ.out.tasks{kk}.ConfigureVoltageOut(out.name, sweep, obj.NIDAQ.pulseTrain)
+                        case 'digital'
+                            obj.NIDAQ.out.tasks{kk}.ConfigureDigitalOut(out.name, sweep, obj.NIDAQ.pulseTrain)
+                    end
+%                 end
+                obj.NIDAQ.out.tasks
+                kk = kk + 1;
             end
+
             
-%             obj.NIDAQ.task = obj.NIDAQ.dev.CreateTask(obj.name);
-            
-            obj.NIDAQ.task = obj.nidaq.CreateTask([obj.name ' Task']);
-            
-            try
-                continuous = true;
-                buffer = 2*f*obj.update_rate;
-                obj.CounterH.ConfigureCounterIn(obj.lineIn,buffer,obj.PulseTrainH,continuous);
-            catch err
-                obj.reset
-                rethrow(err)
-            end
-            
-            function configureTask(pref, task)
-                
+            kk = 1;
+            for ii = 1:length(obj.measurements_)
+%                 if isa(obj.sdims{ii}, 'Prefs.Paired')
+%                 
+%                 else
+                    obj.NIDAQ.in.tasks{kk} = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.measurements_{ii}.line]);
+                    
+                    obj.NIDAQ.in.tasks{kk}.ConfigureCounterIn(obj.measurements_{ii}.name, prod(s)+1, obj.NIDAQ.pulseTrain)
+                    obj.NIDAQ.in.raw{kk} = NaN(prod(s)+1, 1);
+                    obj.NIDAQ.in.index(kk) = 1;
+%                 end
+                kk = kk + 1;
             end
         end
         function measureNIDAQ(obj)
-            obj.NIDAQ.pulseTrain.Start;
-            obj.NIDAQ.task.Start;
-            start(obj.NIDAQ.timer)
+%             start(obj.NIDAQ.timer)
 %             obj.running = true;
         end
         function resetNIDAQ(obj)
-            if ~isempty(obj.timerH)
-                if isvalid(obj.timerH) && strcmp(obj.timerH.Running,'on')
-                    obj.stopTimer()
-                end
-                obj.timerH = [];
-            else
-                if ~isempty(obj.CounterH) && isvalid(obj.CounterH)
-                    obj.CounterH.Clear;
-                end
-                if ~isempty(obj.PulseTrainH) && isvalid(obj.PulseTrainH)
-                    obj.PulseTrainH.Clear
-                end
-            end
-        end
-        function updateNIDAQ(obj)
-            % Reads Counter Task
-            if ~isvalid(obj.CounterH)
-                obj.stopTimer()
-            end
-            nsamples = obj.CounterH.AvailableSamples;
-            if nsamples
-                counts = mean(diff(obj.CounterH.ReadCounter(nsamples)));
-                counts = counts/obj.dwell;
-                obj.callback(counts,nsamples)
-            end
-        end
-        function stopTimer(obj,varargin)
-            if isvalid(obj)
-                stop(obj.timerH);
-                delete(obj.timerH);
-                obj.timerH = [];
-                obj.CounterH.Clear;
-                obj.PulseTrainH.Clear;
-                obj.callback = [];
-                obj.running = false;
-            end
+%             if ~isempty(obj.timerH)
+%                 if isvalid(obj.timerH) && strcmp(obj.timerH.Running,'on')
+%                     obj.stopTimer()
+%                 end
+%                 obj.timerH = [];
+%             else
+%                 if ~isempty(obj.CounterH) && isvalid(obj.CounterH)
+%                     obj.CounterH.Clear;
+%                 end
+%                 if ~isempty(obj.PulseTrainH) && isvalid(obj.PulseTrainH)
+%                     obj.PulseTrainH.Clear
+%                 end
+%             end
         end
     end
     methods (Hidden)

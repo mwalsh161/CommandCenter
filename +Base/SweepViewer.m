@@ -160,21 +160,21 @@ classdef SweepViewer < handle
             obj.menus.ctsMenu(2) = uimenu(obj.menus.menu, 'Label', ['G: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{2});
             obj.menus.ctsMenu(3) = uimenu(obj.menus.menu, 'Label', ['B: ~~~~ ' char(177) ' ~~~~ --'], 'Callback', @copyLabelToClipboard, 'ForegroundColor', obj.colors{3});
 
-            obj.menus.indMenu = uimenu(obj.menus.menu, 'Label', 'Index: [ ~~~~, ~~~~ ]',          'Callback', @copyLabelToClipboard);
-            obj.menus.pixMenu = uimenu(obj.menus.menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard, 'Separator', 'on');
+            uimenu(obj.menus.menu, 'Label', 'Set as Minimum', 'Callback', {@obj.minmax_Callback, 0}, 'Separator', 'on');
+            uimenu(obj.menus.menu, 'Label', 'Set as Maximum', 'Callback', {@obj.minmax_Callback, 1});
+            
+            obj.menus.indMenu = uimenu(obj.menus.menu, 'Label', 'Index: [ ~~~~, ~~~~ ]',          'Callback', @copyLabelToClipboard, 'Separator', 'on');
+            obj.menus.pixMenu = uimenu(obj.menus.menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard);
             obj.menus.posMenu = uimenu(obj.menus.menu, 'Label', 'Position: [ ~~~~ --, ~~~~ -- ]', 'Callback', @copyLabelToClipboard);
 
-            uimenu(obj.menus.posMenu, 'Label', 'Goto', 'Callback', {@obj.gotoPostion_Callback, 1, 0}); %#ok<*NASGU>
-            uimenu(obj.menus.pixMenu, 'Label', 'Goto', 'Callback', {@obj.gotoPostion_Callback, 0, 0});
+            uimenu(obj.menus.menu, 'Label', 'Goto Pixel', 'Callback', {@obj.gotoPostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
+            uimenu(obj.menus.menu, 'Label', 'Goto Position', 'Callback', {@obj.gotoPostion_Callback, 0, 0});
                 
 %             mGoto = uimenu(obj.menus.menu,  'Label', 'Goto', 'Separator', 'on');
 %                 uimenu(mGoto,               'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 1, 0}); %#ok<*NASGU>
 %                 uimenu(mGoto,               'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 0, 0});
 %                 uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotoPostion_Callback, 1, 1}, 'Enable', 'off');
 %                 uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotoPostion_Callback, 0, 1}, 'Enable', 'off');
-
-            uimenu(obj.menus.ctsMenu(1), 'Label', 'Set as Minimum', 'Callback', {@obj.minmax_Callback, 0});
-            uimenu(obj.menus.ctsMenu(1), 'Label', 'Set as Maximum', 'Callback', {@obj.minmax_Callback, 1});
                 
 %             mNorm = uimenu(obj.menus.menu,  'Label', 'Normalization');
 %                 uimenu(mNorm,               'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
@@ -243,11 +243,11 @@ classdef SweepViewer < handle
 
             for ii = 1:N
                 % Make texts
-                obj.txt{ii} = text(.5, .5 - .15*(ii-(N+1)/2.), 'NaN',...
+                obj.txt{ii} = text(.5, .5 - .15*(ii-(N+1)/2.), 1, 'NaN',...
                                                             'Parent', obj.ax,...
                                                             'HorizontalAlignment', 'center',...
                                                             'Units', 'normalized',....
-                                                            'Color', obj.colors{ii}/1.5,...
+                                                            'Color', obj.colors{ii}/2,...
                                                             'FontSize', 64,...
                                                             'Visible', defaultvis,...
                                                             'PickableParts', 'none');
@@ -404,7 +404,11 @@ classdef SweepViewer < handle
                             valr = NaN;
 
                             if enabled(ii)
-                                valr = obj.plt{ii}.YData(xi);
+                                if isNone(2)
+                                    valr = obj.plt{ii}.YData(xi);
+                                else
+                                    valr = obj.plt{ii}.XData(xi);
+                                end
                             end
 
                             obj.ptrData(1) = valr;
@@ -446,6 +450,8 @@ classdef SweepViewer < handle
                             ii = x(enabled);
 
                             val = obj.img.CData(yi, xi) * (obj.sp{ii}.M - obj.sp{ii}.m) + obj.sp{ii}.m;
+                            
+                            val
 
                             obj.ptrData(ii) = val;
 
@@ -490,7 +496,21 @@ classdef SweepViewer < handle
                         obj.menus.indMenu.Label = ['Index: [ '    num2str(xi)               ', ' num2str(yi)               ' ]'];
                         obj.menus.pixMenu.Label = ['Pixel: [ '    num2str(xp, 4) ' ' unitsX ', ' num2str(yp, 4) ' ' unitsY ' ]'];
                     otherwise
-                        error(['Display dimension ' num2str(sum(~isNone)) ' not recognized']);
+                        for ii = 1:length(obj.names)
+                            obj.ptrData(1) = NaN;
+                            
+                            if obj.sp{ii}.I > 0
+                                unitsC = obj.s.measurements(obj.sp{ii}.I).unit;
+                            else
+                                unitsC = '~~~~';
+                            end
+                            
+                            obj.menus.ctsMenu(ii).Label = [obj.names{ii} ': ~~~~ ' unitsC];
+                        end
+
+                        obj.menus.posMenu.Label = 'Position: ~~~~ ~~~~';
+                        obj.menus.indMenu.Label = 'Index: ~~~~';
+                        obj.menus.pixMenu.Label = 'Pixel: ~~~~ ~~~~';
                 end
             end
         end
@@ -598,53 +618,70 @@ classdef SweepViewer < handle
             end
         end
         function process(obj)
+            % Gather useful variables.
             [isNone, enabled] = obj.isNoneEnabled();
-
             N = length(obj.sp);
+            index = 1:N;
+            enabledIndex = index(enabled);
+            
+            % Update the positions of prefs.
+            obj.setPtr(3, [NaN, NaN]);  % [NaN, NaN] forces a read of the current position.
 
+            % Process title.
             titledata = '';
-
             for ii = 1:N
                 if enabled(ii)
                     obj.sp{ii}.process();
-%                     label = obj.s.inputs{obj.sp{ii}.I}.get_label();
-%                     titledata = [titledata '\color[rgb]{' num2str(obj.colors{ii} ) '}' label '\color[rgb]{0 0 0}, ']; %#ok<AGROW>
-%                     label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1};
-%                     label = obj.sp{ii}.tab.input.String{obj.sp{ii}.I+1};
-%                     label = obj.s.measurements_{obj.sp{ii}.I}.getLabels();
-%                     obj.s.measurements
-%                     obj.s.measurements{obj.sp{ii}.I}
                     label = obj.s.measurements(obj.sp{ii}.I).get_label();
 
-                    titledata = [titledata sprintf('\\color[rgb]{%f, %f, %f}%s\\color[rgb]{0, 0, 0}, ', obj.colors{ii}, label)]; %#ok<AGROW>
+                    titledata = [titledata sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s\\color[rgb]{0,0,0}, ', obj.colors{ii}, label)]; %#ok<AGROW>
                 end
             end
-
             if any(enabled)
                 title(obj.ax, titledata(1:end-2));  % Remove last ', ' % , 'interpreter', 'latex'
             else
                 title('');
             end
 
-            index = 1:N;
-            enabledIndex = index(enabled);
-
+            % Process text which displays during the 0D and 1D modes.
             textduring1D = false;
-
-            if sum(~isNone) == 0 && any(enabled)    % 0D
-                for ii = enabledIndex
-                    obj.txt{ii}.String = num2str(obj.sp{ii}.processed,3);
-                    obj.txt{ii}.Visible = 'on';
-                end
-            elseif sum(~isNone) ~= 1 || ~textduring1D
+            if  sum(~isNone) > textduring1D   % Turn text off when it is not needed.
                 for ii = index
-                    if ~strcmp(obj.txt{ii}.Visible, 'off')
-                        obj.txt{ii}.Visible = 'off';    % Make more efficient
+                    if strcmp(obj.txt{ii}.Visible, 'on')
+                        obj.txt{ii}.Visible = 'off';
+                    end
+                end
+            elseif any(enabled)    % 0D & 1D
+                jj = 0;
+                M = sum(enabled)-1;
+                for ii = index
+                    if enabled(ii)
+                        if sum(~isNone) == 0
+                            num = obj.sp{ii}.processed;
+                        else
+                            num = NaN;
+%                             num = obj.sp{ii}.processed(min(obj.s.index, numel(obj.sp{ii}.processed)));
+%                             if isnan(num) && obj.s.index > 1
+%                                 num = obj.sp{ii}.processed(min(obj.s.index-1, numel(obj.sp{ii}.processed)));
+%                             end
+                        end
+                        obj.txt{ii}.String = num2str(num,3);
+                        
+                        obj.txt{ii}.Position(2) = .5 + .2*(M/2-jj);
+                        if strcmp(obj.txt{ii}.Visible, 'off')
+                            obj.txt{ii}.Visible = 'on';
+                        end
+                        jj = jj + 1;
+                    else
+                        if strcmp(obj.txt{ii}.Visible, 'on')
+                            obj.txt{ii}.Visible = 'off';
+                        end
                     end
                 end
             end
 
-            if sum(~isNone) == 1 && any(enabled)    % 1D
+            % Process plots which display during 1D mode.
+            if sum(~isNone) == 1 && any(enabled)
                 for ii = index
                     if enabled(ii)
                         if isNone(2)
@@ -656,13 +693,8 @@ classdef SweepViewer < handle
                         end
 
                         obj.plt{ii}.Visible = 'on';
-
-                        if textduring1D
-                            obj.txt{ii}.String = obj.sp{ii}.processed;%#ok
-                            obj.txt{ii}.Visible = 'on';
-                        end
                     else
-                        if ~strcmp(obj.plt{ii}.Visible, 'off')
+                        if strcmp(obj.plt{ii}.Visible, 'on')
                             obj.plt{ii}.Visible = 'off';    % Make more efficient
                         end
                     end
@@ -671,21 +703,22 @@ classdef SweepViewer < handle
                 obj.updateAxes;
             else
                 for ii = index
-                    if ~strcmp(obj.plt{ii}.Visible, 'off')
+                    if strcmp(obj.plt{ii}.Visible, 'on')
                         obj.plt{ii}.Visible = 'off';    % Make more efficient
                     end
                 end
             end
 
-            if sum(~isNone) == 2 && any(enabled)    % 2D
+            % Process images which display during 2D mode.
+            if sum(~isNone) == 2 && any(enabled)
                 alpha_ = ~isnan(obj.sp{enabledIndex(1)}.processed);
 
-                if sum(enabled) == 1 && true  % If grayscale
+                if sum(enabled) == 1    % If grayscale
                     data = repmat( (obj.sp{enabledIndex(1)}.processed - obj.sp{enabledIndex(1)}.m) / (obj.sp{enabledIndex(1)}.M - obj.sp{enabledIndex(1)}.m), [1 1 3]);
 
                     obj.img.CData = data;
                     obj.img.AlphaData = alpha_;
-                else
+                else                    % If color
                     partialpixels = true;
 
                     for ii = enabledIndex(2:end)
@@ -701,7 +734,6 @@ classdef SweepViewer < handle
                     data = NaN([expectedDimensions 3]);
 
                     for ii = enabledIndex(enabledIndex <= 3)
-%                         ii
                         data(:,:,ii) = (obj.sp{ii}.processed - obj.sp{ii}.m) / (obj.sp{ii}.M - obj.sp{ii}.m);
                     end
 
@@ -716,12 +748,10 @@ classdef SweepViewer < handle
 
                 obj.img.Visible = 'on';
             else
-                if ~strcmp(obj.img.Visible, 'off')
+                if strcmp(obj.img.Visible, 'on')
                     obj.img.Visible = 'off';    % Make more efficient
                 end
             end
-
-            obj.setPtr(3, [NaN, NaN]);
         end
 
 		function axeschanged_Callback(obj, src, ~)
@@ -735,15 +765,13 @@ classdef SweepViewer < handle
 			alreadyTaken = obj.axesDisplayed == to & L ~= axis;     %
 
 			axesNew = obj.axesDisplayed;
-
             if to ~= 1                                              % Every display axis except for None cannot be repeated
                 assert(sum(alreadyTaken) < 2)
-                axesNew(alreadyTaken) = obj.axesDisplayed(axis);
+                axesNew(alreadyTaken) = obj.axesDisplayed(axis);    % Thus, if this axis already exists, swap the axis with to.
             end
-
 			axesNew(axis) = to;
 
-            if ~isempty(obj.panel)
+            if ~isempty(obj.panel)                                  % 
                 c = num2cell(axesNew);
                 [obj.panel.axesDisplayed.Value] = c{:};
             end
@@ -757,57 +785,83 @@ classdef SweepViewer < handle
                 for ii = 1:N
                     scan = obj.displayAxesScans{axesNew(ii)};
                     
+                    % Handle axis listeners
                     if ~isempty(obj.listeners.(obj.axesDisplayedNames{ii}))
                         delete(obj.listeners.(obj.axesDisplayedNames{ii}));
                     end
-
                     if ~isa(obj.displayAxesObjects{axesNew(ii)}, 'Prefs.Time') && ~isa(obj.displayAxesObjects{axesNew(ii)}, 'Prefs.Empty')
                         obj.listeners.(obj.axesDisplayedNames{ii}) = obj.displayAxesObjects{axesNew(ii)}.addlistener( 'PostSet', @(s,e)( obj.setPtr(3, [NaN, NaN]) ) );
                     end
 
-                    ds = mean(diff(scan))/2;
-                    
-                    range = [min(scan), max(scan)] + (sum(~isNone) == 2)*ds*[-1 1];
-                    
-                    label = obj.displayAxesObjects{axesNew(ii)}.get_label();
-                    label = strrep(label, '[um]', '[\mum]');
+                    if any(~isNone)
+                        ds = mean(diff(scan))/2;
+                        range = [min(scan), max(scan)] + (sum(~isNone) == 2)*ds*[-1 1];     % Expand the range a bit by ds (half-pixel) to capture the half-pixels on each edge
 
-                    if all(isnan(range))
-%                        range = [0 1];
-%                        label = 'Input Axis TODO'
+                        label = obj.displayAxesObjects{axesNew(ii)}.get_label();
+                        label = strrep(label, '[um]', '[\mum]');
 
-%                         range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
-                        range = [NaN NaN];
-                        for jj = 1:length(obj.sp)
-                            if enabled(jj)
-                                range(1) = min(range(1), obj.sp{jj}.m);
-                                range(2) = max(range(2), obj.sp{jj}.M);
+                        if all(isnan(range))
+    %                        range = [0 1];
+    %                        label = 'Input Axis TODO'
+
+    %                         range = [obj.sp{1}.m obj.sp{1}.M];                  % Fix RGB!
+                            range = [NaN NaN];
+                            for jj = 1:length(obj.sp)
+                                if enabled(jj)
+                                    range(1) = min(range(1), obj.sp{jj}.m);
+                                    range(2) = max(range(2), obj.sp{jj}.M);
+                                end
                             end
-                        end
-                        
-                        if isnan(range)
-                            range = [0 1];
-                        else
-                            range = range + .05*diff(range)*[-1 1];
-                        end
-                        
-                        label = obj.sp{1}.tab.input.String{obj.sp{1}.I+1}; %'Filler' %obj.s.inputs{obj.sp{1}.I}.get_label();
-                    end
-                    
-                    if diff(range) == 0
-                        range = range + [-1 1];
-                    end
 
+                            if isnan(range)
+                                range = [0 1];
+                            else
+                                range = range + .05*diff(range)*[-1 1];
+                            end
+
+                            label = obj.sp{1}.tab.input.String{obj.sp{1}.I+1}; %'Filler' %obj.s.inputs{obj.sp{1}.I}.get_label();
+                        end
+                    
+                        if diff(range) == 0
+                            range = range + [-1 1];
+                        end
+                        ticks = true;
+                    else
+                        range = [0 1];
+                        label = '';
+                        ticks = false;
+                    end
+                        
                     switch ii
                         case 1
-                            xlim(obj.ax, range)
-                            xlabel(obj.ax, label)
+                            xlim(obj.ax, range);
+                            xlabel(obj.ax, label);
                         case 2
-                            ylim(obj.ax, range)
-                            ylabel(obj.ax, label)
+                            ylim(obj.ax, range);
+                            ylabel(obj.ax, label);
                         case 3
-                            zlim(obj.ax, range)
-                            zlabel(obj.ax, label)
+                            zlim(obj.ax, range);
+                            zlabel(obj.ax, label);
+                    end
+                    
+                    if ticks
+                        switch ii
+                            case 1
+                                obj.ax.XTickLabelMode = 'auto';
+                            case 2
+                                obj.ax.YTickLabelMode = 'auto';
+                            case 3
+                                obj.ax.ZTickLabelMode = 'auto';
+                        end
+                    else
+                        switch ii
+                            case 1
+                                obj.ax.XTickLabel = [];
+                            case 2
+                                obj.ax.YTickLabel = [];
+                            case 3
+                                obj.ax.ZTickLabel = [];
+                        end
                     end
                 end
             end

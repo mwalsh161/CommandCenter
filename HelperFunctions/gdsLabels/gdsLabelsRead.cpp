@@ -130,7 +130,7 @@ public:
         int i = 0;
         
         
-        while (going && i < 20) {
+        while (going) {
             i += 1;
             
             fread(&header, sizeof(uint32_t), 1, f);
@@ -143,11 +143,11 @@ public:
             
             uint16_t rt =           (header & 0x0000FFFF);              // The record and the token.
             
-            char str3[128];
-            
-            sprintf(str3, "Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
-
-            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
+//             char str3[128];
+//             
+//             sprintf(str3, "Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
+// 
+//             matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
             
             if (token == 0 && length > 0) {
                 throw std::runtime_error("DEVICE::importGDS(std::string): Header says that we should not expect data, but gives non-zero length");
@@ -178,9 +178,9 @@ public:
                 buffer = malloc(bufsize);
             }
             
-            sprintf(str3, "Length = %i, size = %i, count = %i\n", length, size, length/size);
-
-            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
+//             sprintf(str3, "Length = %i, size = %i, count = %i\n", length, size, length/size);
+// 
+//             matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
 
             if (length) { fread(buffer, size, length/size, f); }
             

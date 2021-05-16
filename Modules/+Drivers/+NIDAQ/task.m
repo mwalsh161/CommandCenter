@@ -74,11 +74,15 @@ classdef task < handle
             obj.LibraryFunction('DAQmxClearTask',obj);
             % Clean up any counters if necessary
             for i = 1:numel(obj.lines)
-                line = obj.lines{i};
-                if length(line.line)>3
-                    if sum(strcmpi(line.line(end-3:end),obj.dev.Counters))
-                        obj.dev.returnCtr(line)
+                try
+                    line = obj.lines{i};
+                    if length(line.line)>3
+                        if sum(strcmpi(line.line(end-3:end),obj.dev.Counters))
+                            obj.dev.returnCtr(line)
+                        end
                     end
+                catch
+                    
                 end
             end
             if obj.dev.CurrentTask == obj
@@ -380,10 +384,12 @@ classdef task < handle
                 mode = obj.dev.DAQmx_Val_FiniteSamps;
             end
             
+            ctrLine
+            
             % Find an open ctr, if there is one
             ctr = obj.dev.getAvailCtr;
             obj.CreateChannels('DAQmxCreateCICountEdgesChan',ctr,'', obj.dev.DAQmx_Val_Rising,0, obj.dev.DAQmx_Val_CountUp);
-            obj.LibraryFunction('DAQmxSetCICountEdgesTerm',obj,ctr,ctrLine);
+            obj.LibraryFunction('DAQmxSetCICountEdgesTerm',obj,ctr,ctrLine.line);
             % Route the output terminal to the PhysicalLine Spec'd in the Configuration
             obj.LibraryFunction('DAQmxCfgSampClkTiming',obj, clkLine.line,Freq, obj.dev.DAQmx_Val_Rising,mode,NSamples);
             obj.clock = struct('src',clkLine,'freq','ext');

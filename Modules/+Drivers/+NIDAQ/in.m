@@ -85,6 +85,16 @@ classdef in < handle & Base.Measurement
                 case 'counter'
             end
         end
+        function str = encodeReadable(obj, isHTML, isSimple)
+            if nargin < 2
+                isHTML = false;
+            end
+            if nargin < 3
+                isSimple = false;
+            end
+            
+            str = obj.dev.encodeReadable(isHTML, isSimple);
+        end
     end
     methods (Access=private)
         function val = measureCounter(obj, dwell)
