@@ -131,7 +131,7 @@ public:
         int j = 0;
         
         
-        while (going) { //  && i < 20
+        while (going) {
             i += 1;
             
             fread(&header, sizeof(uint32_t), 1, f);

@@ -42,6 +42,10 @@ classdef APT < handle
         
         %Prevent accidental closing
         function closeRequest(obj,varargin)
+            if ~isempty(obj.figureHandle)
+                obj.figureHandle.Visible = 'off';
+            end
+            
             if isempty(obj.progID)
                 delete(obj.figureHandle)
             end
@@ -111,7 +115,7 @@ classdef APT < handle
             end
 
             % give the figure a Tag associated with the SN so we can find it later!
-            set(figureHandle,'Visible','off','Tag',[progID,num2str(serialNum)],...
+            set(figureHandle,'Visible','on','Tag',[progID,num2str(serialNum)],...
                 'CloseRequestFcn',@obj.closeRequest);
 
             % Initiate the activeX control

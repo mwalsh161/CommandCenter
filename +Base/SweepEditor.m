@@ -261,7 +261,7 @@ classdef SweepEditor < handle
                             'shouldReturnToInitial',    obj.gui.returnToInitial.Value,...
                             'shouldSetInitialOnReset',  true);
             
-            sweep = Base.Sweep(obj.measurements, obj.prefs(end:-1:1), scans(end:-1:1), flags);
+            sweep = Base.Sweep(obj.measurements, obj.prefs(end:-1:1), scans(end:-1:1), flags, str2double(obj.gui.timePoint.String));
             
 %             d = sweep.blank()
 %             whos d
