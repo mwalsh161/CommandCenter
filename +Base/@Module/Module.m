@@ -43,9 +43,12 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
     
     properties(SetAccess=private, Hidden)   % Pref storage variables.
         prop_listeners              % Keep track of preferences in the GUI to keep updated
-        temp_prop = struct();
         ls = struct(); % internal listeners
         external_ls;   % external listeners (addpreflistener)
+        
+%         props = struct();
+        
+        temp_prop = struct();
         implicit_mps = struct(); % When settings are made, all implicit ("old-style") meta props will go here
     end
     
@@ -615,15 +618,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             %
             % Saves any property in the obj.pref cell array
             
-            'here'
-            
             % if namespace isn't set, means error in constructor
             if isempty(obj.namespace)
                 return
             end
             assert(ischar(obj.namespace),'Namespace must be a string!')
-            
-            'there'
             
             if isprop(obj,'prefs')
                 for i = 1:numel(obj.prefs) %#ok<*MCNPN>

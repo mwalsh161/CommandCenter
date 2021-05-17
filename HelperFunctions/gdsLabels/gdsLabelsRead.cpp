@@ -128,9 +128,10 @@ public:
 //         matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar("Got to while") }));
 
         int i = 0;
+        int j = 0;
         
         
-        while (going && i < 20) {
+        while (going) { //  && i < 20
             i += 1;
             
             fread(&header, sizeof(uint32_t), 1, f);
@@ -143,11 +144,13 @@ public:
             
             uint16_t rt =           (header & 0x0000FFFF);              // The record and the token.
             
-            char str3[128];
+            bool isDuplicate = false;
             
-            sprintf(str3, "Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
+            // char str3[128];
+            
+            // sprintf(str3, "Head = 0x%X, Record = 0x%X, Token = 0x%X, Length = 0x%X = %i\n", header, record, token, length, length);
 
-            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
+            // matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
             
             if (token == 0 && length > 0) {
                 throw std::runtime_error("DEVICE::importGDS(std::string): Header says that we should not expect data, but gives non-zero length");
@@ -178,9 +181,9 @@ public:
                 buffer = malloc(bufsize);
             }
             
-            sprintf(str3, "Length = %i, size = %i, count = %i\n", length, size, length/size);
+            // sprintf(str3, "Length = %i, size = %i, count = %i\n", length, size, length/size);
 
-            matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
+            // matlabPtr->feval(u"warning", 0, std::vector<Array>({ factory.createScalar(str3) }));
 
             if (length) { fread(buffer, size, length/size, f); }
             
@@ -254,12 +257,24 @@ public:
                     if (isText) {
                         str = std::string( (char*)buffer, length );
 
-                        if (expression.size() == 0 || (expression.size() == 1 && str[0] == expression[0]) || std::regex_match(str, std::regex(expression))) {
-                            text.push_back(str);
-                            x.push_back(x0);
-                            y.push_back(y0);
-                            l.push_back(l0);
-                            t.push_back(t0);
+                        if (expression.size() == 0 || (expression.size() == 1 && str[0] == expression[0]) || std::regex_search(str, std::regex(expression))) {
+                        
+                            isDuplicate = false;
+
+                            j = 0;
+                            while (j < x.size() && !isDuplicate) {
+                                isDuplicate = (x[j] == x0) && (y[j] == y0) && (l[j] == l0) && (t[j] == t0) && (str == text[j]);
+
+                                j++;
+                            }
+                            
+                            if (!isDuplicate) {
+                                text.push_back(str);
+                                x.push_back(x0);
+                                y.push_back(y0);
+                                l.push_back(l0);
+                                t.push_back(t0);
+                            }
                         }
                     }
                     isText = false;
