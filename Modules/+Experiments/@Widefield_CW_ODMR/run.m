@@ -3,7 +3,7 @@ function run( obj,status,managers,ax )
     obj.abort_request = false;
     status.String = 'Experiment started';
     drawnow;
-
+    
     % Make sure all prefs (except for pixel of interest) are non-empty
     for i = 1:length(obj.prefs)
         if ~contains(obj.prefs{i},'Pixel_of_Interest')
