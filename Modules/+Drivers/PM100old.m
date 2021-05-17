@@ -1,21 +1,11 @@
 classdef PM100 < Modules.Driver
     % Interface to Thorlabs PM100 power meter
+    % Inspired from code by: Michael Walsh (mpwalsh@mit.edu) 2014
     
-    properties(GetObservable, SetObservable)
-        idn         = Prefs.String('', 'readonly', true, 'help_text', 'Identifier for the powermeter.');
-        
-        wavelength  = Prefs.Double(NaN, 'allow_nan', true, 'unit', 'nm', 'set', 'set_wavelength',               'help_text', 'Calibration wavelength to account for the gain spectrum of the powermeter.');
-        freq        = Prefs.Double(NaN, 'allow_nan', true, 'unit', 'Hz', 'set', 'set_measure_frequency',        'help_text', 'Frequency of measurement.');
-        averages    = Prefs.Double(NaN, 'allow_nan', true, 'unit', '#',  'set', 'set_average_count',            'help_text', 'Number of measurements to average per returned reading.');
-        
-        power       = Prefs.Double(NaN, 'allow_nan', true, 'unit', 'mW', 'get', 'get_power', 'readonly', true,  'help_text', 'Last reading.');
-        measure     = Prefs.Button('Poll Powermeter', 'set', 'set_refresh', 'help_text', 'Poll the powermeter for a new reading.');
-        
-    end
-    
-    properties(Access=private, Hidden)
+    properties
         channel;
         id;
+        unit_status = 'MW';
     end
     
     methods(Access=private)
@@ -35,13 +25,6 @@ classdef PM100 < Modules.Driver
 %             id = findInstrument('0x8072'); % model number for the PM100
             id = findInstrument('0x8076'); % model number for the PM100
             obj.channel = visa('ni', id);
-            
-            obj.command('SENS:POW:UNIT W');     % Make sure that we are measuring power.
-            
-            obj.idn =           obj.get_idn;
-            obj.wavelength =    obj.get_wavelength;
-            obj.freq =          obj.get_measure_frequency;
-            obj.averages =      obj.get_average_count;
         end
         
     end
@@ -58,6 +41,7 @@ classdef PM100 < Modules.Driver
     end
     
     methods
+        
         function delete(obj)
             if strcmp(obj.channel.status,'open')
                 fclose(obj.channel);
@@ -71,41 +55,52 @@ classdef PM100 < Modules.Driver
         function out = query(obj, msg)
             out = obj.communicate(msg,true);
         end
-        
         function out = get_idn(obj)
             out = obj.query('*IDN?');
         end
         
-        function wavelength = set_wavelength(obj, wavelength, ~)
+        function set_wavelength(obj,wavelength)
             obj.command(sprintf('CORR:WAV %f',wavelength))
-            wavelength = obj.get_wavelength();
         end
         function out = get_wavelength(obj)
             out = obj.query('CORR:WAV?');
-            out = str2double(out);
+            out = str2num(out);
         end
         
-        function freq = set_measure_frequency(obj, freq, ~)
+        function set_measure_frequency(obj,freq)
             obj.command(sprintf('FREQ:RANGE %f',freq));
-            freq = obj.get_measure_frequency();
         end
-        function out = get_measure_frequency(obj)
+        function get_measure_frequency(obj)
             out = obj.query('FREQ:RANGE?');
-            out = str2double(out);
+            out = str2num(out);
         end
         
-        function count = set_average_count(obj, count, ~)
+        function set_average_count(obj,count)
             obj.command(sprintf('AVER:COUN %i',count));
-            count = obj.set_average_count();
         end
         function out = get_average_count(obj)
             out = obj.query('AVER:COUN');
-            out = str2double(out);
+            out = str2num(out);
         end
         
-        function out = get_power(obj, ~)
+        function out = get_power(obj, units)
+            if ~strcmp(obj.unit_status, units)
+                if strcmp(units, 'DBM')
+                    obj.command('SENS:POW:UNIT DBM');
+                    obj.unit_status = 'DBM';
+                elseif strcmp(units, 'MW')
+                    obj.command('SENS:POW:UNIT W');
+                    obj.unit_status = 'MW';
+                else
+                    error('PM100 get_power needs valid units "MW" or "DBM"');
+                end
+            end
+            
             out = obj.query('MEAS:POW?');
-            out = str2double(out) * 1e3;   % Convert from watts to milliwatts.
+            out = str2num(out);
+            if strcmp(units, 'MW')
+                out = out * 1e3;
+            end
         end
     end
     
