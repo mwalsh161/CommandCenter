@@ -13,6 +13,9 @@ classdef Zeitgeist < Base.Module
             end
             singleton = local;
         end
+        function t = time
+            t = Prefs.Time;
+        end
     end
     
     methods (Access=private)

@@ -9,13 +9,14 @@ classdef PM100 < Modules.Driver
         averages    = Prefs.Double(NaN, 'allow_nan', true, 'unit', '#',  'set', 'set_average_count',            'help_text', 'Number of measurements to average per returned reading.');
         
         power       = Prefs.Double(NaN, 'allow_nan', true, 'unit', 'mW', 'get', 'get_power', 'readonly', true,  'help_text', 'Last reading.');
-        measure     = Prefs.Button('Poll Powermeter', 'set', 'set_refresh', 'help_text', 'Poll the powermeter for a new reading.');
+        refresh     = Prefs.Button('Poll Powermeter', 'set', 'set_refresh', 'help_text', 'Poll the powermeter for a new reading.');
         
     end
     
-    properties(Access=private, Hidden)
+    properties %(Access=private, Hidden)
         channel;
         id;
+        timeout = .1;
     end
     
     methods(Access=private)
@@ -32,16 +33,21 @@ classdef PM100 < Modules.Driver
         end
         
         function obj = PM100(varargin)
-%             id = findInstrument('0x8072'); % model number for the PM100
-            id = findInstrument('0x8076'); % model number for the PM100
-            obj.channel = visa('ni', id);
+            obj.id = findInstrument('0x8072'); % model number for the PM100
+%             obj.id = findInstrument('0x8076'); % model number for the PM100
+            obj.id
+            obj.channel = visa('ni', obj.id);
+            obj.channel.Timeout = obj.timeout;
+            obj.channel
             
             obj.command('SENS:POW:UNIT W');     % Make sure that we are measuring power.
             
             obj.idn =           obj.get_idn;
             obj.wavelength =    obj.get_wavelength;
             obj.freq =          obj.get_measure_frequency;
+            c = obj.get_average_count
             obj.averages =      obj.get_average_count;
+            obj.power =         obj.get_power();
         end
         
     end
@@ -59,7 +65,7 @@ classdef PM100 < Modules.Driver
     
     methods
         function delete(obj)
-            if strcmp(obj.channel.status,'open')
+            if ~isempty(obj.channel) && isvalid(obj.channel) && strcmp(obj.channel.status,'open')
                 fclose(obj.channel);
             end
             delete(obj.channel)
@@ -72,15 +78,15 @@ classdef PM100 < Modules.Driver
             out = obj.communicate(msg,true);
         end
         
-        function out = get_idn(obj)
-            out = obj.query('*IDN?');
+        function out = get_idn(obj, ~)
+            out = strtrim(obj.query('*IDN?'));
         end
         
         function wavelength = set_wavelength(obj, wavelength, ~)
             obj.command(sprintf('CORR:WAV %f',wavelength))
             wavelength = obj.get_wavelength();
         end
-        function out = get_wavelength(obj)
+        function out = get_wavelength(obj, ~)
             out = obj.query('CORR:WAV?');
             out = str2double(out);
         end
@@ -89,23 +95,27 @@ classdef PM100 < Modules.Driver
             obj.command(sprintf('FREQ:RANGE %f',freq));
             freq = obj.get_measure_frequency();
         end
-        function out = get_measure_frequency(obj)
+        function out = get_measure_frequency(obj, ~)
             out = obj.query('FREQ:RANGE?');
             out = str2double(out);
         end
         
         function count = set_average_count(obj, count, ~)
             obj.command(sprintf('AVER:COUN %i',count));
-            count = obj.set_average_count();
+            count = obj.get_average_count();
         end
-        function out = get_average_count(obj)
-            out = obj.query('AVER:COUN');
+        function out = get_average_count(obj, ~)
+            out = obj.query('AVER:COUN?');
             out = str2double(out);
         end
         
         function out = get_power(obj, ~)
             out = obj.query('MEAS:POW?');
             out = str2double(out) * 1e3;   % Convert from watts to milliwatts.
+        end
+        
+        function val = set_refresh(obj, val, ~)
+            obj.power = obj.get_power();
         end
     end
     

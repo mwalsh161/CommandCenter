@@ -286,17 +286,13 @@ classdef Sweep < handle & Base.Measurement
                 end
             else
                 obj.setupNIDAQ();
-                pause(1)
                 for ii = 1:length(obj.NIDAQ.out.tasks)
                     obj.NIDAQ.out.tasks{ii}.Start;
                 end
-                pause(1)
                 for ii = 1:length(obj.NIDAQ.in.tasks)
                     obj.NIDAQ.in.tasks{ii}.Start;
                 end
-                pause(1)
                 obj.NIDAQ.pulseTrain.Start;
-                pause(1)
                 
                 going = true;
                 sd = obj.subdata;

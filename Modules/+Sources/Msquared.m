@@ -312,6 +312,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function host= set_hwserver_host(obj, host, ~)
             try
                 obj.hwserver = hwserver(host); %#ok<CPROPLC>
+                obj.hwserver.get_modules();
                 
                 % Update laser list. (This piece of code was breaking due to update_settings trying to update hwserver_host, which is in use. Instead hardcode moduleName options.)
 %                 opts = obj.hwserver.get_modules('msquared.');
@@ -327,6 +328,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 %                     notify(obj,'update_settings');
 %                 end
             catch
+                obj.hwserver = [];
                 host = Sources.Msquared.no_server;
                 obj.active_module = host;
                 obj.status = host;
