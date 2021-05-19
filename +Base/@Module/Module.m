@@ -693,7 +693,6 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 
                 if ispref(obj.namespace,prefs{i})   % If we have data saved to set the pref to...
                     data = getpref(obj.namespace,prefs{i});     % ...Grab that data...
-%                     data
                     try
 %                         mp = findprop(obj,prefs{i});
                         mp = obj.get_meta_pref(prefs{i});
