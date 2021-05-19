@@ -14,8 +14,8 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
     properties(GetObservable,SetObservable)
         Position =  Prefs.Double(NaN,  'set', 'set_position', 'get', 'get_position', 'allow_nan', true);
         
-        Moving =    Prefs.Boolean(NaN, 'get', 'get_moving', 'readonly', true, 'allow_nan', true);
-        Homed =     Prefs.Boolean(NaN, 'get', 'get_homed',  'readonly', true, 'allow_nan', true);
+        Moving =    false; % Prefs.Boolean(NaN, 'get', 'get_moving', 'readonly', true, 'allow_nan', true);
+        Homed =     false; % Prefs.Boolean(NaN, 'get', 'get_homed',  'readonly', true, 'allow_nan', true);
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Flag to determine moving

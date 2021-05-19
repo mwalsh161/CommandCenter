@@ -262,7 +262,7 @@ classdef metastage < handle % Modules.Driver
                 end
 
                 positions = 0:10;
-                base = pref.read();
+                base = pref.read()
                 Vs = NaN(2, length(positions));
                 kk = 1;
                 
