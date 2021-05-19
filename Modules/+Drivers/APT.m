@@ -16,7 +16,7 @@ classdef APT < handle
         %Serial number to identify the device.  Get from APT User
         serialNum
     end
-    properties(Access=private)
+    properties
         %The handle to the ActiveX control 
         controlHandle
     end
@@ -67,7 +67,7 @@ classdef APT < handle
             end
         end
     end
-    methods(Access=protected)
+    methods
         %Method to issue library function to private controlHandle
         function varargout = LibraryFunction(obj,FunctionName,varargin)
             % determine how many outputs there should be for the function

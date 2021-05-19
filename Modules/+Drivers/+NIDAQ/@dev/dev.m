@@ -519,7 +519,10 @@ classdef dev < Modules.Driver
         function ClearAllTasks(obj)
             tasks = obj.Tasks;
             for i = 1:numel(tasks)
-                tasks(i).Clear;
+                if isvalid(tasks(i))
+                    tasks(i).Clear;
+                end
+                delete(tasks(i))
             end
         end
 
@@ -655,16 +658,13 @@ classdef dev < Modules.Driver
 
             % Equivalent to try catch finally statement:
             err = NaN;
-            task
             try
                 task.CreateChannels('DAQmxCreateAOVoltageChan',lines,[],MinVal, MaxVal,obj.DAQmx_Val_Volts ,[]);
                 task.Start
                 task.LibraryFunction('DAQmxWriteAnalogF64',task, 1,1, obj.WriteTimeout,obj.DAQmx_Val_GroupByChannel, values,[],[]);
             catch err
             end
-            task
             task.Clear
-            task
             if isa(err,'MException'); rethrow(err); end
             for i=1:numel(lines)
                 lines(i).state = values(i);

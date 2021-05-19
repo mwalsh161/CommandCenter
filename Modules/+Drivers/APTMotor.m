@@ -12,14 +12,17 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
         name
     end
     properties(GetObservable,SetObservable)
-        Position =  Prefs.Double(NaN, 'set', 'set_position', 'get', 'get_position', 'allow_nan', true);
+        Position =  Prefs.Double(NaN,  'set', 'set_position', 'get', 'get_position', 'allow_nan', true);
+        
+        Moving =    false; % Prefs.Boolean(NaN, 'get', 'get_moving', 'readonly', true, 'allow_nan', true);
+        Homed =     false; % Prefs.Boolean(NaN, 'get', 'get_homed',  'readonly', true, 'allow_nan', true);
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Flag to determine moving
         %   See WAITFOR
-        Moving = false;
-%         Position           % Current Position. 0 corresponds to mean(Travel)
-        Homed              % Flag specifying home status
+%         Moving = false;
+% %         Position           % Current Position. 0 corresponds to mean(Travel)
+%         Homed              % Flag specifying home status
         Travel             % Restrictions on the travel distance. 2x1 vector
     end
     properties(Access=private)
@@ -62,10 +65,15 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
         % Constructor should only be called by instance()
         function obj = APTMotor(serialNum,name,travel)
             obj.initialize('MGMOTOR.MGMotorCtrl.1',serialNum)
+            
             obj.name = name;
+            
             validateattributes( travel, {'numeric'}, {'vector', 'numel',2,'nonnan'} );
             travel = sort(travel);
             obj.Travel = travel;
+            
+            obj.Homed =  obj.get_homed;
+            obj.Moving = obj.get_moving;
         end
         
         %Method to handle ActiveX events
@@ -100,6 +108,12 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             try
                 obj.LibraryFunction('SaveParamSet',mfilename);
             end
+            try
+                delete(obj.controlHandle)
+            end
+            try
+                delete(obj.figureHandle)
+            end
         end
         
         % Method to display settings dialog
@@ -107,54 +121,33 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             obj.LibraryFunction('ShowSettingsDlg');
         end
         
-        function val = set_position(obj,val,pref)
-            if ~obj.Moving && obj.Homed
-                obj.move(val);
-            end
-        end
-        function val = get_position(obj,pref)
-            val = obj.read();
-        end
-        
-%         function curPos = get.Position(obj)
-        function curPos = read(obj)
-            % This will get used alot, so it is nice to add some
-            % intelligence so we only poll the expensive LibraryFunction
-            % if we have to.
-           if obj.newPosition
-               [~,curPos] = obj.LibraryFunction('GetPosition',0,0);
-               obj.lastPosition = curPos;
-           else
-               curPos = obj.lastPosition;
-           end
-           obj.newPosition = obj.Moving;
-        end
-        
-        %Method to identify the device
-        function identify(obj)
-            obj.LibraryFunction('Identify');
-        end
-        
-        %Method to enable motor drive
-        function enable(obj)
+        function enable(obj)    % Enable motor drive. This locks the stepper.
             obj.LibraryFunction('EnableHWChannel',0);
         end
-        
-        %Method to disable motor drive (allows to turn by hand)
-        %   Assume home is lost
-        function disable(obj)
+        function disable(obj)   % Method to disable motor drive (allows to turn by hand). Assume home is lost.
             obj.LibraryFunction('DisableHWChannel',0);
             obj.Homed = false;
         end
         
-        %Method to home/zero the motor
-        function home(obj)
-            %Reset the flag
-            obj.Homed = 0;
-            %Send the command
-            obj.Moving = true;
-            obj.newPosition = true;
-            obj.LibraryFunction('MoveHome',0,0);
+        function val = set_position(obj,val,~)
+            if ~obj.Moving && obj.Homed
+                obj.move(val);
+            end
+        end
+        function val = get_position(obj,~)
+            % This will get used alot, so it is nice to add some
+            % intelligence so we only poll the expensive LibraryFunction
+            % if we have to.
+           if obj.newPosition
+               [~,val] = obj.LibraryFunction('GetPosition',0,0);
+               obj.lastPosition = val;
+           else
+               val = obj.lastPosition;
+           end
+           obj.newPosition = obj.Moving;
+        end
+        function val = read(obj)
+            val = obj.get_position();
         end
 
         %Method to move the motor by a jog
@@ -197,15 +190,7 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             end
         end
         
-        function setVelParams(obj,accelMax,velMax)
-            obj.LibraryFunction('SetVelParams',0,0,accelMax,velMax);
-        end
-        function [accelMax,velMax] = getVelParams(obj)
-            [~,~,accelMax,velMax] = obj.LibraryFunction('GetVelParams',0,0,0,0);
-        end
-
-        %Method to try and stop the motor
-        function abort(obj,immediate)
+        function abort(obj,immediate)       % Method to try and stop the motor
             obj.Moving = obj.isMoving;  % Just in case we missed an activeX listener callback somehow
             obj.LibraryFunction('StopProfiled',0); % Motor is still tracked
             if nargin > 1 && immediate
@@ -214,30 +199,49 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             end
         end
         
-        %Method to test if motor moving
-        function tf = isMoving(obj)
-            tf = obj.getStatus(obj.MOVING_COUNTERCLOCKWISE);
-            tf = tf||obj.getStatus(obj.MOVING_CLOCKWISE);
+        function setVelParams(obj,accelMax,velMax)
+            obj.LibraryFunction('SetVelParams',0,0,accelMax,velMax);
+        end
+        function [accelMax,velMax] = getVelParams(obj)
+            [~,~,accelMax,velMax] = obj.LibraryFunction('GetVelParams',0,0,0,0);
         end
         
+        function val = get_moving(obj,~)
+            val = obj.isMoving();
+        end
+        function tf = isMoving(obj)         % Method to test if motor moving
+            tf = obj.getStatus(obj.MOVING_COUNTERCLOCKWISE) || obj.getStatus(obj.MOVING_CLOCKWISE);
+        end
+        
+        function home(obj)                  % Method to home/zero the motor
+            %Reset the flag
+            obj.Homed = 0;
+            %Send the command
+            obj.Moving = true;
+            obj.newPosition = true;
+            obj.LibraryFunction('MoveHome',0,0);
+        end
+        function val = get_homed(obj,~)
+            val = obj.getStatus(obj.HOMED);
+        end
     end
     
     methods (Access = protected)
-        % Called by initialize (after APT class is constructed)
-        function subInit(obj)
+        function subInit(obj)               % Called by initialize (after APT class is constructed)
             try
                 obj.LibraryFunction('LoadParamSet',mfilename);
             catch err
                 warning(err.message)
             end
             obj.enable;
-            obj.identify;
+            obj.LibraryFunction('Identify');
             
             %Register an eventHandler for all APT events
             obj.registerAPTevent(@obj.eventHandler)
 
             %Check the home status from the status bits
-            obj.Homed = obj.getStatus(obj.HOMED);
+            obj.Homed =     obj.get_homed();
+            obj.Moving =    obj.get_moving();
             
             % Set jog mode to be steps not continuous (no joy stick)
             obj.LibraryFunction('SetJogMode',0,2,1);

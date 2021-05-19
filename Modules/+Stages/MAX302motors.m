@@ -44,7 +44,9 @@ classdef MAX302motors < Modules.Stage
     end
     methods(Access=private)
         function obj = MAX302motors()
+            '1'
             obj.loadPrefs;
+            '2'
         end
     end
     % Callback functions for APTMotor
@@ -174,8 +176,13 @@ classdef MAX302motors < Modules.Stage
         
         % Motor construction callbacks
         function setMotor(obj,val,axis)
-            val = str2double(val);
-            assert(~isnan(val),'Motor SN must be a valid number.')
+            val
+            axis
+            
+            if ischar(val)
+                val = str2double(val);
+            end
+            assert(~isnan(val), 'Motor SN must be a valid number.')
             if val == 0
                 return % Short circuit
             end
@@ -210,28 +217,34 @@ classdef MAX302motors < Modules.Stage
             try
                 obj.setMotor(val,1); %#ok<*MCSUP>
                 obj.X_Motor = val;
+                obj.get_homed();
             catch err
                 obj.X_Motor = '0';
-                rethrow(err)
             end
         end
         function set.Y_Motor(obj,val)
             try
                 obj.setMotor(val,2);
                 obj.Y_Motor = val;
+                obj.get_homed();
             catch err
                 obj.Y_Motor = '0';
-                rethrow(err)
             end
         end
         function set.Z_Motor(obj,val)
             try
                 obj.setMotor(val,3);
                 obj.Z_Motor = val;
+                obj.get_homed();
             catch err
                 obj.Z_Motor = '0';
-                rethrow(err)
             end
+        end
+        function tf = get_homed(obj)
+            try
+                obj.Homed = obj.X_Motor.Homed && obj.Y_Motor.Homed && obj.Z_Motor.Homed;
+            end 
+            tf = obj.Homed;
         end
     end
 end
