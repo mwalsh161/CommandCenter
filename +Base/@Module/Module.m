@@ -91,7 +91,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
                     
                     if isempty(obj.(prop.Name).name)
-                        obj.(prop.Name).name = prop.Name;
+                        obj.(prop.Name).name = strrep(prop.Name, '_', ' ');
                     end
                     
                     % Add listeners to get and set so we can swap the value
@@ -849,12 +849,14 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
             try
                 new_val.getEvent = strcmp(event.EventName,'PostGet');
-                new_val.value = obj.(prop.Name); % validation occurs here
+%                 new_val.value = obj.(prop.Name); % validation occurs here
+                new_val.value = new_val.set_value(obj.(prop.Name)); % validation occurs here
                 new_val.getEvent = false;
                 obj.execute_external_ls(prop,event); % Execute any external listeners
                 if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
                     % This should now be interpreted as a set event
-                    new_val.value = obj.(prop.Name); % validation occurs here
+%                     new_val.value = obj.(prop.Name); % validation occurs here
+                    new_val.value = new_val.set_value(obj.(prop.Name)); % validation occurs here
                 end
             catch err
             end
@@ -909,14 +911,16 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 %             new_val
             try
                 new_val.getEvent = false;
-                new_val.value = obj.(prop.Name); % validation occurs here
+%                 new_val.value = obj.(prop.Name); % validation occurs here
+                new_val.value = new_val.set_value(obj.(prop.Name)); % validation occurs here
                 new_val.getEvent = false;
 
                 obj.execute_external_ls(prop,event); % Execute any external listeners
                 
                 if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
                     % This should now be interpreted as a set event
-                    new_val.value = obj.(prop.Name); % validation occurs here
+%                     new_val.value = obj.(prop.Name); % validation occurs here
+                    new_val.value = new_val.set_value(obj.(prop.Name)); % validation occurs here
                 end
             catch err
             end
@@ -951,7 +955,8 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             
             % Stash prop
             obj.temp_prop.(prop.Name) = obj.(prop.Name);
-            obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
+%             obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
+            obj.(prop.Name) = obj.temp_prop.(prop.Name).get_value(obj.temp_prop.(prop.Name).value);
             % Execute any external listeners
             obj.execute_external_ls(prop,event);
 %             obj.prop_listener_ctrl(prop.Name,true);
@@ -959,6 +964,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             % Update the class-pref and re-engage listeners
             % Note if the above try block failed; this is still the old value
             obj.(prop.Name) =  obj.temp_prop.(prop.Name);
+%             val =  obj.temp_prop.(prop.Name).value;
             val =  obj.temp_prop.(prop.Name).value;
             obj.prop_listener_ctrl(prop.Name,true);
             if exist('err','var')

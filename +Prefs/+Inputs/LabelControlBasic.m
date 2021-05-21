@@ -53,8 +53,6 @@ classdef LabelControlBasic < Base.Input
             height_px = obj.ui.Position(4);
         end
         function link_callback(obj,callback)
-            obj
-            obj.ui
             obj.ui.Callback = callback;
         end
         function adjust_UI(obj,suggested_label_width_px,margin_px)

@@ -22,7 +22,7 @@ classdef TunableLaser_invisible < handle
         setpoint = Prefs.Double(NaN,'readonly',true,'unit','THz');
     end
     properties(SetObservable,GetObservable)
-        locked = Prefs.Boolean(false,'readonly',true);
+        locked = Prefs.Boolean(false,'readonly',true,'allow_nan',true);
     end
     properties(Abstract,SetAccess=protected)
         range

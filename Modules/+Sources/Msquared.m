@@ -6,6 +6,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         PulseBlaster = [];      % Handle to the appropriate Drivers.PulseBlaster.
         updatingVal = false;    % Flag to prevent attempting to tune to multiple wavelengths at once.
         output_monitor = 0;     % Output of the SolsTiS photodiode. Used for determining whether the laser is armed.
+        aborted = false;        % Flag to check whether we aborted during a scan.
     end
     
     properties(SetAccess=protected)
@@ -36,8 +37,10 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                                                                     'help_text', 'Which of our two lasers to use.'); % 'Modules will be loaded when a hwserver hostname is supplied.');
         hwserver_host =     Prefs.String(Sources.Msquared.no_server, 'set', 'set_hwserver_host', ...
                                                                     'help_text', 'The host for the laser and wavemeter');
-        refresh =           Prefs.Button('Poll hwserver',       'set', 'set_refresh', ...
+        refresh =           Prefs.Button('unit', 'Poll hwserver',   'get', 'get_refresh', 'set', 'set_refresh', ...
                                                                     'help_text', 'Get information (voltages, wavelengths, states) from the laser and wavemeters');
+        abort =             Prefs.Button('unit', 'Stop Tuning',     'set', 'set_abort', ...
+                                                                    'help_text', 'Stop the current tuning operation.');
         
         % WAVELENGTH prefs
         setpoint_ =         Prefs.Double(NaN,   'unit', 'nm',  'set', 'set_target_wavelength', ...
@@ -131,26 +134,30 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                         reply = obj.hwserver.com(obj.moduleName, fn, varargin{:});
                         return
                     else
-                        error(exception);
+%                         error(exception);
+                        rethrow(err);
                     end
+                else
+                    obj.hwserver_host = obj.no_server;
                 end
-                rethrow(err);
             end
         end
         
         function callGetWavelength(obj)             % Calls the solstis method 'get_wavelength' and fills prefs in.
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver) || isempty(obj.moduleName)
                 obj.status = obj.no_server;
-                obj.tuning = false;
+                obj.tuning = NaN;
 %                 obj.wavelength = NaN;
                 obj.wavelength_lock = NaN;
+                obj.locked = NaN;
             else
                 reply = obj.com('get_wavelength', 'solstis');
                 
                 obj.status = obj.statusList{reply.status+1};
                 obj.tuning = reply.status == 2;
-%                 obj.wavelength = reply.current_wavelength;    % We will preference the wavemeter.
-                obj.wavelength_lock = logical(reply.lock_status);
+%                 obj.wavelength = reply.current_wavelength;            % We prefer to use the wavemeter directly.
+                obj.wavelength_lock =   logical(reply.lock_status);
+                obj.locked =            logical(reply.lock_status);
             end
         end
         function callStatus(obj)                    % Calls the solstis method 'status' and fills prefs in.
@@ -158,15 +165,15 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver) || isempty(obj.moduleName)
                 obj.etalon_lock = NaN;
                 obj.etalon_voltage = NaN;
-%                 obj.resonator_lock = false;
+%                 obj.resonator_lock = false;                           % Future: add this to the interface?
                 obj.resonator_voltage = NaN;
-                obj.output_monitor = 0;
+                obj.output_monitor = NaN;
             else
                 reply = obj.com('status', 'solstis');
                 
                 obj.etalon_lock =       strcmp(reply.etalon_lock,'on');
                 obj.etalon_voltage =    reply.etalon_voltage;
-%                 obj.resonator_lock =    strcmp(reply.cavity_lock,'on');
+%                 obj.resonator_lock =    strcmp(reply.cavity_lock,'on');   % Future: add this to the interface?
                 obj.resonator_voltage = reply.resonator_voltage;
                 obj.output_monitor =    reply.output_monitor;
             end
@@ -194,7 +201,9 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                         end
                     end
                 else
-                    obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 0, 0);
+                    if obj.VIS_channel ~= obj.NIR_channel && ~isnan(obj.VIS_channel)
+                        obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 0, 0);
+                    end
                     obj.VIS_wavelength = NaN;
                 end
             end
@@ -204,6 +213,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     methods     % The meat of this tunable source.
         function tune(obj, target)                  % This is the tuning method that interacts with hardware (target in nm)
             if isnan(target); return; end           % Do nothing if NaN
+            
+            obj.aborted = false;
             
             assert(~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver), 'No hwserver host!')
             
@@ -220,56 +231,64 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if strcmp(module, obj.moduleVIS)
                 obj.emm_setpoint = target;
                 try
-                    out = obj.com('set_wavelength', 'EMM', target, .1); % last arg is timeout
-                
+                    out = obj.com('set_wavelength', 'EMM', target, 0); % last arg is timeout
+
                     if out.status ~= 0
                         error('Failed to set EMM target')
                     end
                 catch
+                    disp('EMM Failure')
                     % expected?
                 end
             else
                 obj.emm_setpoint = NaN;
             end
-            
+
             attempting = true;
             failcount = 0;
-            
+
             while attempting
-                nir_wavelength = obj.determineNIRWavelength(target);
-                obj.solstis_setpoint = nir_wavelength;
-                out = obj.com('set_wavelength', 'solstis', nir_wavelength, 0); % last arg is timeout
-                
-                if out.status ~= 0  % Call failed
+                try
                     failcount = failcount + 1;
-                else
-                    obj.tuning = true;
-                    obj.getFrequency();
-                    
-                    obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency each tick)
-                
-                    if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
+
+                    if failcount > 10
                         attempting = false;
-                    else
-                        detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
-                        out = obj.com('set_wavelength', 'solstis', nir_wavelength + detuning, 0);
-                        
-                        if out.status ~= 0  % Call failed
-                            failcount = failcount + 1;
-                        end
-                        
-                        pause(.5);          % After a little bit, continue with the while loop to tune back.
                     end
-                end
-                
-                if failcount > 10
-                    attempting = false;
+                    
+                    nir_wavelength = obj.determineNIRWavelength(target);
+                    obj.solstis_setpoint = nir_wavelength;
+                    out = obj.com('set_wavelength', 'solstis', nir_wavelength, 0); % last arg is timeout
+
+                    if out.status == 0  % Call success
+                        obj.getFrequency();
+
+                        obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency each tick)
+
+                        if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
+                            attempting = false;
+                        else
+                            detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
+                            out = obj.com('set_wavelength', 'solstis', nir_wavelength + detuning, 0);
+
+                            if out.status ~= 0  % Call failed
+                                failcount = failcount + 1;
+                            end
+
+                            pause(.5);          % After a little bit, continue with the while loop to tune back.
+                        end
+                    end
+                catch
+                    disp('NIR Failure')
                 end
             end
             obj.updatingVal = false;
                 
             if failcount > 10
-                error('Failed to set the SolsTiS wavelength ten times, aborting tuning attempt.')
+                warning('Failed to set the SolsTiS wavelength ten times, aborting tuning attempt.')
+            end
+            
+            if obj.aborted
+                warning('SolsTiS aborted tuning operation.')
             end
             
             % Unlock if desired.
@@ -283,29 +302,39 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             % Update values.
             obj.getFrequency();
             
-            if strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
+            if ~obj.aborted && strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
                 obj.tune(target)    % Try tuning again.
             end
+            
+            obj.aborted = false;
         end
     end
     
     methods     % Pref set methods.
         function val = set_source_on(obj, val, ~)   % 'Fast' modulation method -- usually the PulseBlaster.
-            assert(~isempty(obj.PulseBlaster),'No IP set!')
-            obj.PulseBlaster.lines(obj.PB_line).state = val;
+            if ~isempty(obj.PulseBlaster)
+                obj.PulseBlaster.lines(obj.PB_line).state = val;
+            end
         end
         function val = set_armed(obj, val, ~)       % Checks if the laser is outputting power (i.e. has been armed) and complains if result was contradictory.
-            obj.getFrequency(); 
+            if isnan(val); return; end % Short circuit on NaN
             
-            isarmed = (obj.output_monitor > .01);   % We can tell that the laser is armed if the output monitor is reading power.
+            val = obj.get_armed();
             
-            if val ~= isarmed                       % If we are setting armed to an incorrect value...
-                val = ~val;                         % ...then prevent this incorrect setting...
-                if val                              % And send warning messages.
-                    warndlg(['Request to blackout laser. Laser is on, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser off'], 'Blackout (Sources.Msquared)')
-                else
-                    warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
-                end
+%             if val ~= isarmed                       % If we are setting armed to an incorrect value...
+%                 val = ~val;                         % ...then prevent this incorrect setting...
+%                 if val                              % And send warning messages.
+%                     warndlg(['Request to blackout laser. Laser is on, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser off'], 'Blackout (Sources.Msquared)')
+%                 else
+%                     warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
+%                 end
+%             end
+        end
+        function val = get_armed(obj, ~)
+            if isnan(obj.output_monitor)
+                val = NaN;
+            else
+                val = (obj.output_monitor > .01);       % We can tell that the laser is armed if the output monitor is reading power.
             end
         end
         
@@ -313,6 +342,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             try
                 obj.hwserver = hwserver(host); %#ok<CPROPLC>
                 obj.hwserver.get_modules();
+                obj.getFrequency();
                 
                 % Update laser list. (This piece of code was breaking due to update_settings trying to update hwserver_host, which is in use. Instead hardcode moduleName options.)
 %                 opts = obj.hwserver.get_modules('msquared.');
@@ -329,9 +359,13 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 %                 end
             catch
                 obj.hwserver = [];
-                host = Sources.Msquared.no_server;
+                host = obj.no_server;
                 obj.active_module = host;
                 obj.status = host;
+                obj.armed = NaN;
+                obj.locked = NaN;
+                obj.tuning = NaN;
+                obj.getFrequency();
             end
         end
         function val = set_moduleName(obj,val,~)    % Polls hwserver by calling getFrequency(). Important to do to update settings.
@@ -340,6 +374,27 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         
         function val = set_refresh(obj,val,~)       % Polls hwserver by calling getFrequency().
             obj.getFrequency();
+        end
+        function val = get_refresh(obj,~)           % Polls hwserver by calling getFrequency().
+            val = true;
+            try
+                obj.getFrequency();
+            catch
+                val = false;
+            end
+        end
+        
+        function val = set_abort(obj,val,~)         % Calls the M^2 method abort_tune to stop the current tuning operation.
+            obj.aborted = true;
+            
+            obj.com('abort_tune', 'solstis');
+            
+            switch obj.active_module
+                case Sources.Msquared.moduleVIS
+                    obj.com('abort_tune', 'EMM');
+            end
+            
+            obj.getFrequency()
         end
         
         function val = set_PB_line(obj,val,~)
@@ -421,6 +476,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function freq = getFrequency(obj)
             obj.getWavemeterWavelength();
             obj.callStatus();
+            obj.armed = obj.get_armed();
             wavelength = obj.determineResultingWavelength();
             freq = obj.c/wavelength;    % Not sure if this should be used; imprecise.
             obj.setpoint = freq;
