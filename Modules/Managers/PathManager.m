@@ -103,7 +103,14 @@ classdef PathManager < Base.Manager
             end
             new_path = struct('name',name,'instructions',instructions,'alias',alias);
             temp_paths = obj.paths; % Don't write immediately so SetObservable listeners not triggered twice
-            temp_paths(end+1) = new_path;
+            
+            if isempty(temp_paths)
+                temp_paths = new_path;
+            else
+                % Future: Add logic to deal with alias backwards
+                % compatibility?
+                temp_paths(end+1) = new_path;
+            end
             % Alphabetical ordering
             [~,order] = sort({temp_paths.name});
             obj.paths = temp_paths(order);
