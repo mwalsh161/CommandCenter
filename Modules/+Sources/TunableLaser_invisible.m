@@ -33,9 +33,13 @@ classdef TunableLaser_invisible < handle
     methods
         function trackFrequency(obj,varargin)
             target = NaN;
+            timeout = Inf;
             
             if nargin > 1
                 target = varargin{1};
+            end
+            if nargin > 2
+                timeout = varargin{2};
             end
             
             t = tic; % Start clock
@@ -63,9 +67,9 @@ classdef TunableLaser_invisible < handle
             dfreqH = plot(ax(2),NaN,NaN,'r-o');
             legend(ax(1),'show');
             
-            freq = obj.getFrequency;
+            obj.getFrequency;   % Refresh obj.tuning
             n = 0;
-            while obj.tuning
+            while obj.tuning && toc(t) < timeout
                 freq = obj.getFrequency;
                 n = n + 1;
                 dt = toc(t);

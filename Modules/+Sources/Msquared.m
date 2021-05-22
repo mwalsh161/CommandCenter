@@ -1,5 +1,6 @@
 classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
-    %MSQUARED is a driverless unified class for SolsTiS, EMM, and ECD-X control.
+    % MSQUARED is a driverless unified class for SolsTiS, EMM, and ECD-X control.
+    %   Tune by either using the tune(frequency) method or .setpoint_ = wavelength pref.
     
     properties(Access=private, Hidden)
         hwserver = [];          % TCPIP handle to the python hardware server for laser and wavemeter connectivity.
@@ -52,7 +53,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         status =            Prefs.String(Sources.Msquared.no_server, 'readonly', true, ...
                                                                     'help_text', 'Current tuning status of the laser.');
         tuning =            Prefs.Boolean(NaN, 'readonly', true, 'allow_nan', true, ...
-                                                                    'help_text', 'Required by TunableLaser_invisible. True if status == tuning.');
+                                                                    'help_text', 'Required by TunableLaser_invisible. True if status == Tuning.');
 %         emm_crystal =       Prefs.Integer(2,   'readonly', true, 'set', 'set_fitted_oven', ...
 %                                                                     'help_text', 'Crystal being used: 1,2,3. This also sets range');
         
@@ -138,7 +139,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                         rethrow(err);
                     end
                 else
-                    obj.hwserver_host = obj.no_server;
+                    % obj.hwserver_host = obj.no_server;
                 end
             end
         end
@@ -151,13 +152,17 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.wavelength_lock = NaN;
                 obj.locked = NaN;
             else
-                reply = obj.com('get_wavelength', 'solstis');
-                
-                obj.status = obj.statusList{reply.status+1};
-                obj.tuning = reply.status == 2;
-%                 obj.wavelength = reply.current_wavelength;            % We prefer to use the wavemeter directly.
-                obj.wavelength_lock =   logical(reply.lock_status);
-                obj.locked =            logical(reply.lock_status);
+                try
+                    reply = obj.com('get_wavelength', 'solstis');
+
+                    obj.status = obj.statusList{reply.status+1};
+                    obj.tuning = reply.status == 2;
+    %                 obj.wavelength = reply.current_wavelength;            % We prefer to use the wavemeter directly.
+                    obj.wavelength_lock =   logical(reply.lock_status);
+                    obj.locked =            logical(reply.lock_status);
+                catch
+                    warning('SolsTiS get_wavelength call failed; leaving variables unchanged.')
+                end
             end
         end
         function callStatus(obj)                    % Calls the solstis method 'status' and fills prefs in.
@@ -168,14 +173,20 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 %                 obj.resonator_lock = false;                           % Future: add this to the interface?
                 obj.resonator_voltage = NaN;
                 obj.output_monitor = NaN;
+                obj.armed = NaN;
             else
-                reply = obj.com('status', 'solstis');
-                
-                obj.etalon_lock =       strcmp(reply.etalon_lock,'on');
-                obj.etalon_voltage =    reply.etalon_voltage;
-%                 obj.resonator_lock =    strcmp(reply.cavity_lock,'on');   % Future: add this to the interface?
-                obj.resonator_voltage = reply.resonator_voltage;
-                obj.output_monitor =    reply.output_monitor;
+                try
+                    reply = obj.com('status', 'solstis');
+
+                    obj.etalon_lock =       strcmp(reply.etalon_lock,'on');
+                    obj.etalon_voltage =    reply.etalon_voltage;
+    %                 obj.resonator_lock =    strcmp(reply.cavity_lock,'on');   % Future: add this to the interface?
+                    obj.resonator_voltage = reply.resonator_voltage;
+                    obj.output_monitor =    reply.output_monitor;
+                    obj.armed = obj.get_armed();
+                catch
+                    warning('SolsTiS status call failed; leaving variables unchanged.')
+                end
             end
             
             obj.callGetWavelength()
@@ -188,10 +199,22 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.diff_wavelength = 1950;
             else
                 obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
+                
+                % If the proper channel is off and the laser should be outputting power...
+                if obj.NIR_wavelength == 0 && obj.laserOn()
+                    obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.NIR_channel, 1, 1);
+                    obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
+                end
 
+                % If we need to grab the visible wavelength...
                 if strcmp(obj.determineModule(obj.setpoint_), obj.moduleVIS)
-                    obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 1, 1);
                     obj.VIS_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.VIS_channel, 0);
+                    
+                    % If the proper channel is off and the laser should be outputting power...
+                    if obj.VIS_wavelength == 0 && obj.laserOn()
+                        obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 1, 1);
+                        obj.VIS_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.VIS_channel, 0);
+                    end
 
                     if obj.VIS_wavelength > 0 && obj.NIR_wavelength > 0
                         diff_wavelength_ = 1/(1/obj.VIS_wavelength - 1/obj.NIR_wavelength);
@@ -210,6 +233,13 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
     end
     
+    methods(Hidden)
+        % Helper method to check if hwserver is connected and the laser is armed.
+        function tf = laserOn(obj)
+            tf = ~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver) && ~isnan(obj.armed) && obj.armed;
+        end
+    end
+    
     methods     % The meat of this tunable source.
         function tune(obj, target)                  % This is the tuning method that interacts with hardware (target in nm)
             if isnan(target); return; end           % Do nothing if NaN
@@ -217,6 +247,10 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.aborted = false;
             
             assert(~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver), 'No hwserver host!')
+            if isnan(obj.armed) || ~obj.armed
+                obj.getFrequency();
+                assert(~isnan(obj.armed) && obj.armed, 'Laser must be armed to tune!')
+            end
             
             module = obj.determineModule(target);
             
@@ -260,21 +294,21 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     out = obj.com('set_wavelength', 'solstis', nir_wavelength, 0); % last arg is timeout
 
                     if out.status == 0  % Call success
-                        obj.getFrequency();
+                        obj.trackFrequency(obj.c/target, 60);   % Will block until obj.tuning = false (calling obj.getFrequency each tick). Timeout of 60 sec.
+                        
+                        if ~obj.tuning  % If we are not still tuning...
+                            if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
+                                attempting = false;
+                            else
+                                detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
+                                out = obj.com('set_wavelength', 'solstis', nir_wavelength + detuning, 0);
 
-                        obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency each tick)
+                                if out.status ~= 0  % Call failed
+                                    failcount = failcount + 1;
+                                end
 
-                        if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
-                            attempting = false;
-                        else
-                            detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
-                            out = obj.com('set_wavelength', 'solstis', nir_wavelength + detuning, 0);
-
-                            if out.status ~= 0  % Call failed
-                                failcount = failcount + 1;
+                                pause(.5);          % After a little bit, continue with the while loop to tune back.
                             end
-
-                            pause(.5);          % After a little bit, continue with the while loop to tune back.
                         end
                     end
                 catch
@@ -320,15 +354,6 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if isnan(val); return; end % Short circuit on NaN
             
             val = obj.get_armed();
-            
-%             if val ~= isarmed                       % If we are setting armed to an incorrect value...
-%                 val = ~val;                         % ...then prevent this incorrect setting...
-%                 if val                              % And send warning messages.
-%                     warndlg(['Request to blackout laser. Laser is on, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser off'], 'Blackout (Sources.Msquared)')
-%                 else
-%                     warndlg(['Request to arm laser. Laser is off, as output_monitor reads ' num2str(obj.output_monitor) '; please turn the laser on'], 'Arm (Sources.Msquared)')
-%                 end
-%             end
         end
         function val = get_armed(obj, ~)
             if isnan(obj.output_monitor)
@@ -359,12 +384,15 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 %                 end
             catch
                 obj.hwserver = [];
+                
                 host = obj.no_server;
                 obj.active_module = host;
                 obj.status = host;
+                
                 obj.armed = NaN;
                 obj.locked = NaN;
                 obj.tuning = NaN;
+                
                 obj.getFrequency();
             end
         end
@@ -394,7 +422,15 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     obj.com('abort_tune', 'EMM');
             end
             
-            obj.getFrequency()
+            obj.getFrequency();
+            
+%             if obj.laserOn()
+%                 if obj.do_wavelength_lock && ~obj.wavelength_lock
+%                     obj.com('lock_wavelength', 'solstis', obj.lockList{2});
+%                 elseif  obj.do_etalon_lock && ~obj.etalon_lock
+%                     obj.com('set_etalon_lock', 'solstis', obj.lockList{2});
+%                 end
+%             end
         end
         
         function val = set_PB_line(obj,val,~)
@@ -419,39 +455,45 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         
         function val = set_etalon_percent(obj, val, ~)
             if isnan(val); return; end % Short circuit on NaN
-            obj.getFrequency();
             obj.do_etalon_lock = false;
-            obj.com('set_etalon_val', 'solstis', val);
+            if obj.laserOn()
+                obj.com('set_etalon_val', 'solstis', val);
+            end
         end
         function val = set_do_etalon_lock(obj, val, pref)
             if val == pref.value; return; end
             if obj.do_wavelength_lock && ~val   % Wavelength lock cannot be on without etalon lock.
                 obj.do_wavelength_lock = false;
             end
-            obj.com('set_etalon_lock', 'solstis', obj.lockList{val+1});
-            obj.getFrequency();
+            if obj.laserOn()
+                obj.com('set_etalon_lock', 'solstis', obj.lockList{val+1});
+                obj.getFrequency();
+            end
         end
         
         function val = set_resonator_percent(obj, val, ~)
             if isnan(val); return; end % Short circuit on NaN
-            obj.getFrequency();
             obj.do_wavelength_lock = false;
-            obj.com('set_resonator_val', 'solstis', val);
+            if obj.laserOn()
+                obj.com('set_resonator_val', 'solstis', val);
+            end
         end
         function val = set_do_wavelength_lock(obj, val, pref)
             if val == pref.value; return; end
             if ~obj.do_etalon_lock && val       % Wavelength lock cannot be on without etalon lock.
                 obj.do_etalon_lock = true;
             end
-            obj.com('lock_wavelength', 'solstis', obj.lockList{val+1});
-            if val
-                try
-                    obj.tune(obj.setpoint_) % If this line is neglected, the laser will lock to whatever the current value is (which often is slightly off the setpoint).
-                catch
+            if obj.laserOn()
+                obj.com('lock_wavelength', 'solstis', obj.lockList{val+1});
+                if val
+                    try
+                        obj.tune(obj.setpoint_) % If this line is neglected, the laser will lock to whatever the current value is (which often is slightly off the setpoint).
+                    catch
+                        obj.getFrequency();
+                    end
+                else
                     obj.getFrequency();
                 end
-            else
-                obj.getFrequency();
             end
         end
     end
@@ -474,11 +516,16 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             percent = obj.resonator_percent;
         end
         function freq = getFrequency(obj)
-            obj.getWavemeterWavelength();
             obj.callStatus();
-            obj.armed = obj.get_armed();
-            wavelength = obj.determineResultingWavelength();
-            freq = obj.c/wavelength;    % Not sure if this should be used; imprecise.
+            if obj.laserOn()
+                obj.getWavemeterWavelength();
+            else
+                obj.NIR_wavelength =  NaN;
+                obj.VIS_wavelength =  NaN;
+                obj.diff_wavelength = 1950;
+            end
+            
+            freq = obj.c/obj.determineResultingWavelength();    % Not sure if this should be used; imprecise.
             obj.setpoint = freq;
         end
     end

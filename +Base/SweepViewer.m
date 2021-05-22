@@ -644,7 +644,7 @@ classdef SweepViewer < handle
             end
 
             % Process text which displays during the 0D and 1D modes.
-            textduring1D = false;
+            textduring1D = true;
             if  sum(~isNone) > textduring1D   % Turn text off when it is not needed.
                 for ii = index
                     if strcmp(obj.txt{ii}.Visible, 'on')
@@ -660,12 +660,23 @@ classdef SweepViewer < handle
                             num = obj.sp{ii}.processed;
                         else
                             num = NaN;
+                            
+                            if obj.s.flags.isContinuous
+                                num = obj.sp{ii}.processed(1);
+                            else
+                                nonnan = obj.sp{ii}.processed(~isnan(obj.sp{ii}.processed));
+                                if length(nonnan) > 0
+                                    num = nonnan(end);
+                                else
+                                    num = NaN;
+                                end
+                            end
 %                             num = obj.sp{ii}.processed(min(obj.s.index, numel(obj.sp{ii}.processed)));
 %                             if isnan(num) && obj.s.index > 1
 %                                 num = obj.sp{ii}.processed(min(obj.s.index-1, numel(obj.sp{ii}.processed)));
 %                             end
                         end
-                        obj.txt{ii}.String = num2str(num,3);
+                        obj.txt{ii}.String = num2str(num,'%.4f');
                         
                         obj.txt{ii}.Position(2) = .5 + .2*(M/2-jj);
                         if strcmp(obj.txt{ii}.Visible, 'off')
