@@ -129,9 +129,12 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             obj.Homed = false;
         end
         
-        function val = set_position(obj,val,~)
+        function val = set_position(obj,val,pref)
             if ~obj.Moving && obj.Homed
                 obj.move(val);
+                waitfor(obj, 'Moving');
+            else
+                val = pref.value;
             end
         end
         function val = get_position(obj,~)

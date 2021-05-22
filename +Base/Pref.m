@@ -150,6 +150,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
 %                 obj.dims =  struct();
             end
             
+            if isa(obj, 'Prefs.Time')
+                return
+            end
+            
             mc = metaclass(module_instance);
 
             props = mc.PropertyList;

@@ -94,8 +94,6 @@ classdef MeasurementRegister < Base.Singleton
     
     methods
         function addMeasurement(obj, varargin)
-            varargin
-            
             % Adds measurement to the register corresponding to the parent.
             if numel(varargin) == 2
                 m = varargin{1};

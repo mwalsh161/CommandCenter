@@ -1,11 +1,11 @@
 classdef Time < Prefs.Integer
-    %EMPTY Placeholder for when an empty pref is needed. Should only be used in backend.
+    %TIME Placeholder for when time pref is needed. **Should only be used in backend.**
 
     methods
         function obj = Time(varargin)
             obj = obj@Prefs.Integer(1, 'min', 1, 'name', 'Time', 'unit', 'ave');
             
-            obj.parent = Base.Zeitgeist.instance(); %_class = 'Amiable.Zeitgeist';
+            obj.parent = Base.Zeitgeist.instance();
             obj.property_name = 'time';
 
             obj.readonly = true;
@@ -14,6 +14,8 @@ classdef Time < Prefs.Integer
             obj.custom_validate = [];
             obj.custom_clean = [];
             obj.set = [];
+            
+            obj = obj.bind(Base.Zeitgeist.instance());
         end
         function val = read(~)
             val = now;
