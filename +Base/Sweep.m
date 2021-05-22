@@ -7,22 +7,10 @@ classdef Sweep < handle & Base.Measurement
         name = '';
         
         % Core
-        measurements_;   % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
-%         sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
-        
+        measurements_;  % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
         sdims;          % cell array                % Contains 1xN `Base.Pref` objects that are being swept over.
         sscans;         % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
     end
-    
-    
-    
-%   properties (Hidden)             % Inherited from Measurement.
-%       % sizes
-%       % names
-%       % units
-%       % dims
-%       % scans
-%   end
 
     properties
         controller = [];    % Base.SweepController. If this isn't empty, it will look to this object for start/stop.
@@ -114,12 +102,6 @@ classdef Sweep < handle & Base.Measurement
                 end
             end
             
-            defaultname = 'Sweep';  % Fix me.
-            
-            if isempty(obj.name)
-                obj.name = defaultname;
-            end
-            
 			% Check measurements
             assert(iscell(obj.measurements_), 'Measurements must be a cell array.')
             assert(numel(obj.measurements_) == length(obj.measurements_), 'Measurements must be a 1xN cell array.')
@@ -169,6 +151,10 @@ classdef Sweep < handle & Base.Measurement
             
             obj.fillMeasurementProperties();
             obj.reset();
+            
+            if isempty(obj.name)
+                obj.name = obj.autoGenerateName();
+            end
             
             function tf = isNIDAQ(pref)
                 if isa(pref, 'Prefs.Time')
@@ -243,6 +229,10 @@ classdef Sweep < handle & Base.Measurement
             
             if obj.flags.shouldSetInitialOnReset
                 obj.resetInitial();
+            end
+            
+            if ~isempty(obj.controller) && isvalid(obj.controller)
+                obj.controller.setIndex()
             end
         end
         function resetInitial(obj)
@@ -345,8 +335,8 @@ classdef Sweep < handle & Base.Measurement
             end
             
             % Optimize afterward
-            if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1
-                % obj.flags.shouldOptimizeAfter is +\-1, and acts to sign() whether the data is maximized (+1) or minimized (-1).
+            if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1 && obj.index == N
+                % shouldOptimizeAfter is +\-1, and acts to sign() whether the data is maximized (+1) or minimized (-1).
                 x0 = fitoptimize(obj.sscans{1}, obj.flags.shouldOptimizeAfter * obj.data.(sd{1}).dat);
                 obj.sdims{1}.writ(x0);
             elseif obj.flags.shouldReturnToInitial
@@ -573,6 +563,18 @@ classdef Sweep < handle & Base.Measurement
                 
                 for jj = 1:obj.measurements_{ii}.getN()
                     obj.measurements = [obj.measurements obj.measurements_{ii}.measurements(jj).extendBySweep(obj, tag)];
+                end
+            end
+        end
+        
+        function name = autoGenerateName(obj)
+            if obj.flags.shouldOptimizeAfter
+                msd = obj.measurements_{1}.subdata;
+                name = [msd{1}.name ' Optimization Over ' obj.sdims{1}.name];
+            else
+                name = 'Sweep';
+                for ii = 1:obj.ndims()
+                    name = [' vs ' obj.sdims{ii}.name];
                 end
             end
         end

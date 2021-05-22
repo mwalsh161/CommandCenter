@@ -1,67 +1,60 @@
 classdef SweepViewer < handle
 
-	properties (SetAccess=private)
+	properties (SetAccess=private)          % Base objects.
 		s = [];		% Parent sweep of type `Base.Sweep`
+		sp = {};	% Child processed scans of type `Base.ScanProcessed`.
+	end
 
+	properties (SetAccess=private)          % Display objects.
 		ax = [];	% MATLAB Axes object where the data will be plotted.
 		panel = [];	% Struct containing panel where viewer info will be displayed.
 
-        menus = []; 
-
-		sp = {};	% Child processed scans of type `Base.ScanProcessed`.
-
-        listeners = struct('datachanged', [], 'sweepdeleted', [], 'x', [], 'y', []);
-	end
-
-	properties (Hidden, SetAccess=private)          % Processed scan settings
-		names = 	{'R', 'G', 'B'}                                
-		colors = 	{[1 0 0], [0 1 0], [0 0 1]};
-		linewidth = 2;
-		alpha = .7;
-    end
-
-	properties (Constant, Hidden)                   % Pointer settings
-		pnames = 		{'selpix',      'selpnt',       'value'};
-		pcolors = 		{[1, 1, 0, .6], [1, 1, 0, .8],  [0, 1, 1, .8]};
-		plinewidth = 	[3,             2,              2];
-		plinetype = 	{'o-',          'o--',          'o-'};
-	end
-
-	properties (Hidden)                   % Pointer settings
-		lastclick = 0;
-        doubleclicksec = .2;
-	end
-
-	properties (SetAccess=private)                  % Display objects for different situations.
+        menus = [];
+        
 		txt = {};	% Text `text`s for 0D situations, along with
 		plt = {};	% 1D line `plot()`s for data
 		img = [];	% 2D image `image()` for data
 		ptr = {};	% Cursor location `+` plots
+
+        listeners = struct('datachanged', [], 'sweepdeleted', [], 'x', [], 'y', []);
         
         ptrData = [];
     end
 
-	properties (Hidden, Access={?Base.SweepViewer, ?Base.SweepProcessed})
-        drawnowLast = 0;
-        timerposted = false;
-        rendering = false;
-    end
-	properties (Constant, Hidden)
+	properties (Constant, Hidden)           % Display colors/settings
+        % Plot properties
+		names =         {'R',           'G',            'B'}                                
+		colors =        {[1 0 0],       [0 1 0],        [0 0 1]};
+		linewidth =     2;
+		alpha =         .7;
+        
+        % Pointer properties
+		pnames = 		{'selpix',      'selpnt',       'value'};
+		pcolors = 		{[1, 1, 0, .6], [1, 1, 0, .8],  [0, 1, 1, .8]};
+		plinewidth = 	[3,             2,              2];
+		plinetype = 	{'o-',          'o--',          'o-'};
+        
+        % Names of the dimensions that can be displayed by the `ScanViewer`
+		axesDisplayedNames = {'x', 'y'};
+        
+        % Diplay update target rate.
         fpsTarget = 5;
     end
 
-	properties (SetObservable, SetAccess=private)   % 
-		axesDisplayed = []                          % Which dimensions are selected to be displayed (e.g. which as x, which as y). Integers according to the corresponding index in displayAxesObjects.
-    end
-	properties (SetAccess=private)                  % 
+	properties (Hidden, SetAccess=private)  % Runtime control variables
 		displayAxesObjects = {}
 		displayAxesScans = {}
 		displayAxesMeasNum = [];
 		displayAxesSubdata = {};
+        
+		axesDisplayed = []          % Which dimensions are selected to be displayed (e.g. which as x, which as y). Integers according to the corresponding index in displayAxesObjects.
+
+        drawnowLast = 0;
+        timerposted = false;
+        
+		lastclick = 0;
+        doubleclicksec = .2;
     end
-	properties (Hidden, Constant)                   % 
-		axesDisplayedNames = {'x', 'y'};            % Names of the dimensions that can be displayed by the `ScanViewer`
-	end
 
 	methods
 		function obj = SweepViewer(s_, ax_, varargin)
@@ -121,26 +114,28 @@ classdef SweepViewer < handle
 			obj.makePlots();
 
 			% Panel setup
-            if ~isempty(varargin)
-                obj.panel.panel = varargin{1};
-                obj.panel.panel.Visible = 'off';
-            else
-                obj.panel.figure = figure(  'Units', 'pixels', ...
-                                            'Position', [100,100,300,500], ...
-                                            'NumberTitle', 'off', ...
-                                            'MenuBar', 'None', ...
-                                            'CloseRequestFcn', @obj.panelclosed_Callback);
-                obj.panel.panel  = uipanel(obj.panel.figure, 'Visible', 'off');
-            end
-            
-            obj.panel.tabgroup = [];
-            obj.makePanel();
+            if true
+                if ~isempty(varargin)
+                    obj.panel.panel = varargin{1};
+                    obj.panel.panel.Visible = 'off';
+                else
+                    obj.panel.figure = figure(  'Units', 'pixels', ...
+                                                'Position', [100,100,300,500], ...
+                                                'NumberTitle', 'off', ...
+                                                'MenuBar', 'None', ...
+                                                'CloseRequestFcn', @obj.panelclosed_Callback);
+                    obj.panel.panel  = uipanel(obj.panel.figure, 'Visible', 'off');
+                end
 
-			N = length(obj.colors);
-            for ii = 1:N
-                obj.sp{ii} = Base.SweepProcessed(obj.s, obj, ii);
+                obj.panel.tabgroup = [];
+                obj.makePanel();
+
+                N = length(obj.colors);
+                for ii = 1:N
+                    obj.sp{ii} = Base.SweepProcessed(obj.s, obj, ii);
+                end
+                obj.panel.tabgroup.SelectedTab = obj.sp{1}.tab.tab;
             end
-            obj.panel.tabgroup.SelectedTab = obj.sp{1}.tab.tab;
 
             % Listener setup
             prop = findprop(obj.s, 'data');
@@ -154,11 +149,9 @@ classdef SweepViewer < handle
             
             % Make everything visible
             obj.ax.Visible = 'on';
-            obj.panel.panel.Visible = 'on';
             if isfield(obj.panel, 'figure')
                 obj.panel.figure.Visible = 'on';
             end
-            obj.panel.panel.Visible = 'on';
         end
 
         function makeMenu(obj)
@@ -173,14 +166,19 @@ classdef SweepViewer < handle
             obj.menus.pixMenu = uimenu(obj.menus.menu, 'Label', 'Pixel: [ ~~~~ --, ~~~~ -- ]',    'Callback', @copyLabelToClipboard);
             obj.menus.posMenu = uimenu(obj.menus.menu, 'Label', 'Position: [ ~~~~ --, ~~~~ -- ]', 'Callback', @copyLabelToClipboard);
 
-            uimenu(obj.menus.menu, 'Label', 'Goto Pixel', 'Callback', {@obj.gotoPostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
-            uimenu(obj.menus.menu, 'Label', 'Goto Position', 'Callback', {@obj.gotoPostion_Callback, 0, 0});
-                
+            uimenu(obj.menus.menu, 'Label', 'Goto Pixel',       'Callback', {@obj.gotopostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
+            uimenu(obj.menus.menu, 'Label', 'Goto Position',    'Callback', {@obj.gotopostion_Callback, 0, 0});
+            
+            uimenu(obj.menus.menu, 'Label', 'Sweep',            'Callback', {@obj.gotopostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
+            uimenu(obj.menus.menu, 'Label', 'Tick',             'Callback', {@obj.gotopostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
+            uimenu(obj.menus.menu, 'Label', 'Reset',            'Callback', {@obj.gotopostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
+            uimenu(obj.menus.menu, 'Label', 'Reset & Resweep',  'Callback', {@obj.gotopostion_Callback, 1, 0}, 'Separator', 'on'); %#ok<*NASGU>
+            
 %             mGoto = uimenu(obj.menus.menu,  'Label', 'Goto', 'Separator', 'on');
-%                 uimenu(mGoto,               'Label', 'Selected Position',           'Callback', {@obj.gotoPostion_Callback, 1, 0}); %#ok<*NASGU>
-%                 uimenu(mGoto,               'Label', 'Selected Pixel',              'Callback', {@obj.gotoPostion_Callback, 0, 0});
-%                 uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotoPostion_Callback, 1, 1}, 'Enable', 'off');
-%                 uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotoPostion_Callback, 0, 1}, 'Enable', 'off');
+%                 uimenu(mGoto,               'Label', 'Selected Position',           'Callback', {@obj.gotopostion_Callback, 1, 0}); %#ok<*NASGU>
+%                 uimenu(mGoto,               'Label', 'Selected Pixel',              'Callback', {@obj.gotopostion_Callback, 0, 0});
+%                 uimenu(mGoto,               'Label', 'Selected Position And Slice', 'Callback', {@obj.gotopostion_Callback, 1, 1}, 'Enable', 'off');
+%                 uimenu(mGoto,               'Label', 'Selected Pixel And Slice',    'Callback', {@obj.gotopostion_Callback, 0, 1}, 'Enable', 'off');
                 
 %             mNorm = uimenu(obj.menus.menu,  'Label', 'Normalization');
 %                 uimenu(mNorm,               'Label', 'Set as Minimum',              'Callback', {@obj.minmax_Callback, 0});
@@ -388,7 +386,7 @@ classdef SweepViewer < handle
                     
                     obj.setPtr(2, [x, y]);
                     
-                    obj.gotoPostion_Callback(0, 0, 1, 0);
+                    obj.gotopostion_Callback(0, 0, 1, 0);
                 else
                     obj.lastclick = now;
                 end
@@ -474,8 +472,6 @@ classdef SweepViewer < handle
                             ii = x(enabled);
 
                             val = obj.img.CData(yi, xi) * (obj.sp{ii}.M - obj.sp{ii}.m) + obj.sp{ii}.m;
-                            
-                            val
 
                             obj.ptrData(ii) = val;
 
@@ -538,7 +534,7 @@ classdef SweepViewer < handle
                 end
             end
         end
-        function gotoPostion_Callback(obj, ~, ~, isPos, shouldGotoLayer)    % Menu option to goto a position. See below for function of isSel and shouldGotoLayer.
+        function gotopostion_Callback(obj, ~, ~, isPos, shouldGotoLayer)    % Menu option to goto a position. See below for function of isSel and shouldGotoLayer.
             x = obj.ptr{1+isPos}.XData(5);
             y = obj.ptr{1+isPos}.YData(1);
             
@@ -594,6 +590,7 @@ classdef SweepViewer < handle
     end
 
 	methods                                         % 
+        % Callback methods
         function datachanged_Callback(obj, src, evt)
             if ~isempty(evt) && isstruct(evt) && strcmp(evt.Type, 'TimerFcn')
                 stop(src)
@@ -617,6 +614,13 @@ classdef SweepViewer < handle
                 end
             end
         end
+        function axeschanged_Callback(obj, src, ~)
+            obj.setAxis(src.UserData, src.Value)
+		end
+        function axesvaluechanged_Callback(obj, ~, ~)
+            obj.setPtr(obj, 3, [NaN NaN])
+        end
+        
         function sweepdeleted_Callback(obj, ~, ~)
             delete(obj);
         end
@@ -627,17 +631,19 @@ classdef SweepViewer < handle
 %             end
 %             obj.panel
         end
-        function [isNone, enabled] = isNoneEnabled(obj)
-            isNone = obj.axesDisplayed == 1;
-
-            N = length(obj.sp);
-
-            enabled = false(1,N);
-
-            for ii = 1:N
-                enabled(ii) = obj.sp{ii}.enabled;
-            end
+		function tabchanged_Callback(obj, src, ~)
+            x = src.SelectedTab.UserData;
+            assert(isnumeric(x))
+            assert(x > 0 && x <= 3)
+            obj.sp{x}.makePanel();
+%             obj.sp{x}.I = obj.sp{x}.I;  % Tell it to update.
+            obj.sp{x}.normalize(false)
         end
+        
+        % Methods that actually do the drawing:
+        %  - process handles the data,
+        %  - setPtr handles the lines denoting pref postion and user click position
+        %  - setAxis handles changing the prefs used for each axis.
         function process(obj)
             % Gather useful variables.
             [isNone, enabled] = obj.isNoneEnabled();
@@ -646,10 +652,10 @@ classdef SweepViewer < handle
             enabledIndex = index(enabled);
             
             % Update the positions of prefs.
-            obj.setPtr(3, [NaN, NaN]);  % [NaN, NaN] forces a read of the current position.
+            obj.setPtr(3, [NaN, NaN]);  % [NaN, NaN] forces a read of the current position. Change this to reduce call overhead?
 
-            % Process title.
-            titledata = '';
+            % Process title. First line is the name of the sweep. Second line is the measurements displayed (RGB).
+            titledata = [obj.s.name newline];
             for ii = 1:N
                 if enabled(ii)
                     obj.sp{ii}.process();
@@ -661,7 +667,7 @@ classdef SweepViewer < handle
             if any(enabled)
                 title(obj.ax, titledata(1:end-2));  % Remove last ', ' % , 'interpreter', 'latex'
             else
-                title('');
+                title(titledata);
             end
 
             % Process text which displays during the 0D and 1D modes.
@@ -785,10 +791,40 @@ classdef SweepViewer < handle
                 end
             end
         end
+		function setPtr(obj, ptr, to) 	% Limited to 1D, 2D
+            if isvalid(obj) && isvalid(obj.ptr{ptr})
+                assert(length(to) == 2);
+                dao = obj.displayAxesObjects(obj.axesDisplayed);
 
-		function axeschanged_Callback(obj, src, ~)
-            obj.setAxis(src.UserData, src.Value)
-		end
+                range = NaN(1,4);
+
+                for ii = 1:length(dao)
+                    if dao{ii}.display_only
+                        range(2*ii + (-1:0)) = [-1e9 1e9];
+                    else
+                        range(2*ii + (-1:0)) = [max(dao{ii}.min, -1e9) min(dao{ii}.max, 1e9)];
+
+                        if isnan(to(ii))
+                            if ptr == 3
+                                if ~dao{ii}.display_only
+                                    to(ii) = dao{ii}.read();
+%                                     to(ii) = dao{ii}.value;
+                                else
+                                    to(ii) = NaN;
+                                end
+                            end
+                        end
+                    end
+                end
+
+                obj.ptr{ptr}.XData = [range(1) range(2) NaN to(1) to(1)];
+                obj.ptr{ptr}.YData = [to(2) to(2) NaN range(3) range(4)];
+            end
+            
+%             if isvalid(obj) && ~isvalid(obj.ptr{ptr})
+%                 warning('Zombie listener');
+%             end
+        end
 		function setAxis(obj, axis, to)
 			N = length(obj.axesDisplayed);
 
@@ -929,55 +965,21 @@ classdef SweepViewer < handle
         function updateAxes(obj)
             obj.setAxis(1, obj.axesDisplayed(1));
         end
+        
+        % Helper functions
+        function [isNone, enabled] = isNoneEnabled(obj)
+            isNone = obj.axesDisplayed == 1;
 
-        function axesvaluechanged_Callback(obj, ~, ~)
-            obj.setPtr(obj, 3, [NaN NaN])
-        end
-		function setPtr(obj, ptr, to) 	% Limited to 1D, 2D
-            if isvalid(obj) && isvalid(obj.ptr{ptr})
-                assert(length(to) == 2);
-                dao = obj.displayAxesObjects(obj.axesDisplayed);
+            N = length(obj.sp);
 
-                range = NaN(1,4);
+            enabled = false(1,N);
 
-                for ii = 1:length(dao)
-                    if dao{ii}.display_only
-                        range(2*ii + (-1:0)) = [-1e9 1e9];
-                    else
-                        range(2*ii + (-1:0)) = [max(dao{ii}.min, -1e9) min(dao{ii}.max, 1e9)];
-
-                        if isnan(to(ii))
-                            if ptr == 3
-                                if ~dao{ii}.display_only
-                                    to(ii) = dao{ii}.read();
-%                                     to(ii) = dao{ii}.value;
-                                else
-                                    to(ii) = NaN;
-                                end
-                            end
-                        end
-                    end
-                end
-
-                obj.ptr{ptr}.XData = [range(1) range(2) NaN to(1) to(1)];
-                obj.ptr{ptr}.YData = [to(2) to(2) NaN range(3) range(4)];
+            for ii = 1:N
+                enabled(ii) = obj.sp{ii}.enabled;
             end
-            
-%             if isvalid(obj) && ~isvalid(obj.ptr{ptr})
-%                 warning('Zombie listener');
-%             end
         end
-
         function ct = currentTab(obj)
             ct = obj.panel.tabgroup.SelectedTab.UserData;
-        end
-        function tabchanged_Callback(obj, src, ~)
-            x = src.SelectedTab.UserData;
-            assert(isnumeric(x))
-            assert(x > 0 && x <= 3)
-            obj.sp{x}.makePanel();
-%             obj.sp{x}.I = obj.sp{x}.I;  % Tell it to update.
-            obj.sp{x}.normalize(false)
         end
     end
 end
