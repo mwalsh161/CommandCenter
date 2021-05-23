@@ -59,13 +59,10 @@ classdef Sweep < handle & Base.Measurement
                 a = Drivers.AxisTest.instance('fish');
                 a1 = a.get_meta_pref('x');
                 a2 = a.get_meta_pref('y');
-
                 a1.writ(.5);
                 a2.writ(4.5);
-                
                 e = Experiments.Spectrum.instance;
 
-%                 obj = Base.Sweep({e}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 81)});
                 obj = Base.Sweep({e, a1, a2}, {a1, a2}, {linspace(0, 1, 21), linspace(3, 5, 41)});
                 
                 return;
@@ -77,7 +74,6 @@ classdef Sweep < handle & Base.Measurement
                 error('NotImplemented');
                 
 %                 obj.measurements_ =  varargin{1};    % Not sure what to do here.
-%                 
 %                 obj.sdims =         obj.data.metadata.dims;
 %                 obj.sscans =        obj.data.metadata.scans;
             else
@@ -93,7 +89,6 @@ classdef Sweep < handle & Base.Measurement
                 end
 
                 if nargin > 4
-%                     obj.name = varargin{5};
                     obj.dwell = varargin{5};
                 end
 
@@ -115,11 +110,9 @@ classdef Sweep < handle & Base.Measurement
                 obj.NIDAQ.isMeasurementNIDAQ(ii) = isa(obj.measurements_{ii}, 'Drivers.NIDAQ.in');
             end
             
-            prefList = {};
-                
+            % Check dims and scans
             obj.NIDAQ.isPrefNIDAQ = false(1, numel(obj.sdims));
             
-            % Check dims and scans
             if ~obj.flags.isOptimize
                 assert(iscell(obj.sdims), '.sdims must be a cell array.')
                 assert(iscell(obj.sscans), '.sscans must be a cell array.')
@@ -149,25 +142,27 @@ classdef Sweep < handle & Base.Measurement
                 obj.NIDAQ.dwell = obj.dwell;
             end
             
+            % Finish up
             obj.fillMeasurementProperties();
             obj.reset();
             
+            % Set name
             if isempty(obj.name)
                 obj.name = obj.autoGenerateName();
             end
             
+            % Helper functions
             function tf = isNIDAQ(pref)
                 if isa(pref, 'Prefs.Time')
                     tf = true;
                 elseif isa(pref, 'Prefs.Paired')
                     tf = true;
                     
-                    for ii = 1:length(pref.prefs)
-                        tf = tf && isNIDAQ(pref.prefs(ii));
+                    for kk = 1:length(pref.prefs)
+                        tf = tf && isNIDAQ(pref.prefs(kk));
                     end
                 else
-%                     tf = strcmp(pref.parent_class, 'Drivers.NIDAQ.dev');
-                    tf = strcmp(class(pref.parent), 'Drivers.NIDAQ.dev');
+                    tf = isa(pref.parent, 'Drivers.NIDAQ.dev');
                 end
             end
             function checkPref(pref)
@@ -335,13 +330,19 @@ classdef Sweep < handle & Base.Measurement
             end
             
             % Optimize afterward
-            if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1 && obj.index == N
+            obj.flags.shouldOptimizeAfter
+            length(obj.sscans)
+            obj.index
+            N
+            if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1 && obj.index >= N
                 % shouldOptimizeAfter is +\-1, and acts to sign() whether the data is maximized (+1) or minimized (-1).
                 x0 = fitoptimize(obj.sscans{1}, obj.flags.shouldOptimizeAfter * obj.data.(sd{1}).dat);
                 obj.sdims{1}.writ(x0);
             elseif obj.flags.shouldReturnToInitial
                 for ii = 1:obj.ndims()
-                    obj.sdims{ii}.writ(obj.meta.intitial(ii));
+                    if ~isnan(obj.meta.initial(ii))
+                        obj.sdims{ii}.writ(obj.meta.initial(ii));
+                    end
                 end
             end
 
@@ -385,8 +386,6 @@ classdef Sweep < handle & Base.Measurement
 %                 else
                     obj.NIDAQ.out.tasks{kk} = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.sdims{ii}.name]);
                     out = obj.NIDAQ.dev.getLines(obj.sdims{ii}.name, 'out');
-                    out
-                    out.name
                     
                     sthis = s;
                     sthis(ii) = 1;
@@ -396,8 +395,6 @@ classdef Sweep < handle & Base.Measurement
                     
 %                     obj.NIDAQ.dev.GetTaskByName('AnalogWrite')
                     
-                    pause(1)
-                    
                     switch out.type
                         case 'analog'
                             obj.NIDAQ.out.tasks{kk}.ConfigureVoltageOut(out.name, sweep, obj.NIDAQ.pulseTrain)
@@ -405,7 +402,6 @@ classdef Sweep < handle & Base.Measurement
                             obj.NIDAQ.out.tasks{kk}.ConfigureDigitalOut(out.name, sweep, obj.NIDAQ.pulseTrain)
                     end
 %                 end
-                obj.NIDAQ.out.tasks
                 kk = kk + 1;
             end
 
@@ -424,34 +420,12 @@ classdef Sweep < handle & Base.Measurement
                 kk = kk + 1;
             end
         end
-        function measureNIDAQ(obj)
-%             start(obj.NIDAQ.timer)
-%             obj.running = true;
-        end
-        function resetNIDAQ(obj)
-%             if ~isempty(obj.timerH)
-%                 if isvalid(obj.timerH) && strcmp(obj.timerH.Running,'on')
-%                     obj.stopTimer()
-%                 end
-%                 obj.timerH = [];
-%             else
-%                 if ~isempty(obj.CounterH) && isvalid(obj.CounterH)
-%                     obj.CounterH.Clear;
-%                 end
-%                 if ~isempty(obj.PulseTrainH) && isvalid(obj.PulseTrainH)
-%                     obj.PulseTrainH.Clear
-%                 end
-%             end
-        end
     end
     methods (Hidden)
-        function measureSweep(obj)
-            
-        end
-        function measureOptimize(obj)
+        function measureOptimize(obj) %#ok<MANU>
             error('NotImplemented')
             
-            options = optimset('Display', 'iter', 'PlotFcns', @optimplotfval);
+            options = optimset('Display', 'iter', 'PlotFcns', @optimplotfval); %#ok<UNRCH>
 
             fun = @(x)100*(x(2) - x(1)^2)^2 + (1 - x(1))^2;
             x0 = [-1.2, 1];
@@ -467,7 +441,7 @@ classdef Sweep < handle & Base.Measurement
             
             if obj.flags.isContinuous
 %                 isa(obj.sdims{end}, 'Prefs.Time')
-                M = prod(L(1:end-1));
+%                 M = prod(L(1:end-1));
 %                 'a'
                 obj.index = 1;
                 if ~isempty(obj.controller) && isvalid(obj.controller)
@@ -569,8 +543,7 @@ classdef Sweep < handle & Base.Measurement
         
         function name = autoGenerateName(obj)
             if obj.flags.shouldOptimizeAfter
-                msd = obj.measurements_{1}.subdata;
-                name = [msd{1}.name ' Optimization Over ' obj.sdims{1}.name];
+                name = [obj.measurements_{1}.measurements(1).name ' Optimization Over ' obj.sdims{1}.name];
             else
                 name = 'Sweep';
                 for ii = 1:obj.ndims()

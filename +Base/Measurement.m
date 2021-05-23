@@ -152,7 +152,6 @@ classdef (HandleCompatible) Measurement
 
 	methods
 		function obj = Measurement()
-            'measurement init'
             if ~isa(obj, 'Base.Pref') && ~isa(obj, 'Base.Sweep')
                 mr = Base.MeasurementRegister.instance();
                 mr.addMeasurement(obj);

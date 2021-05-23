@@ -438,20 +438,10 @@ classdef SweepEditor < handle
             
             for ii = 1:length(obj.measurements)
                 instrument = obj.measurements{ii};
-                instrument
                 cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
                 
-                cm
-                
                 mdata_(jj:(jj+size(cm, 1)-1), :) = cm;
-                
-                size(cm, 1)
-                
-                jj
-                
                 jj = jj + size(cm, 1);
-                
-                jj
             end
             
             mdata_(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
@@ -570,23 +560,15 @@ classdef SweepEditor < handle
                 d = [];
                 
                 if ismember('Base.Pref', superclasses(m))
-                    m
                     parent = m.parent.encodeReadable(true);
                 else
                     parent = m.encodeReadable(true);
                 end
                 
-                subdata
-                
                 for ii = 1:length(subdata)
                     sd = subdata{ii};
                     d = [d ; {'<html><font color=red><b>',   ['<i>' parent], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }]; %#ok<AGROW>
                 end
-                
-                d
-                
-%                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', [1 1024], 'cts/sec', 0 };
-                
             end
         end
         

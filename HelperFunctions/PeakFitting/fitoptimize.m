@@ -24,11 +24,9 @@ function [x0, xx, xxx] = fitoptimize(x, y)
     centerdistance = abs(xx - mean(x));
     xx = sort(centerdistance);
     
-    while any(outliers) && std(xx) > 0
-        outliers = abs(xx - mean(xx)) >= std(xx);
-        
-        % Reject the least prominant outlier
-        xx(find(outliers, 1, 'last')) = [];
+    while any(outliers) && std(xx) > 0              % While there are outliers...
+        outliers = abs(xx - mean(xx)) >= std(xx);   % Define outliers to be those outside one standard deviation (low bar to increase chance of rejection).
+        xx(find(outliers, 1, 'last')) = [];         % Reject the least prominant outlier
     end
     
     xxx = x(round(xxx));

@@ -961,9 +961,10 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 
             % Update the class-pref and re-engage listeners
             % Note if the above try block failed; this is still the old value
+            val = obj.(prop.Name);
+            obj.temp_prop.(prop.Name).value = val;
             obj.(prop.Name) =  obj.temp_prop.(prop.Name);
 %             val =  obj.temp_prop.(prop.Name).value;
-            val =  obj.temp_prop.(prop.Name).value;
             obj.prop_listener_ctrl(prop.Name,true);
             if exist('err','var')
                 % This will be thrown as warning in console because it is
