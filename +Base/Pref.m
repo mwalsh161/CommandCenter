@@ -62,9 +62,6 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
     end
-    properties (Hidden, SetAccess=?Base.Module)
-    	getEvent = false;                   % This is reserved for Module.post to avoid calling set methods on a get event
-    end
     properties (Hidden, Access=private)
         initialized = false;                % Flag to prevent the Pref from being used until it has been fully constructed.
     end
@@ -244,6 +241,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             tf = false;
         end
         function tf = isequal(obj, obj2)
+            superclasses(obj2)
             tf = ismember('Base.Pref', superclasses(obj2)) && strcmp(obj.property_name, obj2.property_name) && isequal(obj.parent, obj2.parent);
         end
         
@@ -518,32 +516,28 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
 %             val = obj.get_value(obj.value);
 %         end
         function val = set_value(obj, val)
-            if ~obj.getEvent
-                val = obj.clean(val);
-                if ~isempty(obj.custom_clean) && obj.initialized
-                    val = obj.custom_clean(val,obj);
-                end
+            val = obj.clean(val);
+            if ~isempty(obj.custom_clean) && obj.initialized
+                val = obj.custom_clean(val,obj);
+            end
 
-                obj.validate(val);
-                if ~isempty(obj.custom_validate) && obj.initialized
-                    obj.custom_validate(val,obj);
-                end
+            obj.validate(val);
+            if ~isempty(obj.custom_validate) && obj.initialized
+                obj.custom_validate(val,obj);
+            end
 
-                if ~isempty(obj.set) && obj.initialized %#ok<*MCSUP>
-                    val = obj.set(val,obj);
-                end
+            if ~isempty(obj.set) && obj.initialized %#ok<*MCSUP>
+                val = obj.set(val,obj);
+            end
 
-                obj.validate(val);
-                if ~isempty(obj.custom_validate) && obj.initialized
-                    obj.custom_validate(val,obj);
-                end
-%                 obj.value = val;
+            obj.validate(val);
+            if ~isempty(obj.custom_validate) && obj.initialized
+                obj.custom_validate(val,obj);
             end
         end
         function val = get_value(obj, val)
             if ~isempty(obj.get) && obj.initialized %#ok<*MCSUP>
                 val = obj.get(obj);
-%                 obj.value = val;
             end
         end
         

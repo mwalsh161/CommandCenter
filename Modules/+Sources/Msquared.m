@@ -241,25 +241,34 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     end
     
     methods     % The meat of this tunable source.
-        function tune(obj, target)                  % This is the tuning method that interacts with hardware (target in nm)
+        function tune(obj, target, recursion)       % This is the tuning method that interacts with hardware (target in nm)
             if isnan(target); return; end           % Do nothing if NaN
-            
             obj.aborted = false;
-            
-            assert(~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver), 'No hwserver host!')
-            if isnan(obj.armed) || ~obj.armed
-                obj.getFrequency();
-                assert(~isnan(obj.armed) && obj.armed, 'Laser must be armed to tune!')
+            if nargin < 3
+                recursion = 0;
+            end
+            if recursion >= 3
+                return
             end
             
-            module = obj.determineModule(target);
+            % Make sure we are connected
+            assert(~isempty(obj.hwserver) && isobject(obj.hwserver) && isvalid(obj.hwserver), 'No hwserver host!')
             
+            % If we don't think we are armed...
+            if isnan(obj.armed) || ~obj.armed
+                obj.getFrequency(); % ...Check...
+                assert(~isnan(obj.armed) && obj.armed, 'Laser must be armed to tune!')  % ...And error if blacked out.
+            end
+            
+            % Decide which hardware we need.
+            module = obj.determineModule(target);
             if isempty(module)
                 error(['Wavelength ' num2str(target) ' nm is outside the range of this msquared laser.'])
             end
-            
-            obj.updatingVal = true;
             obj.active_module = module;
+            
+            % With error-handling done, proclaim that we are updating.
+            obj.updatingVal = true;
 
             % If necessary, tune the EMM PPLN setpoint
             if strcmp(module, obj.moduleVIS)
@@ -285,7 +294,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 try
                     failcount = failcount + 1;
 
-                    if failcount > 10
+                    if failcount > 5
                         attempting = false;
                     end
                     
@@ -311,13 +320,14 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                             end
                         end
                     end
-                catch
-                    disp('NIR Failure')
+                catch err
+                    warning(err.message)
+                    obj.hwserver.reload(obj.moduleName);
                 end
             end
             obj.updatingVal = false;
                 
-            if failcount > 10
+            if failcount > 5
                 warning('Failed to set the SolsTiS wavelength ten times, aborting tuning attempt.')
             end
             
@@ -325,19 +335,21 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 warning('SolsTiS aborted tuning operation.')
             end
             
-            % Unlock if desired.
-            if      ~obj.do_etalon_lock
-                obj.com('lock_wavelength', 'solstis', obj.lockList{1});
-                obj.com('set_etalon_lock', 'solstis', obj.lockList{1});
-            elseif  ~obj.do_wavelength_lock
-                obj.com('lock_wavelength', 'solstis', obj.lockList{1});
-            end
+            if ~obj.aborted && failcount <= 10
+                if strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
+                    obj.tune(target, recursion+1)    % Try tuning again.
+                end
+                
+                % Unlock if desired.
+                if      ~obj.do_etalon_lock
+                    obj.com('lock_wavelength', 'solstis', obj.lockList{1});
+                    obj.com('set_etalon_lock', 'solstis', obj.lockList{1});
+                elseif  ~obj.do_wavelength_lock
+                    obj.com('lock_wavelength', 'solstis', obj.lockList{1});
+                end
             
-            % Update values.
-            obj.getFrequency();
-            
-            if ~obj.aborted && strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
-                obj.tune(target)    % Try tuning again.
+                % Update values.
+                obj.getFrequency();
             end
             
             obj.aborted = false;
