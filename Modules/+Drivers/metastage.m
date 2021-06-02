@@ -71,20 +71,21 @@ classdef metastage < handle % Modules.Driver
     
     methods
         function success = focusSmart(obj)
-            obj.image.snapImage();
+            obj.image.snapImage(); %tricky to debug if this fails. consider try/catch?
             
             success = true;
             
+            %add helpful error messages here. 
             if obj.image.N > 4
                 disp('Detected more than four QR codes. Need to add better checks to resolve this.')
             elseif obj.image.N == 4     % All good, probs. Maybe add an option for precise focus.
                 success = obj.focus(9, .8);
             elseif obj.image.N == 3     % Do a local focus with only a few frames. 
-                success = obj.focus(13, 1.2);
+                success = obj.focus(13, 1.2); %errors: "invalid axes handle."
             elseif obj.image.N == 2     % Do a local focus with a few more frames.
                 success = obj.focus(19, 1.8);
             else                        % Do a larger local focus.
-                success = obj.focus(41, 4);
+                success = obj.focus(41, 4); 
             end
         end
         function success = focus(obj, N, zspan, isfine)
@@ -370,10 +371,14 @@ classdef metastage < handle % Modules.Driver
                 error('Don''t want to move too far.');
             end
             
-            dv = obj.calibration_coarse * dV;
+            dv = obj.calibration_coarse * dV; 
+            
+            if isnan(dv(1)) || isnan(dv(2))
+                error('Moving to NaN. Check calibration_coarse: consider running ms.calibrate!');
+            end 
             
             if norm(dv) > .3
-                error('Don''t want to move too far.');
+                error('Don''t want to move too far. Check calibration');
             end
             
             obj.coarse_x.writ(obj.coarse_x.read() + dv(1));
@@ -389,7 +394,7 @@ classdef metastage < handle % Modules.Driver
         function navigateTarget(obj, X, Y)
             Vt = [X; Y];
             
-            obj.focusSmart();
+            obj.focusSmart(); %consider try/catch in case of focus error
             
             V = [obj.image.X; obj.image.Y];
             
