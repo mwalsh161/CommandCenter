@@ -78,7 +78,7 @@ classdef APDPulseSequence < handle
             for i = 1:numel(gate_chans)
                 GateLineName = gate_chans(i).label;
                 obj.tasks(end+1) = obj.ni.CreateTask([mfilename ' ' GateLineName]);
-                obj.tasks(i).UserData.N = obj.count_bins(s,GateLineName);
+                obj.tasks(i).UserData.N = obj.count_bins(s,GateLineName); % + 1
                 obj.tasks(i).UserData.raw_data = NaN(obj.tasks(i).UserData.N,1);
                 obj.tasks(i).UserData.ii = 0;
                 try

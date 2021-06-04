@@ -56,8 +56,12 @@ classdef ExperimentManager < Base.Manager
         end
         function abort(obj,varargin)
             obj.aborted = true;
-            obj.sandboxed_function({obj.active_module,'abort'});
-            obj.log('%s aborted experiment.',class(obj.active_module))
+            try
+                obj.sandboxed_function({obj.active_module,'abort'});
+                obj.log('%s aborted experiment.',class(obj.active_module))
+            catch
+                obj.log('%s aborted experiment. Some issue occured when aborting.',class(obj.active_module))
+            end
         end
         
         % Save Event Callback

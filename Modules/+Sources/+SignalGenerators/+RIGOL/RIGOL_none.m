@@ -57,6 +57,21 @@ classdef RIGOL_none < Sources.SignalGenerators.SG_Source_invisible
     methods
         function delete(obj)
         end
+
+        function f_sweep(obj,f_start, f_stop, n)
+            % sets up a frequency sweep such that every time the external trigger is pressed, the frequency changes to the next value, looping back to first value after reaching the end.
+            % f_start, f_stop: sweep start & stop frequency in Hz
+            % n: number of points in the sweep
+            obj.serial.setSweepType('freq')
+            obj.serial.setTrigPolarity('pos')
+            obj.serial.setSweepMode('continuous') %Ensure that sweep loops
+            obj.serial.setPointTrig('ext') % Sweep step triggered by external TTL
+            obj.serial.setSweepStartFreq(f_start)
+            obj.serial.setSweepStopFreq(f_stop)
+            obj.serial.setSweepNumPoints(n)
+
+            obj.serial.executeSweep()
+        end
     end
 end
 
