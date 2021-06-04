@@ -3,7 +3,7 @@ classdef Conex_CC < Modules.Driver
     % documentation https://www.newport.com/mam/celum/celum_assets/resources/CONEX-CC_-_Controller_Documentation.pdf?1
     
     properties(SetObservable, GetObservable)
-        host =          Prefs.String('COM?',    'set', 'set_host',      'help', 'COM (USB) port that is connected to the micrometer.');
+        host =          Prefs.String('COM?',    'set', 'set_host', 'readonly', true,      'help', 'COM (USB) port that is connected to the micrometer.');
         address =       1; %Prefs.Integer(1,        'set', 'set_address',   'help', 'COM (USB) port that is connected to the micrometer.');
         
         identifier =    Prefs.String('', 'readonly', true);
@@ -17,16 +17,17 @@ classdef Conex_CC < Modules.Driver
         s;      % Handle to serial connection
     end
     methods(Access=protected)
-        function obj = Conex_CC()
-            obj.loadPrefs; % note that this calls set.host
+        function obj = Conex_CC(host)
+            obj.host = host;
+            obj.loadPrefs;
         end
     end
     methods(Static)
-        function obj = instance()
+        function obj = instance(host)
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Drivers.Conex_CC();
+                Object = Drivers.Conex_CC(host);
             end
             obj = Object;
         end

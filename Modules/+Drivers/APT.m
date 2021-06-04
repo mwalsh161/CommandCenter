@@ -25,8 +25,9 @@ classdef APT < handle
         MOVING_CLOCKWISE = 5;
         MOVING_COUNTERCLOCKWISE = 6;
         MOTOR_CONNECTED = 9;
-        HOMING = 10;
-        HOMED = 11;
+%         HOMING = 10;
+%         HOMED = 11;
+        HOMED = 10;
     end
     methods
         %Method to get the current status bits.

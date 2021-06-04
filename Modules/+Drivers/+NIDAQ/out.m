@@ -113,10 +113,22 @@ classdef out < handle
             catch err
                 warning(err.message);
             end
+            
+            obj.state = val;
         end
         function tf = writ(obj, val)
+            'writ'
+            val
             try
-                obj.set_state(val);
+                delta = val - obj.state;
+                if ~isnan(obj.state) && delta
+                    vals = obj.state:sign(delta)*.1:val;
+                    for val_ = vals
+                        obj.set_state(val_);
+                    end
+                else
+                    obj.set_state(val);
+                end
                 tf = true;
             catch
                 tf = false;
@@ -124,6 +136,8 @@ classdef out < handle
         end
         function val = read(obj)
             val = obj.state;
+            'read'
+            val
         end
     end
     methods

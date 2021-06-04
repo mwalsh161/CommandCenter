@@ -22,7 +22,8 @@ function [x0, xx, xxx] = fitoptimize(x, y)
     outliers = true;
     
     centerdistance = abs(xx - mean(x));
-    xx = sort(centerdistance);
+    [~, I] = sort(centerdistance);
+    xx = xx(I);
     
     while any(outliers) && std(xx) > 0              % While there are outliers...
         outliers = abs(xx - mean(xx)) >= std(xx);   % Define outliers to be those outside one standard deviation (low bar to increase chance of rejection).
@@ -39,6 +40,6 @@ function [x0, xx, xxx] = fitoptimize(x, y)
         [labels, ~] = bwlabel(data, 8);
         candidates = regionprops(labels, 'Area', 'Centroid');
         [~, indices] = sort([candidates.Area], 'descend');
-        centroid = candidates(indices(1)).Centroid(1);
+        centroid = max(candidates(indices(1)).Centroid);
     end
 end

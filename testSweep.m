@@ -29,22 +29,32 @@ function s = testSweep
     
     t = Prefs.Time;
     
-    opt = false
+    opt = false;
     
     if opt
-        s0 = Base.Sweep({mm}, {mp(1)}, {0:.01:10}, struct('shouldOptimizeAfter', 1), .001);
-        s1 = Base.Sweep({mm}, {mp(2)}, {0:.01:10}, struct('shouldOptimizeAfter', 1), .001);
-        s2 = Base.Sweep({mm}, {mp(3)}, {0:.01:10}, struct('shouldOptimizeAfter', 1), .001);
-        s3 = Base.Sweep({mm}, {mp(4)}, {0:.01:10}, struct('shouldOptimizeAfter', 1), .001);
+        p = .01;
+        d = .002;
+%         sweep = 0:p:10;
+        sweep = 10:-p:0;
+        s0 = Base.Sweep({mm}, {mp(1)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s1 = Base.Sweep({mm}, {mp(2)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s2 = Base.Sweep({mm}, {mp(3)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s5 = Base.Sweep({mm}, {mp(4)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s4 = Base.Sweep({mm}, {hwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over HWP');
+        s3 = Base.Sweep({mm}, {qwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over QWP');
 
         f = figure;
 
-        Base.SweepViewer(s0, subplot(2, 2, 1, 'parent', f))
-        Base.SweepViewer(s1, subplot(2, 2, 2, 'parent', f))
-        Base.SweepViewer(s2, subplot(2, 2, 3, 'parent', f))
-        Base.SweepViewer(s3, subplot(2, 2, 4, 'parent', f))
+        Base.SweepViewer(s0, subplot(2, 3, 1, 'parent', f))
+        Base.SweepViewer(s1, subplot(2, 3, 2, 'parent', f))
+        Base.SweepViewer(s2, subplot(2, 3, 4, 'parent', f))
+        Base.SweepViewer(s5, subplot(2, 3, 5, 'parent', f))
+        Base.SweepViewer(s3, subplot(2, 3, 3, 'parent', f))
+        Base.SweepViewer(s4, subplot(2, 3, 6, 'parent', f))
     else
-        s = Base.Sweep({mm, pmp, wm, t}, {wl}, {618:.05:622}, struct(), 1);
+%         s = Base.Sweep({mm, pmp, wm, t}, {wl}, {618:.05:622}, struct(), 1);
+%         Base.SweepViewer(s, [])
+        s = Base.Sweep({mm}, {t}, {1:100}, struct('isContinuous', 1), 1);
         Base.SweepViewer(s, [])
     end
 

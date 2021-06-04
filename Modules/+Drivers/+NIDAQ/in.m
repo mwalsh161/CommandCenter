@@ -104,7 +104,7 @@ classdef in < handle & Base.Measurement
                 % Blocking function that will take nsamples, each with the
                 % specified dwell time.
                 % Returns array of size 1x(nsamples).
-                % dwell is in ms.
+                % dwell is in s.
                 if nargin < 3
                     nsamples = 1;
                 end
@@ -146,11 +146,11 @@ classdef in < handle & Base.Measurement
                 rethrow(err)
                 return
             end
+            
             % Wait until finished, then read data.
             obj.selfpulsetrain.WaitUntilTaskDone;
             data = obj.selftask.ReadCounter(obj.selftask.AvailableSamples);
             val = diff(data)/dwell;
-            data(1)/dwell;
             
             try
                 obj.selftask.Stop;

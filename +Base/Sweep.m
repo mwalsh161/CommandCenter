@@ -154,7 +154,7 @@ classdef Sweep < handle & Base.Measurement
             % Helper functions
             function tf = isNIDAQ(pref)
                 if isa(pref, 'Prefs.Time')
-                    tf = true;
+                    tf = false;
                 elseif isa(pref, 'Prefs.Paired')
                     tf = true;
                     
@@ -327,13 +327,25 @@ classdef Sweep < handle & Base.Measurement
                 for ii = 1:length(obj.NIDAQ.out.tasks); obj.NIDAQ.out.tasks{ii}.Clear; end
                 for ii = 1:length(obj.NIDAQ.in.tasks);  obj.NIDAQ.in.tasks{ii}.Clear;  end
                 obj.NIDAQ.pulseTrain.Clear;
+                
+                A = 1:obj.ndims();
+                L = obj.size();
+                N = prod(L);
+
+                % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
+                [sub2{1:length(L)}] = ind2sub(L, min(obj.index, N));
+                sub2 = [sub2{:}];
+
+                for aa = A
+                    obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
+                end
             end
             
             % Optimize afterward
-            obj.flags.shouldOptimizeAfter
-            length(obj.sscans)
-            obj.index
-            N
+%             obj.flags.shouldOptimizeAfter
+%             length(obj.sscans)
+%             obj.index
+%             N
             if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1 && obj.index >= N
                 % shouldOptimizeAfter is +\-1, and acts to sign() whether the data is maximized (+1) or minimized (-1).
                 x0 = fitoptimize(obj.sscans{1}, obj.flags.shouldOptimizeAfter * obj.data.(sd{1}).dat);
@@ -341,6 +353,7 @@ classdef Sweep < handle & Base.Measurement
             elseif obj.flags.shouldReturnToInitial
                 for ii = 1:obj.ndims()
                     if ~isnan(obj.meta.initial(ii))
+                        obj.sdims{ii}.writ(obj.sscans{1}(1));
                         obj.sdims{ii}.writ(obj.meta.initial(ii));
                     end
                 end
@@ -353,6 +366,10 @@ classdef Sweep < handle & Base.Measurement
 
             % Return the data
             data = obj.data;
+        end
+        function reset_measure(obj)
+            obj.reset();
+            obj.measure();
         end
     end
     methods (Access=private, Hidden)

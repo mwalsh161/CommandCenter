@@ -132,8 +132,21 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
         function val = set_position(obj,val,pref)
             if ~obj.Moving && obj.Homed
                 obj.move(val);
-                waitfor(obj, 'Moving');
+                
+                timeout = 10;
+                t = tic;
+                
+                while (abs(val - obj.get_position()) > .01 || obj.Moving) && toc(t) < timeout
+                    pause(.05);
+                end
+%                 waitfor(obj, 'Moving');
             else
+                if obj.Moving
+                    warning('Motor is moving.')
+                end
+                if ~obj.Homed
+                    warning('Motor is not homed.')
+                end
                 val = pref.value;
             end
         end
@@ -141,13 +154,13 @@ classdef (Sealed) APTMotor < Drivers.APT & Modules.Driver
             % This will get used alot, so it is nice to add some
             % intelligence so we only poll the expensive LibraryFunction
             % if we have to.
-           if obj.newPosition
-               [~,val] = obj.LibraryFunction('GetPosition',0,0);
-               obj.lastPosition = val;
-           else
-               val = obj.lastPosition;
-           end
-           obj.newPosition = obj.Moving;
+%            if obj.newPosition
+           [~,val] = obj.LibraryFunction('GetPosition',0,0);
+%                obj.lastPosition = val;
+%            else
+%                val = obj.lastPosition;
+%            end
+%            obj.newPosition = obj.Moving;
         end
         function val = read(obj)
             val = obj.get_position();

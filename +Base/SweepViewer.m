@@ -39,7 +39,7 @@ classdef SweepViewer < handle
 		names =         {'R',           'G',            'B'}                                
 		colors =        {[1 0 0],       [0 1 0],        [0 0 1]};
 		linewidth =     2;
-		alpha =         .5;
+		alpha =         1; % .5;
         
         % Pointer properties
 		pnames = 		{'selpix',      'selpnt',       'value'};
@@ -173,10 +173,10 @@ classdef SweepViewer < handle
             uimenu(obj.menus.menu, 'Label', 'Goto Pixel',       'Callback', {@obj.gotopostion_Callback, 1, 0}, 'Separator', 'on');
             uimenu(obj.menus.menu, 'Label', 'Goto Position',    'Callback', {@obj.gotopostion_Callback, 0, 0});
             
-            uimenu(obj.menus.menu, 'Label', 'Sweep',            'Callback', @(s,e)(disp(obj.s.measure())), 'Separator', 'on');
+            uimenu(obj.menus.menu, 'Label', 'Sweep',            'Callback', @(s,e)(obj.s.measure()), 'Separator', 'on');
             uimenu(obj.menus.menu, 'Label', 'Tick',             'Callback', @(s,e)(obj.s.tick()));
             uimenu(obj.menus.menu, 'Label', 'Reset',            'Callback', @(s,e)(obj.s.reset()));
-            uimenu(obj.menus.menu, 'Label', 'Reset & Resweep',  'Callback', @(s,e)(obj.s.reset()+obj.s.measure()));
+            uimenu(obj.menus.menu, 'Label', 'Reset & Resweep',  'Callback', @(s,e)(obj.s.reset_measure()));
         end
 		function makePlots(obj)
 			N = length(obj.colors);
@@ -375,6 +375,7 @@ classdef SweepViewer < handle
                 
                 obj.setPtr(1, [NaN, NaN]);
                 obj.setPtr(2, [NaN, NaN]);
+                obj.setPtr(3, [NaN, NaN]);
             end
             
             if evt.Button == 3  % Right click
