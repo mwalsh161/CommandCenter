@@ -67,10 +67,7 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         TuneSetpointNPoints =   Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
     end
     properties(Constant)
-     h
-    end
-    properties(SetObservable,SetAccess=private)
-        source_on = false;
+        
     end
     properties(SetObservable,GetObservable)
         running = Prefs.Boolean(false,'help','Boolean specifying if StaticLines program running');

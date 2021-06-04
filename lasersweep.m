@@ -1,4 +1,4 @@
-percents = 5:.1:95;
+percents = 5:.2:95;
 freqs = percents * NaN;
 etalon_volts = percents * NaN;
 time = percents * NaN;

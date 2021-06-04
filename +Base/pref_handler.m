@@ -267,7 +267,7 @@ classdef pref_handler < handle
             if exist('err','var')
                 % This will be thrown as warning in console because it is
                 % from a listener, so we will use a flag for detection with
-                % a readable property
+                % a readable propertyd
                 obj.last_pref_set_err = err;
                 if obj.pref_set_try
                     return

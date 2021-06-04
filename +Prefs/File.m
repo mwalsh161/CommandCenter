@@ -64,6 +64,9 @@ classdef File < Base.pref
 
     methods(Hidden) % Callback
         function select_file(obj,hObj,eventdata,~)
+            if ~isstruct(hObj.UserData)
+                    hObj.UserData = [];
+            end
             if ~isfield(hObj.UserData,'last_choice')
                 hObj.UserData.last_choice = obj.value;
             end

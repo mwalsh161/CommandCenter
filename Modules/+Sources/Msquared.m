@@ -262,7 +262,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     
                     obj.trackFrequency(obj.c/target);   % Will block until obj.tuning = false (calling obj.getFrequency each tick)
                 
-                    if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
+                    if ~obj.center_percent || (obj.resonator_voltage < 102 && obj.resonator_voltage > 98)    % If we are good with anything or we are inside the acceptable range...
                         attempting = false;
                     else
                         detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
