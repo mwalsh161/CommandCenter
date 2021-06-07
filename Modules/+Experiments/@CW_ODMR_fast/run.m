@@ -26,22 +26,24 @@ function run( obj,status,managers,ax )
     % Setup graphics
     y = NaN(1,obj.sweep_Npts);
     hold(ax,'on');
-    plotH(1) = plot(obj.freq_list, y,'color', 'k','parent',ax); % ODMR signal
+    cs = lines(2);
+    plotH{1} = errorbar(obj.freq_list, y, y,'color', cs(1,:),'parent',ax); % ODMR signal
     ylabel(ax,'ODMR (normalized)');
     
     yyaxis(ax, 'right')
-    cs = lines(1);
-    plotH(2) = plot(obj.freq_list, y,...
-        'color', cs(1,:),'linestyle','-','parent',ax); % Actual signal
-    legend(plotH,{'Normalized (left)','Signal (right)'})
+    plotH{2} = plot(obj.freq_list, y,...
+        'color', cs(2,:),'linestyle','-','parent',ax); % Actual signal
+    %legend(plotH,{'Normalized (left)','Signal (right)'})
     ylabel(ax,'Counts (cps)');
-    xlabel(ax,'Frequency (GHz)');
+    xlabel(ax,'Frequency (MHz)');
     yyaxis(ax, 'left');
 
     % Bullshit plot to extract pulsesequence data
     f = figure('visible','off','name',mfilename);
     a = axes('Parent',f);
-    p = plot(NaN,'Parent',a);
+    p = plot(NaN,'Parent',a);    
+    ax.UserData.plots = plotH;
+    hold(ax,'off');
 
     try
         % Initialise pulse sequence
@@ -76,9 +78,12 @@ function run( obj,status,managers,ax )
             obj.data(j,:) = dat;
             odmr(j,:) = 2*dat./(dat+dat(1)); % Use first frequency point as normalisation
             averageODMR = squeeze(nanmean(odmr,1));
+            stdODMR = squeeze(std(odmr,1,'omitnan'));
             averagedData = squeeze(nanmean(obj.data,1));
-            plotH(1).YData = averageODMR;
-            plotH(2).YData = averagedData;
+            ax.UserData.plots{1}.YData = averageODMR;
+            ax.UserData.plots{1}.YNegativeDelta = stdODMR/sqrt(j);
+            ax.UserData.plots{1}.YPositiveDelta = stdODMR/sqrt(j);
+            ax.UserData.plots{2}.YData = averagedData;
         end
     catch err
     end

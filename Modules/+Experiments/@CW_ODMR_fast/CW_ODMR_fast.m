@@ -9,7 +9,7 @@ classdef CW_ODMR_fast < Modules.Experiment
         APD_Sync_line = Prefs.String('CounterSync','help_text','NIDAQ CounterSync Line');
         APD_Gate_line = Prefs.Integer(1,'help_text','PulseBlaster APDGate output line (1 index)','min',1);
         SG_Trigger_line = Prefs.Integer(2,'help_text','PulseBlaster signal generator trigger output line (1 index)','min',1);
-
+        MW_line = Prefs.Integer(5,'help_text','PulseBlaster MW switch line (1 index)','min',1);
 
         Trig_Time = Prefs.Double(1, 'help_text', 'Time that the trigger is on', 'units', 'ms','min',0);
         APD_Delay = Prefs.Double(1, 'help_text', 'Delay after trigger is turned off after which the APD gate is turned on', 'units', 'ms','min',0);
@@ -29,7 +29,7 @@ classdef CW_ODMR_fast < Modules.Experiment
     end
     properties
         freq_list = []; % Internal list of frequencies calculated from sweep_start_freq, sweep_end_freq, & sweep_Npts (MHz)
-        prefs = {'sweep_start_freq','sweep_end_freq','sweep_Npts','averages','MW_Power','Exposure','APD_Delay','Trig_Time','Laser','SignalGenerator','APD_line','APD_Sync_line','SG_Trigger_line','APD_Gate_line','pb_IP','NIDAQ_dev'}
+        prefs = {'sweep_start_freq','sweep_end_freq','sweep_Npts','averages','MW_Power','Exposure','APD_Delay','Trig_Time','Laser','SignalGenerator','APD_line','APD_Sync_line','SG_Trigger_line','APD_Gate_line','MW_line','pb_IP','NIDAQ_dev'}
     end
 
     methods(Static)
@@ -60,14 +60,17 @@ classdef CW_ODMR_fast < Modules.Experiment
             laserChannel = channel('Laser','color','g','hardware',obj.Laser.PBline-1);
             triggerChannel = channel('Trigger','color','r','hardware',obj.SG_Trigger_line-1);
             APDchannel = channel('APDgate','color','k','hardware',obj.APD_Gate_line-1,'counter','APD1');
-            s.channelOrder = [laserChannel, triggerChannel, APDchannel];
+            MWchannel = channel('MWswitch','color','y','hardware',obj.MW_line-1);
+            s.channelOrder = [MWchannel,laserChannel, triggerChannel, APDchannel];
             
             g = node(s.StartNode,laserChannel,'units','us','delta',0); % Green on throughout
+            m = node(g,MWchannel,'units','ms','delta',0); % MW on during laser time
             a = node(g,APDchannel,'units','ms','delta',obj.APD_Delay); % APD comes on at after APD Delay
             a = node(a,APDchannel,'units','ms','delta',obj.Exposure); % APD turns off after exposure
             t = node(a,triggerChannel,'units','ms','delta',0); % Trigger for next frequency
             t = node(t,triggerChannel,'units','ms','delta',obj.Trig_Time); % Trigger turns off
-            node(a,laserChannel,'delta',0);
+            g = node(a,laserChannel,'delta',0); % Laser off at end
+            node(g,MWchannel,'units','ms','delta',0); % MW off with laser
 
         end
         run(obj,status,managers,ax) % Main run method in separate file
