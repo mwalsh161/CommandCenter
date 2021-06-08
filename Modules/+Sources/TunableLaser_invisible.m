@@ -19,10 +19,10 @@ classdef TunableLaser_invisible < handle
         tuning  % True/false if laser is actively tuning (used in trackWavelength)
     end
     properties(SetObservable,GetObservable)
-        setpoint = Prefs.Double(NaN,'readonly',true,'units','THz');
+        setpoint = Prefs.Double(NaN, 'readonly', true, 'units', 'THz');
     end
     properties(SetObservable,GetObservable)
-        locked = Prefs.Boolean(false,'readonly',true);
+        locked = Prefs.Boolean(false, 'readonly', true);
     end
     properties(Abstract,SetAccess=protected)
         range

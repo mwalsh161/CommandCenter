@@ -314,6 +314,7 @@ classdef WinSpec < Modules.Driver
                 for i=1:length(setpoints)
                     laser.TuneCoarse(setpoints(i));
                     laserspec = obj.acquire;
+                    laserloc(i) = laser.getFrequency; %move near acquisition.
                     plt(i) = plot(ax,laserspec.x,laserspec.y,'color',colors(i,:));
                     xlabel(ax,'Wavelength (nm)');
                     ylabel(ax,'Intensity');
@@ -321,7 +322,6 @@ classdef WinSpec < Modules.Driver
                     specfit = fitpeaks(laserspec.x,laserspec.y,'fittype','gauss');
                     assert(length(specfit.locations) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
                     specloc(i) = specfit.locations;
-                    laserloc(i) = laser.getFrequency;
                     plot(ax,specloc(i)*[1 1],get(ax,'ylim'),'--k');
                     leg = num2str(laserloc(1:i),'%g THz,');
                     leg(end) = []; % Remove trailing comma
