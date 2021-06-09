@@ -31,6 +31,11 @@ function s = testSweep
     
     opt = false;
     
+    
+    s = Base.Sweep({mm, pmp}, {t}, {1:100}, struct('isContinuous', 1), 1);
+    Base.SweepViewer(s, [])
+    return
+    
     if opt
         p = .01;
         d = .002;

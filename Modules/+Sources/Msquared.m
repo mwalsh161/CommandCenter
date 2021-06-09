@@ -38,7 +38,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                                                                     'help_text', 'Which of our two lasers to use.'); % 'Modules will be loaded when a hwserver hostname is supplied.');
         hwserver_host =     Prefs.String(Sources.Msquared.no_server, 'set', 'set_hwserver_host', ...
                                                                     'help_text', 'The host for the laser and wavemeter');
-        refresh =           Prefs.Button('unit', 'Poll hwserver',   'get', 'get_refresh', 'set', 'set_refresh', ...
+        refresh =           Prefs.Button('unit', 'Poll hwserver',   'get', 'get_refresh', 'set', 'set_refresh', ... 
                                                                     'help_text', 'Get information (voltages, wavelengths, states) from the laser and wavemeters');
         abort =             Prefs.Button('unit', 'Stop Tuning',     'set', 'set_abort', ...
                                                                     'help_text', 'Stop the current tuning operation.');
@@ -147,17 +147,17 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         function callGetWavelength(obj)             % Calls the solstis method 'get_wavelength' and fills prefs in.
             if isempty(obj.hwserver) || ~isvalid(obj.hwserver) || isempty(obj.moduleName)
                 obj.status = obj.no_server;
-                obj.tuning = NaN;
-%                 obj.wavelength = NaN;
+                obj.tuning = false;
+                obj.NIR_wavelength = NaN;
                 obj.wavelength_lock = NaN;
                 obj.locked = NaN;
             else
                 try
                     reply = obj.com('get_wavelength', 'solstis');
 
-                    obj.status = obj.statusList{reply.status+1};
-                    obj.tuning = reply.status == 2;
-    %                 obj.wavelength = reply.current_wavelength;            % We prefer to use the wavemeter directly.
+                    obj.status =            obj.statusList{reply.status+1};
+                    obj.tuning =            reply.status == 2;
+                    obj.NIR_wavelength =    reply.current_wavelength;
                     obj.wavelength_lock =   logical(reply.lock_status);
                     obj.locked =            logical(reply.lock_status);
                 catch
@@ -183,13 +183,11 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     %                 obj.resonator_lock =    strcmp(reply.cavity_lock,'on');   % Future: add this to the interface?
                     obj.resonator_voltage = reply.resonator_voltage;
                     obj.output_monitor =    reply.output_monitor;
-                    obj.armed = obj.get_armed();
+                    obj.armed =             obj.get_armed();
                 catch
                     warning('SolsTiS status call failed; leaving variables unchanged.')
                 end
             end
-            
-            obj.callGetWavelength()
         end
         
         function getWavemeterWavelength(obj)        % Measures the output wavelength directly from the wavemeter. Also uses the EMM channel if the EMM module is active.
@@ -200,7 +198,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             else
                 obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
                 
-                % If the proper channel is off and the laser should be outputting power...
+                % If the proper channel is off but the laser should be outputting power...
                 if obj.NIR_wavelength == 0 && obj.laserOn()
                     obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.NIR_channel, 1, 1);
                     obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
@@ -210,16 +208,17 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 if strcmp(obj.determineModule(obj.setpoint_), obj.moduleVIS)
                     obj.VIS_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.VIS_channel, 0);
                     
-                    % If the proper channel is off and the laser should be outputting power...
+                    % If the proper channel is but and the laser should be outputting power...
                     if obj.VIS_wavelength == 0 && obj.laserOn()
                         obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 1, 1);
                         obj.VIS_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.VIS_channel, 0);
                     end
-
+                    
+                    % Do math on the wavelengths if they are real
                     if obj.VIS_wavelength > 0 && obj.NIR_wavelength > 0
                         diff_wavelength_ = 1/(1/obj.VIS_wavelength - 1/obj.NIR_wavelength);
 
-                        if diff_wavelength_ < 1951 && diff_wavelength_ > 1949   % This range is just so a silly value isn't set. Not sure if this is a good range.
+                        if diff_wavelength_ > 1949 && diff_wavelength_ < 1951   % This range is just so a silly value isn't set. Not sure if this is a good range.
                             obj.diff_wavelength = diff_wavelength_;
                         end
                     end
@@ -256,7 +255,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             
             % If we don't think we are armed...
             if isnan(obj.armed) || ~obj.armed
-                obj.getFrequency(); % ...Check...
+                obj.callStatus(); % ...Check...
                 assert(~isnan(obj.armed) && obj.armed, 'Laser must be armed to tune!')  % ...And error if blacked out.
             end
             
@@ -269,6 +268,11 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             
             % With error-handling done, proclaim that we are updating.
             obj.updatingVal = true;
+            
+            % Turn the visible channel off at the start of every tune, for speed.
+            if obj.VIS_channel ~= obj.NIR_channel && ~isnan(obj.VIS_channel)
+                obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 0, 0);
+            end
 
             % If necessary, tune the EMM PPLN setpoint
             if strcmp(module, obj.moduleVIS)
@@ -289,7 +293,9 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 
             attempting = true;
             failcount = 0;
+            centercount = 0;
 
+            % Main loop
             while attempting
                 try
                     failcount = failcount + 1;
@@ -297,6 +303,9 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     if failcount > 5
                         attempting = false;
                     end
+%                     if centercount > 5
+%                         attempting = false;
+%                     end
                     
                     nir_wavelength = obj.determineNIRWavelength(target);
                     obj.solstis_setpoint = nir_wavelength;
@@ -312,6 +321,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                                 detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
                                 out = obj.com('set_wavelength', 'solstis', nir_wavelength + detuning, 0);
 
+                                centercount = centercount + 1;
+                                
                                 if out.status ~= 0  % Call failed
                                     failcount = failcount + 1;
                                 end
@@ -326,16 +337,20 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 end
             end
             obj.updatingVal = false;
-                
+            
+            % Failcount warning
             if failcount > 5
-                warning('Failed to set the SolsTiS wavelength ten times, aborting tuning attempt.')
+                warning('Failed to set the SolsTiS wavelength five times, aborting tuning attempt.')
             end
             
+            % Abort warning
             if obj.aborted
                 warning('SolsTiS aborted tuning operation.')
             end
             
-            if ~obj.aborted && failcount <= 10
+            % Success events
+            if ~obj.aborted && failcount <= 5
+                warning('SolsTiS success.')
                 if strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
                     obj.tune(target, recursion+1)    % Try tuning again.
                 end
@@ -347,6 +362,9 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 elseif  ~obj.do_wavelength_lock
                     obj.com('lock_wavelength', 'solstis', obj.lockList{1});
                 end
+                
+                % Give time to settle.
+                pause(.1);
             
                 % Update values.
                 obj.getFrequency();
@@ -403,7 +421,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 
                 obj.armed = NaN;
                 obj.locked = NaN;
-                obj.tuning = NaN;
+                obj.tuning = false;
                 
                 obj.getFrequency();
             end
@@ -529,12 +547,24 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         end
         function freq = getFrequency(obj)
             obj.callStatus();
+            obj.callGetWavelength();
+            
             if obj.laserOn()
-                obj.getWavemeterWavelength();
+                if strcmp(obj.active_module, obj.moduleVIS)
+                    % Only call getWavemeterWavelength if we expect to get power from the EMM
+                    if ~obj.tuning || abs(obj.NIR_wavelength - obj.solstis_setpoint) < .1
+                        obj.getWavemeterWavelength();
+                    else
+                        obj.VIS_wavelength = NaN; % 1./(1./obj.NIR_wavelength + 1/obj.diff_wavelength);
+                    end
+                else
+                    if ~obj.tuning
+                        obj.getWavemeterWavelength();
+                    end
+                end
             else
-                obj.NIR_wavelength =  NaN;
-                obj.VIS_wavelength =  NaN;
-                obj.diff_wavelength = 1950;
+                obj.NIR_wavelength = NaN;
+                obj.VIS_wavelength = NaN;
             end
             
             freq = obj.c/obj.determineResultingWavelength();    % Not sure if this should be used; imprecise.
