@@ -860,10 +860,10 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             try
                 switch event.EventName
                     case 'PostSet'
-                        pref.value = pref.set_value(obj.(prop.Name));   % validation occurs here
+                        obj.(prop.Name) = pref.set_value(obj.(prop.Name));   % validation occurs here
                     case 'PostGet'
                         if obj.hardware_get
-                            pref.value = pref.get_value(obj.(prop.Name));
+                            obj.(prop.Name) = pref.get_value(obj.(prop.Name));
                         end
                 end
                 

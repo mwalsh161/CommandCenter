@@ -51,7 +51,7 @@ classdef SweepViewer < handle
 		axesDisplayedNames = {'x', 'y'};
         
         % Diplay update target rate.
-        fpsTarget = 10;
+        fpsTarget = 20;
     end
 
 	methods
@@ -671,8 +671,9 @@ classdef SweepViewer < handle
                                 num = obj.sp{ii}.processed;
                             else
                                 if obj.s.flags.isContinuous
-                                    ave = min(length(obj.sp{ii}.processed), 100);
-                                    num = obj.sp{ii}.processed(1:ave);
+%                                     ave = min(length(obj.sp{ii}.processed), 100);
+%                                     num = obj.sp{ii}.processed(1:ave);
+                                    num = obj.sp{ii}.processed(1);
                                 else
                                     nonnan = obj.sp{ii}.processed(~isnan(obj.sp{ii}.processed));
                                     if isempty(nonnan)

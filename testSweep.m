@@ -12,7 +12,9 @@ function s = testSweep
     pmp = pm.get_meta_pref('power');
     
     wl = ms.get_meta_pref('setpoint_');
+    ep = ms.get_meta_pref('etalon_percent');
     wm = ms.get_meta_pref('VIS_wavelength');
+    ev = ms.get_meta_pref('etalon_voltage');
     
 %     hwp.home()
 %     qwp.home()
@@ -57,10 +59,15 @@ function s = testSweep
         Base.SweepViewer(s3, subplot(2, 3, 3, 'parent', f))
         Base.SweepViewer(s4, subplot(2, 3, 6, 'parent', f))
     else
+%         s = Base.Sweep({wm, ev, mm, pmp, mm, pmp, t}, {ep, wl}, {0:5:100, 619:.25:621}, struct('shouldReturnToInitial', 0), .2);
+%         s = Base.Sweep({wm, ev, mm, pmp, mm, pmp, t}, {ep, wl}, {0:10:100, 618.5:.3:621.5}, struct('shouldReturnToInitial', 0), .2);
+%         s = Base.Sweep({wm, ev, mm, pmp, mm, pmp, t}, {ep, wl}, {10:10:90, 618:.25:620}, struct('shouldReturnToInitial', 0), .2);
+%         s = Base.Sweep({wm, ev, mm, pmp, mm, pmp, t}, {ep, wl}, {10:8:90, 618:.25:620}, struct('shouldReturnToInitial', 0), .2);
+        s = Base.Sweep({wm, ev, mm, pmp, mm, pmp, t}, {ep, wl}, {10:8:90, 601:.25:603}, struct('shouldReturnToInitial', 0), .2);
 %         s = Base.Sweep({mm, pmp, wm, t}, {wl}, {618:.05:622}, struct(), 1);
-%         Base.SweepViewer(s, [])
-        s = Base.Sweep({mm}, {t}, {1:100}, struct('isContinuous', 1), 1);
         Base.SweepViewer(s, [])
+%         s = Base.Sweep({mm}, {t}, {1:100}, struct('isContinuous', 1), 1);
+%         Base.SweepViewer(s, [])
     end
 
 %     s = Base.Sweep({mm, pmp, hwpp}, {qwpp}, {0:.01:10}, struct(), .001);

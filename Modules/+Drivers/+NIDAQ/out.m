@@ -122,7 +122,7 @@ classdef out < handle
             try
                 delta = val - obj.state;
                 if ~isnan(obj.state) && delta
-                    vals = obj.state:sign(delta)*.1:val;
+                    vals = obj.state:sign(delta)*.5:val;
                     for val_ = vals
                         obj.set_state(val_);
                     end

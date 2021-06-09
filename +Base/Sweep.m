@@ -269,6 +269,7 @@ classdef Sweep < handle & Base.Measurement
 		function data = measure(obj)
             N = prod(obj.size());
             sd = obj.subdata;
+            obj.controller.gui.toggle.Value = true
 
             % First, make sure that we are at the correct starting position.
             if obj.index > N && ~obj.flags.isContinuous
@@ -349,6 +350,7 @@ classdef Sweep < handle & Base.Measurement
             if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1 && obj.index >= N
                 % shouldOptimizeAfter is +\-1, and acts to sign() whether the data is maximized (+1) or minimized (-1).
                 x0 = fitoptimize(obj.sscans{1}, obj.flags.shouldOptimizeAfter * obj.data.(sd{1}).dat);
+                obj.sdims{1}.writ(obj.sscans{1}(1));
                 obj.sdims{1}.writ(x0);
             elseif obj.flags.shouldReturnToInitial
                 for ii = 1:obj.ndims()
@@ -491,8 +493,9 @@ classdef Sweep < handle & Base.Measurement
 
             differences = obj.sub ~= sub2;	% Find the axes that need to change...
             A = 1:obj.ndims();
+            needchange = A(differences);
 
-            for aa = A(differences)
+            for aa = needchange(end:-1:1)
                 obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
             end
 

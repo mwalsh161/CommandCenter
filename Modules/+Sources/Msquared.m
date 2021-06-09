@@ -15,7 +15,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
     end
     
     properties
-        prefs = {'hwserver_host', 'moduleName', 'center_percent', 'do_etalon_lock', 'do_wavelength_lock', 'NIR_channel', 'VIS_channel', 'PB_line', 'PB_host'}
+        prefs = {'hwserver_host', 'moduleName', 'center_percent', 'early_abort', 'do_etalon_lock', 'do_wavelength_lock', 'NIR_channel', 'VIS_channel', 'PB_line', 'PB_host'}
         show_prefs = {};
     end
     
@@ -48,6 +48,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                                                                     'help_text', 'Use this knob to tune the laser to a certain wavelength. Availible ranges: ECD-X (350-525), EMM (515-582/580-661), SolsTiS (700-1100). The laser will decide the appropriate module to use based on the chosen wavelength');
         center_percent =    Prefs.Boolean(false, ...
                                                                     'help_text', 'Whether to attempt to target resonator_voltage = 50% after tuning (currently hardcoded to be between 40% and 60% [between 80V and 120V]). This is done by repeatedly moving to and from the target wavelength until a good resonator percent value is found.');
+        early_abort =       Prefs.Boolean(false, ...
+                                                                    'help_text', 'Abort when within .01 nm.');
         active_module =     Prefs.MultipleChoice(Sources.Msquared.moduleNIR, 'readonly', true, 'allow_empty', true, 'choices', {Sources.Msquared.no_server, Sources.Msquared.moduleUV, Sources.Msquared.moduleVIS, Sources.Msquared.moduleNIR}, ... %{'ECD-X', 'EMM', 'SolsTiS'}, ...
                                                                     'help_text', 'ECD-X (350-525), EMM (515-582/580-661), SolsTiS (700-1100)');
         status =            Prefs.String(Sources.Msquared.no_server, 'readonly', true, ...
@@ -196,13 +198,13 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                 obj.VIS_wavelength =  NaN;
                 obj.diff_wavelength = 1950;
             else
-                obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
-                
-                % If the proper channel is off but the laser should be outputting power...
-                if obj.NIR_wavelength == 0 && obj.laserOn()
-                    obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.NIR_channel, 1, 1);
-                    obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
-                end
+%                 obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
+%                 
+%                 % If the proper channel is off but the laser should be outputting power...
+%                 if obj.NIR_wavelength == 0 && obj.laserOn()
+%                     obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.NIR_channel, 1, 1);
+%                     obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
+%                 end
 
                 % If we need to grab the visible wavelength...
                 if strcmp(obj.determineModule(obj.setpoint_), obj.moduleVIS)
@@ -221,12 +223,14 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                         if diff_wavelength_ > 1949 && diff_wavelength_ < 1951   % This range is just so a silly value isn't set. Not sure if this is a good range.
                             obj.diff_wavelength = diff_wavelength_;
                         end
+                    elseif obj.VIS_wavelength <= 0
+                        obj.VIS_wavelength = NaN;
                     end
                 else
-                    if obj.VIS_channel ~= obj.NIR_channel && ~isnan(obj.VIS_channel)
-                        obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 0, 0);
-                    end
-                    obj.VIS_wavelength = NaN;
+%                     if obj.VIS_channel ~= obj.NIR_channel && ~isnan(obj.VIS_channel)
+%                         obj.hwserver.com('wavemeter', 'SetSwitcherSignalStates', obj.VIS_channel, 0, 0);
+%                     end
+%                     obj.VIS_wavelength = NaN;
                 end
             end
         end
@@ -488,6 +492,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.do_etalon_lock = false;
             if obj.laserOn()
                 obj.com('set_etalon_val', 'solstis', val);
+                obj.getFrequency();
             end
         end
         function val = set_do_etalon_lock(obj, val, pref)
@@ -506,6 +511,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.do_wavelength_lock = false;
             if obj.laserOn()
                 obj.com('set_resonator_val', 'solstis', val);
+                obj.getFrequency();
             end
         end
         function val = set_do_wavelength_lock(obj, val, pref)
@@ -550,16 +556,20 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.callGetWavelength();
             
             if obj.laserOn()
-                if strcmp(obj.active_module, obj.moduleVIS)
-                    % Only call getWavemeterWavelength if we expect to get power from the EMM
-                    if ~obj.tuning || abs(obj.NIR_wavelength - obj.solstis_setpoint) < .1
-                        obj.getWavemeterWavelength();
-                    else
-                        obj.VIS_wavelength = NaN; % 1./(1./obj.NIR_wavelength + 1/obj.diff_wavelength);
-                    end
+                if obj.early_abort && obj.tuning && abs(obj.NIR_wavelength - obj.solstis_setpoint) < .005
+                    obj.abort = true;
                 else
-                    if ~obj.tuning
-                        obj.getWavemeterWavelength();
+                    if strcmp(obj.active_module, obj.moduleVIS)
+                        % Only call getWavemeterWavelength if we expect to get power from the EMM
+                        if ~obj.tuning || abs(obj.NIR_wavelength - obj.solstis_setpoint) < .1
+                            obj.getWavemeterWavelength();
+                        else
+                            obj.VIS_wavelength = NaN; % 1./(1./obj.NIR_wavelength + 1/obj.diff_wavelength);
+                        end
+                    else
+                        if ~obj.tuning
+                            obj.getWavemeterWavelength();
+                        end
                     end
                 end
             else
