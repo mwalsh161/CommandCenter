@@ -1,6 +1,6 @@
 classdef TunableLaser_invisible < handle
     %TUNABLELASER_INVISIBLE Superclass for all lasers that can have their
-    %frequency tuned. 
+    %frequency tuned.
     %Properties:
     %   tuning: flag indicating laser is still tuning (should be updated on
     %       getFrequency calls)
@@ -12,17 +12,17 @@ classdef TunableLaser_invisible < handle
     %   TunePercent: Tune percentage (0,100) of presumed fine-tuning
     %   TuneSetpoint: Tuning with feedback to a unit-value
     %   getFrequency: Should return a real-time readout of laser frequency (NOT just setpoint, but where the laser ACTUALLY is)
-    
+
     properties(Abstract,SetObservable)
         % User must define even if empty cell array!
         show_prefs
         tuning  % True/false if laser is actively tuning (used in trackWavelength)
     end
     properties(SetObservable,GetObservable)
-        setpoint = Prefs.Double(NaN, 'readonly', true, 'units', 'THz');
+        setpoint = Prefs.Double(NaN,'readonly',true,'unit','THz');
     end
     properties(SetObservable,GetObservable)
-        locked = Prefs.Boolean(false, 'readonly', true);
+        locked = Prefs.Boolean(false,'readonly',true,'allow_nan',true);
     end
     properties(Abstract,SetAccess=protected)
         range
@@ -33,9 +33,13 @@ classdef TunableLaser_invisible < handle
     methods
         function trackFrequency(obj,varargin)
             target = NaN;
+            timeout = Inf;
             
             if nargin > 1
                 target = varargin{1};
+            end
+            if nargin > 2
+                timeout = varargin{2};
             end
             
             t = tic; % Start clock
@@ -63,9 +67,9 @@ classdef TunableLaser_invisible < handle
             dfreqH = plot(ax(2),NaN,NaN,'r-o');
             legend(ax(1),'show');
             
-            freq = obj.getFrequency;
+            obj.getFrequency;   % Refresh obj.tuning
             n = 0;
-            while obj.tuning
+            while obj.tuning && toc(t) < timeout
                 freq = obj.getFrequency;
                 n = n + 1;
                 dt = toc(t);
@@ -127,4 +131,3 @@ classdef TunableLaser_invisible < handle
         freq = getFrequency(~,varargin)
     end
 end
-

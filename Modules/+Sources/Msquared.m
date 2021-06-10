@@ -46,8 +46,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         % WAVELENGTH prefs
         setpoint_ =         Prefs.Double(NaN,   'units', 'nm',  'set', 'set_target_wavelength', ...
                                                                     'help_text', 'Use this knob to tune the laser to a certain wavelength. Availible ranges: ECD-X (350-525), EMM (515-582/580-661), SolsTiS (700-1100). The laser will decide the appropriate module to use based on the chosen wavelength');
-        center_percent =    Prefs.Boolean(false, ...
-                                                                    'help_text', 'Whether to attempt to target resonator_voltage = 50% after tuning (currently hardcoded to be between 40% and 60% [between 80V and 120V]). This is done by repeatedly moving to and from the target wavelength until a good resonator percent value is found.');
+        center_percent =    Prefs.Double(100,   'units', '%', ...
+                                                                    'help_text', 'Acceptable range for the resonator percent to lie within about 50%. 100% is the full range (disables this feature). If the laser is outside this range after tuning, further attempts will be made by repeatedly moving to and from the target wavelength until a good resonator percent value is found. The laser automatically targets 50%, but will stray if the etalon setpoint is unfavorable.');
         active_module =     Prefs.MultipleChoice(Sources.Msquared.moduleNIR, 'readonly', true, 'allow_empty', true, 'choices', {Sources.Msquared.no_server, Sources.Msquared.moduleUV, Sources.Msquared.moduleVIS, Sources.Msquared.moduleNIR}, ... %{'ECD-X', 'EMM', 'SolsTiS'}, ...
                                                                     'help_text', 'ECD-X (350-525), EMM (515-582/580-661), SolsTiS (700-1100)');
         status =            Prefs.String(Sources.Msquared.no_server, 'readonly', true, ...
@@ -312,10 +312,11 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     out = obj.com('set_wavelength', 'solstis', nir_wavelength, 0); % last arg is timeout
 
                     if out.status == 0  % Call success
-                        obj.trackFrequency(obj.c/target, 60);   % Will block until obj.tuning = false (calling obj.getFrequency each tick). Timeout of 60 sec.
+                        obj.trackFrequency(obj.c/target, 60);   % Will block until obj.tuning = false (calling obj.getFrequency each tick).
                         
                         if ~obj.tuning  % If we are not still tuning...
-                            if ~obj.center_percent || (obj.resonator_voltage < 120 && obj.resonator_voltage > 80)    % If we are good with anything or we are inside the acceptable range...
+                            % If we are inside the acceptable range...
+                            if obj.center_percent >= 100 || (obj.resonator_voltage > 100 - obj.center_percent && obj.resonator_voltage < 100 + obj.center_percent)  % This is in voltage = 2*percent units.
                                 attempting = false;
                             else
                                 detuning = 1 - 2*(nir_wavelength > 900);    % Tune up if wavelength < 900, down otherwise.
@@ -329,6 +330,9 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
 
                                 pause(.5);          % After a little bit, continue with the while loop to tune back.
                             end
+                        else
+                            warning('SolsTiS got stuck tuning; 60 sec timeout reached; attempting to tune again after aborting.')
+                            obj.com('abort_tune', 'solstis');
                         end
                     end
                 catch err
