@@ -86,8 +86,8 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             data = signal ./ norm;
            
             ax.UserData.plots{1}.YData = nanmean(data,1);
-            ax.UserData.plots{1}.YNegativeDelta = std(data,1,'omitnan')/sqrt(j);
-            ax.UserData.plots{1}.YPositiveDelta = std(data,1,'omitnan')/sqrt(j);
+            ax.UserData.plots{1}.YNegativeDelta = std(data,0,1,'omitnan')/sqrt(j);
+            ax.UserData.plots{1}.YPositiveDelta = std(data,0,1,'omitnan')/sqrt(j);
             ax.UserData.plots{2}.YData = nanmean(signal,1);
             ax.UserData.plots{3}.YData = nanmean(norm,1);
             ax.UserData.plots{4}.Value = obj.MW_Times_vals(i);

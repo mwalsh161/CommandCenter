@@ -78,7 +78,7 @@ function run( obj,status,managers,ax )
             obj.data(j,:) = dat;
             odmr(j,:) = 2*dat./(dat+dat(1)); % Use first frequency point as normalisation
             averageODMR = squeeze(nanmean(odmr,1));
-            stdODMR = squeeze(std(odmr,1,'omitnan'));
+            stdODMR = squeeze(std(odmr,0,1,'omitnan'));
             averagedData = squeeze(nanmean(obj.data,1));
             ax.UserData.plots{1}.YData = averageODMR;
             ax.UserData.plots{1}.YNegativeDelta = stdODMR/sqrt(j);
