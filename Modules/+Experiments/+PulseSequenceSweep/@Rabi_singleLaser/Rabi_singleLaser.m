@@ -17,9 +17,12 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
         MW_Power = Prefs.Double(-30,'units','dBm','help_text','MW power that the signal generator outputs');
         MW_Times = Prefs.String('linspace(1,100,101)','help_text', 'List of times that MW power will be on at','set','set_MW_Times','units','us');
         MW_Pad = Prefs.Double(1,'min',0,'units','us','help_text','Time between laser off and MW on');
+
+        detailed_plot = Prefs.Boolean(0,'help_text','Boolean whether to do detailed plot, separating out normalised signal, counts, & FFT, or simplified plot showing only normalised signal & counts on same plot')
     end
     properties
         MW_Times_vals = linspace(0,100,101); % Internal, set using MW_Times
+        freqs = [] % Internal, frequencies of FFT of Rabi signal
     end
     properties(Constant)
         nCounterBins = 2; %number of APD bins for this pulse sequence
@@ -33,7 +36,7 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             obj.prefs = [... %additional preferences not in superclass
                 {'MW_Times','MW_freq','MW_Power','Laser_Time'}...
                 {'APD_Time','APD_Offset','MW_Pad'},...
-                obj.prefs, {'APD_line','Laser','SignalGenerator','APD_Gate_line'}...
+                obj.prefs, {'APD_line','Laser','SignalGenerator','APD_Gate_line','detailed_plot'}...
             ];
             obj.loadPrefs;
         end
@@ -57,25 +60,67 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             y = NaN(1,size(obj.data.sumCounts(1,:,1),2));
             hold(ax,'on');
             
-            plotH{1} = errorbar(obj.MW_Times_vals, y, y,'-ok','parent',ax, 'MarkerFaceColor','k','MarkerSize',5);
-            ylabel(ax,'Rabi (normalized)');
-            plotH{4} = xline(0, 'r--','parent',ax);
+            if obj.detailed_plot
+                % Plot as three subplots
+                panel = ax.Parent;
+                subplot(3,20,[1 21 41],ax,'Visible','off') % Dummy axis to interface with PulseSequenceSweep_invisible
 
-            yyaxis(ax, 'right')
-            cs = lines(2);
-            plotH{2} = plot(obj.MW_Times_vals, y,...
-                'color', cs(1,:),'linestyle','-','parent',ax);
-            plotH{3} = plot(obj.MW_Times_vals, y,...
-                'color', cs(2,:),'linestyle','-','parent',ax);
-            
-            legend(ax,{'Normalized (left)','Signal (right)','Normalization (right)','Current MW Time'})
-            ylabel(ax,'Sum Counts');
-            
-            ax.UserData.plots = plotH;
-            
-            xlabel(ax,'\tau (\mus)');
+                % Normalised rabi signal
+                subax(1) = subplot(3,20,2:20,'parent',panel);
+                plotH{1} = errorbar(obj.MW_Times_vals, y, y,'.k','parent',subax(1),'MarkerSize',15);
+                plotH{4} = xline(0, 'r--','parent',subax(1));
+                legend(subax(1),{'Normalized','Current MW Time'})
+                ylabel(subax(1),'Rabi (normalized)');
+                set(subax(1),'xlimmode','auto','ylimmode','auto','ytickmode','auto');
+
+                % Signal showing signal/normalisation counts
+                subax(2) = subplot(3,20,22:40,'parent',panel);
+                hold(subax(2),'on');
+                cs = lines(2);
+                plotH{2} = plot(obj.MW_Times_vals, y,...
+                    'color', cs(1,:),'linestyle','-','parent',subax(2));
+                plotH{3} = plot(obj.MW_Times_vals, y,...
+                    'color', cs(2,:),'linestyle','-','parent',subax(2));
+                plotH{5} = xline(0, 'r--','parent',subax(2));
+                legend(subax(2),{'Signal','Normalization'})
+                ylabel(subax(2),'Sum Counts');  
+                xlabel(subax(2),'\tau (\mus)');
+                set(subax(2),'xlimmode','auto','ylimmode','auto','ytickmode','auto');
+                hold(subax(2),'off');
+
+                % FFT of signal
+                subax(3) = subplot(3,20,42:60,'parent',panel);
+                hold(subax(3),'on');
+                obj.freqs = (0:length(obj.MW_Times_vals)-1)/(obj.MW_Times_vals(2)-obj.MW_Times_vals(1))/(length(obj.MW_Times_vals)-1); % Frequencies assume that MW_Times_vals are evenly spaced
+                obj.freqs = obj.freqs(2:int8(length(obj.freqs)/2)); % Remove aliased negative frequencies
+                plotH{6} = stem(obj.freqs,y(2:length(obj.freqs)+1),'parent',subax(3));
+                ylabel(subax(3),'|FFT|');  
+                xlabel(subax(3),'Frequency (MHz)');
+                set(subax(3),'xlimmode','auto','ylimmode','auto','ytickmode','auto');
+                hold(subax(3),'off');
+                
+            else
+                plotH{4} = xline(0, 'r--','parent',ax);
+                plotH{1} = errorbar(obj.MW_Times_vals, y, y,'-ok','parent',ax, 'MarkerFaceColor','k','MarkerSize',5);
+                ylabel(ax,'Rabi (normalized)');
+
+                yyaxis(ax, 'right')
+                cs = lines(2);
+                plotH{2} = plot(obj.MW_Times_vals, y,...
+                    'color', cs(1,:),'linestyle','-','parent',ax);
+                plotH{3} = plot(obj.MW_Times_vals, y,...
+                    'color', cs(2,:),'linestyle','-','parent',ax);
+                
+                legend(ax,{'Current MW Time','Normalized (left)','Signal (right)','Normalization (right)'})
+                ylabel(ax,'Sum Counts');
+                            
+                xlabel(ax,'\tau (\mus)');
+                hold(ax,'off');
+                set(ax,'xlimmode','auto','ylimmode','auto','ytickmode','auto');
+                
+            end
             hold(ax,'off');
-            set(ax,'xlimmode','auto','ylimmode','auto','ytickmode','auto');
+            ax.UserData.plots = plotH;
             drawnow;
         end
         
@@ -92,11 +137,20 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             ax.UserData.plots{3}.YData = nanmean(norm,1);
             ax.UserData.plots{4}.Value = obj.MW_Times_vals(i);
 
+            if obj.detailed_plot
+                ax.UserData.plots{5}.Value = obj.MW_Times_vals(i);
+                rabi_f = abs(fft(mean(data,1,'omitnan')-mean(data,'all','omitnan')));
+                ax.UserData.plots{6}.YData = rabi_f(2:length(obj.freqs)+1);
+            end
+
             drawnow;
         end
 
-        function PostRun(obj,~,~,~)
+        function CleanUp(obj,~,~,ax)
             obj.SignalGenerator.off; % Ensure signal generator is off
+            if obj.detailed_plot
+                delete(ax); % Need to delete dummy axis so that CC cleans up the subplots correctly
+            end
         end
         
         function abort(obj)
