@@ -67,11 +67,14 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
 
                 % Normalised rabi signal
                 subax(1) = subplot(3,20,2:20,'parent',panel);
+                hold(subax(1),'on');
                 plotH{1} = errorbar(obj.MW_Times_vals, y, y,'.k','parent',subax(1),'MarkerSize',15);
+                plotH{7} = plot(obj.MW_Times_vals, y, 'r-','LineWidth',2.5,'parent',subax(1));
                 plotH{4} = xline(0, 'r--','parent',subax(1));
-                legend(subax(1),{'Normalized','Current MW Time'})
+                legend(subax(1),{'Normalized','Moving Average','Current MW Time'})
                 ylabel(subax(1),'Rabi (normalized)');
                 set(subax(1),'xlimmode','auto','ylimmode','auto','ytickmode','auto');
+                hold(subax(1),'off');
 
                 % Signal showing signal/normalisation counts
                 subax(2) = subplot(3,20,22:40,'parent',panel);
@@ -94,7 +97,7 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
                 obj.freqs = (0:length(obj.MW_Times_vals)-1)/(obj.MW_Times_vals(2)-obj.MW_Times_vals(1))/(length(obj.MW_Times_vals)-1); % Frequencies assume that MW_Times_vals are evenly spaced
                 obj.freqs = obj.freqs(2:int8(length(obj.freqs)/2)); % Remove aliased negative frequencies
                 plotH{6} = stem(obj.freqs,y(2:length(obj.freqs)+1),'parent',subax(3));
-                ylabel(subax(3),'|FFT|');  
+                ylabel(subax(3),'|FFT|^2');  
                 xlabel(subax(3),'Frequency (MHz)');
                 set(subax(3),'xlimmode','auto','ylimmode','auto','ytickmode','auto');
                 hold(subax(3),'off');
@@ -129,8 +132,9 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             norm   = obj.data.sumCounts(:,:,1);
             signal = obj.data.sumCounts(:,:,2);
             data = signal ./ norm;
+            rabi = mean(data,1,'omitnan');
            
-            ax.UserData.plots{1}.YData = nanmean(data,1);
+            ax.UserData.plots{1}.YData = rabi;
             ax.UserData.plots{1}.YNegativeDelta = std(data,0,1,'omitnan')/sqrt(j);
             ax.UserData.plots{1}.YPositiveDelta = std(data,0,1,'omitnan')/sqrt(j);
             ax.UserData.plots{2}.YData = nanmean(signal,1);
@@ -138,8 +142,11 @@ classdef Rabi_singleLaser < Experiments.PulseSequenceSweep.PulseSequenceSweep_in
             ax.UserData.plots{4}.Value = obj.MW_Times_vals(i);
 
             if obj.detailed_plot
+                rabi_avg = movmean(rabi,5);
+                ax.UserData.plots{7}.YData = rabi_avg; % Moving average calculation
+                
                 ax.UserData.plots{5}.Value = obj.MW_Times_vals(i);
-                rabi_f = abs(fft(mean(data,1,'omitnan')-mean(data,'all','omitnan')));
+                rabi_f = abs(fft(rabi-mean(rabi,'all','omitnan'))).^2; % Periodogram calculation
                 ax.UserData.plots{6}.YData = rabi_f(2:length(obj.freqs)+1);
             end
 
