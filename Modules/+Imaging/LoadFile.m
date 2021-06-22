@@ -2,7 +2,7 @@ classdef LoadFile < Modules.Imaging
     %DEBUG Creates random pixels (no hardware needed)
 
     properties
-        maxROI = [-1 1; -1 1];
+        maxROI = [-Inf Inf; -Inf Inf];
         % NOTE: my_string should be added at end as setting, but not saved like pref
         %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
         prefs = {'file', 'field'};
@@ -93,6 +93,9 @@ classdef LoadFile < Modules.Imaging
             else
                 error(['Not sure how to interpret image with size [' num2str(s) ']'])
             end
+            
+            obj.resolution = s;
+            obj.ROI = [1, s(1); 1, s(2)];
         end
         function snap(obj,im,continuous)
             set(im,'cdata',obj.snapImage);
