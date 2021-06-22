@@ -1,4 +1,4 @@
-function eg336(ms, managers)
+function eg336(ms, managers) %ms = metastage object
     folder = 'Z:\Experiments\Diamond\EG336\2021_05_05 RoMi\';
 
     % Disable inactivity!
@@ -93,7 +93,7 @@ function eg336(ms, managers)
         
         fin.measure_start = now;
         
-        for kk = 1:length(angles)
+        for kk = 1:length(angles) %change angles to filter wheel settings 
             disp(['    * Snapping ' names{kk} '!']);
             
             ard.angle = angles(kk);
@@ -106,7 +106,7 @@ function eg336(ms, managers)
                 green.off();
             end
             
-            img0 = uint32(ms.image.image.snapImage());
+            img0 = uint32(ms.image.image.snapImage());  
             for ll = 1:(ceil(fin.g_exposure/fin.wl_exposure)-1)
                 img0 = img0 + uint32( ms.image.image.snapImage());
             end
