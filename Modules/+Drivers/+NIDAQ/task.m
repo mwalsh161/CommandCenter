@@ -386,8 +386,6 @@ classdef task < handle
                 mode = obj.dev.DAQmx_Val_FiniteSamps;
             end
             
-            ctrLine
-            
             % Find an open ctr, if there is one
             ctr = obj.dev.getAvailCtr;
             obj.CreateChannels('DAQmxCreateCICountEdgesChan',ctr,'', obj.dev.DAQmx_Val_Rising,0, obj.dev.DAQmx_Val_CountUp);

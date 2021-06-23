@@ -10,7 +10,7 @@ function [x0, xx, xxx] = fitoptimize(x, y)
     
     y = (y - m)/(M - m);
 
-    levellist = .5:.05:.95;
+    levellist = .75:.05:.95;
     xx = NaN(1, length(levellist));
     
     for ii = 1:length(levellist)

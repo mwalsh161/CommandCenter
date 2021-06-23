@@ -393,7 +393,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if isnan(obj.output_monitor)
                 val = NaN;
             else
-                val = (obj.output_monitor > .01);       % We can tell that the laser is armed if the output monitor is reading power.
+                val = (obj.output_monitor > .001);       % We can tell that the laser is armed if the output monitor is reading power.
             end
         end
         

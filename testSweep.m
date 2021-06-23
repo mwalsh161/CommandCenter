@@ -31,24 +31,73 @@ function s = testSweep
     
     t = Prefs.Time;
     
-    opt = false;
+    opt = true;
     
     
-    s = Base.Sweep({mm, pmp}, {t}, {1:100}, struct('isContinuous', 1), 1);
+%     s = Base.Sweep({mm, pmp}, {hwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5);
+%     Base.SweepViewer(s, [])
+%     return
+%     
+%     
+
+
+%     for ii = 1:4
+%         mp(ii).writ(0);
+%         pause(.5)
+%         mp(ii).writ(5);
+%     end
+    
+%     return
+
+%     p = .02;
+%     d = .005;
+% %     sweep = 10:-p:0;
+%     sweep = 0:p:10;
+%     s0 = Base.Sweep({mm}, {mp(4)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+% %     s01= Base.Sweep({mm}, {mp(1)}, {sweep2}, struct('shouldOptimizeAfter', 1), d);
+%     s1 = Base.Sweep({mm}, {mp(3)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+%     s2 = Base.Sweep({mm}, {mp(2)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+%     s3 = Base.Sweep({mm}, {mp(1)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+% 
+%     f = figure;
+% 
+%     Base.SweepViewer(s0, subplot(2, 3, 1, 'parent', f))
+%     Base.SweepViewer(s1, subplot(2, 3, 2, 'parent', f))
+%     Base.SweepViewer(s2, subplot(2, 3, 4, 'parent', f))
+%     Base.SweepViewer(s3, subplot(2, 3, 5, 'parent', f))
+%     
+%     s0.measure()
+%     s1.measure()
+%     s2.measure()
+%     s3.measure()
+% 
+%     for ii = 1:4
+%         mp(ii).writ(0);
+%         pause(.5)
+%         mp(ii).writ(5);
+%     end
+%     return
+
+    for ii = 1:4
+        mp(ii).writ(0);
+        pause(.5)
+        mp(ii).writ(5);
+    end
+    s = Base.Sweep({mm, pmp}, {t}, {1:100}, struct('isContinuous', 1), .2);
     Base.SweepViewer(s, [])
     return
     
     if opt
         p = .01;
         d = .002;
-%         sweep = 0:p:10;
-        sweep = 10:-p:0;
-        s0 = Base.Sweep({mm}, {mp(1)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
-        s1 = Base.Sweep({mm}, {mp(2)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
-        s2 = Base.Sweep({mm}, {mp(3)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
-        s5 = Base.Sweep({mm}, {mp(4)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
-        s4 = Base.Sweep({mm}, {hwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over HWP');
-        s3 = Base.Sweep({mm}, {qwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over QWP');
+        sweep = 0:p:10;
+%         sweep = 10:-p:0;
+        s0 = Base.Sweep({mm}, {mp(4)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s1 = Base.Sweep({mm}, {mp(3)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s2 = Base.Sweep({mm}, {mp(2)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s5 = Base.Sweep({mm}, {mp(1)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+        s4 = Base.Sweep({mm, pmp}, {hwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over HWP');
+        s3 = Base.Sweep({mm, pmp}, {qwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over QWP');
 
         f = figure;
 

@@ -9,7 +9,7 @@ classdef Conex_CC < Modules.Driver
         identifier =    Prefs.String('', 'readonly', true);
         state =         Prefs.String('UNKNOWN', 'readonly', true);
         
-        position =      Prefs.Double(NaN, 'unit', 'um',     'min', 0, 'max', 1e3*25,        'allow_nan', true, 'set', 'set_position',       'help', 'Positon of the micrometer.');
+        position =      Prefs.Double(NaN, 'unit', 'um',     'min', 0, 'max', 1e3*25,        'allow_nan', true, 'set', 'set_position', 'get', 'get_position',       'help', 'Positon of the micrometer.');
         velocity =      Prefs.Double(NaN, 'unit', 'um/s',   'min', 0,        'allow_nan', true, 'set', 'set_velocity',       'help', 'Velocity of the micrometer.');
         acceleration =  Prefs.Double(NaN, 'unit', 'um/s^2', 'min', 1e3*1e-6, 'max', 1e3*1e12,   'allow_nan', true, 'set', 'set_acceleration',   'help', 'Acceleration of the micrometer.');
     end
@@ -83,7 +83,7 @@ classdef Conex_CC < Modules.Driver
             t = tic;
             while strcmp(obj.get_raw_state(), '28') && toc(t) < 1; pause(.01); end    % Wait while decellerating.
 
-            obj.get_state()
+            obj.get_state();
             
 %             obj.com(['SE' num2str(val)]);   % Tell the axes to goto the desired position.
 %             fprintf(obj.s, 'SE');               

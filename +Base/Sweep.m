@@ -269,7 +269,7 @@ classdef Sweep < handle & Base.Measurement
 		function data = measure(obj)
             N = prod(obj.size());
             sd = obj.subdata;
-            obj.controller.gui.toggle.Value = true
+            obj.controller.gui.toggle.Value = true;
 
             % First, make sure that we are at the correct starting position.
             if obj.index > N && ~obj.flags.isContinuous

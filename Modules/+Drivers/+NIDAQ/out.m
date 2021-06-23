@@ -117,8 +117,8 @@ classdef out < handle
             obj.state = val;
         end
         function tf = writ(obj, val)
-            'writ'
-            val
+%             'writ'
+%             val
             try
                 delta = val - obj.state;
                 if ~isnan(obj.state) && delta
@@ -136,8 +136,8 @@ classdef out < handle
         end
         function val = read(obj)
             val = obj.state;
-            'read'
-            val
+%             'read'
+%             val
         end
     end
     methods
