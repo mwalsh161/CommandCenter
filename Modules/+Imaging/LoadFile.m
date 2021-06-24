@@ -17,9 +17,13 @@ classdef LoadFile < Modules.Imaging
         resolution = [120 120];                 % Pixels
         ROI = [-1 1;-1 1];
         continuous = false;
+        loadfile = false; %if true, extract all fields in the loaded file 
         
         image = Base.Meas([120 120], 'name', 'Image', 'unit', 'cts');
     end
+    properties(GetObservable)
+        imagefile %if loadfile is true, extract all the fields in the loaded file   
+    end 
 
     methods(Access=private)
         function obj = LoadFile()
@@ -75,6 +79,9 @@ classdef LoadFile < Modules.Imaging
                     else
                         im = d.(obj.field);
                     end
+                    if obj.loadfile
+                        obj.imagefile = d; 
+                    end 
                 otherwise
                     error(['Image format ' extension ' not recognized'])
             end
