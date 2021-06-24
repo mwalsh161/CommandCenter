@@ -25,8 +25,9 @@ classdef APT < handle
         MOVING_CLOCKWISE = 5;
         MOVING_COUNTERCLOCKWISE = 6;
         MOTOR_CONNECTED = 9;
-        HOMING = 10;
-        HOMED = 11;
+%         HOMING = 10;
+%         HOMED = 11;
+        HOMED = 10;
     end
     methods
         %Method to get the current status bits.
@@ -50,10 +51,19 @@ classdef APT < handle
                 delete(obj.figureHandle)
             end
         end
+        function show(obj,varargin)
+            if ~isempty(obj.figureHandle)
+                obj.figureHandle.Visible = 'on';
+            end
+            
+            if isempty(obj.progID)
+                delete(obj.figureHandle)
+            end
+        end
         %Destructor
         function delete(obj)
             %Stop control
-            try
+            try %#ok<TRYNC>
                 obj.LibraryFunction('StopCtrl');
                 
                 %Delete the ActiveX control
@@ -102,24 +112,24 @@ classdef APT < handle
         end
         
         %Method to setup the control window and start the control
-        function initialize(obj,progID,serialNum,figureHandle)
-            % If no serialNum (e.g. APTSystem), make sure serialNum is a string
-            if nargin < 4
-                figureHandle = figure('Visible','off','HandleVisibility','Off','IntegerHandle','off');
-            end
-
-            % see if we can't find this component open already
+        function initialize(obj, progID, serialNum, figureHandle)
+            % See if we can't find this component open already
             h = findall(0,'Tag',[progID,num2str(serialNum)]);
             if all(isgraphics(h)) && all(isvalid(h))
                 close(h,'force');
             end
 
+            if nargin < 4
+                figureHandle = figure('HandleVisibility', 'Off', 'IntegerHandle', 'off', 'MenuBar', 'None', 'Position', [100 100 500 350]);
+            end
+            
             % give the figure a Tag associated with the SN so we can find it later!
-            set(figureHandle,'Visible','on','Tag',[progID,num2str(serialNum)],...
-                'CloseRequestFcn',@obj.closeRequest);
+            set(figureHandle,   'Visible', 'on', ...
+                                'Tag', [progID, num2str(serialNum)],...
+                                'CloseRequestFcn', @obj.closeRequest);
 
             % Initiate the activeX control
-            obj.controlHandle = actxcontrol(progID,[0 0 500 350],figureHandle);
+            obj.controlHandle = actxcontrol(progID,[0 0 500 350], figureHandle);
             if ~ischar(serialNum) % Things without official serial numbers are strings
                 obj.controlHandle.HWSerialNum = serialNum;
             end
@@ -142,7 +152,7 @@ classdef APT < handle
     end
     
     methods (Access = protected)
-        function subInit(obj)
+        function subInit(obj) %#ok<MANU>
             % Overload if necessary
         end
     end

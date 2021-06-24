@@ -238,6 +238,8 @@ classdef SweepEditor < handle
             
             uimenu(obj.mmenu, 'Label', 'Delete',                    'Callback', @(s,e)obj.deleteRow(false));
 
+            uimenu(obj.mmenu, 'Label', '<html>Time [ave] (<font face="Courier" color="green">.time</font>)', 'Separator', 'on', 'Callback', @(s,e)(obj.setRow(Prefs.Time, false)));
+            
             mr = Base.MeasurementRegister.instance();
             mr.getMenu(obj.mmenu, @(x)(obj.setRow(x, false)));
             
@@ -259,18 +261,13 @@ classdef SweepEditor < handle
             end
             
             
-            flags = struct( 'isNIDAQ',                  false,...
-                            'isPulseBlaster',           false,...
-                            'isContinuous',             obj.gui.continuous.Value,...
+            flags = struct( 'isContinuous',             obj.gui.continuous.Value,...
                             'isOptimize',               obj.gui.optimize.Value,...
                             'shouldOptimizeAfter',      obj.gui.optimizeAfterSweep.Value*(1-2*obj.gui.minimizeAfterSweep.Value),...
                             'shouldReturnToInitial',    obj.gui.returnToInitial.Value,...
-                            'shouldSetInitialOnReset',  true);
+                            'shouldSetInitialOnReset',  false);
             
             sweep = Base.Sweep(obj.measurements, obj.prefs(end:-1:1), scans(end:-1:1), flags, str2double(obj.gui.timePoint.String));
-            
-%             d = sweep.blank()
-%             whos d
         end
     end
     
@@ -401,8 +398,6 @@ classdef SweepEditor < handle
         
         % ROW FUNCTIONS %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%% %%%%%
         function setRow(obj, instrument, isPrefs)
-%             instrument
-            
             if isPrefs
                 if ~isa(instrument, 'Prefs.Time')   % Time can be added as many times as desired.
                     for ii = 1:length(obj.prefs)
@@ -427,35 +422,11 @@ classdef SweepEditor < handle
                 end
             else
                 if obj.mselected == 0
-%                     cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
-%                     
-%                     obj.mdata(end:(end+size(cm, 1)-1), :) = cm;
-%                     
-%                     obj.mdata(end+1, :) = centerCharsMeasurements(obj.makeMeasurementRow([]));
-                    
                     obj.measurements{end+1} = instrument;
                 else
                     obj.measurements{obj.mselected} = instrument;
-%                     helpdlg('Setting measurements currently disabled due to implementation complexity.');
                 end
-                
                 obj.mdataGenerate();
-%                 if obj.mselected == 0
-%                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
-%                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
-%                     obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
-%                 else
-%                     obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
-%                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
-%                 end
-%                 if obj.pselected == 1
-%                     obj.pdata(end, :) = centerChars(obj.makePrefRow(instrument));
-%                     obj.pdata{end,1} = [obj.pdata{end,1} num2str(size(obj.pdata, 1))];
-%                     obj.pdata(end+1, :) = centerChars(obj.makePrefRow([]));
-%                 else
-%                     obj.pdata(obj.pselected, :) = centerChars(obj.makePrefRow(instrument));
-%                     obj.pdata{obj.pselected,1} = [obj.pdata{obj.pselected,1} num2str(obj.pselected)];
-%                 end
             end
             
             obj.update();
@@ -470,7 +441,6 @@ classdef SweepEditor < handle
                 cm = centerCharsMeasurements(obj.makeMeasurementRow(instrument));
                 
                 mdata_(jj:(jj+size(cm, 1)-1), :) = cm;
-                
                 jj = jj + size(cm, 1);
             end
             
@@ -599,9 +569,6 @@ classdef SweepEditor < handle
                     sd = subdata{ii};
                     d = [d ; {'<html><font color=red><b>',   ['<i>' parent], formatMainName(names.(sd), sd), ['[' num2str(sizes.(sd)) ']'], units.(sd), 0 }]; %#ok<AGROW>
                 end
-                
-%                 d = {'<html><font color=red><b>',      '<i>Drivers.NIDAQ.cin', '<b>APD1 (<font face="Courier" color="green">.ctr0</font>)', [1 1024], 'cts/sec', 0 };
-                
             end
         end
         

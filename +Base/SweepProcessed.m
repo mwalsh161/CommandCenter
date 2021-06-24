@@ -62,7 +62,6 @@ classdef SweepProcessed < handle
 
 			if ~isempty(obj.v.panel) && ~isempty(obj.v.panel.tabgroup) %#ok<*ALIGN>
                 obj.tab.tab = uitab('Parent', obj.v.panel.tabgroup, 'Title', obj.v.names{obj.x}, 'UserData', obj.x);
-				obj.tab.tab
                 obj.makePanel();
 %                 obj.v.panel.tabgroup.SelectedTab = obj.tab.tab;
             end
@@ -330,7 +329,7 @@ classdef SweepProcessed < handle
             tf = isempty(obj.tab);
         end
 
-		function process(obj)
+		function tf = process(obj)
             % Short-circuit if no meas is selected, or it is disabled.
             if ~obj.I || ~obj.enabled
                 return
@@ -399,14 +398,14 @@ classdef SweepProcessed < handle
             tmp(isnan(tmp)) = Inf;  tmp2(isnan(tmp2)) = Inf;    % Comparison does not work with NaN, so replace these with Inf
             s1 = size(tmp);         s2 = size(tmp2);            % Use inexpensive size checks first.
             
-            if length(s1) ~= length(s2) || ~all(s1 == s2) || ~all(tmp(:) == tmp2(:))
-                obj.dataChanged_Callback(0,0);  % If there was a change, replot the data.
-            end
+            % Return whether there was a change.
+            tf = length(s1) ~= length(s2) || ~all(s1 == s2) || ~all(tmp(:) == tmp2(:));
+            tf = obj.normalize(false, tf) || tf;                % Update tf with whether normalization changed.
         end
 
         function updateSlice_Callback(obj, src, ~)
             obj.slice{src.UserData} = src.String;
-            obj.v.process();
+            obj.v.datachanged_Callback(0, true);
         end
 		function set.slice(obj, slice)
             old = obj.slice;
@@ -484,7 +483,7 @@ classdef SweepProcessed < handle
         
         function updateSliceOptions_Callback(obj, src, ~)
             obj.sliceOptions(src.UserData) = src.Value;
-            obj.v.process();
+            obj.v.datachanged_Callback(0, true);
         end
 		function set.sliceOptions(obj, sliceOptions)
 %             assert(all(sliceOptions > 0 & sliceOptions <= obj.squeezeOptions))
@@ -533,7 +532,12 @@ classdef SweepProcessed < handle
         end
         
         function setinput_Callback(obj, src, ~)
+            prev = obj.I;
             obj.I = src.Value-1;
+            
+            if prev ~= obj.I && length(obj.v.sp) == 3
+                obj.v.datachanged_Callback(0, true);
+            end
         end
 		function set.I(obj, I)
 			if isempty(I)
@@ -593,10 +597,6 @@ classdef SweepProcessed < handle
 
             if I ~= obj.I
                 obj.I = I;
-                
-                if length(obj.v.sp) == 3
-                    obj.v.datachanged_Callback(0, 0);
-                end
             end
             
             if obj.I == 0 && obj.enabledUI
@@ -608,7 +608,7 @@ classdef SweepProcessed < handle
             obj.enabled = src.Value;
             
 			if ~isempty(obj.tab)
-                obj.v.datachanged_Callback(0, 0);
+                obj.v.datachanged_Callback(0, true);
             end
         end
         function set.enabled(obj, enabled)
@@ -725,7 +725,8 @@ classdef SweepProcessed < handle
             obj.tab.scale.hist = histogram(obj.tab.scale.ax, NaN, 100,... 
                                             'FaceColor', obj.v.colors{obj.x}*.8,...
                                             'EdgeColor', 'none',...
-                                            'PickableParts', 'none');
+                                            'PickableParts', 'none',...
+                                            'BinMethod', 'scott');
                                         
             obj.tab.scale.ax.XAxis.FontSize = 7;
 
@@ -749,55 +750,67 @@ classdef SweepProcessed < handle
             obj.m = evt.CurrentPosition(1);
             obj.M = evt.CurrentPosition(1) + evt.CurrentPosition(3);
             
-            obj.v.process();
+            obj.v.datachanged_Callback(0, true);
         end
 		function normall_Callback(obj, ~, ~)
 			obj.normAll = ~obj.tab.scale.normAll.Value;
-		end
-        function set.normAll(obj,normAll)
-            obj.normAll = normAll;
             if ~isempty(obj.tab)
 %                 obj.v.process();
-                obj.normalize(true);
+%                 obj.normalize(true);
+                obj.v.datachanged_Callback(0, true);
             end
+		end
+        function set.normAll(obj, normAll)
+            obj.normAll = normAll;
         end
 		function normshrink_Callback(obj, ~, ~)
 			obj.normShrink = obj.tab.scale.normShrink.Value;
+            if ~isempty(obj.tab)
+%                 obj.v.process();
+%                 obj.normalize(true);
+                obj.v.datachanged_Callback(0, true);
+            end
 		end
         function set.normShrink(obj,normShrink)
             obj.normShrink = normShrink;
-            if ~isempty(obj.tab)
-%                 obj.v.process();
-                obj.normalize(true);
-            end
         end
 		function normauto_Callback(obj, ~, ~)
 			obj.normAuto = obj.tab.scale.normAuto.Value;
-        end
-        function set.normAuto(obj,normAuto)
-            obj.normAuto = normAuto;
             if ~isempty(obj.tab)
-                if normAuto
+                if obj.normAuto
                     obj.tab.scale.box.InteractionsAllowed = 'none';
-                    
-%                     obj.v.process();
-                    obj.process();
-                    obj.normalize(true);
+                    obj.v.datachanged_Callback(0, true);
                 else
                     obj.tab.scale.box.InteractionsAllowed = 'all';
                 end
-                
+            end
+        end
+        function set.normAuto(obj,normAuto)
+            obj.normAuto = normAuto;
+            if ~isempty(obj.tab) && obj.normAuto
+                obj.v.datachanged_Callback(0, true);
             end
         end
 		function normalize_Callback(obj, ~, ~)
-            obj.v.process();
-            obj.normalize(true);
+%             obj.v.process();
+%             obj.normalize(true);
+            obj.v.datachanged_Callback(0, true);
         end
-        function dataChanged_Callback(obj, ~, ~)
-%             disp(['Normalizing ' num2str(obj.x)])
-            obj.normalize(false);
-        end
-		function normalize(obj, shouldForce)
+		function tf = normalize(obj, updateImmediately, dataChanged)
+            % updateImmediately should be true when the user requested a change.
+            % This causes the parent viewer to immediately update, reducing
+            % user lag/frustration. Default is to not update.
+            % False dataChanged stops the histogram from updating
+            % (expensive call) if the data didn't change. Default is to
+            % assume a change.
+            
+            if nargin < 2
+                updateImmediately = false;
+            end
+            if nargin < 3
+                dataChanged = true;
+            end
+            
             sd = obj.s.subdata;
             
             if obj.normAll
@@ -819,55 +832,63 @@ classdef SweepProcessed < handle
                 m_ = m_ - 1;
                 M_ = M_ + 1;
             end
+            
+            shouldUpdate = obj.normAuto && ~(obj.m == m_ && obj.M == M_);
 
-			if (obj.normAuto && ~(obj.m == m_ && obj.M == M_)) || shouldForce
-                if obj.normShrink   % Should shrink
+			if shouldUpdate
+                if obj.normShrink   % Should shrink to new bounds
                     obj.m = m_;
                     obj.M = M_;
-                else
+                else                % Only dilate bounds
                     obj.m = min(obj.m, m_);
                     obj.M = max(obj.M, M_);
                 end
-                
-                if ~obj.v.rendering
-                    obj.v.process();
-                end
-%                 warning('Should obj.v.process()?')
             end
 
+            % If the tab which controls this processed channel is visible, then update the histogram.
             if obj.v.currentTab() == obj.x
                 obj.tab.scale.ax.Visible = 'off';
-                    
-                if obj.normAll
-                    obj.tab.scale.hist.Data = obj.s.data.(sd{obj.I}).dat;
-                else
-                    obj.tab.scale.hist.Data = obj.processed(:);
+                
+                % Update the histogram with new data.
+                if dataChanged
+                    if obj.normAll
+                        obj.tab.scale.hist.Data = obj.s.data.(sd{obj.I}).dat;
+                    else
+                        obj.tab.scale.hist.Data = obj.processed(:);
+                    end
                 end
 
-                obj.tab.scale.hist.BinMethod = 'scott'; %'auto';
+                % Update box
+                r_ = M_ - m_;               % Range
 
-                r_ = M_ - m_;
-
-                m__ = min(m_-r_/5, obj.m);
+                m__ = min(m_-r_/5, obj.m);  % Add padding such that user control is easier.
                 M__ = max(M_+r_/5, obj.M);
 
-                r = M__ - m__;
-    
+                r = M__ - m__;              % Update range with the above
+
                 if r == 0
-                    r = r + 1;
+                    r = 1;
                 end
 
                 if ~isnan(r)
-                    top = max(max(obj.tab.scale.hist.Values), 1);
+                    top = max(max(obj.tab.scale.hist.Values), 1);   % Grab the histogram height.
+                    viewheight = 1.2;   % Height of the axis view normalized to histogram height.
 
-                    obj.tab.scale.box.Position = [obj.m, -top, obj.M - obj.m, 3.2*top];
+                    % Update the position of the box representing the scale. y is extended outside ylim.
+                    obj.tab.scale.box.Position = [obj.m, -top, obj.M - obj.m, (viewheight+2)*top];
 
-                    obj.tab.scale.ax.XLim = [m__ - r/5, M__ + r/5];
-                    obj.tab.scale.ax.YLim = [0 top*1.2];
+                    obj.tab.scale.ax.XLim = [m__ - r/5, M__ + r/5]; % Add even more padding
+                    obj.tab.scale.ax.YLim = [0 top*viewheight];
                 end
                     
                 obj.tab.scale.ax.Visible = 'on';
             end
+            
+            if updateImmediately
+                obj.v.datachanged_Callback(0, true);
+            end
+            
+            tf = shouldUpdate;  % Return whether something changed.
         end
 	end
 end

@@ -16,7 +16,7 @@ classdef QR < Modules.Imaging
         QR_rad = Prefs.Double(.3,   'unit', 'um', 'readonly', true, 'help_text', 'Radius of the three large QR dots. This is set to the standard value.');
         QR_ang = Prefs.Double(0,    'unit', 'deg', 'help_text', 'QR code angle in the image coordinates (CCW).');
 
-        image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image');
+        image = Prefs.ModuleInstance('inherits', {'Modules.Imaging'}, 'set', 'set_image'); %
 
         flip =   Prefs.Boolean('set', 'set_variable', 'help_text', 'Whether the image should be flipped across the x axis. This should be used along with rotate to put the image in a user-friendly frame.');
         rotate = Prefs.MultipleChoice(0, 'set', 'set_variable', 'allow_empty', true, 'choices', {0, 90, 180, 270}, 'help_text', 'Rotation (CCW) of the image after flipping. This should be used along with flip to put the image in a user-friendly frame.');
@@ -41,6 +41,10 @@ classdef QR < Modules.Imaging
     properties
         X_expected = NaN;
         Y_expected = NaN;
+        v = [];
+        V = [];
+        v_all = [];
+        V_all = [];
     end
 
     methods(Access=private)
@@ -76,7 +80,7 @@ classdef QR < Modules.Imaging
         end
         function focus(obj,ax,stageHandle) %#ok<INUSD>
         end
-        function img = snapImage(obj)
+        function img = snapImage(obj) %this is super confusing
             obj.current_img = obj.image.snapImage();
             
             img = obj.analyze();
@@ -129,10 +133,14 @@ classdef QR < Modules.Imaging
             % Perform the convolution, 
             [v, V, options_fit, stages] = Base.QRconv(img, options_guess);
             
-            %
+            %save props
             obj.X = options_fit.Vcen(1);
             obj.Y = options_fit.Vcen(2);
-            obj.N = sum(~options_fit.outliers & ~isnan(V(1,:)));
+            obj.N = sum(~options_fit.outliers & ~isnan(V(1,:))); % N -> numQRs
+            obj.v_all = v; %pixel space.
+            obj.V_all = V; %QR space.
+            obj.V = reshape(V(~isnan(V)),2,[]); %remove the NaNs.
+            obj.v = reshape(v(~isnan(V)),2,[]); %remove the NaNs.
             
             if obj.N >= 3
                 obj.X_expected = obj.X;

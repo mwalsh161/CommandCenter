@@ -65,7 +65,7 @@ classdef task < handle
             end
         end
     end
-    methods(Access=private)
+    methods
         function delete(obj)
             if ~isempty(obj.timerH)
                 stop(obj.timerH)
@@ -90,6 +90,8 @@ classdef task < handle
             end
             obj.dev.Tasks(strcmp({obj.dev.Tasks.name},obj.name)) = [];
         end
+    end
+    methods(Access=private)
         function addLines(obj,lines)
             for i = 1:length(lines)
                 obj.lines{end+1} = lines(i);
@@ -383,8 +385,6 @@ classdef task < handle
             else
                 mode = obj.dev.DAQmx_Val_FiniteSamps;
             end
-            
-            ctrLine
             
             % Find an open ctr, if there is one
             ctr = obj.dev.getAvailCtr;

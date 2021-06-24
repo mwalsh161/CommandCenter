@@ -109,10 +109,10 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
                 st = dbstack(1);
                 if ~any(strcmpi({st.name},'VelocityLaser.set_velocity_host'))
                     if val
-                        [~] = obj.calibration;
-                        f = msgbox('Turning laser diode on, please wait...');
                         obj.serial.on;
                         obj.activate;
+                        [~] = obj.calibration;
+                        f = msgbox('Turning laser diode on, please wait...');
                         delete(f);
                     else
                         obj.serial.off;
@@ -186,7 +186,6 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         end
         function val = set_PB_host(obj,val,~)
             err = obj.connect_driver('PulseBlaster','PulseBlaster',val);
-            obj.isRunning;
             if isempty(obj.PulseBlaster)
                 obj.PB_host = Sources.VelocityLaser.noserver;
                 if ~isempty(err)

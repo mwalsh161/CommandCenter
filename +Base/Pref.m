@@ -62,9 +62,6 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         ui;                                 % The class governing the UI
         default;                            % NOTE: goes through class validation function, so not treated
     end
-    properties (Hidden, SetAccess=?Base.Module)
-    	getEvent = false;                   % This is reserved for Module.post to avoid calling set methods on a get event
-    end
     properties (Hidden, Access=private)
         initialized = false;                % Flag to prevent the Pref from being used until it has been fully constructed.
     end
@@ -148,6 +145,10 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
 %                 obj.units = struct(obj.property_name, obj.unit);
 %                 obj.scans = struct();   % 1 x 1 data doesn't need scans or dims.
 %                 obj.dims =  struct();
+            end
+            
+            if isa(obj, 'Prefs.Time')
+                return
             end
             
             mc = metaclass(module_instance);
@@ -240,6 +241,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             tf = false;
         end
         function tf = isequal(obj, obj2)
+            superclasses(obj2)
             tf = ismember('Base.Pref', superclasses(obj2)) && strcmp(obj.property_name, obj2.property_name) && isequal(obj.parent, obj2.parent);
         end
         
@@ -341,10 +343,6 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
                     end
                 end
 
-                if isempty(obj.name)
-                    obj.name = strrep(obj.property_name, '_', ' ');
-                end
-
                 % Finally assign default (dont ignore if empty, because
                 % subclass might have validation preventing empty, in which
                 % case we should error
@@ -384,7 +382,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function label = get_label(obj)
             % Uses the ui object to make a label (usually '<name> [<unit>]' pair)
 %             label = obj.ui.get_label(obj);
-            str = obj.name;
+            str = strrep(obj.name, '_', ' ');
 
             if isempty(str)
                 str = strrep(obj.property_name, '_', ' ');
@@ -511,32 +509,30 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         end
         
         % Functions that actually write (set) and read (get) the hardware, with overhead.
-        function obj = set.value(obj, val)
-            [obj, obj.value] = obj.set_value(val);
-        end
-        function val = get.value(obj)
-            val = obj.get_value(obj.value);
-        end
-        function [obj, val] = set_value(obj, val)
-            if ~obj.getEvent
-                val = obj.clean(val);
-                if ~isempty(obj.custom_clean) && obj.initialized
-                    val = obj.custom_clean(val,obj);
-                end
+%         function obj = set.value(obj, val)
+%             [obj, obj.value] = obj.set_value(val);
+%         end
+%         function val = get.value(obj)
+%             val = obj.get_value(obj.value);
+%         end
+        function val = set_value(obj, val)
+            val = obj.clean(val);
+            if ~isempty(obj.custom_clean) && obj.initialized
+                val = obj.custom_clean(val,obj);
+            end
 
-                obj.validate(val);
-                if ~isempty(obj.custom_validate) && obj.initialized
-                    obj.custom_validate(val,obj);
-                end
+            obj.validate(val);
+            if ~isempty(obj.custom_validate) && obj.initialized
+                obj.custom_validate(val,obj);
+            end
 
-                if ~isempty(obj.set) && obj.initialized %#ok<*MCSUP>
-                    val = obj.set(val,obj);
-                end
+            if ~isempty(obj.set) && obj.initialized %#ok<*MCSUP>
+                val = obj.set(val,obj);
+            end
 
-                obj.validate(val);
-                if ~isempty(obj.custom_validate) && obj.initialized
-                    obj.custom_validate(val,obj);
-                end
+            obj.validate(val);
+            if ~isempty(obj.custom_validate) && obj.initialized
+                obj.custom_validate(val,obj);
             end
         end
         function val = get_value(obj, val)

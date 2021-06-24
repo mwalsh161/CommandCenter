@@ -1,5 +1,5 @@
 classdef Empty < Prefs.Numeric
-    %EMPTY Placeholder for when an empty pref is needed. Should only be used in backend.
+    %EMPTY Placeholder for when an empty pref is needed. **Should only be used in backend.**
 
     properties (Hidden)
         default = NaN;

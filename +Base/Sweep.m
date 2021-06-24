@@ -7,22 +7,10 @@ classdef Sweep < handle & Base.Measurement
         name = '';
         
         % Core
-        measurements_;   % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
-%         sweeps;         % cell array    % 2xN cell array with a `Base.Pref`, numeric array pair in each column. (NotImplemented) Numeric arrays of length 1 are treated as presettings.
-        
+        measurements_;  % cell array    % Contains 1xM `Base.Measurement` objects that are being measured at each point.
         sdims;          % cell array                % Contains 1xN `Base.Pref` objects that are being swept over.
         sscans;         % cell array                % Contains 1xN numeric arrays of the points that are being swept by the axes. Numeric arrays of length 1 are treated as presettings.
     end
-    
-    
-    
-%   properties (Hidden)             % Inherited from Measurement.
-%       % sizes
-%       % names
-%       % units
-%       % dims
-%       % scans
-%   end
 
     properties
         controller = [];    % Base.SweepController. If this isn't empty, it will look to this object for start/stop.
@@ -39,26 +27,30 @@ classdef Sweep < handle & Base.Measurement
         data;           % cell array 				% 1xM cell array (one cell per `Base.Measurement`) containing (N+P)-dimensional data, where P is the dimension of that `Base.Measurement`.
     end
     
-    properties (SetAccess=private)
+    properties (SetAccess=private)                  % Boolean flags
         flags = struct( 'isContinuous',             false,...
                         'isOptimize',               false,...   % NotImplemented
-                        'shouldOptimizeAfter',      false,...   % NotImplemented
-                        'shouldReturnToInitial',    true,...    % NotImplemented
-                        'shouldSetInitialOnReset',  true)       % NotImplemented
+                        'shouldOptimizeAfter',      1,...
+                        'shouldReturnToInitial',    true,...
+                        'shouldSetInitialOnReset',  true)
     end
     
-    properties (SetAccess=private, Hidden)  % NIDAQ vars.
-        NIDAQ = struct( 'isNIDAQ',              false,...
-                        'isPrefNIDAQ',          false,...
-                        'isMeasurementNIDAQ',   false,...
-                        'dev',                  [],...
-                        'out',             [],...
-                        'in',              [],...
-                        'pulseTrain',           [],...
-                        'lastCount',            [],...  % integer array with size tasks
-                        'dwell',                [],...  % seconds (temp variable until a better solution is written)
-                        'timer',                [],...  % timer that periodically gathers data from the DAQ
-                        'updateRate',           .2);    % seconds
+    properties
+        meta = struct(  'initial',                  [])
+    end
+    
+    properties (SetAccess=private, Hidden)          % NIDAQ vars.
+        NIDAQ = struct( 'isNIDAQ',                  false,...
+                        'isPrefNIDAQ',              false,...
+                        'isMeasurementNIDAQ',       false,...
+                        'dev',                      [],...
+                        'out',                      [],...
+                        'in',                       [],...
+                        'pulseTrain',               [],...
+                        'lastCount',                [],...  % integer array with size tasks
+                        'dwell',                    [],...  % seconds (temp variable until a better solution is written)
+                        'timer',                    [],...  % timer that periodically gathers data from the DAQ
+                        'updateRate',               .2);    % seconds
     end
 
     methods
@@ -67,13 +59,10 @@ classdef Sweep < handle & Base.Measurement
                 a = Drivers.AxisTest.instance('fish');
                 a1 = a.get_meta_pref('x');
                 a2 = a.get_meta_pref('y');
-
                 a1.writ(.5);
                 a2.writ(4.5);
-                
                 e = Experiments.Spectrum.instance;
 
-%                 obj = Base.Sweep({e}, {a1, a2}, {linspace(0, 1, 41), linspace(3, 5, 81)});
                 obj = Base.Sweep({e, a1, a2}, {a1, a2}, {linspace(0, 1, 21), linspace(3, 5, 41)});
                 
                 return;
@@ -85,7 +74,6 @@ classdef Sweep < handle & Base.Measurement
                 error('NotImplemented');
                 
 %                 obj.measurements_ =  varargin{1};    % Not sure what to do here.
-%                 
 %                 obj.sdims =         obj.data.metadata.dims;
 %                 obj.sscans =        obj.data.metadata.scans;
             else
@@ -101,19 +89,12 @@ classdef Sweep < handle & Base.Measurement
                 end
 
                 if nargin > 4
-%                     obj.name = varargin{5};
                     obj.dwell = varargin{5};
                 end
 
                 if nargin > 5
                     obj.name = varargin{6};
                 end
-            end
-            
-            defaultname = 'Sweep';  % Fix me.
-            
-            if isempty(obj.name)
-                obj.name = defaultname;
             end
             
 			% Check measurements
@@ -129,11 +110,9 @@ classdef Sweep < handle & Base.Measurement
                 obj.NIDAQ.isMeasurementNIDAQ(ii) = isa(obj.measurements_{ii}, 'Drivers.NIDAQ.in');
             end
             
-            prefList = {};
-                
+            % Check dims and scans
             obj.NIDAQ.isPrefNIDAQ = false(1, numel(obj.sdims));
             
-            % Check dims and scans
             if ~obj.flags.isOptimize
                 assert(iscell(obj.sdims), '.sdims must be a cell array.')
                 assert(iscell(obj.sscans), '.sscans must be a cell array.')
@@ -150,6 +129,8 @@ classdef Sweep < handle & Base.Measurement
                         assert(~isequal(obj.sdims{ii}, obj.sdims{jj}), ['Using ' obj.sdims{ii}.name ' twice in the same sweep is verboten']);
                     end
                 end
+                
+                obj.resetInitial();
             else
                 error('NotImplemented');
             end
@@ -161,21 +142,27 @@ classdef Sweep < handle & Base.Measurement
                 obj.NIDAQ.dwell = obj.dwell;
             end
             
+            % Finish up
             obj.fillMeasurementProperties();
             obj.reset();
             
+            % Set name
+            if isempty(obj.name)
+                obj.name = obj.autoGenerateName();
+            end
+            
+            % Helper functions
             function tf = isNIDAQ(pref)
                 if isa(pref, 'Prefs.Time')
-                    tf = true;
+                    tf = false;
                 elseif isa(pref, 'Prefs.Paired')
                     tf = true;
                     
-                    for ii = 1:length(pref.prefs)
-                        tf = tf && isNIDAQ(pref.prefs(ii));
+                    for kk = 1:length(pref.prefs)
+                        tf = tf && isNIDAQ(pref.prefs(kk));
                     end
                 else
-%                     tf = strcmp(pref.parent_class, 'Drivers.NIDAQ.dev');
-                    tf = strcmp(class(pref.parent), 'Drivers.NIDAQ.dev');
+                    tf = isa(pref.parent, 'Drivers.NIDAQ.dev');
                 end
             end
             function checkPref(pref)
@@ -234,6 +221,19 @@ classdef Sweep < handle & Base.Measurement
 			obj.index = 1;
 
             obj.data = obj.blank(@NaN);
+            
+            if obj.flags.shouldSetInitialOnReset
+                obj.resetInitial();
+            end
+            
+            if ~isempty(obj.controller) && isvalid(obj.controller)
+                obj.controller.setIndex()
+            end
+        end
+        function resetInitial(obj)
+            for ii = 1:numel(obj.sdims)
+                obj.meta.initial(ii) = obj.sdims{ii}.read();
+            end
         end
         
         function [vec, ind] = current(obj)
@@ -267,40 +267,45 @@ classdef Sweep < handle & Base.Measurement
             obj.index = index;
         end
 		function data = measure(obj)
-            % First, make sure that we are at the correct starting position.
             N = prod(obj.size());
+            sd = obj.subdata;
+            obj.controller.gui.toggle.Value = true;
 
+            % First, make sure that we are at the correct starting position.
             if obj.index > N && ~obj.flags.isContinuous
                 warning('Already done')
                 data = obj.data;
                 return
             end
             
+            % Go to the first/current index
             obj.gotoIndex(obj.index);
 
-            % Slow aquisition
             if ~obj.NIDAQ.isNIDAQ
-                while (obj.index <= N || obj.flags.isContinuous) && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)
-%                     obj.controller.gui.toggle.Value
+                % Slow aquisition.
+                while (obj.index <= N || obj.flags.isContinuous) && ...                                         % While we still can take data...
+                    (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value)    % ...and while the controller wants us to take data...
                     obj.tick();
                 end
             else
+                % Fast aquisition.
                 obj.setupNIDAQ();
-                for ii = 1:length(obj.NIDAQ.out.tasks)
-                    obj.NIDAQ.out.tasks{ii}.Start;
-                end
-                for ii = 1:length(obj.NIDAQ.in.tasks)
-                    obj.NIDAQ.in.tasks{ii}.Start;
-                end
+                
+                % Start all tasks.
+                for ii = 1:length(obj.NIDAQ.out.tasks); obj.NIDAQ.out.tasks{ii}.Start; end
+                for ii = 1:length(obj.NIDAQ.in.tasks);  obj.NIDAQ.in.tasks{ii}.Start;  end
                 obj.NIDAQ.pulseTrain.Start;
                 
                 going = true;
-                sd = obj.subdata;
                 
+                % While we are gathering samples...
                 while isvalid(obj.NIDAQ.in.tasks{1}) && going
                     going = false;
+                    
+                    % Start all tasks.
                     for kk = 1:length(obj.NIDAQ.in.tasks)
                         samples = obj.NIDAQ.in.tasks{kk}.AvailableSamples;
+                        
                         if samples
                             obj.NIDAQ.in.raw{kk}(obj.NIDAQ.in.index(kk):(obj.NIDAQ.in.index(kk) + samples - 1)) = obj.NIDAQ.in.tasks{kk}.ReadCounter(samples);
                             obj.NIDAQ.in.index(kk) = obj.NIDAQ.in.index(kk) + samples;
@@ -316,22 +321,57 @@ classdef Sweep < handle & Base.Measurement
                             obj.controller.setIndex();
                         end
                     end
+                    
+                    going = going && (~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.gui.toggle.Value);
                 end
                 
-                for ii = 1:length(obj.NIDAQ.out.tasks)
-                    obj.NIDAQ.out.tasks{ii}.Clear;
-                end
-                for ii = 1:length(obj.NIDAQ.in.tasks)
-                    obj.NIDAQ.in.tasks{ii}.Clear;
-                end
+                for ii = 1:length(obj.NIDAQ.out.tasks); obj.NIDAQ.out.tasks{ii}.Clear; end
+                for ii = 1:length(obj.NIDAQ.in.tasks);  obj.NIDAQ.in.tasks{ii}.Clear;  end
                 obj.NIDAQ.pulseTrain.Clear;
+                
+                A = 1:obj.ndims();
+                L = obj.size();
+                N = prod(L);
+
+                % First, look for axes that need to be changed. This is done by comparing the current axis with the previous values.
+                [sub2{1:length(L)}] = ind2sub(L, min(obj.index, N));
+                sub2 = [sub2{:}];
+
+                for aa = A
+                    obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
+                end
+            end
+            
+            % Optimize afterward
+%             obj.flags.shouldOptimizeAfter
+%             length(obj.sscans)
+%             obj.index
+%             N
+            if obj.flags.shouldOptimizeAfter && length(obj.sscans) == 1 && obj.index >= N
+                % shouldOptimizeAfter is +\-1, and acts to sign() whether the data is maximized (+1) or minimized (-1).
+                x0 = fitoptimize(obj.sscans{1}, obj.flags.shouldOptimizeAfter * obj.data.(sd{1}).dat);
+                obj.sdims{1}.writ(obj.sscans{1}(1));
+                obj.sdims{1}.writ(x0);
+            elseif obj.flags.shouldReturnToInitial
+                for ii = 1:obj.ndims()
+                    if ~isnan(obj.meta.initial(ii))
+                        obj.sdims{ii}.writ(obj.sscans{1}(1));
+                        obj.sdims{ii}.writ(obj.meta.initial(ii));
+                    end
+                end
             end
 
+            % Update the conroller, if applicable
             if ~isempty(obj.controller) && isvalid(obj.controller) && obj.controller.running
                 obj.controller.running = false;
             end
 
+            % Return the data
             data = obj.data;
+        end
+        function reset_measure(obj)
+            obj.reset();
+            obj.measure();
         end
     end
     methods (Access=private, Hidden)
@@ -365,8 +405,6 @@ classdef Sweep < handle & Base.Measurement
 %                 else
                     obj.NIDAQ.out.tasks{kk} = obj.NIDAQ.dev.CreateTask([obj.name ' ' obj.sdims{ii}.name]);
                     out = obj.NIDAQ.dev.getLines(obj.sdims{ii}.name, 'out');
-                    out
-                    out.name
                     
                     sthis = s;
                     sthis(ii) = 1;
@@ -376,8 +414,6 @@ classdef Sweep < handle & Base.Measurement
                     
 %                     obj.NIDAQ.dev.GetTaskByName('AnalogWrite')
                     
-                    pause(1)
-                    
                     switch out.type
                         case 'analog'
                             obj.NIDAQ.out.tasks{kk}.ConfigureVoltageOut(out.name, sweep, obj.NIDAQ.pulseTrain)
@@ -385,7 +421,6 @@ classdef Sweep < handle & Base.Measurement
                             obj.NIDAQ.out.tasks{kk}.ConfigureDigitalOut(out.name, sweep, obj.NIDAQ.pulseTrain)
                     end
 %                 end
-                obj.NIDAQ.out.tasks
                 kk = kk + 1;
             end
 
@@ -404,34 +439,12 @@ classdef Sweep < handle & Base.Measurement
                 kk = kk + 1;
             end
         end
-        function measureNIDAQ(obj)
-%             start(obj.NIDAQ.timer)
-%             obj.running = true;
-        end
-        function resetNIDAQ(obj)
-%             if ~isempty(obj.timerH)
-%                 if isvalid(obj.timerH) && strcmp(obj.timerH.Running,'on')
-%                     obj.stopTimer()
-%                 end
-%                 obj.timerH = [];
-%             else
-%                 if ~isempty(obj.CounterH) && isvalid(obj.CounterH)
-%                     obj.CounterH.Clear;
-%                 end
-%                 if ~isempty(obj.PulseTrainH) && isvalid(obj.PulseTrainH)
-%                     obj.PulseTrainH.Clear
-%                 end
-%             end
-        end
     end
     methods (Hidden)
-        function measureSweep(obj)
-            
-        end
-        function measureOptimize(obj)
+        function measureOptimize(obj) %#ok<MANU>
             error('NotImplemented')
             
-            options = optimset('Display', 'iter', 'PlotFcns', @optimplotfval);
+            options = optimset('Display', 'iter', 'PlotFcns', @optimplotfval); %#ok<UNRCH>
 
             fun = @(x)100*(x(2) - x(1)^2)^2 + (1 - x(1))^2;
             x0 = [-1.2, 1];
@@ -447,9 +460,12 @@ classdef Sweep < handle & Base.Measurement
             
             if obj.flags.isContinuous
 %                 isa(obj.sdims{end}, 'Prefs.Time')
-                M = prod(L(1:end-1));
+%                 M = prod(L(1:end-1));
 %                 'a'
                 obj.index = 1;
+                if ~isempty(obj.controller) && isvalid(obj.controller)
+                    obj.controller.setIndex();
+                end
 %                 obj.index = mod(obj.index-1, M) + 1;
 %                 obj.index
 %                 'b'
@@ -474,13 +490,12 @@ classdef Sweep < handle & Base.Measurement
             [sub2{1:length(L)}] = ind2sub(L, obj.index);
             SUB = sub2;
             sub2 = [sub2{:}];
-%             obj.sub
-%             sub2
 
             differences = obj.sub ~= sub2;	% Find the axes that need to change...
             A = 1:obj.ndims();
+            needchange = A(differences);
 
-            for aa = A(differences)
+            for aa = needchange(end:-1:1)
                 obj.sdims{aa}.writ(obj.sscans{aa}(sub2(aa)));
             end
 
@@ -525,10 +540,10 @@ classdef Sweep < handle & Base.Measurement
             % Lastly, incriment the index.
             if ~shouldCircshift
                 obj.index = obj.index + 1;
-            end
-
-            if ~isempty(obj.controller) && isvalid(obj.controller)
-                obj.controller.setIndex();
+                
+                if ~isempty(obj.controller) && isvalid(obj.controller)
+                    obj.controller.setIndex();
+                end
             end
         end
         
@@ -542,6 +557,17 @@ classdef Sweep < handle & Base.Measurement
                 
                 for jj = 1:obj.measurements_{ii}.getN()
                     obj.measurements = [obj.measurements obj.measurements_{ii}.measurements(jj).extendBySweep(obj, tag)];
+                end
+            end
+        end
+        
+        function name = autoGenerateName(obj)
+            if obj.flags.shouldOptimizeAfter
+                name = [obj.measurements_{1}.measurements(1).name ' Optimization Over ' obj.sdims{1}.name];
+            else
+                name = 'Sweep';
+                for ii = 1:obj.ndims()
+                    name = [' vs ' obj.sdims{ii}.name];
                 end
             end
         end

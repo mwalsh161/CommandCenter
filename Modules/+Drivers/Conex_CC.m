@@ -3,13 +3,13 @@ classdef Conex_CC < Modules.Driver
     % documentation https://www.newport.com/mam/celum/celum_assets/resources/CONEX-CC_-_Controller_Documentation.pdf?1
     
     properties(SetObservable, GetObservable)
-        host =          Prefs.String('COM?',    'set', 'set_host',      'help', 'COM (USB) port that is connected to the micrometer.');
+        host =          Prefs.String('COM?',    'set', 'set_host', 'readonly', true,      'help', 'COM (USB) port that is connected to the micrometer.');
         address =       1; %Prefs.Integer(1,        'set', 'set_address',   'help', 'COM (USB) port that is connected to the micrometer.');
         
         identifier =    Prefs.String('', 'readonly', true);
         state =         Prefs.String('UNKNOWN', 'readonly', true);
         
-        position =      Prefs.Double(NaN, 'unit', 'um',     'min', 0, 'max', 1e3*25,        'allow_nan', true, 'set', 'set_position',       'help', 'Positon of the micrometer.');
+        position =      Prefs.Double(NaN, 'unit', 'um',     'min', 0, 'max', 1e3*25,        'allow_nan', true, 'set', 'set_position', 'get', 'get_position',       'help', 'Positon of the micrometer.');
         velocity =      Prefs.Double(NaN, 'unit', 'um/s',   'min', 0,        'allow_nan', true, 'set', 'set_velocity',       'help', 'Velocity of the micrometer.');
         acceleration =  Prefs.Double(NaN, 'unit', 'um/s^2', 'min', 1e3*1e-6, 'max', 1e3*1e12,   'allow_nan', true, 'set', 'set_acceleration',   'help', 'Acceleration of the micrometer.');
     end
@@ -17,16 +17,17 @@ classdef Conex_CC < Modules.Driver
         s;      % Handle to serial connection
     end
     methods(Access=protected)
-        function obj = Conex_CC()
-            obj.loadPrefs; % note that this calls set.host
+        function obj = Conex_CC(host)
+            obj.host = host;
+            obj.loadPrefs;
         end
     end
     methods(Static)
-        function obj = instance()
+        function obj = instance(host)
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Drivers.Conex_CC();
+                Object = Drivers.Conex_CC(host);
             end
             obj = Object;
         end
@@ -82,7 +83,7 @@ classdef Conex_CC < Modules.Driver
             t = tic;
             while strcmp(obj.get_raw_state(), '28') && toc(t) < 1; pause(.01); end    % Wait while decellerating.
 
-            obj.get_state()
+            obj.get_state();
             
 %             obj.com(['SE' num2str(val)]);   % Tell the axes to goto the desired position.
 %             fprintf(obj.s, 'SE');               

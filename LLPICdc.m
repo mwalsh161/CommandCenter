@@ -1,0 +1,164 @@
+function s0 = LLPICdc
+    mc = Drivers.Conex_CC.instance('COM8');
+
+    ms = Sources.Msquared.instance;
+    ni =  Drivers.NIDAQ.dev.instance('dev1');
+    pm =  Drivers.PM100.instance;
+    hwp = Drivers.APTMotor.instance(83844218, [-Inf, Inf]);
+    qwp = Drivers.APTMotor.instance(83830539, [-Inf, Inf]);
+    
+    pm.wavelength = 620;
+    pmp = pm.get_meta_pref('power');
+    
+    wl = ms.get_meta_pref('setpoint_');
+    ep = ms.get_meta_pref('etalon_percent');
+    wm = ms.get_meta_pref('VIS_wavelength');
+    ev = ms.get_meta_pref('etalon_voltage');
+    
+    hwpp = hwp.get_meta_pref('Position');
+    qwpp = qwp.get_meta_pref('Position');
+    
+    pr = Base.PrefRegister.instance;
+    mp = [pr.register{2}.prefs.ao0 pr.register{2}.prefs.ao1 pr.register{2}.prefs.ao2 pr.register{2}.prefs.ao3];
+%     mp1 = pr.register{1}.prefs.ao0;
+    
+    mr = Base.MeasurementRegister.instance;
+    mm = mr.register(1).Drivers_NIDAQ_in;
+    
+    t = Prefs.Time;
+
+    N = 11;
+    M = 38;
+    
+%     resetPiezo(-1, 5)
+%     return
+    
+    p = .02;
+    d = .005;
+%     sweep = 10:-p:0;
+    sweep = 0:p:10;
+    s0 = Base.Sweep({mm}, {mp(1)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+    s1 = Base.Sweep({mm}, {mp(3)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+    s2 = Base.Sweep({mm}, {mp(2)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+    s3 = Base.Sweep({mm}, {mp(4)}, {sweep}, struct('shouldOptimizeAfter', 1), d);
+    s4 = Base.Sweep({mm, pmp}, {hwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over HWP');
+    s5 = Base.Sweep({mm, pmp}, {qwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5, 'APD Optimization Over QWP');
+
+
+    f = figure;
+
+    Base.SweepViewer(s0, subplot(2, 3, 1, 'parent', f))
+%     Base.SweepViewer(s01, subplot(1, 2, 2, 'parent', f))
+    Base.SweepViewer(s1, subplot(2, 3, 2, 'parent', f))
+    Base.SweepViewer(s2, subplot(2, 3, 4, 'parent', f))
+    Base.SweepViewer(s3, subplot(2, 3, 5, 'parent', f))
+    Base.SweepViewer(s5, subplot(2, 3, 3, 'parent', f))
+    Base.SweepViewer(s4, subplot(2, 3, 6, 'parent', f))
+    
+    base = 845;
+    drift = 0;
+    
+    for wl = [737, 700, 780, 720, 760, 800, 710:20:790] %[581, 601, 619, 637, 660, 590, 610, 630, 650, 585:10:655]
+        ms.setpoint_ = wl;
+        
+        wlname = ['wl=' num2str(wl)];
+        
+        mc.position = 0;
+        while abs(mc.get_position() - mc.position) > 2; pause(.1); end
+        
+        drift = 0;
+        z = 5;
+        
+        for jj = 1:6
+            for ii = 1:17
+                for pp = [-1 1]
+                    mc.position = base + 60*(ii-1) + 1050*(jj-1) + pp*5 + drift;
+                    resetPiezo(pp, z)
+                    while abs(mc.get_position() - mc.position) > 2; pause(.1); end
+                    
+%                     return
+
+                    measure((ii == 1 && jj == 1 && pp == -1) || (ii == 17 && jj == 6 && pp == -1), ['ll_' wlname '_dc_' num2str(pp) '_' num2str(ii) '_' num2str(jj)]);
+                
+                    center = (mp(1).read() + mp(3).read() - 10);
+                    center = min(center, .25);
+                    center = max(center, -.25);
+                    
+                    drift = drift - center*.5;
+                    
+                    dz = ((mp(1).read() + mp(3).read())/2) - z;
+                    dz = min(dz, .25);
+                    dz = max(dz, -.25);
+                    
+                    z = z + dz;
+                end
+            end
+        end
+    end
+    
+    function resetPiezo(sign, z)
+        V = [5+sign*2.5, z, 5-sign*2.5, z];
+        
+        for kk = 1:4
+            mp(kk).writ(0);
+            pause(.5)
+            mp(kk).writ(V(kk));
+        end
+    end
+    
+    function measure(pol, name)
+        tosave = struct();
+        
+        tosave.tstart = now;
+        ms.getFrequency();
+        tosave.wavelength = ms.VIS_wavelength;
+        tosave.position = mc.get_position();
+
+        s2.reset();
+        tosave.opt2 = s2.measure();
+        s3.reset();
+        tosave.opt3 = s3.measure();
+        s0.reset();
+        tosave.opt0 = s0.measure();
+        s1.reset();
+        tosave.opt1 = s1.measure();
+        
+        if pol
+            s4.reset();
+            tosave.opt4 = s4.measure();
+            s5.reset();
+            tosave.opt5 = s5.measure();
+
+            s2.reset();
+            tosave.opt2p = s2.measure();
+            s3.reset();
+            tosave.opt3p = s3.measure();
+            s0.reset();
+            tosave.opt0p = s0.measure();
+            s1.reset();
+            tosave.opt1p = s1.measure();
+        else
+            tosave.opt0p = tosave.opt0;
+            tosave.opt1p = tosave.opt1;
+            tosave.opt2p = tosave.opt2;
+            tosave.opt3p = tosave.opt3;
+        end
+        
+        tosave.norm = pmp.read();
+        
+        tosave.v1 = mp(1).read();
+        tosave.v2 = mp(2).read();
+        tosave.v3 = mp(3).read();
+        tosave.v4 = mp(4).read();
+        tosave.hwp = hwpp.read();
+        tosave.qwp = qwpp.read();
+        
+        tosave.drift = drift;
+        tosave.z = z;
+
+        tosave.tend = now;
+        
+        save([name '.mat'], 'tosave')
+        drawnow
+    end
+end

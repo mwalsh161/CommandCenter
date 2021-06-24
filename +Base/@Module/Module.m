@@ -39,12 +39,13 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         pref_set_try = false;       % If true, when setting, post listener will not throw the error. It will still populate last_pref_set_err. Think of this as a way to implement a try/catch block
         module_delete_listener      % Used in garbage collecting
         StructOnObject_state = 'on';% To restore after deleting
+        hardware_get = false;
     end
     
     properties(SetAccess=private, Hidden)   % Pref storage variables.
-        prop_listeners              % Keep track of preferences in the GUI to keep updated
-        ls = struct(); % internal listeners
-        external_ls;   % external listeners (addpreflistener)
+        prop_listeners          % Keep track of preferences in the GUI to keep updated
+        ls = struct();          % internal listeners
+        external_ls;            % external listeners (addpreflistener)
         
 %         props = struct();
         
@@ -91,7 +92,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     obj.(prop.Name).property_name = prop.Name; % Useful for callbacks
                     
                     if isempty(obj.(prop.Name).name)
-                        obj.(prop.Name).name = prop.Name;
+                        obj.(prop.Name).name = strrep(prop.Name, '_', ' ');
                     end
                     
                     % Add listeners to get and set so we can swap the value
@@ -107,8 +108,15 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                          'and (b) assign `val = obj.<property_name>` at the end of the function.']);
                     assert(prop.GetObservable&&prop.SetObservable,...
                         sprintf('Class-based pref ''%s'' in class ''%s'' must be defined to be GetObservable and SetObservable.', prop.Name, class(obj)));
-                    % Grap meta pref before listeners go active to pass to set_meta_pref
+                    
+                    % Grab meta pref before listeners go active to pass to set_meta_pref
+                    obj.(prop.Name)
+                    
                     pref = obj.(prop.Name);
+                    obj.(prop.Name) = pref.value;
+                    
+                    obj.(prop.Name)
+                    pref
                     
 %                     class(obj)
 %                     superclasses(obj)
@@ -216,7 +224,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             obj.logger.log(['Destroyed ' class(obj)])
         end
     end
-    methods(Sealed)                     % Cleanup and garbage collection.
+    methods(Sealed)                     % Cleanup and garbage collection. REVISIT THIS
         function module_clean(obj,hObj,prop)
             to_remove = false(size(obj.(prop)));
             for i = 1:length(obj.(prop)) % Heterogeneous list; cant do in one line
@@ -250,96 +258,104 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
     end
     
     methods                             % Methods for getting and setting prefs
-        function set_meta_pref(obj,name,pref)
+        function set_meta_pref(obj, name, pref)
             % Set the "meta pref" for property "name".
             % If the property's default value is not a class-based pref
             % this will not allow you to set it because the constructor
             % handles preparing all class-based pref stuff
             % NOTE: this does not do anything with the current value and
             %   MAY result in it changing if you aren't careful!!
-            allowed_names = obj.get_class_based_prefs();
-            if ~ismember(name,allowed_names)
-                obj.implicit_mps.(name) = pref;
-                return
+%             allowed_names = obj.get_class_based_prefs();
+%             if ~ismember(name,allowed_names)
+%                 obj.implicit_mps.(name) = pref;
+%                 return
+%             end
+            shouldUpdate = isfield(obj.temp_prop, name) && ~nanisequal(obj.temp_prop.(name).value, pref.value);
+
+            obj.temp_prop.(name) = pref.bind(obj);
+            
+            if shouldUpdate
+                obj.prop_listener_ctrl(name,false);
+                obj.(name) = pref.value; % Assign back to property
+                obj.prop_listener_ctrl(name,true);
             end
-            pref = pref.bind(obj);
-            obj.prop_listener_ctrl(name,false);
-            obj.(name) = pref; % Assign back to property
-            obj.prop_listener_ctrl(name,true);
         end
-        function val = get_meta_pref(obj,name)
+        function pref = get_meta_pref(obj,name)
+            pref = obj.temp_prop.(name);
+            
             % Return the "meta pref" which contains the pref class
             % NOTE: this is a value class, so changing anything in the
             % returned instance does nothing.
             % NOTE: This by-passes pref get listeners
-            if isfield(obj.ls,name) % Indicates class-based pref
-                assert(all([obj.ls.(name).Enabled]),...
-                    sprintf(['"%s" pref, child of "%s", is in use elsewhere. You may be getting this because you are trying ',...
-                    'to reload settings in a set/custom_validate/custom_clean method of a meta pref.'],name,class(obj)));
-%                 assert(obj.ls_enabled)
-                obj.prop_listener_ctrl(name,false);
-                val = obj.(name);
-                obj.prop_listener_ctrl(name,true);
-                return
-            elseif isfield(obj.implicit_mps,name)
-                val = obj.implicit_mps.(name);
-                return
-            end
-            % Anything beyond this point must be an old-stlye pref that was
-            %   not loaded (or for the first time) in the settings call
-            % old style prefs: auto generate default type here
-            val = obj.(name);
-            prop = findprop(obj,name);
-            if prop.HasDefault && ...
-                (iscell(prop.DefaultValue) || isa(prop.DefaultValue,'function_handle'))
-                if iscell(prop.DefaultValue)
-                    choices = prop.DefaultValue;
-                else % function handle
-                    choices = prop.DefaultValue();
-                end
-                if iscell(val) || isa(val,'function_handle')
-                    warning('PREF:oldstyle_pref','Default choice not specified for %s; using empty option',prop.Name);
-                    val = '';
-                    obj.(name) = '';
-                end
-                val = Prefs.MultipleChoice(val,'choices',choices);
-            elseif isnumeric(val) && numel(val)==1 % There are many numeric classes
-                val = Prefs.Double(val);
-            elseif ismember('Base.Module',superclasses(val))
-                warningtext = 'Update to class-based pref! While Prefs.ModuleInstance will protect from bad values set in the UI, it won''t extend to console or elsewhere.';
-                warning('PREF:oldstyle_pref',[prop.Name ': ' warningtext]);
-                % Deserves an extra annoying warning that cant be turned off
-                warndlg([warningtext newline newline 'See console warnings for offending prefs.'],'Update to class-based pref!','modal');
-                n = Inf;
-                inherits = {};
-                if prop.HasDefault
-                    n = max(size(prop.DefaultValue));
-                    if n == 0; n = Inf; end
-                    if isempty(prop.DefaultValue) % if it isn't empty, it must be an actual module defined, not a category
-                        inherits = {class(prop.DefaultValue)};
-                    end
-                end
-                val = Prefs.ModuleInstance(val,'n',n,'inherits',inherits);
-            elseif isnumeric(val)
-                val = Prefs.DoubleArray(val);
-            else
-                switch class(val)
-                    case {'char'}
-                        val = Prefs.String(val);
-                    case {'logical'}
-                        val = Prefs.Boolean(val);
-                    otherwise
-                        sz = num2str(size(val),'%ix'); sz(end) = []; % remove last "x"
-                        error('PREF:notimplemented','Class-based pref not implemented for %s %s',sz,class(val))
-                end
-            end
-            val.auto_generated = true;
-            val.property_name = name;
+%             if isfield(obj.ls,name) % Indicates class-based pref
+%                 assert(all([obj.ls.(name).Enabled]),...
+%                     sprintf(['"%s" pref, child of "%s", is in use elsewhere. You may be getting this because you are trying ',...
+%                     'to reload settings in a set/custom_validate/custom_clean method of a meta pref.'],name,class(obj)));
+% %                 assert(obj.ls_enabled)
+%                 obj.prop_listener_ctrl(name,false);
+%                 val = obj.(name);
+%                 obj.prop_listener_ctrl(name,true);
+%                 return
+%             elseif isfield(obj.implicit_mps,name)
+%                 val = obj.implicit_mps.(name);
+%                 return
+%             end
+%             % Anything beyond this point must be an old-stlye pref that was
+%             %   not loaded (or for the first time) in the settings call
+%             % old style prefs: auto generate default type here
+%             val = obj.(name);
+%             prop = findprop(obj,name);
+%             if prop.HasDefault && ...
+%                 (iscell(prop.DefaultValue) || isa(prop.DefaultValue,'function_handle'))
+%                 if iscell(prop.DefaultValue)
+%                     choices = prop.DefaultValue;
+%                 else % function handle
+%                     choices = prop.DefaultValue();
+%                 end
+%                 if iscell(val) || isa(val,'function_handle')
+%                     warning('PREF:oldstyle_pref','Default choice not specified for %s; using empty option',prop.Name);
+%                     val = '';
+%                     obj.(name) = '';
+%                 end
+%                 val = Prefs.MultipleChoice(val,'choices',choices);
+%             elseif isnumeric(val) && numel(val)==1 % There are many numeric classes
+%                 val = Prefs.Double(val);
+%             elseif ismember('Base.Module',superclasses(val))
+%                 warningtext = 'Update to class-based pref! While Prefs.ModuleInstance will protect from bad values set in the UI, it won''t extend to console or elsewhere.';
+%                 warning('PREF:oldstyle_pref',[prop.Name ': ' warningtext]);
+%                 % Deserves an extra annoying warning that cant be turned off
+%                 warndlg([warningtext newline newline 'See console warnings for offending prefs.'],'Update to class-based pref!','modal');
+%                 n = Inf;
+%                 inherits = {};
+%                 if prop.HasDefault
+%                     n = max(size(prop.DefaultValue));
+%                     if n == 0; n = Inf; end
+%                     if isempty(prop.DefaultValue) % if it isn't empty, it must be an actual module defined, not a category
+%                         inherits = {class(prop.DefaultValue)};
+%                     end
+%                 end
+%                 val = Prefs.ModuleInstance(val,'n',n,'inherits',inherits);
+%             elseif isnumeric(val)
+%                 val = Prefs.DoubleArray(val);
+%             else
+%                 switch class(val)
+%                     case {'char'}
+%                         val = Prefs.String(val);
+%                     case {'logical'}
+%                         val = Prefs.Boolean(val);
+%                     otherwise
+%                         sz = num2str(size(val),'%ix'); sz(end) = []; % remove last "x"
+%                         error('PREF:notimplemented','Class-based pref not implemented for %s %s',sz,class(val))
+%                 end
+%             end
+%             val.auto_generated = true;
+%             val.property_name = name;
         end
         function prefs = get_class_based_prefs(obj)
             % Get string name of all prefs (MATLAB properties) that were defined as a class-based pref
             % Note: necessary to use this method to keep obj.ls private
-            prefs = fields(obj.ls);
+%             prefs = fields(obj.ls);
+            prefs = fields(obj.temp_prop);
         end
     end
     
@@ -359,17 +375,16 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             class_based = obj.get_class_based_prefs()';
             settings = [settings, class_based(~ismember(class_based,settings))];
         end
-
-        % Adds custom settings to main GUI.
-        %   This can be a simple settings button that opens a new GUI!
-        %   Callbacks must be taken care of in the module.
-        %   Module length can be adjusted, but not width.
-        %   There are a few things to keep in mind when making these
-        %   settings. If another program/command line alters a property in
-        %   your settings, if you aren't careful, you will have an
-        %   inconsitency and confusion will follow.
-        %   See documentation for how the default settings works below
         function settings(obj,panelH,pad,margin)    % Arranges appropriate uicontrols for prefs inside a desired panel (usually the one owned by the relevant Manager).
+            % Adds custom settings to main GUI.
+            %   This can be a simple settings button that opens a new GUI!
+            %   Callbacks must be taken care of in the module.
+            %   Module length can be adjusted, but not width.
+            %   There are a few things to keep in mind when making these
+            %   settings. If another program/command line alters a property in
+            %   your settings, if you aren't careful, you will have an
+            %   inconsitency and confusion will follow.
+            %   See documentation for how the default settings works below.
             % panelH: handle to the MATLAB panel
             % pad: double; vertical distance in pixels to leave between UI elements
             % margin: 1x2 double; additional space in pixels to leave on [left, right]
@@ -445,29 +460,36 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             % Adjust the UI such that label widths are nice.
             max_label_width = widthPx/2;
             suggested_label_width = max(label_size(label_size < max_label_width)); % px
-            if isempty(suggested_label_width) || any(label_size > max_label_width)
+            if isempty(suggested_label_width) || any(label_size > max_label_width) || isnan(suggested_label_width)
                 suggested_label_width = max_label_width;
             end
+            
+            % For each setting, update UI and set listeners.
             lsh = Base.PrefListener.empty;
-            if ~isnan(suggested_label_width) % All must have been NaN for this to be false
-                for i = 1:nsettings
-                    if ~isnan(label_size(i)) % no error in fetching mp
-                        mps{i}.adjust_UI(suggested_label_width, margin);
-                        obj.set_meta_pref(setting_names{i},mps{i});
-                        if isprop(mps{i}, 'reference')
-                            if ~isempty(mps{i}.reference)
+            for i = 1:nsettings
+                if ~isnan(label_size(i)) % no error in fetching mp
+                    mps{i}.adjust_UI(suggested_label_width, margin);
+                    obj.set_meta_pref(setting_names{i},mps{i});
+                    
+                    if isprop(mps{i}, 'reference')
+                        if ~isempty(mps{i}.reference)
 %                                 lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)(obj.settings_listener(struct('Name', mps{i}.property_name), mps{i})));
-                                lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)( mps{i}.set_ui_value(mps{i}.reference.parent.(mps{i}.reference.property_name)) ));
-                            end
-                        else
-                            lsh(end+1) = obj.addlistener(setting_names{i}, 'PostSet', @(el,~)(obj.settings_listener(el, mps{i})));
+                            lsh(end+1) = mps{i}.reference.parent.addlistener(...
+                                mps{i}.reference.property_name,...
+                                'PostSet',...
+                                @(~,~)(mps{i}.set_ui_value( mps{i}.reference.parent.(mps{i}.reference.property_name) ))...
+                            );
                         end
+                    else
+                        lsh(end+1) = obj.addlistener(setting_names{i}, 'PostSet', @(el,~)(obj.settings_listener(el, mps{i})));
                     end
                 end
             end
-            addlistener(panelH,'ObjectBeingDestroyed',@(~,~)delete(lsh)); % Listeners for cleanup
+            addlistener(panelH, 'ObjectBeingDestroyed', @(~,~)delete(lsh)); % Listeners for cleanup
         end
-        function settings_callback(obj,~,~,mp)
+        function settings_callback(obj,~,~,mp)      % Callback used to set prefs to the values requested by the settings panel uicontrols.
+            err = [];
+            
             obj.pref_set_try = true;  % try block for validation
             try % try block for retrieving UI value
                 obj.(mp.property_name) = mp.get_validated_ui_value();
@@ -475,13 +497,11 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
             end
+            obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
             
             % set method might notify "update_settings"
-%             mp = obj.get_meta_pref(mp.property_name);
-            obj.pref_set_try = false; % "unset" try block for validation to route errors back to console
             try
                 mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
-%                 mp.set_ui_value(mp.read()); % clean methods may have changed it
             catch err
                 error('MODULE:UI',['Failed to (re)set value in UI. ',... 
                        'Perhaps got deleted during callback? ',...
@@ -515,7 +535,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
         end
     end
     
-    methods(Static,Sealed)              % Namespace is used to determine where prefs are saved.
+    methods(Static, Sealed)             % Namespace is used to determine where prefs are saved.
         function [namespace,CC_handle] = get_namespace(classname)
             % This function returns the formatted namespace string to be used with MATLAB prefs
             % It is recommended to be called using either mfilename or class to help construct input:
@@ -691,12 +711,10 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     continue
                 end
                 
-                if ispref(obj.namespace,prefs{i})   % If we have data saved to set the pref to...
-                    data = getpref(obj.namespace,prefs{i});     % ...Grab that data...
+                if ispref(obj.namespace, prefs{i})   % If we have data saved to set the pref to...
+                    data = getpref(obj.namespace, prefs{i});     % ...Grab that data...
                     try
-%                         mp = findprop(obj,prefs{i});
                         mp = obj.get_meta_pref(prefs{i});
-%                         mp
                         
                         % For most prefs, mp.decodeValue is the identity. However, some prefs carry runtime information which must be encoded to something
                         % savable on save and decoded to something runable on load. For this reason, the metapref deals with interpretation. In order
@@ -779,8 +797,8 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             end
         end
     end
-    methods(Access = private)           % Private listener functions.
-        function prop_listener_ctrl(obj,name,enabled)
+    methods(Access=private)             % Private listener functions.
+        function prop_listener_ctrl(obj, name, enabled)
             % name: string name of property
             % enabled: true/false
 
@@ -797,7 +815,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 end
             end
         end
-        function preflistener_deleted(obj,el,~)
+        function preflistener_deleted(obj, el, ~)
             % Clean-up method for preflisteners (unless obj already deleted)
             if isvalid(obj)
                 obj.external_ls.(el.PropertyName) ...
@@ -807,9 +825,8 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     ) = [];
             end
         end
-        function execute_external_ls(obj,prop,event)
+        function execute_external_ls(obj, prop, event)
             for i = 1:length(obj.external_ls.(prop.Name).(event.EventName))
-%                 i
                 % Do not allow recursive calls and only call Enabled ones
                 if  obj.external_ls.(prop.Name).(event.EventName)(i).Enabled && ...
                         (obj.external_ls.(prop.Name).(event.EventName)(i).Recursive || ...
@@ -829,43 +846,44 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 
         % MATLAB turns errors in listeners to warnings, so make sure we
         % handle validation errors here!
-        function pre(obj,prop,event)
-            % Disable other listeners on this since we will be both getting
-            % and setting this prop in this method
-            obj.prop_listener_ctrl(prop.Name,false);
-            % Stash prop
-            obj.temp_prop.(prop.Name) = obj.(prop.Name);
-            obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
-            % Execute any external listeners
-            obj.execute_external_ls(prop,event);
-            obj.prop_listener_ctrl(prop.Name,true);
+        function pre(obj, prop, event)
+            obj.execute_external_ls(prop, event);
         end
-        function post(obj,prop,event)
-            % Disable other listeners on this since we will be both getting
-            % and setting this prop in this method
-            obj.prop_listener_ctrl(prop.Name,false);
-            % Update stash, then copy back to prop (get listeners can alter
-            % obj.(prop.Name) as well as the obvious SetEvent does)
-            new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
+        function post(obj, prop, event)
+            obj.prop_listener_ctrl(prop.Name, false);   % Listeners DISABLED.
+            
+            % Copy in case validation fails
+            pref = obj.temp_prop.(prop.Name);
+            
+            err = [];
+            
             try
-                new_val.getEvent = strcmp(event.EventName,'PostGet');
-                new_val.value = obj.(prop.Name); % validation occurs here
-                new_val.getEvent = false;
-                obj.execute_external_ls(prop,event); % Execute any external listeners
-                if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
-                    % This should now be interpreted as a set event
-                    new_val.value = obj.(prop.Name); % validation occurs here
+                switch event.EventName
+                    case 'PostSet'
+                        obj.(prop.Name) = pref.set_value(obj.(prop.Name));   % validation occurs here
+                    case 'PostGet'
+                        if obj.hardware_get
+                            obj.(prop.Name) = pref.get_value(obj.(prop.Name));
+                        end
+                end
+                
+                obj.execute_external_ls(prop,event);                % Execute any external listeners
+                
+                if ~nanisequal(pref.value, obj.(prop.Name))         % Update if external_ls changed it
+                    pref.value = pref.set_value(obj.(prop.Name));   % This should now be interpreted as a set event; validation occurs here
                 end
             catch err
             end
-            % Update the class-pref and re-engage listeners
-            % Note if the above try block failed; this is still the old value
-            obj.(prop.Name) = new_val;
-            obj.prop_listener_ctrl(prop.Name,true);
-            if exist('err','var')
-                % This will be thrown as warning in console because it is
-                % from a listener, so we will use a flag for detection with
-                % a readable property
+            
+            % Update the pref and re-engage listeners. Note if the above try block failed on any set_value; this is still the old value
+            obj.temp_prop.(prop.Name) = pref;
+            obj.(prop.Name) = pref.value;
+            
+            obj.prop_listener_ctrl(prop.Name,true);     % Listeners ENABLED.
+            
+            % Error handling
+            if ~isempty(err)
+                % This will be thrown as warning in console because it is from a listener, so we will use a flag for detection with a readable property
                 obj.last_pref_set_err = err;
                 if obj.pref_set_try
                     return
@@ -876,103 +894,25 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             obj.last_pref_set_err = [];
         end
     end
-    methods (Hidden, Access=?Base.Pref) % Pref access read and writ calls.
-        % These functions have the same functionality as pre() post() called successivly, except with two
-        % out of four fewer calls to obj.prop_listener_ctrl(prop,tf), which is the limiting time factor.
-        function tf = writProp(obj,prop,val)
+    methods (Hidden, Access=?Base.Pref) % Pref access x = read() and writ(x) calls.
+        function tf = writProp(obj, prop, val)
             tf = true;
-
-            event.EventName = 'PreSet'; % pre() =====
-
-            % Disable other listeners on this since we will be both getting
-            % and setting this prop in this method
-%             obj
-%             obj.temp_prop
-%             obj.temp_prop.x
-%             prop.Name
-            obj.prop_listener_ctrl(prop.Name,false);
-            % Stash prop
-            obj.temp_prop.(prop.Name) = obj.(prop.Name);
-            obj.(prop.Name) = val;
-            % Execute any external listeners
-            obj.execute_external_ls(prop,event);
-%             obj.prop_listener_ctrl(prop.Name,true); **********
-
-            event.EventName = 'PostSet'; % post() =====
-
-            % Disable other listeners on this since we will be both getting
-            % and setting this prop in this method
-%             obj.prop_listener_ctrl(prop.Name,false); **********
-            % Update stash, then copy back to prop (get listeners can alter
-            % obj.(prop.Name) as well as the obvious SetEvent does)
-            new_val = obj.temp_prop.(prop.Name); % Copy in case validation fails
-%             new_val
+            
             try
-                new_val.getEvent = false;
-                new_val.value = obj.(prop.Name); % validation occurs here
-                new_val.getEvent = false;
-
-                obj.execute_external_ls(prop,event); % Execute any external listeners
-                
-                if ~nanisequal(new_val.value, obj.(prop.Name)) % Update if external_ls changed it
-                    % This should now be interpreted as a set event
-                    new_val.value = obj.(prop.Name); % validation occurs here
-                end
+                obj.(prop.Name) = val;
             catch err
+                tf = false;
+                warning(err.message)
             end
-            % Update the class-pref and re-engage listeners
-            % Note if the above try block failed; this is still the old value
-            obj.(prop.Name) = new_val;
-            obj.prop_listener_ctrl(prop.Name,true);
-            if exist('err','var')
-                % This will be thrown as warning in console because it is
-                % from a listener, so we will use a flag for detection with
-                % a readable property
-                obj.last_pref_set_err = err;
-                if obj.pref_set_try
-                    tf = false;
-                    return
-                else
-                    rethrow(err);
-                end
-            end
-            obj.last_pref_set_err = [];
         end
         function val = readProp(obj,prop)
-            event.EventName = 'PreGet'; % pre() ====='
-            
-            % Disable other listeners on this since we will be both getting
-            % and setting this prop in this method
-            obj.prop_listener_ctrl(prop.Name,false);
-            if ~isa(obj.(prop.Name), 'Base.Pref')   % If we are calling readProp from a state where we have already stashed, then just return;
+            obj.hardware_get = true;
+            try
                 val = obj.(prop.Name);
-                return;
+            catch err
+                warning(err.message)
             end
-            
-            % Stash prop
-            obj.temp_prop.(prop.Name) = obj.(prop.Name);
-            obj.(prop.Name) = obj.temp_prop.(prop.Name).value;
-            % Execute any external listeners
-            obj.execute_external_ls(prop,event);
-%             obj.prop_listener_ctrl(prop.Name,true);
-
-            % Update the class-pref and re-engage listeners
-            % Note if the above try block failed; this is still the old value
-            obj.(prop.Name) =  obj.temp_prop.(prop.Name);
-            val =  obj.temp_prop.(prop.Name).value;
-            obj.prop_listener_ctrl(prop.Name,true);
-            if exist('err','var')
-                % This will be thrown as warning in console because it is
-                % from a listener, so we will use a flag for detection with
-                % a readable property
-                obj.last_pref_set_err = err;
-                if obj.pref_set_try
-                    return
-                else
-                    rethrow(err);
-                end
-            end
-            obj.last_pref_set_err = [];
+            obj.hardware_get = false;
         end
     end
 end
