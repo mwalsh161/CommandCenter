@@ -1,5 +1,5 @@
 function eg336(ms, managers)
-    folder = 'Z:\Experiments\Diamond\EG336\2021_05_05 RoMi\';
+    folder = 'Z:\Experiments\Diamond\EG336\2021_06_04 RoMi';
 
     % Disable inactivity!
     timerH = managers.handles.inactivity_timer;
@@ -23,9 +23,9 @@ function eg336(ms, managers)
     set(a, 'YDir', 'normal');
     colormap('gray');
     
-    ard.angle = 0;      % No filter.
     red.on();
     green.off();
+    ard.angle = 0;      % No filter.
     
     baseX = 0; %round(ms.image.X - ms.offset);
     baseY = 0; %round(ms.image.Y - ms.offset);

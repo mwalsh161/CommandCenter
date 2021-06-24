@@ -1,5 +1,8 @@
 function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     % QRconv finds 
+    % img is a NxM image.
+    % options_guess is a struct of the same format as options_fit to 
+    % struct('ang', 'calibration', 'X_expected', 'Y_expected');
     % v and V are arrays of column vectors (2xN) of the same size. v are
     % positions of candidate QR codes in the coordinate system of the image
     % img, while V are the corresponding positons in QR space. If a

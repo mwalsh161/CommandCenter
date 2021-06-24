@@ -54,9 +54,9 @@ classdef VelocityLaser < Modules.Source & Sources.TunableLaser_invisible
         wavemeter_channel =     Prefs.Integer(3,'min',1,'allow_nan',false,'set','set_wavemeter_channel','help','Pulse Blaster flag bit (indexed from 1)');
         wavemeter_active =      Prefs.Boolean(false,'set','set_wavemeter_active','help','Wavemeter channel active');
         
-        percent_setpoint =      Prefs.Double(NaN,'units','%','help','local memory of tuning percent as applied by the wavemeter');
+        percent_setpoint =      Prefs.Double(NaN,'unit','%','help','local memory of tuning percent as applied by the wavemeter');
         
-        TuningTimeout =         Prefs.Double(60,'units','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
+        TuningTimeout =         Prefs.Double(60,'unit','sec','min',0,'help','Timeout for home-built PID used in TuneCoarse');
         TuneSetpointAttempts =  Prefs.Integer(3,'min',1,'allow_nan',false);
         TuneSetpointNPoints =   Prefs.Integer(25,'min',1,'allow_nan',false,'help','number of wavemeter queries below wavemeter resolution to consider settled.');
     end

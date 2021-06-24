@@ -106,6 +106,10 @@ function d276(ms, managers)
                 green.off();
             end
             
+            disp('extra pause')
+            
+            pause(fin.wl_exposure/1e3);
+                
             img0 = uint32(ms.image.image.snapImage());
             if kk ~= 1 && kk ~= length(angles)
                 for ll = 1:(ceil(fin.g_exposure/fin.wl_exposure)-1)
