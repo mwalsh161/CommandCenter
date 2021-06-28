@@ -132,6 +132,7 @@ try
             rethrow(err);
         end
     end
+    
     % Parse inputs flags
     assert(all(cellfun(@ischar,varargin)),'All inputs provided to CommandCenter must be strings')
     [debug,varargin] = parseInput(varargin,'debug');

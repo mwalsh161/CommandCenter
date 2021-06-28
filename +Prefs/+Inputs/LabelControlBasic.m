@@ -47,9 +47,9 @@ classdef LabelControlBasic < Base.Input
                         'UserData', pref.readonly);   % UserData field contains another copy of readonly for inputs which overwrite Enable
             obj.ui.Position(2) = yloc_px;
 
-            if ~isempty(pref.help_text)
-                set(obj.label, 'Tooltip', pref.help_text);
-            end
+%             if ~isempty(pref.help_text)
+            set(obj.label, 'Tooltip', pref.get_help_text);
+%             end
             height_px = obj.ui.Position(4);
         end
         function link_callback(obj,callback)

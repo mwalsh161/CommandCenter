@@ -360,24 +360,35 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         % property upon creation. It is called via get.help_text, meaning
         % it will not be bypassed when retrieving obj.help_text.
         % NOTE: https://undocumentedmatlab.com/blog/multi-line-tooltips
-        function text = get_help_text(obj,help_text_prop)
-            summary_text = obj.validationSummary(2);
-            if isempty(summary_text)
-                summary_text = '  None'; % indent 2
-            end
-            summary_text = strrep(summary_text,'>','&gt;');
-            summary_text = strrep(summary_text,'<','&lt;');
-            if ~isempty(help_text_prop)
-                text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
-                                 help_text_prop, summary_text);
-            else
-                text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
-                                 summary_text);
-            end
-            if obj.auto_generated
-                text = [text '<br/><font color="red">This pref was auto generated and deprecated. Consider replacing with class-based pref.</font>'];
-            end
-            text = strip(strrep(text, newline, '<br/>'));
+        function text = get_help_text(obj,~)
+%             try
+                summary_text = obj.validationSummary(2);
+                if isempty(summary_text)
+                    summary_text = '  None'; % indent 2
+                end
+                summary_text = strrep(summary_text,'>','&gt;');
+                summary_text = strrep(summary_text,'<','&lt;');
+                if ~isempty(obj.help_text)
+                    text = sprintf('<html>%s<br/><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
+                                     obj.help_text, summary_text);
+                else
+                    text = sprintf('<html><pre><font face="courier new" color="blue">Properties:<br/>%s</font>',...
+                                     summary_text);
+                end
+                if obj.auto_generated
+                    text = [text '<br/><font color="red">This pref was auto generated and deprecated. Consider replacing with class-based pref.</font>'];
+                end
+                text = strip(strrep(text, newline, '<br/>'));
+%             catch err
+%                 if isempty(obj.help_text)
+%                     text = sprintf('<html><font color="red">%s</font>',...
+%                         getReport(err, 'basic'));
+%                 else
+%                     text = sprintf('<html>%s\n<font color="red">%s</font>',...
+%                         obj.help_text, getReport(err, 'basic'));
+%                 end
+%                 text = strrep(text, newline, '<br/>');
+%             end
         end
         function label = get_label(obj)
             % Uses the ui object to make a label (usually '<name> [<unit>]' pair)
@@ -403,7 +414,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         function val = get_ui_value(obj)
             val = obj.ui.get_value();
         end
-        function set_ui_value(obj,val)
+        function obj = set_ui_value(obj,val)
             % Note: not required that val == obj.value
             obj.ui.set_value(val);
         end
@@ -416,7 +427,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
             % This wraps ui.make_UI; careful overloading
             [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
         end
-        function adjust_UI(obj,varargin)
+        function obj = adjust_UI(obj,varargin)
             % This wraps ui.adjust_UI; careful overloading
             obj.ui.adjust_UI(varargin{:});
         end
@@ -550,22 +561,6 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
         end
         function listener = addlistener(obj, event, callback)
             listener = obj.listen_fn(event, callback);
-        end
-        
-        % Formatting help text.
-        function val = get.help_text(obj)
-            try
-                val = obj.get_help_text(obj.help_text);
-            catch err
-                if isempty(obj.help_text)
-                    val = sprintf('<html><font color="red">%s</font>',...
-                        getReport(err, 'basic'));
-                else
-                    val = sprintf('<html>%s\n<font color="red">%s</font>',...
-                        obj.help_text, getReport(err, 'basic'));
-                end
-                val = strrep(val, newline, '<br/>');
-            end
         end
     end
 end

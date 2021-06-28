@@ -1,5 +1,5 @@
 classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
-    %MODULE Abstract Class for Modules.
+    % MODULE Abstract Class for Modules.
     %   Simply enforces required properties.
     %
     %   All module managers will look for an optional invisible property (must be constant).
@@ -9,7 +9,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
     %   If there is a Constant property "visible" and it is set to false,
     %   this will prevent CommandCenter from displaying it.
     %
-    %This class also manages Prefs (previously, this was done by pref_handler).
+    % This class also manages Prefs (previously, this was done by pref_handler).
     %
     %   The bulk of this mixin is responsible for maintaining a more complex "meta"
     %   property that is stored in memory (see +Prefs and Base.Pref). When the user
@@ -110,16 +110,8 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                         sprintf('Class-based pref ''%s'' in class ''%s'' must be defined to be GetObservable and SetObservable.', prop.Name, class(obj)));
                     
                     % Grab meta pref before listeners go active to pass to set_meta_pref
-                    obj.(prop.Name)
-                    
                     pref = obj.(prop.Name);
                     obj.(prop.Name) = pref.value;
-                    
-                    obj.(prop.Name)
-                    pref
-                    
-%                     class(obj)
-%                     superclasses(obj)
 
                     obj.ls.(prop.Name)    = obj.addlistener(prop.Name, 'PreSet',  @obj.pre);
                     obj.ls.(prop.Name)(2) = obj.addlistener(prop.Name, 'PostSet', @obj.post);
@@ -129,8 +121,6 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     obj.external_ls.(prop.Name) = external_ls_struct;
                     % (Re)set meta pref which will validate and bind callbacks declared as strings
                     % Done after binding Set/Get listeners since the method call expects them to be set already
-
-%                     pref
                     
                     obj.set_meta_pref(prop.Name, pref);
                 end
@@ -270,10 +260,16 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
 %                 obj.implicit_mps.(name) = pref;
 %                 return
 %             end
+
+            % Updating the value is expensive due to having to supress and
+            % enable the listeners. So we first determine whether the value
+            % changed from the current -- if so, we don't need to update.
             shouldUpdate = isfield(obj.temp_prop, name) && ~nanisequal(obj.temp_prop.(name).value, pref.value);
 
+            % Update the Pref class to the supplied class
             obj.temp_prop.(name) = pref.bind(obj);
             
+            % Update the Pref value to the supplied value
             if shouldUpdate
                 obj.prop_listener_ctrl(name,false);
                 obj.(name) = pref.value; % Assign back to property
@@ -430,6 +426,7 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     warning('Skipped pref "%s":\n%s', setting_names{i}, err.message)
                     continue
                 end
+                
                 if isempty(mp.name) % Default to setting (i.e. property) name
                     mp.name = strrep(setting_names{i}, '_', ' ');
                 end
@@ -442,14 +439,17 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                 if isprop(mp, 'reference') && ~isempty(mp.reference)
                     obj2 = mp.reference.parent;
                     mp = mp.link_callback(@obj2.settings_callback);
+%                     mp.value = mp.reference.value;
+                    mp.value = mp.read();
                 else
                     mp = mp.link_callback(@obj.settings_callback);
                 end
+                
                 panelH_loc = panelH_loc + height_px + pad;
                 mps{i} = mp;
                 obj.set_meta_pref(setting_names{i}, mp);
 %                 try
-                    mp.set_ui_value(mp.value); % Update to current value
+                    mp = mp.set_ui_value(mp.value); % Update to current value
 %                 catch err
 %                     warning(err.identifier,'Failed to set pref "%s" to value of type "%s":\n%s',...
 %                         setting_names{i},class(mp.value),err.message)
@@ -468,17 +468,28 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             lsh = Base.PrefListener.empty;
             for i = 1:nsettings
                 if ~isnan(label_size(i)) % no error in fetching mp
-                    mps{i}.adjust_UI(suggested_label_width, margin);
-                    obj.set_meta_pref(setting_names{i},mps{i});
+                    mps{i} = mps{i}.adjust_UI(suggested_label_width, margin);
+                    obj.set_meta_pref(setting_names{i}, mps{i});
                     
                     if isprop(mps{i}, 'reference')
                         if ~isempty(mps{i}.reference)
 %                                 lsh(end+1) = mps{i}.reference.parent.addlistener(mps{i}.reference.property_name, 'PostSet', @(~,~)(obj.settings_listener(struct('Name', mps{i}.property_name), mps{i})));
-                            lsh(end+1) = mps{i}.reference.parent.addlistener(...
-                                mps{i}.reference.property_name,...
-                                'PostSet',...
-                                @(~,~)(mps{i}.set_ui_value( mps{i}.reference.parent.(mps{i}.reference.property_name) ))...
-                            );
+                            % References should update based on the parent of the referenced pref.
+                            if strcmp(class(mps{i}.reference.parent), 'Drivers.NIDAQ.dev')
+                                out = mps{i}.reference.parent.getLines(mps{i}.reference.name, 'out');
+                                
+                                lsh(end+1) = out.addlistener(...
+                                    'state',...
+                                    'PostSet',...
+                                    @(~,~)(mps{i}.set_ui_value( out.state ))...
+                                );
+                            else
+                                lsh(end+1) = mps{i}.reference.parent.addlistener(...
+                                    mps{i}.reference.property_name,...
+                                    'PostSet',...
+                                    @(~,~)(mps{i}.set_ui_value( mps{i}.reference.parent.(mps{i}.reference.property_name) ))...
+                                );
+                            end
                         end
                     else
                         lsh(end+1) = obj.addlistener(setting_names{i}, 'PostSet', @(el,~)(obj.settings_listener(el, mps{i})));
@@ -492,7 +503,13 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             
             obj.pref_set_try = true;  % try block for validation
             try % try block for retrieving UI value
-                obj.(mp.property_name) = mp.get_validated_ui_value();
+                if isa(mp.parent, 'Drivers.NIDAQ.dev')
+                    mp.writ(mp.get_validated_ui_value());
+%                     out = mp.parent.getLines(mp.name, 'out');
+%                     out.state = mp.get_validated_ui_value();
+                else
+                    obj.(mp.property_name) = mp.get_validated_ui_value();
+                end
 %                 obj.(mp.property_name) = obj.(mp.property_name);
                 err = obj.last_pref_set_err; % Either [] or MException
             catch err % MException if we get here
@@ -501,7 +518,13 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             
             % set method might notify "update_settings"
             try
-                mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+                if isa(mp.parent, 'Drivers.NIDAQ.dev')
+                    out = mp.parent.getLines(mp.name, 'out');
+                    mp.writ(out.state);
+%                     mp.set_ui_value(out.state);
+                else
+                    mp.set_ui_value(obj.(mp.property_name)); % clean methods may have changed it
+                end
             catch err
                 error('MODULE:UI',['Failed to (re)set value in UI. ',... 
                        'Perhaps got deleted during callback? ',...
@@ -784,12 +807,12 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
             % el = addlistener(hSource,EventName,callback)
             % el = addlistener(hSource,PropertyName,EventName,callback)
             varargout = {};
-            if nargin == 4 && isfield(obj.external_ls,varargin{1}) % externals_ls field names are all pref properties
+            if nargin == 4 && isfield(obj.external_ls, varargin{1}) % externals_ls field names are all pref properties
                 el = Base.PrefListener(obj,varargin{:});
                 obj.external_ls.(varargin{1}).(varargin{2})(end+1) = el;
-                addlistener(el,'ObjectBeingDestroyed',@obj.preflistener_deleted);
+                addlistener(el, 'ObjectBeingDestroyed', @obj.preflistener_deleted);
             else
-                el = addlistener@handle(obj,varargin{:});
+                el = addlistener@handle(obj, varargin{:});
                 el = Base.PrefListener(el); % Wrap it to make array compatible
             end
             if nargout

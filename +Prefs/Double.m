@@ -22,8 +22,8 @@ classdef Double < Prefs.Numeric
             obj = obj@Prefs.Numeric(varargin{:});
 %             obj.init(varargin{:});
         end
-        function set_ui_value(obj,val)
-            obj.ui.set_value(num2str(val,obj.display_precision));
+        function obj = set_ui_value(obj,val)
+            obj.ui.set_value(num2str(val, obj.display_precision));
         end
         function val = get_ui_value(obj)
             valstr = obj.ui.get_value();

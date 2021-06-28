@@ -6,21 +6,21 @@ classdef MetaStage < Base.Module
         Y = Prefs.Reference();
         Z = Prefs.Reference();
         
-        poll = Prefs.Button('Update Positions');
+        key_step_x = .1; % Prefs.Double();
+        key_step_y = .1; % Prefs.Double();
+        key_step_z = .1; % Prefs.Double();
         
-        key_step_x = Prefs.Double();
-        key_step_y = Prefs.Double();
-        key_step_z = Prefs.Double();
-        
-        joy_step_x = Prefs.Double();
-        joy_step_y = Prefs.Double();
-        joy_step_z = Prefs.Double();
+        joy_step_x = .1; % Prefs.Double();
+        joy_step_y = .1; % Prefs.Double();
+        joy_step_z = .1; % Prefs.Double();
     end
     properties(SetAccess=immutable)
         name;
     end
     properties(Constant,Hidden)
         modules_package = 'MetaStage';
+        
+        show_prefs = {'X', 'Y', 'Z'};
     end
     
     methods(Static)

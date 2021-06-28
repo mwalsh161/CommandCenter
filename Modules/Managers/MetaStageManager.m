@@ -17,6 +17,13 @@ classdef MetaStageManager < Base.Manager
         
     properties
         fps = 5;
+        
+        keys_xp = {'rightarrow', 'd'};
+        keys_xm = {'leftarrow', 'a'};
+        keys_yp = {'uparrow', 'w'};
+        keys_ym = {'downarrow', 's'};
+        keys_zp = {'equal', 'add', 'e', 'pageup'};
+        keys_zm = {'hyphen', 'subtract', 'underscore', 'q', 'pagedown'};
     end
     
     methods
@@ -62,30 +69,33 @@ classdef MetaStageManager < Base.Manager
             dropdown =  uicontrol(panel, 'Style', 'popupmenu', 'String', {''}, 'Value', 1,  'Position', [m,         H-h-p, w,   h]);
 %             gear =      uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699),     'Position', [w+m-h-p,   H-h-p, h,       h]);
             
-            y = H-h-2*p-2*B;
             x = m + 2*B;
+            y = H-h-2*p-2*B;
             
             obj = obj@Base.Manager(Modules.MetaStage.modules_package, handles, handles.panelMetaStage, dropdown);
             
             obj.scrollpanel = scrollpanel;
             
-            mx =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25C0), 'Callback', @(~,~)obj.step(-1,1), 'Tooltip', 'Left (-x)', 'Position', [x     y   b b]);
-            my =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BC), 'Callback', @(~,~)obj.step(-1,2), 'Tooltip', 'Down (-y)', 'Position', [x+B   y   b b]);
-            py =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25B2), 'Callback', @(~,~)obj.step(+1,2), 'Tooltip', 'Up (+y)',   'Position', [x+B   y+B b b]);
-            px =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BA), 'Callback', @(~,~)obj.step(+1,1), 'Tooltip', 'Right (+x)','Position', [x+2*B y   b b]);
+            mx =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25C0), 'Callback', @(~,~)obj.step(-1,1,1), 'Tooltip', 'Left (-x)', 'Position', [x     y   b b]);
+            my =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BC), 'Callback', @(~,~)obj.step(-1,2,1), 'Tooltip', 'Down (-y)', 'Position', [x+B   y   b b]);
+            py =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25B2), 'Callback', @(~,~)obj.step(+1,2,1), 'Tooltip', 'Up (+y)',   'Position', [x+B   y+B b b]);
+            px =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BA), 'Callback', @(~,~)obj.step(+1,1,1), 'Tooltip', 'Right (+x)','Position', [x+2*B y   b b]);
             
-            mz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2297), 'Callback', @(~,~)obj.step(-1,3), 'Tooltip', 'In (-z)',  'Position', [x+3*B y   b b], 'FontSize', 15);
-            pz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2299), 'Callback', @(~,~)obj.step(+1,3), 'Tooltip', 'Out (+z)', 'Position', [x+3*B y+B b b], 'FontSize', 15);
+            mz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2297), 'Callback', @(~,~)obj.step(-1,3,1), 'Tooltip', 'In (-z)',   'Position', [x+3*B y   b b], 'FontSize', 15);
+            pz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2299), 'Callback', @(~,~)obj.step(+1,3,1), 'Tooltip', 'Out (+z)',  'Position', [x+3*B y+B b b], 'FontSize', 15);
+            
+            mult =  uicontrol(panel, 'Style', 'text',       'String', '',           'ForegroundColor', 'red',           'Tooltip', 'Speed Multiplier (Shift == *5, ctrl == *1/5)', 'Position', [x+2*B y+B b b]);
             
             x = m;
-            y = H-2*h-2*p;
+            y = y;
             
-            h = h-2;
+            h = (2*B)/4;
+            h2 = h-p;
             
-            key =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y 2*b h]);
-            joy =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y-h 2*b h]);
-            obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y-2*h 2*b h]);
-            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y-3*h 2*b h]);
+            key =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
+            joy =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
+            obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+h 2*b h2]);
+            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2]);
             
             
             panel.Units = 'characters';
@@ -148,35 +158,119 @@ classdef MetaStageManager < Base.Manager
     end
     methods
         % Navigation
-        function step(obj, magnitude, direction)
+        function step(obj, magnitude, direction, isKeyboard)
+            if nargin < 4
+                isKeyboard = false;
+            end
+            
             pref = [];
+            step = 0;
             switch direction
                 case {1, 'x', 'X'}
-                    pref = obj.X;
+                    pref = obj.active_module.get_meta_pref('X');
+                    if isKeyboard
+                        step = obj.active_module.key_step_x;
+                    else
+                        step = obj.active_module.joy_step_x;
+                    end
                 case {2, 'y', 'Y'}
-                    pref = obj.Y;
+                    pref = obj.active_module.get_meta_pref('Y');
+                    if isKeyboard
+                        step = obj.active_module.key_step_y;
+                    else
+                        step = obj.active_module.joy_step_y;
+                    end
                 case {3, 'z', 'Z'}
-                    pref = obj.Z;
+                    pref = obj.active_module.get_meta_pref('Z');
+                    if isKeyboard
+                        step = obj.active_module.key_step_z;
+                    else
+                        step = obj.active_module.joy_step_z;
+                    end
+            end
+            
+            if ~step
+                warning('Step set to zero. No change expected.');
             end
             
             if ~isempty(pref)
-                pref.writ(str2double(pref.get_ui_value()) + magnitude);
+                val = pref.get_ui_value();
+                if isempty(val)
+                    pref.writ(pref.read() + step*magnitude);        % This can cause issues.
+                else
+                    pref.writ(str2double(val) + step*magnitude);
+                end
             end
         end
         
         % Input callbacks
+        function set.keyboard(obj, val)
+            obj.keyboard = val;
+            
+            if val
+                obj.handles.figure1.KeyPressFcn = @obj.KeyPressFcn;
+            else
+                obj.handles.figure1.KeyPressFcn = '';
+            end
+%             obj.handles.figure1.KeyReleaseFcn
+            
+            obj.colorBorder();
+        end
         function keyboard_Callback(obj, src, ~)
-            if length(obj.modules) > 1
+            if length(obj.modules) >= 1
                 obj.keyboard = src.Value;
             else
                 obj.keyboard = false;
                 src.Value = 0;
             end
         end
+        function KeyPressFcn(obj, ~, event)     % Interprets messages sent by the keyboard. Set as the main figure's KeyPressFcn when enabled.
+            % First, decide whether it is appropriate to accept keyboard input in this context.
+            focus = gco;
+
+            if isprop(focus, 'Style')
+                % Inappropriate contexts include, e.g. edit boxes, etc.
+                proceed = (~strcmpi(focus.Style, 'edit') && ~strcmpi(focus.Style, 'choose')) || ~strcmpi(focus.Enable, 'on');    % Don't continue if we are currently changing the value of a edit uicontrol...
+            else
+                proceed = true;
+            end
+
+            if proceed                                  % If it is appropriate, then proceed.
+                multiplier = 1;
+                if ismember(event.Modifier, 'shift')    % The shift key speeds all movement by a factor of 10.
+                    multiplier = multiplier*10;
+                end
+                if ismember(event.Modifier, 'alt')      % The alt key slows all movement by a factor of 10.
+                    multiplier = multiplier/10;
+                end
+
+                switch event.Key                        % Now figure out which way we should move...
+                    case obj.keys_xp    % +X
+                        obj.step(+multiplier, 1, 1);
+                    case obj.keys_xm    % -X
+                        obj.step(-multiplier, 1, 1);
+                    case obj.keys_yp    % +Y
+                        obj.step(+multiplier, 2, 1);
+                    case obj.keys_ym    % -Y
+                        obj.step(-multiplier, 2, 1);
+                    case obj.keys_zp    % +Z
+                        obj.step(+multiplier, 3, 1);
+                    case obj.keys_zm    % -Z
+                        obj.step(-multiplier, 3, 1);
+                end
+            end
+        end
+        
+        function set.joystick(obj, val)
+            obj.joystick = val;
+            obj.colorBorder();
+            choices = {'off', 'on'};
+            obj.joyserver.Enable = choices{val+1};
+        end
         function joystick_Callback(obj, src, ~)
-            if length(obj.modules) > 1
+            if length(obj.modules) >= 1
                 if verLessThan('matlab','9.9')
-                    errordlg(['Joystick requires MATLAB >= 2020b. You have ' version('-release') '.'], 'Joystick Versioning')
+                    errordlg(['Joystick requires MATLAB >= R2020b. You have R' version('-release') '.'], 'Joystick Versioning')
                     obj.joystick = false;
                     src.Value = false;
                 else
@@ -190,27 +284,6 @@ classdef MetaStageManager < Base.Manager
         function joyserver_Callback(obj, src, ~)
             if length(obj.modules) > 1
                 obj.initializeJoystick(src.String);
-            end
-        end
-        function set.keyboard(obj, val)
-            obj.keyboard = val;
-            obj.colorBorder();
-        end
-        function set.joystick(obj, val)
-            obj.joystick = val;
-            obj.colorBorder();
-            choices = {'off', 'on'};
-            obj.joyserver.Enable = choices{val+1};
-        end
-        function colorBorder(obj)
-            if obj.keyboard && obj.joystick
-                obj.scrollpanel.base.HighlightColor = [.8 0 .8];    % Purple
-            elseif obj.keyboard
-                obj.scrollpanel.base.HighlightColor = [0 0 1];      % Blue
-            elseif obj.joystick
-                obj.scrollpanel.base.HighlightColor = [1 0 0];      % Red
-            else
-                obj.scrollpanel.base.HighlightColor = 'w';
             end
         end
         function initializeJoystick(obj, address)
@@ -251,12 +324,24 @@ classdef MetaStageManager < Base.Manager
                     for ii = 1:length(directions)
                         ignore = false;
                         switch directions{ii}
-                            case {'xy', 'xy2', 'back', 'start', 'home'}
+                            case {'xy', 'xy2', 'left', 'right'}
                                 ignore = true;
                         end
                         
                         if ~ignore
                             obj.step(reply.(directions{ii}), directions{ii}(2));
+                        end
+                        
+                        moduleplus = 0;
+                        switch directions{ii}
+                            case 'left'
+                                moduleplus = -1;
+                            case 'right'
+                                moduleplus = 1;
+                        end
+                        
+                        if moduleplus
+                            obj.setActiveModule(mod(get(obj.popupHandle, 'value') - 1 + moduleplus, length(obj.modules)) + 1);
                         end
                     end
                 end
@@ -300,6 +385,18 @@ classdef MetaStageManager < Base.Manager
                     t = [];
                     hello = 'No Server';
                 end
+            end
+        end
+        
+        function colorBorder(obj)
+            if obj.keyboard && obj.joystick
+                obj.scrollpanel.base.HighlightColor = [.8 0 .8];    % Purple
+            elseif obj.keyboard
+                obj.scrollpanel.base.HighlightColor = [0 0 1];      % Blue
+            elseif obj.joystick
+                obj.scrollpanel.base.HighlightColor = [1 0 0];      % Red
+            else
+                obj.scrollpanel.base.HighlightColor = 'w';
             end
         end
         

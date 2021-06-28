@@ -37,5 +37,12 @@ classdef Empty < Prefs.Numeric
         function tf = isempty(~)
             tf = true;
         end
+        
+        function val = read(~)
+            val = NaN;
+        end
+        function tf = writ(~,~)
+            tf = false;
+        end
     end
 end

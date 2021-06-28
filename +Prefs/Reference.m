@@ -1,8 +1,12 @@
 classdef Reference < Base.Pref
-    %REFERENCE
-
+    %REFERENCE acts as a pointer to other Prefs. set_reference is used to
+    % set which Pref this reference points to. Upon setting a Pref to
+    % reference, Prefs.Reference behaves exactly as the target Pref via
+    % the GUI or the .read() or .writ() methods. This is especially useful
+    % for making modules with general functionality.
+    
     properties (Hidden)
-        default = []; %'____Prefs.Reference.default____';
+        default = [];
         ui = Prefs.Inputs.ReferenceField;
         reference = []; % Prefs.Numeric.empty(1,0);
         
@@ -56,18 +60,11 @@ classdef Reference < Base.Pref
         
         function [obj,height_px,label_width_px] = make_UI(obj,varargin)
             % This wraps ui.make_UI; careful overloading
-            [obj.ui,height_px,label_width_px] = obj.ui.make_UI(obj,varargin{:});
+            [obj.ui, height_px, label_width_px] = obj.ui.make_UI(obj,varargin{:});
             obj.reference = obj.ui.gear.UserData;
         end
         
-%         function obj = set.reference(obj, val)
-% %             obj.parent.
-%         end
-%         function val = get.reference(obj)
-%             
-%         end
-        
-        % Calls to set value are now redirected to the pref that is being referenced.
+        % Calls to get and set value are now redirected to the pref that is being referenced.
         function val = get_value(obj, ~)
             if isempty(obj.reference)
                 val = NaN;
@@ -76,27 +73,33 @@ classdef Reference < Base.Pref
             end
         end
         function [obj, val] = set_value(obj, val)
-            if isempty(obj.reference)
-%                 error('No reference to set.');
-            else
+            if ~isempty(obj.reference)
                 obj.reference.writ(val);
             end
         end
         
-%         function val = get_ui_value(obj)
-%             val = obj.ui.get_value();
-%         end
-        function set_ui_value(obj,val)
+        function val = get_ui_value(obj)
+            val = obj.ui.get_value();
+        end
+        function obj = set_ui_value(obj,val)
             if ~isempty(obj.reference)
                 obj.ui.set_value(val);
             end
         end
         
         function val = read(obj)
-            val = obj.reference.read();
+            if isempty(obj.reference)
+                val = NaN;
+            else
+                val = obj.reference.read();
+            end
         end
         function tf = writ(obj, val)
-            tf = obj.reference.writ(val);
+            if isempty(obj.reference)
+                tf = false;
+            else
+                tf = obj.reference.writ(val);
+            end
         end
     end
 end

@@ -646,9 +646,9 @@ classdef Manager < handle
             else
                 pos = false;
             end
-            assert(logical(pos),'When setting active module, input must be a valid index, or name of loaded module.')
-            i = get(obj.popupHandle,'value');
-            set(obj.popupHandle,'value',pos)
+            assert(logical(pos), 'When setting active module, input must be a valid index, or name of loaded module.')
+            i = get(obj.popupHandle, 'value');
+            set(obj.popupHandle, 'value', pos)
             obj.module_selected;
             drawnow expose;
         end
