@@ -23,12 +23,14 @@ classdef umanager_invisible < Modules.Imaging
         exposure = Prefs.Double('min',0,'units','ms','set','set_exposure');
         binning = Prefs.Integer(1,'min',1,'units','px','set','set_binning',...
             'help_text','Not all integers will be available for your camera.');
+        autofocus_range = Prefs.DoubleArray([-1 1], 'units', 'um', 'help_text', 'Range around current stage position that autofocus will search to find focus');
+        autofocus_step_size = Prefs.Double(0.1, 'units', 'um', 'help_text','Step size to use for autofocusing','min',0);
     end
     
     properties
         buffer_images = 2 % Size of buffer (images): buffer_images*core.getImageBufferSize
         maxROI           % Set in constructor
-        prefs = {'binning','exposure'};
+        prefs = {'binning','exposure','autofocus_range','autofocus_step_size'};
         focusThresh = 0; % Threshold when focusing. This is updated everytime.
     end
     properties(SetAccess = private)
@@ -144,11 +146,8 @@ classdef umanager_invisible < Modules.Imaging
             stageManager = Managers.Stages;
             stageManager.update_gui = 'off';
             oldBin = obj.binning;
-            if oldBin < 3
-                obj.binning = 3;
-            end
             try
-                metric = obj.ContrastFocus(Managers);
+                metric = obj.ContrastFocus(Managers, obj.autofocus_range, obj.autofocus_step_size);
                 thresh = metric/2;
                 if obj.focusThresh==0
                     obj.focusThresh = thresh;
@@ -158,9 +157,6 @@ classdef umanager_invisible < Modules.Imaging
             catch err
                 stageManager.update_gui = 'on';
                 rethrow(err)
-            end
-            if oldBin < 3
-                obj.binning = oldBin;
             end
             stageManager.update_gui = 'on';
         end

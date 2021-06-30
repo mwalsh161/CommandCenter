@@ -1,22 +1,45 @@
-function metric = ContrastFocus(obj,Managers )
-DEBUG = true;
+function metric = ContrastFocus(obj, Managers, searchRange, stepSize, stageHandle, DEBUG )
 %CONTRASTDETECTION Summary of this function goes here
 %   Detailed explanation goes here
 stageManager = Managers.Stages;
-stageHandle = stageManager.modules{1};
+if nargin<4
+    stepSize = 0.1;
+end
+if nargin<5
+    stageHandle = stageManager.active_module;
+end
+if nargin<6
+    DEBUG = true;
+end
 % xlen = obj.resolution(1);  % Could have huge speed up with smaller ROI
 % ylen = obj.resolution(2);
 xlen = (obj.ROI(1,2)-obj.ROI(1,1))/obj.binning; % take into account ROI
 ylen = (obj.ROI(2,2)-obj.ROI(2,1))/obj.binning;
-searchRange = [-1 1]*20;  % Range to find maximum
-stepSize = 0.25;          % um (size of each step)
+
 n = 4;  % Number of points to be sure of slope
 dx = 7;
 dy = dx;
 xrange = (dx+1):(xlen-dx);
 yrange = (dy+1):(ylen-dy);
 startPos = stageHandle.position;
-limits = searchRange+startPos(3);
+limits = stageHandle.zRange; %searchRange+startPos(3);
+% Factor in calibration
+limits = limits./stageHandle.calibration(3);
+
+if nargin<3
+    searchRange = stageHandle.zRange;
+else
+    searchRange = startPos(3) + searchRange;
+    if searchRange(1)<limits(1)
+        warning("Search range exceeds stage limits; setting lower search range to stage limit")
+        searchRange(1) = limits(1);
+    end
+    if searchRange(2)>limits(2)
+        warning("Search range exceeds stage limits; setting upper search range to stage limit")
+        searchRange(2) = limits(2);
+    end
+end
+searchRange = searchRange./stageHandle.calibration(3);
 if DEBUG
     f = findall(0,'name',mfilename);
     if isempty(f) || ~isvalid(f)
@@ -36,10 +59,10 @@ end
 if isempty(obj.focusPeaks)
     data = [];
     pos_track = [];
-    for zpos = startPos(3) + (-7:stepSize:7)
+    for zpos = searchRange(1):stepSize:searchRange(2) % startPos(3) + (-7:stepSize:7)
         stageHandle.move(startPos(1),startPos(2),zpos);
         stageManager.waitUntilStopped;
-        frame = obj.snapImage(3); % Specify binning to be 3
+        frame = obj.snapImage;
         d = contrast_detection(frame,dx,dy,xrange,yrange);
         pos_track(end+1) = zpos;
         data(end+1) = d;
@@ -101,7 +124,9 @@ end
 if metric < obj.focusThresh && obj.focusThresh ~= 0
     % Assume the first time you focus you do it right!
     % Now, we do a more robust search +/- 5 um
-    for zpos = pos_track(index) + (-25:stepSize:25)
+    zpos_search = pos_track(index) + (-25:stepSize:25);
+    zpos_search = zpos_search(zpos_search>=limits(1) & zpos_search<=limits(2));
+    for zpos = zpos_search
         stageHandle.move(startPos(1),startPos(2),zpos);
         stageManager.waitUntilStopped;
         frame = obj.snapImage(3); % Specify binning to be 3

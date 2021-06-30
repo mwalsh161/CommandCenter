@@ -18,7 +18,7 @@ classdef Galvos < Modules.Stage
     properties(Constant)
         xRange = [-3 3];
         yRange = [-3 3];
-        zRange = [-10 10];
+        zRange = [0 20];
     end
     
     methods(Static)
