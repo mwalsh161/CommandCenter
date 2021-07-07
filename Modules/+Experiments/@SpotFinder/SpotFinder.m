@@ -23,15 +23,17 @@ classdef SpotFinder < Modules.Experiment
         sigma = Prefs.Double(0.5, 'help_text', 'Nelder-Mead sigma shrink parameter','min',0,'max',1);
         max_iterations = Prefs.Integer(100, 'help_text', 'Maximum number of iterations', 'min', 1);
         tolerance = Prefs.Double(.01, 'help_text','Tolerance criterion for stopping the search. Optimisation will stop when standard deviation of current points falls below this value')
-        initical_x_length = Prefs.Double(1,'help_text','Length of initial tetrahedron around initial point','units','um');
-        initical_y_length = Prefs.Double(1,'help_text','Width of initial tetrahedron around initial point','units','um');
-        initical_z_length = Prefs.Double(1,'help_text','Height of initial tetrahedron around initial point','units','um');
+        initial_x_length = Prefs.Double(1,'help_text','Length of initial tetrahedron around initial point','units','um');
+        initial_y_length = Prefs.Double(1,'help_text','Width of initial tetrahedron around initial point','units','um');
+        initial_z_length = Prefs.Double(1,'help_text','Height of initial tetrahedron around initial point','units','um');
 
+        % Stage prefs
         Stage = Prefs.ModuleInstance('help_text','Stage that will be used to find the spot')
+        time_out = Prefs.Double(1, 'help_text','Time to allow stage to move before time out error','units','s','min',0)
         
     end
     properties
-        prefs = {'Type','Exposure','MW_freq','MW_freq_norm','MW_Power','max_iterations','tolerance','initical_x_length','initical_y_length','initical_z_length','alpha','gamma','rho','sigma','APD_line','APD_Sync_line','Laser','SignalGenerator','Stage'};  % String representation of desired prefs
+        prefs = {'Type','Exposure','MW_freq','MW_freq_norm','MW_Power','max_iterations','tolerance','initial_x_length','initial_y_length','initial_z_length','alpha','gamma','rho','sigma','APD_line','APD_Sync_line','Laser','SignalGenerator','Stage','time_out'};  % String representation of desired prefs
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -112,10 +114,13 @@ classdef SpotFinder < Modules.Experiment
         function f = find_cost(obj, x, ctr)
             % Moves stage to position and finds cost function at that position. If invert, take negative of output so that minimisation works properly
             obj.Stage.move(x(1), x(2), x(3));
-            obj.waitUntilStopped;
             
-            if nargin<4
-                invert = false;
+            % Wait until stage stops moving (w/timeout)
+            tic
+            while obj.Stage.Moving
+                if toc > obj.time_out
+                    error("Stage timed out during motion")
+                end
             end
 
             switch obj.Type
@@ -134,7 +139,7 @@ classdef SpotFinder < Modules.Experiment
                     obj.SignalGenerator.MWFrequency = obj.MW_freq*1e6;
                     signal = ctr.singleShot(obj.Exposure, 1);
 
-                    f = signal/normalisation;
+                    f = double(signal)/double(normalisation);
 
                 case 'Fluorescence'
                     f =  -ctr.singleShot(obj.Exposure, 1);
