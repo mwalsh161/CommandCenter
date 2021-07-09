@@ -72,6 +72,7 @@ function run( obj,status,managers,ax )
     ylabel(ax_std, 'Std of position')
     xlabel(ax_std, 'Step')
     legend(ax_std,{'x','y','z'})
+    set(ax_std, 'YScale', 'log')
 
     try
         % Loop while max number of iterations not exceeded & difference between successive measurements is sufficiently large compared to successive measurements
