@@ -89,6 +89,11 @@ classdef metastage < handle % Modules.Driver
             end
         end
         function success = focus(obj, N, zspan, isfine)
+            if isempty(obj.graphics.figure) || ~isvalid(obj.graphics.figure)
+                obj.graphics.figure = figure('Visible', 'off');
+                obj.graphics.axes = axes(obj.graphics.figure, 'DataAspectRatio', [1 1 1]);
+            end
+            
             if nargin < 4
                 isfine = true;
             end
@@ -130,14 +135,12 @@ classdef metastage < handle % Modules.Driver
             end
             
             % Plot sharpness and #QRs.
-            axes(obj.graphics.axes);
-            
-            yyaxis left;
-            p1 = plot(zbase + dZ, metric1);
+            yyaxis(obj.graphics.axes, 'left');
+            p1 = plot(obj.graphics.axes, zbase + dZ, metric1);
             ylabel('~Sharpness');
             
-            yyaxis right;
-            p2 = plot(zbase + dZ, metric2);
+            yyaxis(obj.graphics.axes, 'right');
+            p2 = plot(obj.graphics.axes, zbase + dZ, metric2);
             ylabel('Number of Self-Consistent QRs Detected');
             
             xlim(zbase + [min(dZ), max(dZ)])
@@ -233,15 +236,13 @@ classdef metastage < handle % Modules.Driver
     
     methods
         function calibrate(obj)
-            if isempty(obj.graphics.figure) || ~isvalid(obj.graphics.figure)
-                obj.graphics.figure = figure('Visible', 'off');
-            end
-            obj.graphics.axes = axes(obj.graphics.figure, 'DataAspectRatio', [1 1 1]);
-
             if ~obj.focusSmart()
                 disp('Focus onto QR codes was not successful. Try moving to an area with legible QR codes.');
                 return
             end
+            
+            f = figure('Name', 'Calibrate');
+            ax = axes(f);
             
             for a = 1:4     % For each of the four axes that require calibration ...
                 switch a    % Grab the object.
@@ -285,8 +286,8 @@ classdef metastage < handle % Modules.Driver
                     Vs(2,kk) = obj.image.Y;
 
                     % Give the user an idea of what's happening by plotting.
-                    scatter(obj.graphics.axes, Vs(1,:), Vs(2,:), [], 1:size(Vs,2), 'fill');
-                    daspect(obj.graphics.axes, [1 1 1]);
+                    scatter(ax, Vs(1,:), Vs(2,:), [], 1:size(Vs,2), 'fill');
+                    daspect(ax, [1 1 1]);
 
                     kk = kk + 1;
                 end

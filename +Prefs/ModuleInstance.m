@@ -74,7 +74,7 @@ classdef ModuleInstance < Base.Pref
             end
         end
         
-        function set_ui_value(obj,val)
+        function obj = set_ui_value(obj,val)
             obj.ui.set_value(val);
         end
         function val = get_ui_value(obj)

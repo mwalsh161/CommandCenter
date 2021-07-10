@@ -2,20 +2,25 @@ function s = testSweep
     ni =  Drivers.NIDAQ.dev.instance('dev1');
     
     pr = Base.PrefRegister.instance;
-    mp = [pr.register{1}.prefs.ao0 pr.register{1}.prefs.ao1 pr.register{1}.prefs.ao2 pr.register{1}.prefs.ao3];
+%     mp = [pr.register{1}.prefs.ao0 pr.register{1}.prefs.ao1 pr.register{1}.prefs.ao2 pr.register{1}.prefs.ao3];
 %     mp1 = pr.register{1}.prefs.ao0;
+
+%     mp = pr.register{4}.prefs.ao0
+%     mp = pr.register{4}.prefs.ao0
+    
+    pr.register{7}.prefs.ao0
     
     mr = Base.MeasurementRegister.instance;
-    mm = mr.register(1).Drivers_NIDAQ_in;
-    
+    mm = mr.register(1).Drivers_NIDAQ_in_;
     t = Prefs.Time;
     
     opt = true;
     
     
-%     s = Base.Sweep({mm, pmp}, {hwpp}, {0:5:90}, struct('shouldOptimizeAfter', 1), .5);
-%     Base.SweepViewer(s, [])
-%     return
+    s = Base.Sweep({mm}, {pr.register{7}.prefs.ao0}, {2.5:.001:3.5}, struct(), .01);
+%     s = Base.Sweep({mm}, {pr.register{7}.prefs.ao1}, {2.5:.01:3.5}, struct(), .01);
+    Base.SweepViewer(s, [])
+    return
 %     
 %     
 

@@ -120,7 +120,7 @@ classdef MultipleChoice < Base.Pref %Prefs.Numeric
             end
             val = obj.choices{I};
         end
-        function set_ui_value(obj,val)
+        function obj = set_ui_value(obj,val)
             obj.validate(val);
             I = 0;
             for i = 1:length(obj.choices)

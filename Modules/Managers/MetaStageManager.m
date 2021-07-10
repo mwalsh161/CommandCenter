@@ -5,11 +5,6 @@ classdef MetaStageManager < Base.Manager
         keyboard = false;
         joystick = false;
         
-        scrollpanel = [];
-        joyserver = [];
-        joystatus = [];
-        joytcpip = [];
-        
         X = [];
         Y = [];
         Z = [];
@@ -17,6 +12,22 @@ classdef MetaStageManager < Base.Manager
         
     properties
         fps = 5;
+    end
+    
+    % UI objects
+    properties(SetAccess=private)
+        keycheck = [];
+        joycheck = [];
+        
+        scrollpanel = [];
+        joyserver = [];
+        joystatus = [];
+        joytcpip = [];
+    end
+    
+    % Keyboard constants
+    properties(Constant)
+        keyMult = 5;    % When shift or alt are pressed, movement is enhanced by *keyMult or /keyMult
         
         keys_xp = {'rightarrow', 'd'};
         keys_xm = {'leftarrow', 'a'};
@@ -66,8 +77,7 @@ classdef MetaStageManager < Base.Manager
             panel.Position(4) = H;
             pos = panel.Position;
             
-            dropdown =  uicontrol(panel, 'Style', 'popupmenu', 'String', {''}, 'Value', 1,  'Position', [m,         H-h-p, w,   h]);
-%             gear =      uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699),     'Position', [w+m-h-p,   H-h-p, h,       h]);
+            dropdown =  uicontrol(panel, 'Style', 'popupmenu',  'String', {''}, 'Value', 1, 'Position', [m,         H-h-p-h-p, w,   h]);
             
             x = m + 2*B;
             y = H-h-2*p-2*B;
@@ -75,6 +85,8 @@ classdef MetaStageManager < Base.Manager
             obj = obj@Base.Manager(Modules.MetaStage.modules_package, handles, handles.panelMetaStage, dropdown);
             
             obj.scrollpanel = scrollpanel;
+            
+            gear =  uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699), 'Callback', @(~,~)obj.propedit,     'Tooltip', 'Edit settings such as keyboard or joystick step.', 'Position', [w+m-h-p,   H-h-p, h,       h]);
             
             mx =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25C0), 'Callback', @(~,~)obj.step(-1,1,1), 'Tooltip', 'Left (-x)', 'Position', [x     y   b b]);
             my =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25BC), 'Callback', @(~,~)obj.step(-1,2,1), 'Tooltip', 'Down (-y)', 'Position', [x+B   y   b b]);
@@ -84,7 +96,10 @@ classdef MetaStageManager < Base.Manager
             mz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2297), 'Callback', @(~,~)obj.step(-1,3,1), 'Tooltip', 'In (-z)',   'Position', [x+3*B y   b b], 'FontSize', 15);
             pz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2299), 'Callback', @(~,~)obj.step(+1,3,1), 'Tooltip', 'Out (+z)',  'Position', [x+3*B y+B b b], 'FontSize', 15);
             
-            mult =  uicontrol(panel, 'Style', 'text',       'String', '',           'ForegroundColor', 'red',           'Tooltip', 'Speed Multiplier (Shift == *5, ctrl == *1/5)', 'Position', [x+2*B y+B b b]);
+            mz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2A02), 'Callback', @(~,~)obj.step(-1,3,1), 'Tooltip', 'In (-z)',   'Position', [x+3*B y   b b]);
+            pz =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2A00), 'Callback', @(~,~)obj.step(+1,3,1), 'Tooltip', 'Out (+z)',  'Position', [x+3*B y+B b b]);
+            
+            mult =  uicontrol(panel, 'Style', 'text',       'String', '',           'ForegroundColor', 'red',           'Tooltip', sprintf('Speed Multiplier (Shift == *%d, alt == *1/%d)', obj.keyMult, obj.keyMult), 'Position', [x+2*B y+B b b]);
             
             x = m;
             y = y;
@@ -92,38 +107,14 @@ classdef MetaStageManager < Base.Manager
             h = (2*B)/4;
             h2 = h-p;
             
-            key =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
-            joy =   uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
+            obj.keycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
+            obj.joycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
             obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+h 2*b h2]);
             obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2]);
             
             
             panel.Units = 'characters';
             base.Units = 'characters';
-            
-%             obj.prefs = [obj.prefs {'update_gui','line_colors','face_colors','thickness','line_transparency'...
-%                  'face_transparency','timeout','hideStageTimeoutError','update_period'}];
-%             obj.loadPrefs;
-%             obj.blockOnLoad = handles.menu_stage;
-%             % Visualize
-%             set(handles.stage_visualize,'callback',@obj.show)
-%             % Textboxes
-%             set([handles.stage_setx,handles.stage_sety,handles.stage_setz],...
-%                 'callback',@obj.set_num)
-%             % Stage Rel
-%             set(handles.stage_rel,'callback',@obj.stage_rel)
-%             % Stage Move - set in active_stage_moving_update
-%             obj.active_stage_moving_update;
-%             % Stage Home
-%             set(handles.stage_home,'callback',@obj.home)
-%             % Single direction jogs
-%             set(handles.stage_posX,'callback',@(~,~)obj.single_jog(1,1))
-%             set(handles.stage_negX,'callback',@(~,~)obj.single_jog(-1,1))
-%             set(handles.stage_posY,'callback',@(~,~)obj.single_jog(1,2))
-%             set(handles.stage_negY,'callback',@(~,~)obj.single_jog(-1,2))
-%             set(handles.stage_posZ,'callback',@(~,~)obj.single_jog(1,3))
-%             set(handles.stage_negZ,'callback',@(~,~)obj.single_jog(-1,3))
-%             obj.update_gui = 'on'; % set.update_gui will create listener
         end
         
         % Return string representation of modules
@@ -198,12 +189,17 @@ classdef MetaStageManager < Base.Manager
                 if isempty(val)
                     pref.writ(pref.read() + step*magnitude);        % This can cause issues.
                 else
-                    pref.writ(str2double(val) + step*magnitude);
+                    val2 = str2double(val) + step*magnitude;
+                    if isnan(val2)
+                        pref.writ(pref.read() + step*magnitude);
+                    else
+                        pref.writ(val2);
+                    end
                 end
             end
         end
         
-        % Input callbacks
+        % Keyboard callbacks
         function set.keyboard(obj, val)
             obj.keyboard = val;
             
@@ -238,10 +234,10 @@ classdef MetaStageManager < Base.Manager
             if proceed                                  % If it is appropriate, then proceed.
                 multiplier = 1;
                 if ismember(event.Modifier, 'shift')    % The shift key speeds all movement by a factor of 10.
-                    multiplier = multiplier*10;
+                    multiplier = multiplier*keyMult;
                 end
                 if ismember(event.Modifier, 'alt')      % The alt key slows all movement by a factor of 10.
-                    multiplier = multiplier/10;
+                    multiplier = multiplier/keyMult;
                 end
 
                 switch event.Key                        % Now figure out which way we should move...
@@ -261,6 +257,7 @@ classdef MetaStageManager < Base.Manager
             end
         end
         
+        % Joystick callbacks
         function set.joystick(obj, val)
             obj.joystick = val;
             obj.colorBorder();
@@ -329,7 +326,7 @@ classdef MetaStageManager < Base.Manager
                         end
                         
                         if ~ignore
-                            obj.step(reply.(directions{ii}), directions{ii}(2));
+                            obj.step(reply.(directions{ii}), directions{ii}(2), directions{ii}(1) == 'b');
                         end
                         
                         moduleplus = 0;
@@ -388,6 +385,7 @@ classdef MetaStageManager < Base.Manager
             end
         end
         
+        % Function to mark whether either the keyboard or joystick are on.
         function colorBorder(obj)
             if obj.keyboard && obj.joystick
                 obj.scrollpanel.base.HighlightColor = [.8 0 .8];    % Purple
@@ -397,6 +395,15 @@ classdef MetaStageManager < Base.Manager
                 obj.scrollpanel.base.HighlightColor = [1 0 0];      % Red
             else
                 obj.scrollpanel.base.HighlightColor = 'w';
+            end
+        end
+        
+        % Function to access keyboard and joystick step variables.
+        function propedit(obj)
+            if isempty(obj.active_module)
+                obj.new
+            else
+                Base.propedit(obj.active_module);
             end
         end
         
@@ -424,6 +431,11 @@ classdef MetaStageManager < Base.Manager
                 while ~isvarname(name)
                     result = inputdlg('Enter a name for this new MetaStage. This needs to be a valid variable name.', 'New MetaStage Name');
                     name = result{1};
+                    
+                    if isempty(name)
+                        warning('New MetaStage prompt terminated.')
+                        return
+                    end
                 end
             end
             
