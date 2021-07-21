@@ -57,7 +57,11 @@ function run( obj,status,managers,ax )
     % Setup Graphics
     panel = ax.Parent; delete(ax);
     ax_x = subplot(2,2,[1 3],'parent',panel);
-    plotH(1) = stem3(ax_x, x(:,1), x(:,2), x(:,3)); % Plot of points
+    hold(ax_x,'on')
+    plotH(1) = stem3(ax_x, x(:,1), x(:,2), x(:,3),'k'); % Plot of points
+    plotH(6) = scatter3(ax_x, x(:,1), x(:,2), x(:,3), 15, zeros(1,4),'MarkerFaceColor','flat'); % Coloured scatter to show which points are most recent (black->oldest, white-> current)
+    view(ax_x,-35,30)
+    grid(ax_x, 'on')
 
     ax_f = subplot(2,2,2,'parent',panel);
     plotH(2) = scatter(ax_f, zeros(1,4), f); % Plot of cost function
@@ -71,7 +75,7 @@ function run( obj,status,managers,ax )
     hold(ax_std,'on')
     ylabel(ax_std, 'Std of position')
     xlabel(ax_std, 'Step')
-    legend(ax_std,{'x','y','z'})
+    legend(ax_std,{'x','y','z'},'Location','northwest')
     set(ax_std, 'YScale', 'log')
 
     try
@@ -94,6 +98,11 @@ function run( obj,status,managers,ax )
             plotH(1).XData = obj.data.x_history(:,1);
             plotH(1).YData = obj.data.x_history(:,2);
             plotH(1).ZData = obj.data.x_history(:,3);
+
+            plotH(6).XData = obj.data.x_history(:,1);
+            plotH(6).YData = obj.data.x_history(:,2);
+            plotH(6).ZData = obj.data.x_history(:,3);
+            plotH(6).CData = [plotH(6).CData i*ones(1,4)];
             
             plotH(2).XData = [plotH(2).XData i*ones(1,4)];
             plotH(2).YData = obj.data.cost_history;
