@@ -5,7 +5,7 @@ classdef LoadFile < Modules.Imaging
         maxROI = [-Inf Inf; -Inf Inf];
         % NOTE: my_string should be added at end as setting, but not saved like pref
         %prefs = {'fyi','my_module','my_integer','my_double','old_style','my_logical','fn_based','cell_based','source','imager'};
-        prefs = {'file', 'field'};
+        prefs = {'file', 'field', 'subfield'};
        % readonly_prefs = {''} % Should result in deprecation warning if used
     end
     properties(GetObservable,SetObservable)
@@ -13,7 +13,9 @@ classdef LoadFile < Modules.Imaging
         field = Prefs.String('',    'allow_empty', true, ...
                                     'custom_validate', 'validate_field', ...
                                     'help_text', 'If a .mat file is loaded, this field of the struct contained in the .mat will be used.');
-        
+        subfield = Prefs.String('', 'allow_empty',true, ...
+                                    'custom_validate', 'validate_field', ...
+                                    'help_text', 'Use if image is located in a subfield.');
         resolution = [120 120];                 % Pixels
         ROI = [-1 1;-1 1];
         continuous = false;
@@ -76,11 +78,13 @@ classdef LoadFile < Modules.Imaging
                         assert(~isempty(d), 'Loaded .mat file was empty. Sad.')
                         fn = fieldnames(d);
                         im = d.(fn{1});         % Default to first field.
-                    else
+                    elseif isempty(obj.subfield)
                         im = d.(obj.field);
+                    else 
+                        im = d.(obj.field).(obj.subfield);
                     end
                     if obj.loadfile
-                        obj.imagefile = d; 
+                       obj.imagefile = d; 
                     end 
                 otherwise
                     error(['Image format ' extension ' not recognized'])
