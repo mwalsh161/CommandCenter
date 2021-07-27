@@ -93,7 +93,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     X = -r:lx+r;
     Y = -r:ly+r;
 
-    XX = repmat(X, [length(Y) 1]);
+    XX = repmat(X, [length(Y) 1]); 
     YY = repmat(Y', [1 length(X)]);
 
     B = .5;
