@@ -7,7 +7,7 @@ properties(Constant, Hidden)
     STEPPERMOTORCLASSNAME='Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor';
 end
 
-properties(SetAccess = private)
+properties(SetAccess = private, SetObservable, AbortSet)
     isconnected = false;         % Flag set if device connected
     serialnumbers;               % Device serial numbers
     controllername;              % Controller Name
@@ -19,7 +19,7 @@ properties(SetAccess = private)
     positions;                   % Motor position (1 * 3 array)
 
     Homed;
-    IsMoving;
+    Moving = false;
 end
 
 properties(Constant)
@@ -43,24 +43,25 @@ methods(Access=private)
 end
 
 methods
+    % Use this to create/retrieve instance associated with serialNum
     function obj = instance(serialNum,name)
         mlock;
-        if nargin < 3
+        if nargin < 2
             name = serialNum;
         end
         persistent Objects
         if isempty(Objects)
-            Objects = Drivers.Kinesis.KinesisBSC203.empty(1,0);
+            Objects = Drivers.Kinesis.KinesisBSC203.empty(1,0); % Create an empty class
         end
         for i = 1:length(Objects)
-            if isvalid(Objects(i)) && isequal(serialNum,Objects(i).singleton_id)
+            if isvalid(Objects(i)) && isequal(serialNum,Objects(i).singleton_id)    % Find instance with the same singleton ID
                 obj = Objects(i);
                 return
             end
         end
-        obj = Drivers.Kinesis.KinesisBSC203(serialNum,name);
-        obj.singleton_id = serialNum;
-        Objects(end+1) = obj;
+        obj = Drivers.Kinesis.KinesisBSC203(serialNum,name); % Create an instance
+        obj.singleton_id = serialNum;   % Define singleton ID
+        Objects(end+1) = obj;   % Add the instance to the object list
     end
     
     
@@ -131,8 +132,6 @@ methods
             obj.maxvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MaxVelocity);  % update max velocit parameter
             obj.minvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MinVelocity);  % update Min velocity parameter
             obj.position(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position); % motor positions
-
-            
         end
     end
 
@@ -177,6 +176,7 @@ methods
     end
 
     function moveto(obj, target_pos)
+        %   Move to target position, target_pos := 1 * 3 array of double
         tf = obj.checkMove(target_pos);
         if tf
             for i = 1:3
@@ -189,13 +189,28 @@ methods
                 end
             end
         else
-            error('Target position is not valid')
+            error('Target position is out of range')
         end
         obj.updatestatus
     end  
 
-    function step(obj, distance)
+    function step(obj, channelNo, distance)
 
+        if distance < 0
+            motordirection=Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Backward;
+        elseif distance > 0
+            motordirection=Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Forward;
+        else
+            error('Step size cannot be zero')
+        end       
+        obj.channelsNET{channelNo}.SetJogStepSize(abs(distance)) % Set the step size for jog
+        try           
+            workDone = obj.channelsNET{channelNo}.InitializeWaitHandler();
+            obj.channelsNET{channelNo}.MoveJog(motordirection, workDone);
+            obj.channelsNET{channelNo}.Wait(obj.TIMEOUTMOVE);
+        catch 
+            error('Unable to execute jog')
+        obj.updatestatus
     end
 
     function pos = GetPosition(obj)
