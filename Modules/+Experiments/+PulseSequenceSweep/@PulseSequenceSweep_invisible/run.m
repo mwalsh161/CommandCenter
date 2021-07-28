@@ -54,6 +54,7 @@ try
     statusString = cell(1,numVars);
     for j = 1:obj.averages
         for i = 1:prod(varLength)
+            
             drawnow('limitrate'); assert(~obj.abort_request,'User aborted.');
             [indices{:}] = ind2sub(varLength,i); % this does breadth-first
             for k=1:numVars
@@ -63,17 +64,19 @@ try
             
             % BuildPulseSequence must take in vars in the order listed
             pulseSeq = obj.BuildPulseSequence(indices{:});
+            
             if pulseSeq ~= false % Interpret a return of false as skip this one (leaving in NaN)
                 pulseSeq.repeat = obj.samples;
                 apdPS.seq = pulseSeq;
-                
                 apdPS.start(1000); % hard coded
                 apdPS.stream(p);
                 dat = reshape(p.YData,obj.nCounterBins,[])';
                 obj.data.sumCounts(j,indices{:},:) = sum(dat);
                 obj.data.stdCounts(j,indices{:},:) = std(dat);
             end
+            
             obj.UpdateRun(status,managers,ax,j,indices{:});
+            
         end
     end
     obj.PostRun(status,managers,ax);
