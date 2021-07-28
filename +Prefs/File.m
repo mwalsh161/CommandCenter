@@ -69,7 +69,7 @@ classdef File < Base.pref
             end
             
             if ~isfield(hObj.UserData,'last_choice')
-                hObj.UserData.last_choice = obj.value;
+                hObj.UserData = struct('last_choice', obj.value);
             end
             name = sprintf('Select File: %s',obj.name);
             [file,path] = uigetfile(obj.filter_spec,name,hObj.UserData.last_choice);

@@ -2,13 +2,13 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     %PULSEBLASTER Connects with hwserver on host machine to control
     % the PulseBlaster via the interpreter program.
     % Call with the IP of the host computer (singleton based on ip)
-    
+
     properties(Constant)
         clk = 500           % MHz
         resolution = 2;     % ns
         minDuration = 10;   % Minimum duration in ns
         maxRepeats = 2^20;  % positive integer value
-        
+
         hwname = 'PulseBlaster';
     end
     properties(SetAccess=private,Hidden)
@@ -19,7 +19,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
     properties(SetAccess=immutable)
         host = '';
     end
-    
+
     methods(Static)
         function obj = instance(host_ip)
             mlock;
@@ -54,7 +54,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         end
         function spawnLines(obj)                            % Spawns Drivers.PulseBlaster.Line objects mapping to hardware PulseBlaster lines.
             state = obj.getLines();
-            
+
             for ii = 1:length(state)    % Eventually, have a system to only initialize certain lines (based on a pref) and to name them.
                 obj.lines = [obj.lines Drivers.PulseBlaster.Line.instance(obj, ii)];
             end
@@ -63,7 +63,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             if nargin == 1
                 state = obj.getLines();
             end
-            
+
             obj.linesEnabled = false;
             
             for ii = 1:min(length(state), length(obj.lines))
@@ -71,7 +71,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
                     obj.lines(ii).state = state(ii);        % Update state without communicating with hardware.
                 end
             end
-            
+
             obj.linesEnabled = true;
         end
     end
@@ -83,7 +83,7 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         function response = com(obj, varargin)              % Communication helper function.
             response = obj.connection.com(obj.hwname, varargin{:});
         end
-        
+
         function response = start(obj)                      % Start the currently-loaded program.
             response = obj.com('start');
         end
@@ -96,31 +96,31 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
             else
                 state = obj.com('getLines')';
             end
-            
+
             obj.updateLines(state)
         end
-        
+
         function response = load(obj, program, clock)       % Load a program.
             if iscell(program)  % Process cell array of strings for backwards compatibility.
                 program = strjoin(program, newline);
             end
-            
+
             assert(ischar(program))
             assert(~isempty(program))
-            
+
             if nargin == 2
                 response = obj.com('load', program);
             else
                 assert(clock > 0)
                 response = obj.com('load', program, clock);
             end
-            
+
             obj.updateLines(NaN(1,length(obj.lines)));
         end
         function response = getProgram(obj)                 % Get the currently-loaed program (text form).
             response = obj.com('getProgram');
         end
-        
+
         function tf = isStatic(obj)                         % Whether we are currently in staticLines mode.
             tf = obj.com('isStatic');
         end
@@ -131,19 +131,19 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
         function state = setLines(obj, indices, values)     % Pass a list of line indices to change values. This will stop a currently-running program and revert to staticLines state.
             state = obj.com('setLines', indices, values)';
             obj.updateLines(state);
-        end 
+        end
         function response = blink(obj, indices, rate)       % Blinks the listed lines in `indices` at `rate` Hz. Useful for debugging!
             s = sequence('Blink');
             s.repeat = Inf;
-            
+
             l = getLines(obj);
-            
+
             for ii = 1:length(l)
                 ch(ii) = channel(num2str(ii), 'hardware', ii-1);    %#ok<AGROW> % Should unify indexing!
             end
-            
+
             s.channelOrder = ch;
-            
+
             n = s.StartNode;
             
             for jj = 1:2
@@ -152,13 +152,13 @@ classdef PulseBlaster < Modules.Driver & Drivers.PulseTimer_invisible
                     node(n, ch(ii), 'units', 'us', 'delta', t);
                 end
             end
-            
+
             response = obj.load(s.compile());
             obj.start();
-            
+
             delete(s);
-        end 
-        
+        end
+
         function state = getLines(obj)                      % Get state of staticLines. All NaN if a program is running.
             state = obj.com('getLines')';
             obj.updateLines(state);

@@ -63,7 +63,7 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
                 obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
             end
             %prepare axes for plotting
-            hold(ax,'on');
+            hold(ax,'off');
             %plot data
             yyaxis(ax,'left');
             colors = lines(2);

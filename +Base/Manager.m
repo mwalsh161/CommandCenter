@@ -683,10 +683,16 @@ classdef Manager < handle
         end
         % Callback for popup menu selection
         function module_selected(obj,varargin)
+            if length(obj.modules) == 1
+                obj.active_module = obj.modules{1};
+                return
+            end
+            
             val = get(obj.popupHandle,'Value');
             val = min(val,numel(obj.modules));
             module_strs = get(obj.popupHandle,'string');
-            if ~isempty(module_strs) && strcmp(module_strs{1},obj.no_module_str)
+            
+            if isempty(module_strs) || strcmp(module_strs{1},obj.no_module_str)
                 obj.active_module = [];
             else
                 obj.active_module = obj.modules{val};
@@ -694,4 +700,3 @@ classdef Manager < handle
         end
     end
 end
-

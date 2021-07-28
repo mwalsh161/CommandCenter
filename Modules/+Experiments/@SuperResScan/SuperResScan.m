@@ -89,7 +89,8 @@ classdef SuperResScan < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
             end
             % Update stage position
             obj.stageManager.move([obj.x(xInd),obj.y(yInd),NaN]);
-            obj.meta.freqs(yInd,xInd) = obj.resLaser.getFrequency();
+         obj.meta.freqs(yInd,xInd) = obj.resLaser.getFrequency();
+        % obj.meta.freqs(yInd,xInd) = 1; % assuming laser locked; Matt 7/28/21
         end
         
         function val = set_points(obj,val,mp)
