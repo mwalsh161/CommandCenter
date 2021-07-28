@@ -308,7 +308,7 @@ classdef WinSpec < Modules.Driver
                 setpoints = linspace(range(1),range(2),npoints);
                 specloc = NaN(1,length(setpoints));
                 laserloc = NaN(1,length(setpoints));
-                laser.on;
+                %laser.on;
                 cla(ax);
                 hold(ax,'on')
                 for i=1:length(setpoints)
@@ -320,7 +320,7 @@ classdef WinSpec < Modules.Driver
                     ylabel(ax,'Intensity');
                     title(ax,'Calibrating spectrometer');drawnow;
                     specfit = fitpeaks(laserspec.x,laserspec.y,'fittype','gauss');
-                    assert(length(specfit.locations) == 1, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
+                    assert(length(specfit.locations) >0, sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
                     specloc(i) = specfit.locations;
                     plot(ax,specloc(i)*[1 1],get(ax,'ylim'),'--k');
                     leg = num2str(laserloc(1:i),'%g THz,');
