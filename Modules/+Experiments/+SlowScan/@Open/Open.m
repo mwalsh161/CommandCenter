@@ -12,11 +12,14 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
     % NOTE: plotting averages over average loop, which might not be same
     % frequencies, or even close if laser mode hops. All averages are saved.
 
+    properties(SetObservable,GetObservable,AbortSet)
+        tune_coarse =           Prefs.Boolean(true,     'help_text', 'Whether to tune to the coarse value before the scan.');
+        center_scan =           Prefs.Boolean(false,    'help_text', 'When true, percents will be shifted after tune_coarse completes to compensate position of percent.');
+        post_scan_tune_max =    Prefs.Boolean(true,     'help_text', 'Whether to tune to the maximum value after the scan has completed.');
+    end
     properties(SetObservable,AbortSet)
-        freq_THz = 470;
-        tune_coarse = true;
-        center_scan = false; % When true, percents will be shifted after tune_coarse completes to compensate position of percent
-        percents = 'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
+        freq_THz =      470;
+        percents =      'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
     end
     properties(SetAccess=private,Hidden)
         percentInitialPosition = 50; % used to center scan if user wants
@@ -32,7 +35,7 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
     methods(Access=private)
         function obj = Open()
             obj.scan_points = eval(obj.percents);
-            obj.prefs = [{'freq_THz','center_scan','tune_coarse','percents'}, obj.prefs];
+            obj.prefs = [{'freq_THz','center_scan','tune_coarse','post_scan_tune_max','percents'}, obj.prefs];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -61,6 +64,23 @@ classdef Open < Experiments.SlowScan.SlowScan_invisible
             obj.percentInitialPosition = obj.resLaser.GetPercent;
             PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
         end  
+        function PostRun(obj,~,managers,ax)
+            if obj.post_scan_tune_max
+                x = obj.data.freqs_measured;
+                y = obj.data.sumCounts;
+
+                % Find the frequency of the maximum value.
+                arg = find(y == nanmax(y));
+                if isempty(arg)
+                    target_max = NaN;
+                else
+                    target_max = x(arg(1));
+                end
+                
+                obj.meta.post_scan_freq_max = target_max;
+                obj.resLaser.tune(obj.resLaser.c/target_max);
+            end
+        end
         function set.percents(obj,val)
             numeric_vals = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
             assert(~isempty(numeric_vals),'Must have at least one value for percents.');

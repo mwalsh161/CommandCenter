@@ -328,6 +328,8 @@ classdef ModuleSelectionField < Base.input
             top = max(positions);
             
             f.Position(4) = top;
+            panel.Position(3:4) = f.Position(3:4);
+            f.Position(2) = 100;
             f.Visible = 'on';
         end
     end
