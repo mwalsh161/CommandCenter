@@ -12,9 +12,9 @@ classdef Kinesis_invisible < handle
 
     methods(Abstract)
 
-        loaddlls()
+        loaddlls() % Load dlls
 
-        connect(obj, serialNum) 
+        connect(obj, serialNum) % Connect devices with a specified serial number
 
         disconnect(obj) % add comments
 

@@ -19,10 +19,8 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         positions;                   % Motor position (1 * 3 array)
 
         Homed;
-        Moving = false;
-    end
+        isMoving = false;
 
-    properties(Constant)
         Travel = [-2 2] * 1000;
     end
 
@@ -36,15 +34,16 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
 
     methods(Access=private)
         % Constructor
-        function obj = KinesisBSC203(serialNo, name)  % Instantiate the KinesisBSC203 motor object
+        function obj = KinesisBSC203(serialNo, travel, name)  % Instantiate the KinesisBSC203 motor object
             Drivers.Kinesis.KinesisBSC203.loaddlls; % Load DLLs if not already loaded           
             obj.connect(serialNo); % Connect device
+            obj.Travel = travel;
         end
     end
 
     methods(Static)
         % Use this to create/retrieve instance associated with serialNo
-        function obj = instance(serialNo,name)
+        function obj = instance(serialNo, travel, name)
             mlock;
             if nargin < 2
                 name = serialNo;
@@ -59,7 +58,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     return
                 end
             end
-            obj = Drivers.Kinesis.KinesisBSC203(serialNo,name); % Create an instance
+            obj = Drivers.Kinesis.KinesisBSC203(serialNo, travel, name); % Create an instance
             obj.singleton_id = serialNo;   % Define singleton ID
             Objects(end+1) = obj;   % Add the instance to the object list
         end
@@ -118,7 +117,9 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         end
 
         function updatestatus(obj)
-            obj.isconnected = obj.deviceNET.IsConnected();  % connection status            
+            obj.isconnected = obj.deviceNET.IsConnected();  % connection status
+            homed = false(1, 3);
+            moving = false(1, 3);            
             for i = 1:3
                 obj.serialnumbers{i}=char(obj.channelsNET{i}.DeviceID); % update serial number
                 obj.controllername{i}=char(obj.deviceInfoNET{i}.Name);  % update controleller name
@@ -129,7 +130,11 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                 obj.maxvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MaxVelocity);  % update max velocit parameter
                 obj.minvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MinVelocity);  % update Min velocity parameter
                 obj.positions(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position); % motor positions
+                homed(i) = ~obj.channelsNET{i}.NeedsHoming;
+                moving(i) = obj.motors{i}.State.Moving;
             end
+            obj.Homed = all(homed);
+            obj.isMoving = any(moving);
         end
 
         function disconnect(obj) 
@@ -151,7 +156,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         end
 
         function home(obj)
-            for i = 1:3
+            for i = 1 : 3
                 workDone=obj.channelsNET{i}.InitializeWaitHandler();     % Initialise Waithandler for timeout
                 obj.channelsNET{i}.Home(workDone);                       % Home device via .NET interface
                 obj.channelsNET{i}.Wait(obj.TIMEOUTMOVE);                % Wait for move to finish                      
@@ -176,7 +181,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             %   Move to target position, target_pos := 1 * 3 array of double
             tf = obj.checkMove(target_pos);
             if tf
-                for i = 1:3
+                for i = 1 : 3
                     try
                         workDone=obj.channelsNET{i}.InitializeWaitHandler(); % Initialise Waithandler for timeout
                         obj.channelsNET{i}.MoveTo(target_pos(i), workDone);       % Move device to position via .NET interface
@@ -232,19 +237,38 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                 motordirection=Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Forward;
             end
             h.channelsNET{channelNo}.MoveContinuous(motordirection); % Set motor into continous move via .NET interface
-            updatestatus(h);            % Update status variables from device
+            obj.updatestatus;            % Update status variables from device
         end
         
-        function stop(h, channelNo) % Stop the motor moving (needed if set motor to continous)
-            h.channelsNET{channelNo}.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
-            updatestatus(h);            % Update status variables from device
+        function stop(h, immediate) % Stop the motor moving (needed if set motor to continous)
+            for i = 1 : 3
+                if nargin > 1 && immediate
+                    h.channelsNET{i}.StopImmediate();
+                else
+                    h.channelsNET{channelNo}.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
+            end
+            obj.updatestatus            % Update status variables from device
         end
 
-        function pos = GetPosition(obj)
+        function pos = get.positions(obj)
             pos = [0 0 0];
-            for i = 1:3
+            for i = 1 : 3
                 pos(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position);
             end
+        end
+
+        function enable(obj)
+            for i = 1 : 3
+                obj.channelsNET{i}.EnableDevice();  % Enable device via .NET interface
+            end
+            obj.updatestatus
+        end
+
+        function disable(obj)
+            for i = 1 : 3
+                obj.channelsNET{i}.DisableDevice();  % Enable device via .NET interface
+            end
+            obj.updatestatus
         end
 
     end
@@ -264,6 +288,16 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     NET.addAssembly([Drivers.Kinesis.KinesisBSC203.MOTORPATHDEFAULT,Drivers.Kinesis.KinesisBSC203.STEPPERMOTORDLL]);
                 catch   % DLLs did not load
                     error('Unable to load .NET assemblies')
+                end
+            end
+        end
+
+        function motorSerialNumbers = getAvailMotors()
+            motorSerialNumbers = {};
+            serialNumbers = Drivers.Kinesis.Kinesis_invisible.GetDevices
+            for i = 1 : length(serialNumbers)
+                if strcmp(serialNumbers{i}(1:2), '70')
+                    motorSerialNumbers{end + 1} = serialNumbers{i};
                 end
             end
         end
