@@ -8,7 +8,7 @@ classdef BSC203 < Modules.Stage
     %   Home is -2,-2,-2
     
     properties
-        prefs = {'x_motor','y_motor','z_motor'};
+        prefs = {'availMotors','x_motor','y_motor','z_motor'};
     end
     properties(SetObservable,AbortSet)
         availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
@@ -51,8 +51,10 @@ classdef BSC203 < Modules.Stage
     end
     methods(Access=private)
         function obj = BSC203()
-            obj.loadPrefs;           
-            obj.controller = obj.availMotors{1};
+            obj.loadPrefs;
+            if ~isempty(obj.controller)
+                obj.controller = obj.availMotors{1};
+            end
         end
     end
     % Callback functions for BSC203 Motor
