@@ -8,25 +8,34 @@ classdef BSC203 < Modules.Stage
     %   Home is -2,-2,-2
     
     properties
-        prefs = {'controller','calibration','x_motor','y_motor','z_motor'};
+        prefs = {'x_motor','y_motor','z_motor'};
     end
     properties(SetObservable,AbortSet)
-        availMotors = @Drivers.Kinesis.KinesisBSC203.getAvailMotors
-        controller = Prefs.MultipleChoice(availMotors{1}, 'choices', availMotors, 'empty_val', true);  % Motor serial number
-        calibration = Prefs.DoubleArray([2 2 2],'help_text','Calibration for the motor distance to true distance');
-        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'empty_val',true);
-        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'empty_val',true);
-        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'empty_val',true);
+        availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
+        controller
+%         calibration = Prefs.DoubleArray([2 2 2],'help_text','Calibration for the motor distance to true distance');
+    end
+    
+    properties(GetObservable, SetObservable, AbortSet)
+        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true);
+        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true);
+        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true);
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Default here will only matter if motors aren't set
         Homed = false;
-        isMoving = false;              % Track this to update position
+        Moving = false;              % Track this to update position
     end
     properties(SetAccess=private)
         position
-        motors = []; 
-        MotorSerialNo
+        motors; 
+    end
+    
+    properties (Constant)
+        % Currently used as placeholders to avoid the error as Abstract properties
+        xRange = [0 8];
+        yRange = [0 8];
+        zRange = [0 8];
     end
     
     methods(Static)
@@ -42,7 +51,8 @@ classdef BSC203 < Modules.Stage
     end
     methods(Access=private)
         function obj = BSC203()
-            obj.loadPrefs;
+            obj.loadPrefs;           
+            obj.controller = obj.availMotors{1};
         end
     end
     % Callback functions for BSC203 Motor
@@ -56,15 +66,17 @@ classdef BSC203 < Modules.Stage
         end
         function movingCallback(obj,varargin)
             if ~isempty(obj.motors) && isobject(obj.motors) && isvalid(obj.motors)
-                obj.isMoving = obj.motors.isMoving;
+                obj.Moving = obj.motors.isMoving;
             else
-                obj.isMoving = false;
+                obj.Moving = false;
             end           
         end
     end
     methods
         function delete(obj)
-            cellfun(@delete,obj.motors);
+            if isobject(obj.motors)
+                delete(obj.motors);
+            end
         end
         function pos = get.position(obj)
         % this function reads the current motor position
@@ -86,7 +98,7 @@ classdef BSC203 < Modules.Stage
         function enable(obj)
             %Method to enable motors drive
             if ~isempty(obj.motors)&&isobject(obj.motors) && isvalid(obj.motors)
-                obj.motors{i}.enable();;
+                obj.motors.enable();
             end
             drawnow; % Flush callback queue
         end
@@ -114,15 +126,11 @@ classdef BSC203 < Modules.Stage
         
         % Motor construction callbacks
         function setMotor(obj,val)
-            val = str2double(val);
-            assert(~isnan(val),'Motor SN must be a valid number.')
-            if val == 0
-                return % Short circuit
-            end
-
+            disp('true 3')
             % Add new motor
-            obj.motors = Drivers.Kinesis.KinesisBSC203.instance(val, [0 8]);
-
+            disp(isstring(val))
+            obj.motors = Drivers.Kinesis.KinesisBSC203.instance(val, [0 8], val);
+            disp('true 4')
             % Listeners will follow lifecycle of their motor
             addlistener(obj.motors,'isMoving','PostSet',@obj.movingCallback);
             addlistener(obj.motors,'Homed','PostSet',@obj.homedCallback);
@@ -134,12 +142,10 @@ classdef BSC203 < Modules.Stage
         function set.controller(obj,val)
             % Validate that the serial number is the correct type for BSC203
             if ~isempty(val)
-                if strcmp(val(1:2) == '70')
+                if strcmp(val(1:2), '70')
                     try
                         obj.setMotor(val); 
-                        obj.MotorSerialNo = val;
                     catch err
-                        obj.MotorSerialNo = 'None';
                         rethrow(err)
                     end
                 else

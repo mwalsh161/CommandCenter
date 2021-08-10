@@ -1,5 +1,8 @@
 classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
-
+    
+    properties
+        name
+    end
     properties(Constant, Hidden)
         GENERICMOTORDLL='Thorlabs.MotionControl.GenericMotorCLI.dll';
         GENERICMOTORCLASSNAME='Thorlabs.MotionControl.GenericMotorCLI.GenericMotorCLI';
@@ -38,13 +41,16 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             Drivers.Kinesis.KinesisBSC203.loaddlls; % Load DLLs if not already loaded           
             obj.connect(serialNo); % Connect device
             obj.Travel = travel;
+            obj.name = name;
         end
     end
 
     methods(Static)
         % Use this to create/retrieve instance associated with serialNo
         function obj = instance(serialNo, travel, name)
+            disp('ok 4')
             mlock;
+            disp('ok 3')
             if nargin < 2
                 name = serialNo;
             end
@@ -53,10 +59,12 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                 Objects = Drivers.Kinesis.KinesisBSC203.empty(1,0); % Create an empty class
             end
             for i = 1:length(Objects)
+                disp('ok 1')
                 if isvalid(Objects(i)) && isequal(serialNo,Objects(i).singleton_id)    % Find instance with the same singleton ID
                     obj = Objects(i);
                     return
                 end
+                disp('ok 2')
             end
             obj = Drivers.Kinesis.KinesisBSC203(serialNo, travel, name); % Create an instance
             obj.singleton_id = serialNo;   % Define singleton ID
@@ -65,15 +73,11 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
     end
     
     methods
-        % 
+        % Connect to the device with a specified serial number and initialize the device
         function connect(obj, serialNo) % serialNo := str
             obj.GetDevices;  % Call this to build device list if not already done
             if ~obj.isconnected()   % Connect and initialize device if not connected  
-                if str2double(serialNo(1:2)) == double(Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.DevicePrefix70) % Checking whether ther serial number corresponds to a BenchtopStepperMotor
-                    obj.deviceNET = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.CreateBenchtopStepperMotor(serialNo);  % Create an instance of .NET BenchtopStepperMotor
-                else    % Serial number prefix does not belong to Benchtop Stepper Motor
-                    error('Serial Number is not Benchtop Stepper Motor.')
-                end
+                obj.deviceNET = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.CreateBenchtopStepperMotor(serialNo);  % Create an instance of .NET BenchtopStepperMotor
                 for i = 1:3
                     obj.channelsNET{i} = obj.deviceNET.GetChannel(i);   % Get channel objects of the device
                     obj.channelsNET{i}.ClearDeviceExceptions(); % Clear device exceptions via .NET interface
@@ -131,7 +135,11 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                 obj.minvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MinVelocity);  % update Min velocity parameter
                 obj.positions(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position); % motor positions
                 homed(i) = ~obj.channelsNET{i}.NeedsHoming;
-                moving(i) = obj.motors{i}.State.Moving;
+                if obj.channelsNET{i}.State == Thorlabs.MotionControl.GenericMotorCLI.MotorStates.Idle
+                    moving(i) = false;
+                else
+                    moving(i) = true;
+                end
             end
             obj.Homed = all(homed);
             obj.isMoving = any(moving);
@@ -246,6 +254,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     h.channelsNET{i}.StopImmediate();
                 else
                     h.channelsNET{channelNo}.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
+                end
             end
             obj.updatestatus            % Update status variables from device
         end
@@ -294,7 +303,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
 
         function motorSerialNumbers = getAvailMotors()
             motorSerialNumbers = {};
-            serialNumbers = Drivers.Kinesis.Kinesis_invisible.GetDevices
+            serialNumbers = Drivers.Kinesis.Kinesis_invisible.GetDevices;
             for i = 1 : length(serialNumbers)
                 if strcmp(serialNumbers{i}(1:2), '70')
                     motorSerialNumbers{end + 1} = serialNumbers{i};
