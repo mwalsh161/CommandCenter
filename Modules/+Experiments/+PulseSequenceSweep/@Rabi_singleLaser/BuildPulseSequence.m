@@ -13,7 +13,7 @@ s.channelOrder = [laserChannel, APDchannel, MWchannel];
 
 n = s.StartNode;
 % Laser pulse, with APD bin at the beginning.
-l = node(n, laserChannel,   'units', 'us', 'delta', 0);
+l = node(n, laserChannel,   'units', 'us', 'delta', 2*obj.MW_Pad + MW_Times_us);
 n = node(l, APDchannel,     'units', 'us', 'delta', obj.APD_Offset);
     node(n, APDchannel,     'units', 'us', 'delta', obj.APD_Time);
 l = node(l, laserChannel,   'units', 'us', 'delta', obj.Laser_Time);
