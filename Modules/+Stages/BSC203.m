@@ -13,9 +13,9 @@ classdef BSC203 < Modules.Stage
     
     properties(GetObservable, SetObservable, AbortSet)
         availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
-        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set',@Stages.BSC203.set_x_motor,'help_text','Which channel in the controller controls the x direction motor');
-        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set',@Stages.BSC203.set_y_motor,'help_text','Which channel in the controller controls the y direction motor');
-        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set',@Stages.BSC203.set_z_motor,'help_text','Which channel in the controller controls the z direction motor');
+        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor');
+        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor');
+        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor');
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Default here will only matter if motors aren't set
