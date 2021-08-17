@@ -204,14 +204,15 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             %   Move to target position, target_pos := 1 * 3 array of double
             tf = obj.checkMove(target_pos);
             if tf
-                n = 1
+                n = 1;
                 target_pos_channel = [NaN NaN NaN];
                 for channelNo = obj.motor_channels
                     if isnan(channelNo)
                         target_pos_channel(n) = NaN;
                     else
-                        target_pos_channel(n) = target_pos(channelNo)
+                        target_pos_channel(n) = target_pos(channelNo);
                     n = n + 1;
+                    end
                 end
                 for i = obj.motor_channels
                     if ~isnan(i)

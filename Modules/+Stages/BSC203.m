@@ -10,15 +10,12 @@ classdef BSC203 < Modules.Stage
     properties
         prefs = {'availMotors','x_motor','y_motor','z_motor'};
     end
-    properties(SetObservable,AbortSet)
-        availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
-%         calibration = [500 500 500] Prefs.DoubleArray([2 2 2],'help_text','Calibration for the motor distance to true distance');
-    end
     
     properties(GetObservable, SetObservable, AbortSet)
-        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set',@set_x_motor,'help_text','Which channel in the controller controls the x direction motor');
-        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set',@set_y_motor,'help_text','Which channel in the controller controls the y direction motor');
-        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set',@set_z_motor,'help_text','Which channel in the controller controls the z direction motor');
+        availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
+        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set',@Stages.BSC203.set_x_motor,'help_text','Which channel in the controller controls the x direction motor');
+        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set',@Stages.BSC203.set_y_motor,'help_text','Which channel in the controller controls the y direction motor');
+        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set',@Stages.BSC203.set_z_motor,'help_text','Which channel in the controller controls the z direction motor');
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Default here will only matter if motors aren't set
@@ -78,16 +75,20 @@ classdef BSC203 < Modules.Stage
             end
         end
         function pos = get.position(obj)
-            % this function reads the current motor position
+            % this function reads the current motor position           
             pos = [NaN NaN NaN];
-            n = 1
-            for channelNo = obj.motor_channels
-                positions = obj.motors.positions;
-                if isnan(channelNo)
-                    pos(n) = NaN;
-                else
-                    pos(n) = positions(channelNo)
-                n = n + 1;
+            if ~isempty(obj.motors) && isobject(obj.motors) && isvalid(obj.motors)
+                n = 1;
+                for channelNo = obj.motor_channels
+                    positions = obj.motors.positions;
+                    pos = positions;
+                    if isnan(channelNo)
+                        pos(n) = NaN;
+                    else
+                        pos(n) = positions(channelNo);
+                    n = n + 1;
+                    end
+                end
             end
         end
         function move(obj,x,y,z)
@@ -138,6 +139,9 @@ classdef BSC203 < Modules.Stage
         function set.availMotors(obj,val)
             % Validate that the serial number is the correct type for BSC203
             if ~isempty(val)
+                if iscell(val)
+                    val = val{:};
+                end
                 if strcmp(val(1:2), '70')
                     try
                         obj.set_controller(val); 
