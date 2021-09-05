@@ -1,8 +1,8 @@
 classdef AutoChipletSearch < Modules.Experiment
-    %AutoChipletSearch Description of experiment
+    %AutoChipletSearch Does a measurement on an array of chiplets
     % Useful to list any dependencies here too
 
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,GetObservable,AbortSet)
         % These should be preferences you want set in default settings method
         chiplet_spacing = Prefs.DoubleArray([65 65], 'units','um','help_text','Array of x and y spacing of chiplets');
         chiplet_number = Prefs.DoubleArray([2 2], 'units','um','help_text','Number of chiplets along x and y');
@@ -164,10 +164,110 @@ classdef AutoChipletSearch < Modules.Experiment
             % Linear interpolation of the target point
             if isvalid(image_ax)
                 scatter(D(1:6,1),D(1:6,2),'g*','parent',image_ax) % frame
-                scatter(D(7:end,D(7:end,2),'g+','parent',image_ax) % target spectrum point
+                scatter(D(7:end),D(7:end,2),'g+','parent',image_ax) % target spectrum point
             end
 
-            points = D(7:end,:)
+            points = D(7:end,:);
         end
+
+        function new_ROI = FindROI(obj, mapping_parameters)%mapping_parameters
+            % Find the region of interest in galvo voltages from the camera image and the mapping parameters describing the tranformation relation between camera and galvo images
+            % image := grey scale camera image
+            % mapping_parameters := [m1, n1, l1, m2, n2, l2] transformation parameters,
+            % The galvo image coordinate (a,b) is related to the camera image coordinate (x,y) through:
+            % (a,b) = [m1,n1;m2,n2]*[x,y]+[l1,l2]
+            image = obj.camera.snapImage();
+            figure; imagesc(image)
+
+            m1 = mapping_parameters(1,1);
+            n1 = mapping_parameters(1,2);
+            l1 = mapping_parameters(1,3);
+            m2 = mapping_parameters(2,1);
+            n2 = mapping_parameters(2,2);
+            l2 = mapping_parameters(2,3);
+        
+            image_cam_edge = edge(image, 'Canny', 0.2);
+            se = strel('sphere',6);
+            image_cam_dilate = imdilate(image_cam_edge, se);
+            image_cam_filtered = bwareafilt(image_cam_dilate,1);
+            stats = regionprops(image_cam_filtered,'Centroid', 'Orientation', 'Extrema');
+            
+            figure
+            imshow(image_cam_edge)
+            figure
+            imshow(image_cam_dilate)  
+            imshow(image_cam_filtered)
+            hold on
+            scatter(stats.Extrema(:,1), stats.Extrema(:,2), 'green','d', 'filled')
+        
+            threshold_dist = 10;
+            points = zeros(4,2);
+            n_points = 0;
+            for i = 1 : length(stats.Extrema)
+                for j = i + 1 :length(stats.Extrema)
+                    delta_x = stats.Extrema(i, 1) - stats.Extrema(j, 1);
+                    delta_y = stats.Extrema(i, 2) - stats.Extrema(j, 2);
+                    if delta_x == 0 || delta_y == 0
+                        n_points = n_points + 1;
+                        points(n_points,:) = [(stats.Extrema(i, 1) + stats.Extrema(j, 1))/2, (stats.Extrema(i, 2) + stats.Extrema(j, 2))/2];
+                    elseif norm([delta_x, delta_y]) < threshold_dist
+                        n_points = n_points + 1;
+                        points(n_points, :) = [(stats.Extrema(i, 1) + stats.Extrema(j, 1))/2, (stats.Extrema(i, 2) + stats.Extrema(j, 2))/2];
+                    end
+                end
+            end
+        
+            points_galvo = zeros(4, 2);
+            n_point = 1;
+            for point = 1 : length(points)
+                points_galvo(n_point, :) = [m1, n1; m2, n2] * [points(n_point, 1); points(n_point, 2)] + [l1; l2];
+                n_point = n_point + 1;
+            end
+        
+            chiplet_center_galvo = mean(points_galvo, 1);
+            n_point = 1;
+            for point = 1 : length(points)
+                if points_galvo(n_point, 1) < chiplet_center_galvo(1)
+                    points_galvo(n_point, 1) = points_galvo(n_point, 1) - 0.1;
+                else
+                    points_galvo(n_point, 1) = points_galvo(n_point, 1) + 0.1;
+                end
+                n_point = n_point + 1;
+            end
+        
+            new_ROI = [min(points_galvo(:,1)), max(points_galvo(:,1));min(points_galvo(:,2)),max(points_galvo(:,2))];
+        end
+        
+        function mapping_params = GetMappingParams(chiplet_points_cam,chiplet_points_galvo)
+
+            len_img_galvo = 200;
+        
+            % ROI defined for the galvo scan
+            ROI = [-0.3500 0.1825; -0.0061 0.4256];
+        
+            len = ROI(1, 2) - ROI(1, 1);
+            wid = ROI(2, 2) - ROI(2, 1);
+        
+            % Calculate the galvo voltages for the chiplet corners
+            chiplet_points_voltage_x = chiplet_points_galvo(:,1) / len_img_galvo .* len + ROI(1, 1);
+            chiplet_points_voltage_y = chiplet_points_galvo(:,2) / len_img_galvo .* wid + ROI(2, 1);
+        
+            chiplet_points_camera_x = chiplet_points_cam(:, 1);
+            chiplet_points_camera_y = chiplet_points_cam(:, 2);
+        
+            ft = fittype( 'm1 * x + n1 * y + l1', 'independent', {'x', 'y'}, 'dependent', 'z' );
+            [fitresult1, gof1] = fit([chiplet_points_camera_x, chiplet_points_camera_y], chiplet_points_voltage_x, ft);
+        
+            ft = fittype( 'm2 * x + n2 * y + l2', 'independent', {'x', 'y'}, 'dependent', 'z' );
+            [fitresult2, gof2] = fit([chiplet_points_camera_x, chiplet_points_camera_y], chiplet_points_voltage_y, ft);
+        
+            % calculate the transformation matrix variables from camera pixels to galvo voltages
+            mapping_params(1,1) = fitresult1.m1;
+            mapping_params(1,2) = fitresult1.n1;
+            mapping_params(1,3) = fitresult1.l1;  
+            mapping_params(2,1) = fitresult2.m2;
+            mapping_params(2,2) = fitresult2.n2;
+            mapping_params(2,3) = fitresult2.l2;
+        end        
     end
 end
