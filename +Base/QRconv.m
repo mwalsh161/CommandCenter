@@ -1,21 +1,22 @@
 function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
-    % QRconv finds 
+    % QRconv finds QRs in an image via a convoluation algorithm.
     % img is a NxM image.
-    % options_guess is a struct of the same format as options_fit to 
-    % struct('ang', 'calibration', 'X_expected', 'Y_expected');
-    % v and V are arrays of column vectors (2xN) of the same size. v are
-    % positions of candidate QR codes in the coordinate system of the image
-    % img, while V are the corresponding positons in QR space. If a
-    % candidate does not pass the checksum, [NaN; NaN] is returned for V.
-    % Returns transform from QR-space V to position-space v according to 
+    % options_guess is a struct of the same format as options_fit: struct('ang', ..., 'calibration', ..., 'X_expected', ..., 'Y_expected', ...);
+    % v and V are arrays of column vectors (2xN) of the same size:
+    %  - v are positions of candidate QR codes in the coordinate system of the image img, while 
+    %  - V are the corresponding positons in QR space. 
+    % If a candidate does not pass the checksum, [NaN; NaN] is returned for V.
+    % Also returns transform from QR-space V to position-space v according to 
     %   v = M * V + b
-    % options_guess
     
-    % Convolutional QR detection
+    % Default QR parameters.
     if nargin < 3
-        QR_parameters = struct('r', .3, 'l', 6.25, 'd', 40);
+        QR_parameters = struct( 'r', .3, ...    % Circle radius,
+                                'l', 6.25, ...  % Arm length,
+                                'd', 40);       % QR spacing.
     end
     
+    % Step 0: prepare some helper variables
     ang0 = options_guess.ang;
     r = QR_parameters.r / options_guess.calibration;
     l = QR_parameters.l / options_guess.calibration;
@@ -27,18 +28,18 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
         V_expected = [NaN; NaN];
     end
     
-    % Step 1: remove gradients 
+    % Step 1: remove global gradients in the image (see flatten for more details)
     flat = flatten(img);
     
     % Step 2: perform a convolutional filter to identify QR candidates
     [conv, convH, convV] = doConv(flat, ang0, r, l);
     
-    % Step 3: generate a logical image to determine the code of the QR code.
+    % Step 3: generate a logical image to determine the bit-code of the QR.
     bw = threshold(flat);
     
     stages = struct('flat', flat, 'conv', conv, 'convH', convH, 'convV', convV, 'bw', bw);
     
-    % Step 4: using the candidate locations, return the location of QR codes.
+    % Step 4: using the candidate locations, return the locations and decoded locations of the QR codes.
     [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l,  V_expected);
     
     v = [cx; cy];
@@ -57,6 +58,9 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
         options_fit = options_guess;
         return
     end
+    
+    options_guess.img_W = size(img,1);
+    options_guess.img_H = size(img,2);
     
     % Step 5: fit a coordinate system to the positions of our QR codes.
     [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_guess);
@@ -96,6 +100,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     X = -r:lx+r;
     Y = -r:ly+r;
 
+    % Replace with meshgrid?
     XX = repmat(X, [length(Y) 1]);
     YY = repmat(Y', [1 length(X)]);
 
@@ -103,7 +108,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     sp = 2;
     sn = 1;
 
-    % 
+    % This filter descirbes the shape of a QR arm, with large holes on each end and small holes on the arm. Negative values are to increase reliablility.
     fil =  B*circleFunc(XX, YY, 0,       0,      r) ...
         - sn*circleFunc(XX, YY, 1*lx/8,  1*ly/8, r/3) ...
         + sp*circleFunc(XX, YY, lx/4,    ly/4,   r/3) ...
@@ -125,6 +130,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     lx = ceil(l*ca);
     ly = ceil(l*sa);
 
+    % The heart of the function, doing the convolution on the images with our filter, on both arms (H&V) of the QRs.
     convH = conv2(img, fil);
     convV = conv2(img, rot90(fil));
 
@@ -228,11 +234,11 @@ function [CX, CY, version, checksum0] = interpretQR(m)
     % From the code contained in m, attempt to read information.
 
     length = 25;    % Total length of code
-    pad = [1 6]; % Pad locations of bits (indexed from 1)
-    vb = 4;   % Version bits
-    rb = 8;   % Number of bits to encode the row
-    cb = 8;   % Number of bits to encode the col
-    cs = 3;   % Checksum
+    pad = [1 6];    % Pad locations of bits (indexed from 1)
+    vb = 4;         % Version bits
+    rb = 8;         % Number of bits to encode the row
+    cb = 8;         % Number of bits to encode the col
+    cs = 3;         % Checksum
 
     assert(numel(m) == length, 'm is the wrong size')
 
@@ -284,7 +290,7 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     else
         V_expected = [NaN; NaN];
     end
-    b_expected = [256; 256] - M_guess * V_expected;     % Make not camera specific!
+    b_expected = [options_guess.img_W; options_guess.img_H] - M_guess * V_expected;
     
     % Setup variables that we will change as we loop.
     mostvotes = 1;
@@ -295,7 +301,7 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     % Radius within which b guesses are considered the same guess.
     R = options_guess.d;
     
-    for ii = 1:size(b_guesses,2)                                % For every candidate...
+    for ii = 1:size(b_guesses,2)                                    % For every candidate...
         if ~any(isnan(b_guesses(:, ii))) && ~duplicates(ii)
             votes = sum((b_guesses - b_guesses(:, ii)).^2) < R*R & ~duplicates;   % How many other candidates agree?
             
@@ -305,8 +311,8 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
                 
                 if sum(votes) > 1 || dist_ < dist
                     dist = dist_;
-                    mostvotes = sum(votes);                             % Record the record.
-                    outliers = ~votes;                                  % Record the candidates that were outside.
+                    mostvotes = sum(votes);                         % Record the record.
+                    outliers = ~votes;                              % Record the candidates that were outside.
                 end
             end
         end
@@ -316,20 +322,10 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
         outliers(:) = true;
     end
     
-%     if mostvotes
-%         
-%     end
-    
     % Trim the outliers.
     v_trim = v(:, ~outliers);
     V_trim = V(:, ~outliers);
 
-    % Fit the candidates to a translation b using the guess transformation.
-%     fun = @(p)( leastsquares(v_trim, V_trim, M_guess, p') );
-%     p_guess = b_guess';
-%     p = fminsearch(fun, p_guess, struct('TolFun', 1, 'TolX', 1e-1));
-%     
-    
     if isempty(v_trim)
         M = [[NaN NaN]; [NaN NaN]];
         b = [NaN; NaN];
@@ -351,15 +347,8 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     M = [p_full(1:2)', p_full(3:4)'];
     b = p_full(5:6)';
     
-    % Fit the candidates fully to a rigid motion plus a scale.
-%     fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2)', p(3:4)'], p(5:6)') );
-%     p_guess = [M_guess(:); b_guess]';
-%     p_full = fminsearch(fun, p_guess);
 end
 
-% function img = resize(img)
-%     img = imresize(img, .25, 'bilinear');
-% end
 function img = threshold(img)
     img = imbinarize(img);
 end
