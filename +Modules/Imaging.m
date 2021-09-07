@@ -2,7 +2,7 @@ classdef Imaging < Base.Module
     %MODULE Abstract Class for Modules.
     %   Simply enforces required properties. For future use.
     
-    properties
+    properties(SetObservable, GetObservable)
         calibration = 1;                % Calibration set and used by CommandCenter (um/#)
         % When saving, instructs CommandCenter to ignore the last stage (finest moving)
         %   This can be useful for confocal setups, where the stage is also
