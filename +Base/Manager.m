@@ -123,6 +123,7 @@ classdef Manager < handle
     methods(Access=protected)
         function openLogger(obj,~,~)
             obj.handles.logger.visible = true;
+            figure(obj.handles.logger.fig);     % Bring logger to foreground.
         end
         function savePrefs(obj)
             for i = 1:numel(obj.prefs)
@@ -382,14 +383,22 @@ classdef Manager < handle
                 figure(obj.handles.Managers.error_dlg); % Bring to front
             else
                 obj.handles.Managers.error_dlg = errordlg(dlgMsg,'Error!','replace');
+                
+                % Add an additional button to open the logger.
                 uic = findall(obj.handles.Managers.error_dlg,'type','UIControl');
-                txt = findall(obj.handles.Managers.error_dlg,'type','Text');
                 openLogger = uicontrol('Parent',obj.handles.Managers.error_dlg,...
                     'Style','pushbutton',...
                     'Callback',@obj.openLogger,...
                     'Units',uic.Units,...
                     'String','Open Log');
-                openLogger.Position([1,2]) = [uic.Position(1)+uic.Position(3)*1.05,uic.Position(2)];
+                % Center and expand the width of the buttons.
+                uic.Position(1) = uic.Position(1) - uic.Position(3);
+                uic.Position(3) = 1.5*uic.Position(3);
+                openLogger.Position = uic.Position;
+                openLogger.Position(1) = openLogger.Position(1) + uic.Position(3)*1.05;
+                
+                % Add a listener to resize the error if or when new lines are dynamically added.
+                txt = findall(obj.handles.Managers.error_dlg,'type','Text');
                 addlistener(txt,'String','PostSet',@obj.resizeMsgBox);
             end
             if ~isempty(varargin)
@@ -404,9 +413,9 @@ classdef Manager < handle
             end
         end
         function warning(obj,dlgMsg,varargin)
-            % error(msg)            % msg is used as log and dlg
-            % error(dlgMsg,logMsg)  % separate log and dlg msgs
-            % error(__,throw)       % Will throw error with dlgMsg
+            % warning(msg)            % msg is used as log and dlg
+            % warning(dlgMsg,logMsg)  % separate log and dlg msgs
+            % warning(__,throw)       % Will throw error with dlgMsg
             logMsg = dlgMsg;
             if numel(varargin) > 0
                 if isa(varargin{1},'char')
@@ -424,6 +433,21 @@ classdef Manager < handle
                 figure(obj.handles.Managers.warn_dlg); % Bring to front
             else
                 obj.handles.Managers.warn_dlg = warndlg(dlgMsg,'Warning!','replace');
+                
+                % Add an additional button to open the logger.
+                uic = findall(obj.handles.Managers.warn_dlg,'type','UIControl');
+                openLogger = uicontrol('Parent',obj.handles.Managers.warn_dlg,...
+                    'Style','pushbutton',...
+                    'Callback',@obj.openLogger,...
+                    'Units',uic.Units,...
+                    'String','Open Log');
+                % Center and expand the width of the buttons.
+                uic.Position(1) = uic.Position(1) - uic.Position(3);
+                uic.Position(3) = 1.5*uic.Position(3);
+                openLogger.Position = uic.Position;
+                openLogger.Position(1) = openLogger.Position(1) + uic.Position(3)*1.05;
+                
+                % Add a listener to resize the error if or when new lines are dynamically added.
                 txt = findall(obj.handles.Managers.warn_dlg,'type','Text');
                 addlistener(txt,'String','PostSet',@obj.resizeMsgBox);
             end
