@@ -121,6 +121,9 @@ classdef Manager < handle
         end
     end
     methods(Access=protected)
+        function openLogger(obj,~,~)
+            obj.handles.logger.visible = true;
+        end
         function savePrefs(obj)
             for i = 1:numel(obj.prefs)
                 try
@@ -379,7 +382,14 @@ classdef Manager < handle
                 figure(obj.handles.Managers.error_dlg); % Bring to front
             else
                 obj.handles.Managers.error_dlg = errordlg(dlgMsg,'Error!','replace');
+                uic = findall(obj.handles.Managers.error_dlg,'type','UIControl');
                 txt = findall(obj.handles.Managers.error_dlg,'type','Text');
+                openLogger = uicontrol('Parent',obj.handles.Managers.error_dlg,...
+                    'Style','pushbutton',...
+                    'Callback',@obj.openLogger,...
+                    'Units',uic.Units,...
+                    'String','Open Log');
+                openLogger.Position([1,2]) = [uic.Position(1)+uic.Position(3)*1.05,uic.Position(2)];
                 addlistener(txt,'String','PostSet',@obj.resizeMsgBox);
             end
             if ~isempty(varargin)
