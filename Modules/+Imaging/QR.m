@@ -41,15 +41,9 @@ classdef QR < Modules.Imaging
         display = Prefs.MultipleChoice('Raw', 'set', 'set_variable', 'allow_empty', false, 'choices', Imaging.QR.displaytypes, ...
                                                                         'help_text', 'These displaymodes allow the user to see the various stages in the algorithm that allows robust and fast convolutional QR detection.');
                                                                     
-<<<<<<< HEAD
-        X = Prefs.Double(NaN,   'readonly', true, 'allow_nan', true,    'help_text', 'Detected X position in QR-space of the center of the field of view.');
-        Y = Prefs.Double(NaN,   'readonly', true, 'allow_nan', true,    'help_text', 'Detected Y position in QR-space of the center of the field of view.');
-        N = Prefs.Integer(0,    'readonly', true, 'allow_nan', true,    'help_text', 'Number of self-consistent QR codes within a field of view.')
-=======
         X = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected X position in QR-space of the center of the field of view.');
         Y = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected Y position in QR-space of the center of the field of view.');
         N = Prefs.Integer(NaN,  'readonly', true,                       'help_text', 'Number of self-consistent QR codes within a field of view.')
->>>>>>> a4713cdfc7224cb38b8d9668481e9a96c6b966ab
     end
     
     % Variables required for imaging modules. This should be cleaned up in the future.

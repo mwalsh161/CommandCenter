@@ -160,39 +160,10 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
     cx = NaN(1,NQR);
     cy = NaN(1,NQR);
 
-<<<<<<< HEAD
-%     for ii = 1:NQR
-%         CC.PixelIdxList{ii}
-%         cx(ii) = mean(XX(CC.PixelIdxList{ii}));
-%         cy(ii) = mean(YY(CC.PixelIdxList{ii}));
-%     end
-    
-    centroids = regionprops(CC,'Centroid');
-
-    for ii = 1:NQR
-        c = centroids(ii).Centroid;
-        cx(ii) = c(1);
-        cy(ii) = c(2);
-    end
-    
-%     figure
-%     subplot(2,2,1)
-%     imagesc(conv > max(max(conv))/8)
-%     hold on
-%     scatter(cx, cy);
-%     
-%     subplot(2,2,2)
-%     imagesc(XX)
-%     
-%     subplot(2,2,4)
-%     imagesc(YY)
-    
-=======
     for ii = 1:NQR
         cx(ii) = mean(XX(CC.PixelIdxList{ii}));
         cy(ii) = mean(YY(CC.PixelIdxList{ii}));
     end
->>>>>>> a4713cdfc7224cb38b8d9668481e9a96c6b966ab
 
     pad = abs(l*(sa0+ca0)/2) + 2*r;
 
