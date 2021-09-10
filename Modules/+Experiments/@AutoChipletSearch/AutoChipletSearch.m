@@ -15,15 +15,22 @@ classdef AutoChipletSearch < Modules.Experiment
         coarse_autofocus_range = Prefs.DoubleArray([-1 1], 'units', 'um', 'help_text', 'Range around current stage position that autofocus will search to find focus');
         coarse_autofocus_step_size = Prefs.Double(0.1, 'units', 'um', 'help_text','Step size to use for autofocusing','min',0);
         
+        centering_method = Prefs.MultipleChoice('intersection', 'set', 'set_centering_method', 'allow_empty', false, 'choices', {'intersection', 'centroid', 'QR', 'straight lines'}, 'help_text', 'Method chosen for centering');
+        motor_angle = Prefs.Double(0, 'units', 'deg', 'help_text', 'The angle that the motor moves the stage shown in the camera image', 'min', 0);
+        max_shift_no = Prefs.Double(5, 'help_text', 'The maximum number of attempts to center before moving to the next chiplet');
+        flip = Prefs.Boolean(true, 'help_text', 'Whether the image needs to be flipped for processing');
+        flip_axis = Pref.Double(1, 'help_text', 'The axis about which the image needs to be flipped');
+
         camera = Prefs.ModuleInstance('help_text','White light camera imaging module for focusing');
         galvo = Prefs.ModuleInstance('help_text','Galvo scanning imaging module for confocal scanning');
         laser = Prefs.ModuleInstance('help_text','laser used for galvo confocal scanning');
         whitelight = Prefs.ModuleInstance('help_text','White light used for camera focusing');
+        motor = Prefs.ModuleInstance('help_text', 'Motor for stage movement');
         
-        experiment = Prefs.ModuleInstance('help_text','Experiment to run at each point')
+        experiment = Prefs.ModuleInstance('help_text','Experiment to run at each point');
     end
     properties
-        prefs = {'chiplet_spacing','chiplet_number','fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size','camera','galvo'};
+        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size', 'centering_method', 'motor_angle', 'max_shift_no', 'flip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'motor', 'experiments'};
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -33,6 +40,12 @@ classdef AutoChipletSearch < Modules.Experiment
         data = [] % Useful for saving data from run method
         meta = [] % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
+    end
+
+    properties
+        % cache for camera image and confocal scan image
+        camera_img 
+        confocal_img
     end
 
     methods(Static)
@@ -170,14 +183,15 @@ classdef AutoChipletSearch < Modules.Experiment
             points = D(7:end,:);
         end
 
+
+
         function new_ROI = FindROI(obj, mapping_parameters)%mapping_parameters
             % Find the region of interest in galvo voltages from the camera image and the mapping parameters describing the tranformation relation between camera and galvo images
             % image := grey scale camera image
             % mapping_parameters := [m1, n1, l1, m2, n2, l2] transformation parameters,
             % The galvo image coordinate (a,b) is related to the camera image coordinate (x,y) through:
             % (a,b) = [m1,n1;m2,n2]*[x,y]+[l1,l2]
-            image = obj.camera.snapImage();
-            figure; imagesc(image)
+            image = obj.camera_img;
 
             m1 = mapping_parameters(1,1);
             n1 = mapping_parameters(1,2);
@@ -186,17 +200,10 @@ classdef AutoChipletSearch < Modules.Experiment
             n2 = mapping_parameters(2,2);
             l2 = mapping_parameters(2,3);
         
-            image_cam_edge = edge(image, 'Canny', 0.2);
-            se = strel('sphere',6);
-            image_cam_dilate = imdilate(image_cam_edge, se);
-            image_cam_filtered = bwareafilt(image_cam_dilate,1);
-            stats = regionprops(image_cam_filtered,'Centroid', 'Orientation', 'Extrema');
+            stats= obj.FindChipletStats(false)
             
             figure
-            imshow(image_cam_edge)
-            figure
-            imshow(image_cam_dilate)  
-            imshow(image_cam_filtered)
+            imshow(image, [])
             hold on
             scatter(stats.Extrema(:,1), stats.Extrema(:,2), 'green','d', 'filled')
         
@@ -239,7 +246,7 @@ classdef AutoChipletSearch < Modules.Experiment
         end
         
         function mapping_params = GetMappingParams(chiplet_points_cam,chiplet_points_galvo)
-
+            % Calculates the mapping parameters from two arrays containing corresponding points in the camera image and galvo scan image
             len_img_galvo = 200;
         
             % ROI defined for the galvo scan
@@ -268,6 +275,153 @@ classdef AutoChipletSearch < Modules.Experiment
             mapping_params(2,1) = fitresult2.m2;
             mapping_params(2,2) = fitresult2.n2;
             mapping_params(2,3) = fitresult2.l2;
-        end        
+        end   
+
+        function shiftinfo = ShiftToCenter(obj)
+            % Move the motor to center the chiplet until the next required shift is below a certain threshold
+            im_obj = obj.camera;
+            method_for_centering = obj.centering_method;
+            micron_per_pixel = obj.calibration;
+            estimated_motor_angle = obj.motor_angle;
+            max_shift_no = obj.max_shift_no;
+            toflip = obj.flip;
+            flip_axis = obj.flip_axis;
+
+            shiftinfo.shifted = false;
+            shift_no = 1;
+            previous_shift = [0, 0, 0];
+            orig_pos = obj.motor.position;
+            while shift_no <= max_shift_no
+                image_orig = im_obj.snapImage();
+                image = FlipImage(image_orig, toflip, flip_axis);
+                shift = GetShiftToCenter(image, method_for_centering, micron_per_pixel, estimated_motor_angle);
+                position = obj.motor.position;
+                target_pos = shift + position;
+                
+                total_shift = target_pos - orig_pos;
+                
+                if norm(total_shift) > 0.03
+                    shift = GetShiftToCenter(image, 'centroid', micron_per_pixel, estimated_motor_angle);
+                    position = obj.motor.position;
+                    target_pos = shift + position;
+                
+                    total_shift = target_pos - orig_pos;
+                end
+                delta_shift = shift - previous_shift;
+                if norm(total_shift) > 0.03
+                    target_pos = orig_pos;
+                    delta_shift = [0, 0, 0];
+                end
+        %         position = motor_obj.position;
+        %         target_pos = shift + position;
+        %         motor_obj.moveto(target_pos);
+                if norm(delta_shift) <= 0.002          
+                    shiftinfo.shifted = true;
+                    shiftinfo.shiftno = shift_no;
+                    break
+                else
+                    obj.motor.moveto(target_pos);
+                    previous_shift = shift;
+                end
+                shift_no = shift_no + 1;     
+            end
+            
+            if shift_no == max_shift_no
+                shiftinfo.max_shift_not_reached = true;
+            else
+                shiftinfo.max_shift_not_reached = false;
+            end
+            shiftinfo.shifted = true;
+            shiftinfo.shiftno = shift_no;
+        end
+
+        function shift = GetShiftToCenter(obj)
+            %   this function calculates the required shift to center the chiplet
+            %   required inputs are:
+            %   method_for_centering := one from the list {'centroid', 'intersection'}
+            %   micron_per_pixel := float, the scale bar, about 0.08 for images taken with 1000 pixel and 100 times lens
+            %   motor_angle := float, estimated angle (radian) of motor movement relative to the image axes
+            image = obj.camera_img;
+            method_for_centering = obj.centering_method;
+            micron_per_pixel = obj.calibration;
+            motor_angle = obj.motor_angle;
+
+            chip_center = obj.FindCenter(false);
+        
+            %   calculate new x/y coordinates
+            image_center = [fix(length(image)/2), fix(length(image)/2)];
+            centroid_to_center = (image_center - chip_center) * micron_per_pixel; % converts the vector unit from pixels to microns
+        
+            theta = motor_angle; % estimated angle of motor movement relative to the image axes
+            %   solve simultaneous equation for shift in x and y direction along the motor
+            delta_x = centroid_to_center(1) * cos(theta) - centroid_to_center(2) * sin(theta);
+            delta_y = -1 * centroid_to_center(1) * sin(theta) - centroid_to_center(2) * cos(theta);
+            shift = [delta_x, -1 * delta_y, 0] / 1000;
+        end
+
+        function chip_center = FindCenter(obj, isBW)
+        % Find the chiplet center
+        % isBW := Boolean, true if input image is binary
+        % method := {'centroid', 'intersection'}
+        % Returns the coordinate of the chiplet center  
+
+            if strcmp(method, 'intersection')
+                %     figure
+                %     imshow(image, [])
+                stats = obj.FindChipletStats(isBW);
+                %     hold on    
+                %     scatter(stats.Extrema(:,1), stats.Extrema(:,2), 'green', 'd', 'filled')
+                
+                %   Obtain four corner points for center estimation
+                point1 = (stats.Extrema(1, :) + stats.Extrema(2, :))/2;
+                point2 = (stats.Extrema(3, :) + stats.Extrema(4, :))/2;
+                point3 = (stats.Extrema(5, :) + stats.Extrema(6, :))/2;
+                point4 = (stats.Extrema(7, :) + stats.Extrema(8, :))/2;
+                points = [point1; point2; point3; point4];    
+        %         hold on
+        %         scatter(points(:,1), points(:,2), 'filled')
+                m1 = (points(3, 2) - points(1, 2)) / (points(3, 1) - points(1, 1));
+                m2 = (points(4, 2) - points(2, 2)) / (points(4, 1) - points(2, 1));
+                c1 = points(1, 2) - m1 * points(1, 1);
+                c2 = points(2, 2) - m2 * points(2, 1);
+                center_x = (c2 - c1) / (m1 -m2);
+                center_y = m1 * center_x + c1;
+                chip_center = [center_x, center_y];        
+            elseif strcmp(method, 'centroid')
+                %     figure
+                %     imshow(image, [])
+                stats = obj.FindChipletStats(isBW)
+                %     hold on    
+                %     scatter(stats.Extrema(:,1), stats.Extrema(:,2), 'green', 'd', 'filled')
+                chip_center = [mean(stats.Extrema(:, 1)), mean(stats.Extrema(:, 2))];
+            elseif strcmp(method, 'QR')
+                % add in method to find center with the QR codes
+            elseif strcmp(method, 'straight_lines')
+                % add in method to find center with the straightlines
+            else
+                error('Method for centering is not recognised!')
+            end
+        %     hold on
+        %     scatter(chip_center(1), chip_center(2), 'filled')
+        end
+
+        % helper functions
+
+        function regionStats = FindChipletStats(obj, isBW)
+            method = obj.centering_method;
+            if ~isBW
+                BW_edge = edge(image, 'Canny', 0.2);
+            else
+                BW_edge = image;
+            end
+        
+            se = strel('sphere',5);
+            BW_dilate = imdilate(BW_edge, se);
+        
+            BW2 = bwareafilt(BW_dilate,1);
+        %     imshow(BW2,[])
+        
+            regionStats = regionprops(BW2, 'Extrema');
+        end
     end
 end

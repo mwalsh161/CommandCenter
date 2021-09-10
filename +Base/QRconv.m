@@ -160,6 +160,7 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
     cx = NaN(1,NQR);
     cy = NaN(1,NQR);
 
+<<<<<<< HEAD
 %     for ii = 1:NQR
 %         CC.PixelIdxList{ii}
 %         cx(ii) = mean(XX(CC.PixelIdxList{ii}));
@@ -186,6 +187,12 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
 %     subplot(2,2,4)
 %     imagesc(YY)
     
+=======
+    for ii = 1:NQR
+        cx(ii) = mean(XX(CC.PixelIdxList{ii}));
+        cy(ii) = mean(YY(CC.PixelIdxList{ii}));
+    end
+>>>>>>> a4713cdfc7224cb38b8d9668481e9a96c6b966ab
 
     pad = abs(l*(sa0+ca0)/2) + 2*r;
 
@@ -372,11 +379,21 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
 end
 
 function img = threshold(img)
+<<<<<<< HEAD
     img = imgaussfilt(img,2);
     img = imbinarize(img, 'adaptive');
 end
 function img = flatten(img)
     img = imgaussfilt(img,10) - img;
+=======
+    img = imbinarize(img);
+end
+function img = flatten(img)
+%     img = imgaussfilt(img,10) - imgaussfilt(img,1);
+% class(imgaussfilt(img,10))
+    img = imgaussfilt(img,10) - img;
+%     img = imgaussfilt(img,10) - imgaussfilt(img,2);
+>>>>>>> a4713cdfc7224cb38b8d9668481e9a96c6b966ab
 end
 
 function v_ = affine(v, M, b)
