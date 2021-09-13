@@ -25,12 +25,11 @@ classdef AutoChipletSearch < Modules.Experiment
         galvo = Prefs.ModuleInstance('help_text','Galvo scanning imaging module for confocal scanning');
         laser = Prefs.ModuleInstance('help_text','laser used for galvo confocal scanning');
         whitelight = Prefs.ModuleInstance('help_text','White light used for camera focusing');
-        motor = Prefs.ModuleInstance('help_text', 'Motor for stage movement');
         
         experiment = Prefs.ModuleInstance('help_text','Experiment to run at each point');
     end
     properties
-        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size', 'centering_method', 'motor_angle', 'max_shift_no', 'flip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'motor', 'experiments'};
+        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size', 'centering_method', 'motor_angle', 'max_shift_no', 'flip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'experiments'};
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
