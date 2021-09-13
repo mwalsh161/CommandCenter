@@ -26,6 +26,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         isMoving = false;
 
         Travel = [-2 2] * 1000;
+        calibration = 1;
     end
 
     properties(Hidden)
@@ -38,18 +39,19 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
 
     methods(Access=private)
         % Constructor
-        function obj = KinesisBSC203(serialNo, travel, name, motor_channels)  % Instantiate the KinesisBSC203 motor object
-            Drivers.Kinesis.KinesisBSC203.loaddlls; % Load DLLs if not already loaded           
+        function obj = KinesisBSC203(serialNo, travel, name, motor_channels, calibration)  % Instantiate the KinesisBSC203 motor object
+            Drivers.Kinesis.KinesisBSC203.loaddlls; % Load DLLs if not already loaded 
+            obj.motor_channels = motor_channels;
+            obj.calibration = calibration;
             obj.connect(serialNo); % Connect device
             obj.Travel = travel;
-            obj.name = name;
-            obj.motor_channels = motor_channels;
+            obj.name = name;          
         end
     end
 
     methods(Static)
         % Use this to create/retrieve instance associated with serialNo
-        function obj = instance(serialNo, travel, name, motor_channels)
+        function obj = instance(serialNo, travel, name, motor_channels, calibration)
             mlock;
             if nargin < 2
                 name = serialNo;
@@ -64,7 +66,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     return
                 end
             end
-            obj = Drivers.Kinesis.KinesisBSC203(serialNo, travel, name, motor_channels); % Create an instance
+            obj = Drivers.Kinesis.KinesisBSC203(serialNo, travel, name, motor_channels, calibration); % Create an instance
             obj.singleton_id = serialNo;   % Define singleton ID
             Objects(end+1) = obj;   % Add the instance to the object list
         end
@@ -76,14 +78,16 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             obj.GetDevices;  % Call this to build device list if not already done
             if ~obj.isconnected()   % Connect and initialize device if not connected  
                 obj.deviceNET = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.CreateBenchtopStepperMotor(serialNo);  % Create an instance of .NET BenchtopStepperMotor
+                obj.deviceNET.Connect(serialNo);    % Connect to device via .NET interface
                 for i = obj.motor_channels
                     if ~isnan(i)
                         obj.channelsNET{i} = obj.deviceNET.GetChannel(i);   % Get channel objects of the device
                         obj.channelsNET{i}.ClearDeviceExceptions(); % Clear device exceptions via .NET interface
+                    else
+                        disp('Motor channel is empty')
                     end
                 end
                                                                         
-                obj.deviceNET.Connect(serialNo);    % Connect to device via .NET interface
                 obj.initialize(serialNo)    % Initialize the device
             else    % Device already connected
                 error('Device is already connected')
@@ -136,7 +140,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     obj.acceleration{i}=System.Decimal.ToDouble(velocityparams{i}.Acceleration);    % update acceleration parameter
                     obj.maxvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MaxVelocity);  % update max velocit parameter
                     obj.minvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MinVelocity);  % update Min velocity parameter
-                    obj.positions(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position); % motor positions
+                    obj.positions(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position * obj.calibration); % motor positions
                     homed(i) = ~obj.channelsNET{i}.NeedsHoming;
                     if obj.channelsNET{i}.State == Thorlabs.MotionControl.GenericMotorCLI.MotorStates.Idle
                         moving(i) = false;
@@ -214,11 +218,13 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     n = n + 1;
                     end
                 end
+                target_pos_calib = target_pos / obj.calibration;
                 for i = obj.motor_channels
                     if ~isnan(i)
                         try
                             workDone=obj.channelsNET{i}.InitializeWaitHandler(); % Initialise Waithandler for timeout
-                            obj.channelsNET{i}.MoveTo(target_pos(i), workDone);       % Move device to position via .NET interface
+                            
+                            obj.channelsNET{i}.MoveTo(target_pos_calib(i), workDone);       % Move device to position via .NET interface
                             obj.channelsNET{i}.Wait(obj.TIMEOUTMOVE);              % Wait for move to finish
                         catch
                             error(['Unable to Move channel ',obj.serialnumber{i},' to ',num2str(target_pos(i))]);
@@ -244,7 +250,8 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             
             % Calculate the position after the step 
             step_pos = [0 0 0];
-            obj.channelsNET{channelNo}.SetJogStepSize(abs(distance)) % Set the step size for jog
+            distance_calib = distance / obj.calibration;
+            obj.channelsNET{channelNo}.SetJogStepSize(abs(distance_calib)) % Set the step size for jog
             step_pos(channelNo) = obj.channelsNET{channelNo}.GetJogStepSize();
             target_pos = obj.positions + step_pos;
             
@@ -292,7 +299,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             pos = [NaN NaN NaN];
             for i = obj.motor_channels
                 if ~isnan(i)
-                    pos(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position);
+                    pos(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position) * obj.calibration;
                 end
             end
         end
