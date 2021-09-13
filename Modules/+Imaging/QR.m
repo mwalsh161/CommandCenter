@@ -105,11 +105,7 @@ classdef QR < Modules.Imaging
             img = obj.analyze();
         end
         % Required method of Modules.Imaging. The "snap button" in the UI calls this and displays the camera result on the imaging axis.
-<<<<<<< HEAD
-        function snap(obj, im, ~)
-=======
         function snap(obj, im)
->>>>>>> a4713cdfc7224cb38b8d9668481e9a96c6b966ab
             im.CData = obj.snapImage();
         end
         % Analysis method to detect QRs and display them in our graphics figure.

@@ -350,13 +350,6 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
 end
 
 function img = threshold(img)
-<<<<<<< HEAD
-    img = imgaussfilt(img,2);
-    img = imbinarize(img, 'adaptive');
-end
-function img = flatten(img)
-    img = imgaussfilt(img,10) - img;
-=======
     img = imbinarize(img);
 end
 function img = flatten(img)
@@ -364,7 +357,6 @@ function img = flatten(img)
 % class(imgaussfilt(img,10))
     img = imgaussfilt(img,10) - img;
 %     img = imgaussfilt(img,10) - imgaussfilt(img,2);
->>>>>>> a4713cdfc7224cb38b8d9668481e9a96c6b966ab
 end
 
 function v_ = affine(v, M, b)
