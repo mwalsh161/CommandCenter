@@ -12,7 +12,7 @@ classdef BSC203 < Modules.Stage
     end
     
     properties(GetObservable, SetObservable, AbortSet)
-        availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
+        availMotors = Prefs.MultipleChoice('', 'choices', Drivers.Kinesis.KinesisBSC203.getAvailMotors, 'allow_empty', true, 'set', 'set_controller');
         x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor');
         y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor');
         z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor');
@@ -71,6 +71,7 @@ classdef BSC203 < Modules.Stage
     methods
         function delete(obj)
             if isobject(obj.motors)
+                obj.motors.disconnect;
                 delete(obj.motors);
             end
         end
@@ -97,7 +98,7 @@ classdef BSC203 < Modules.Stage
             new_pos = [x,y,z]; % Allow for empty inputs in for loop below
 
             for i = 1:length(new_pos)
-                if isempty(new_pos(i)) || new_pos{i}==pos(i) || isnan(new_pos(i))
+                if isempty(new_pos(i)) || new_pos(i)==pos(i) || isnan(new_pos(i))
                     new_pos(i) = pos(i);
                 end
             end
@@ -105,6 +106,7 @@ classdef BSC203 < Modules.Stage
             if ~isempty(obj.motors)&&isobject(obj.motors) && isvalid(obj.motors)
                 obj.motors.moveto(new_pos)
             end
+            obj.position; % to update motor position
         end
 
         function enable(obj)
@@ -136,23 +138,23 @@ classdef BSC203 < Modules.Stage
             drawnow; % Flush callback queue
         end
 
-        function set.availMotors(obj,val)
-            % Validate that the serial number is the correct type for BSC203
-            if ~isempty(val)
-                if iscell(val)
-                    val = val{:};
-                end
-                if strcmp(val(1:2), '70')
-                    try
-                        obj.set_controller(val); 
-                    catch err
-                        rethrow(err)
-                    end
-                else
-                    error('This device is not of the correct type; serial number should start with a 70')
-                end
-            end
-        end
+%         function set.availMotors(obj,val)
+%             % Validate that the serial number is the correct type for BSC203
+%             if ~isempty(val)
+%                 if iscell(val)
+%                     val = val{:};
+%                 end
+%                 if strcmp(val(1:2), '70')
+%                     try
+%                         obj.set_controller(val); 
+%                     catch err
+%                         rethrow(err)
+%                     end
+%                 else
+%                     error('This device is not of the correct type; serial number should start with a 70')
+%                 end
+%             end
+%         end
         
         function val = set_x_motor(obj, channelNo, ~)
             % check to make sure that no other motor is using this channel before setting x motor
@@ -211,16 +213,20 @@ classdef BSC203 < Modules.Stage
             obj.set_controller
         end
         
-        function set_controller(obj, SerialNo)
-            % take val, and instantiate the driver for the BSC203
-
-            obj.motors = Drivers.Kinesis.KinesisBSC203.instance(SerialNo, [0 8], SerialNo, obj.motor_channels);
-            % Listeners will follow lifecycle of their motor
-            addlistener(obj.motors,'isMoving','PostSet',@obj.movingCallback);
-            addlistener(obj.motors,'Homed','PostSet',@obj.homedCallback);
-            % Intialize values
-            obj.homedCallback;
-            obj.movingCallback;
+        function val = set_controller(obj, SerialNo, ~)
+            if ~isempty(serialNo)
+                % take val, and instantiate the driver for the BSC203
+                val = SerialNo;
+                obj.motors = Drivers.Kinesis.KinesisBSC203.instance(SerialNo, [0 8], SerialNo, obj.motor_channels, 0.5);
+                % Listeners will follow lifecycle of their motor
+                addlistener(obj.motors,'isMoving','PostSet',@obj.movingCallback);
+                addlistener(obj.motors,'Homed','PostSet',@obj.homedCallback);
+                % Intialize values
+                obj.homedCallback;
+                obj.movingCallback;
+            else
+                obj.motors.disconnect;
+            end
         end
     end
 end
