@@ -28,7 +28,7 @@ classdef WhiteLight < Modules.Source
                 obj.ni.view;
                 rethrow(err)
             end
-            obj.source_on = boolean(line.state);
+            obj.source_on = logical(line.state);
             obj.listeners = addlistener(line,'state','PostSet',@obj.update);
         end
     end
@@ -98,7 +98,7 @@ classdef WhiteLight < Modules.Source
             if isnan(line.state)
                 obj.source_on = true; % Assume on if unknown
             else
-                obj.source_on = boolean(line.state);
+                obj.source_on = logical(line.state);
                 if ~isempty(obj.sliderH)&&isvalid(obj.sliderH)&&obj.source_on
                     set(obj.sliderH,'value',line.state*20)
                 end

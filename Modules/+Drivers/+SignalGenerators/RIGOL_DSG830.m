@@ -244,7 +244,7 @@ classdef RIGOL_DSG830 < Drivers.SignalGenerators.SignalGenerator
         end
         
         function setMWState(obj, state)
-            assert(isboolean(state),'State must be a boolean');
+            assert(islogical(state),'State must be a boolean');
             string = sprintf(':OUTPut:STATe %d', state);
             obj.writeOnly(string);
         end

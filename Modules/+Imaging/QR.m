@@ -44,6 +44,8 @@ classdef QR < Modules.Imaging
         X = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected X position in QR-space of the center of the field of view.');
         Y = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected Y position in QR-space of the center of the field of view.');
         N = Prefs.Integer(NaN,  'readonly', true,                       'help_text', 'Number of self-consistent QR codes within a field of view.')
+        m
+        b
     end
     
     % Variables required for imaging modules. This should be cleaned up in the future.

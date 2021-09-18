@@ -110,7 +110,7 @@ classdef stage < Modules.Driver
             end
         end
         function set.zigzag(obj,val)
-            obj.zigzag = boolean(val);
+            obj.zigzag = logical(val);
         end
         function val = get.voltage(obj)
             val = NaN(1,3);

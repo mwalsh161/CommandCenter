@@ -41,7 +41,7 @@ classdef Piezo < Modules.Imaging
                 obj.ni.view;
                 rethrow(err)
             end
-            obj.mirror_up = boolean(line.state);
+            obj.mirror_up = logical(line.state);
             obj.listeners = addlistener(line,'state','PostSet',@obj.mirrorUpdate);
         end
     end
@@ -176,7 +176,7 @@ classdef Piezo < Modules.Imaging
         end
         function mirrorUpdate(obj,varargin)
             line = obj.ni.getLines('WidefieldMirror','out');
-            obj.mirror_up = boolean(line.state);
+            obj.mirror_up = logical(line.state);
             if obj.mirror_up
                 obj.mirrorUp;
             else

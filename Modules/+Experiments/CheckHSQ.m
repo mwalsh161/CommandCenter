@@ -152,7 +152,7 @@ classdef CheckHSQ < Modules.Experiment
                 assert(~obj.abort_request,'User aborted.')
                 % Find NVs (this step takes a long time)
                 relativePos = currentPos(1:2) - [x(i) y(i)];
-                assert(~boolean(sum(isnan(relativePos))),'relativePos is nan.')
+                assert(~logical(sum(isnan(relativePos))),'relativePos is nan.')
                 %r = radii(i);
                 %cropped = im.image([-r r]*2+relativePos(1),[-r r]*2+relativePos(2));
                 if ~isempty(f)&&isvalid(f)

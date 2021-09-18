@@ -1,4 +1,4 @@
-classdef AutoChipletSearch < Modules.Experiment
+classdef AutoChipletSearch2 < Modules.Experiment
     %AutoChipletSearch Does a measurement on an array of chiplets
     % Useful to list any dependencies here too
 
@@ -54,7 +54,7 @@ classdef AutoChipletSearch < Modules.Experiment
         obj = instance()
     end
     methods(Access=private)
-        function obj = AutoChipletSearch()
+        function obj = AutoChipletSearch2()
             % Constructor (should not be accessible to command line!)
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end

@@ -24,7 +24,7 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
                 obj.ni.view;
                 rethrow(err)
             end
-            obj.source_on = boolean(line.state);
+            obj.source_on = logical(line.state);
             obj.listeners = addlistener(line,'state','PostSet',@obj.update);
         end
     end
@@ -58,7 +58,7 @@ classdef Laser532_nidaq < Modules.Source & Sources.Verdi_invisible
         % Settings and Callbacks
         function update(obj,varargin)
             line = obj.ni.getLines('532 Laser','out');
-            obj.source_on = boolean(line.state);
+            obj.source_on = logical(line.state);
             if obj.source_on
                 obj.on;
             else
