@@ -20,7 +20,8 @@ function run( obj,status,managers,ax )
 
     panel = ax.Parent; delete(ax); % Get subplots
     % Image processing subplot
-    image_ax = subplot(1,2,1,'parent',panel);
+    galvo_ax = subplot(1,2,1,'parent',panel);
+    cam_ax = subplot(1,2,2,'parent',panel);
     
     obj.laser.off;
     obj.whitelight.off;
@@ -38,7 +39,7 @@ function run( obj,status,managers,ax )
                     managers.Path.select_path('camera')
                 end
                 
-                img = imagesc(nan(obj.camera.resolution(1), obj.camera.resolution(2)),'parent',image_ax);
+                img = imagesc(nan(obj.camera.resolution(1), obj.camera.resolution(2)),'parent',cam_ax);
                 obj.camera.snap(img)
                 obj.camera_img = img.CData;
                 %image = obj.camera.snapImage();
@@ -55,9 +56,9 @@ function run( obj,status,managers,ax )
 %                 end
 
                 % Center chiplet
-                serialNo = '70177684';
-                motor_obj = motor();
-                motor_obj.connect(serialNo);
+                %serialNo = '70177684';
+                %motor_obj = motor();
+                %motor_obj.connect(serialNo);
 
 
                 % Go to confocal scan
@@ -65,7 +66,6 @@ function run( obj,status,managers,ax )
                 obj.laser.on
                 managers.Path.select_path('APD')
                 
-
                 % Process image to get the ROI for confocal measurements
                 % chiplet_points_cam = importdata('camera_points.txt');
                 % chiplet_points_galvo = importdata('galvo_points.txt');
@@ -74,7 +74,7 @@ function run( obj,status,managers,ax )
                 new_ROI = obj.FindROI(mapping_parameters);
                 obj.galvo.ROI = new_ROI;%[-0.3331 0.1825;-0.0061 0.4256]; %obj.FindROI(img.CData, mapping_params); % example to switch ROI
                 obj.galvo.resolution = [200 200];
-                img = imagesc(nan(obj.galvo.resolution(1), obj.galvo.resolution(2)),'parent',image_ax);
+                img = imagesc(nan(obj.galvo.resolution(1), obj.galvo.resolution(2)),'parent',galvo_ax);
                 obj.galvo.snap(img); % example of doing galvo scan
                 figure; imagesc(img.CData);
 %                 
