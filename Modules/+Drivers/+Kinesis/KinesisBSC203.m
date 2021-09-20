@@ -1,5 +1,5 @@
 classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
-    
+    % Driver for kinesis stages. Currently only works with motor_channels = [1 2 3] (i.e. x y z motors in ascending order). Situations other than this will result in wrong motors moving, to be fixed.
     properties
         name
         motor_channels

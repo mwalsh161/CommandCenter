@@ -13,9 +13,9 @@ classdef BSC203 < Modules.Stage
     
     properties(GetObservable, SetObservable, AbortSet)
         availMotors = Prefs.MultipleChoice('', 'choices', Drivers.Kinesis.KinesisBSC203.getAvailMotors, 'allow_empty', true, 'set', 'set_controller');
-        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor');
-        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor');
-        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor');
+        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor','readonly',true); % Show only for now; need to fix driver to be able to change properly
+        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor','readonly',true);
+        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor','readonly',true);
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Default here will only matter if motors aren't set
