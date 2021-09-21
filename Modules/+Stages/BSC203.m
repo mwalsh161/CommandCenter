@@ -8,7 +8,7 @@ classdef BSC203 < Modules.Stage
     %   Home is -2,-2,-2
     
     properties
-        prefs = {'availMotors','x_motor','y_motor','z_motor'};
+        prefs = {'availMotors','x_motor','y_motor','z_motor', 'factor'};
     end
     
     properties(GetObservable, SetObservable, AbortSet)
@@ -16,6 +16,7 @@ classdef BSC203 < Modules.Stage
         x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor','readonly',true); % Show only for now; need to fix driver to be able to change properly
         y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor','readonly',true);
         z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor','readonly',true);
+        factor = Prefs.Double(0.5, 'help_text', 'The factor between the actual distance moved and the distance read from Kinesis')
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Default here will only matter if motors aren't set
@@ -187,7 +188,7 @@ classdef BSC203 < Modules.Stage
             if ~isempty(SerialNo)
                 % take val, and instantiate the driver for the BSC203
                 val = SerialNo;
-                obj.motors = Drivers.Kinesis.KinesisBSC203.instance(SerialNo, [0 8], SerialNo, obj.motor_channels, 0.5);
+                obj.motors = Drivers.Kinesis.KinesisBSC203.instance(SerialNo, [0 8], SerialNo, obj.motor_channels, obj.factor);
                 % Listeners will follow lifecycle of their motor
                 addlistener(obj.motors,'isMoving','PostSet',@obj.movingCallback);
                 addlistener(obj.motors,'Homed','PostSet',@obj.homedCallback);
