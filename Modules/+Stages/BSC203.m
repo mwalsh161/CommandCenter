@@ -8,14 +8,15 @@ classdef BSC203 < Modules.Stage
     %   Home is -2,-2,-2
     
     properties
-        prefs = {'availMotors','x_motor','y_motor','z_motor'};
+        prefs = {'availMotors','x_motor','y_motor','z_motor', 'factor'};
     end
     
     properties(GetObservable, SetObservable, AbortSet)
-        availMotors = Drivers.Kinesis.KinesisBSC203.getAvailMotors;
-        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor');
-        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor');
-        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor');
+        availMotors = Prefs.MultipleChoice('', 'choices', Drivers.Kinesis.KinesisBSC203.getAvailMotors, 'allow_empty', true, 'set', 'set_controller');
+        x_motor = Prefs.MultipleChoice(1,'choices',{1,2,3},'allow_empty',true,'set','set_x_motor','help_text','Which channel in the controller controls the x direction motor','readonly',true); % Show only for now; need to fix driver to be able to change properly
+        y_motor = Prefs.MultipleChoice(2,'choices',{1,2,3},'allow_empty',true,'set','set_y_motor','help_text','Which channel in the controller controls the y direction motor','readonly',true);
+        z_motor = Prefs.MultipleChoice(3,'choices',{1,2,3},'allow_empty',true,'set','set_z_motor','help_text','Which channel in the controller controls the z direction motor','readonly',true);
+        factor = Prefs.Double(0.5, 'help_text', 'The factor between the actual distance moved and the distance read from Kinesis')
     end
     properties(SetAccess=private,SetObservable,AbortSet)
         % Default here will only matter if motors aren't set
@@ -50,6 +51,35 @@ classdef BSC203 < Modules.Stage
         function obj = BSC203()
             obj.loadPrefs;
         end
+        
+        function val = set_motor_generic(obj, channelNo, motor_index)
+            % Generic function that checks to make sure that no other motor
+            % is using this channel before setting motor connection
+            
+            not_motor_index = [1 2 3];
+            not_motor_index = not_motor_index(not_motor_index ~= motor_index);
+            
+            if isempty(channelNo)
+                obj.motor_channels(motor_index) = NaN;
+                obj.motors.disconnect;
+                delete(obj.motors);
+            elseif channelNo ~= obj.motor_channels(motor_index) % Need to check to prevent initialising motor multiple times at startup
+                if any(obj.motor_channels(not_motor_index) == channelNo) % Check that not equal to an existing channel
+                    error(strcat('Channel ', num2str(channelNo), ' was already used for other motors.'))
+                else
+                    if ~isempty(obj.motors) && isobject(obj.motors) && isvalid(obj.motors) && obj.motors.isconnected
+                        obj.motors.disconnect;
+                        delete(obj.motors);
+                    end
+                    
+                    obj.motor_channels(motor_index) = channelNo;
+                end
+            end
+            
+            obj.set_controller(obj.availMotors);
+            
+            val = channelNo;
+        end
     end
     % Callback functions for BSC203 Motor
     methods(Access=?KinesisBSC203)
@@ -71,6 +101,7 @@ classdef BSC203 < Modules.Stage
     methods
         function delete(obj)
             if isobject(obj.motors)
+                obj.motors.disconnect;
                 delete(obj.motors);
             end
         end
@@ -92,18 +123,20 @@ classdef BSC203 < Modules.Stage
             end
         end
         function move(obj,x,y,z)
-            pos = obj.position;
+            % Method to move the motor to a given position [x, y, z]
+            pos = obj.position; % reads the current position
 
-            new_pos = [x,y,z]; % Allow for empty inputs in for loop below
+            new_pos = [x,y,z]; 
 
             for i = 1:length(new_pos)
-                if isempty(new_pos(i)) || new_pos{i}==pos(i) || isnan(new_pos(i))
-                    new_pos(i) = pos(i);
+                % Check whether the input target position for a certain axis is empty,
+                if isempty(new_pos(i)) || new_pos(i)==pos(i) || isnan(new_pos(i))
+                    new_pos(i) = pos(i);    % if empty, set the target position to the original position of that axis
                 end
             end
             
             if ~isempty(obj.motors)&&isobject(obj.motors) && isvalid(obj.motors)
-                obj.motors.moveto(new_pos)
+                obj.motors.moveto(new_pos) % move to the new position 
             end
         end
 
@@ -135,93 +168,40 @@ classdef BSC203 < Modules.Stage
             end
             drawnow; % Flush callback queue
         end
-
-        function set.availMotors(obj,val)
-            % Validate that the serial number is the correct type for BSC203
-            if ~isempty(val)
-                if iscell(val)
-                    val = val{:};
-                end
-                if strcmp(val(1:2), '70')
-                    try
-                        obj.set_controller(val); 
-                    catch err
-                        rethrow(err)
-                    end
-                else
-                    error('This device is not of the correct type; serial number should start with a 70')
-                end
-            end
-        end
         
         function val = set_x_motor(obj, channelNo, ~)
-            % check to make sure that no other motor is using this channel before setting x motor
-            if ~isnan(obj.motor_channels(1)) && obj.motor_channels(1) ~= channelNo
-                error(strcat('Channel ', num2str(channelNo), ' was already used for other motors.'))
-            else
-                val = channelNo;
-
-                if isnumeric(channelNo)
-                    obj.motor_channels(1) = channelNo;
-
-                elseif strcmp(channelNo, '<None>')
-                    obj.motor_channels(1) = NaN;
-                else
-                    error('x_motor assignment type was not recognised.')
-                end
-            end
-            obj.set_controller
+            % Use generic function with appropriate index to check to make sure that no other motor is using this channel before setting x motor
+            val = obj.set_motor_generic(channelNo, 1);
         end
 
         function val = set_y_motor(obj, channelNo, ~)
             % check to make sure that no other motor is using this channel before setting y motor
-            if ~isnan(obj.motor_channels(2)) && obj.motor_channels(2) ~= channelNo
-                error(strcat('Channel ', num2str(channelNo), ' was already used for other motors.'))
-            else
-                val = channelNo;
-
-                if isnumeric(channelNo)
-                    obj.motor_channels(2) = channelNo;
-
-                elseif strcmp(channelNo, '<None>')
-                    obj.motor_channels(2) = NaN;
-                else
-                    error('x_motor assignment type was not recognised.')
-                end
-            end
-            obj.set_controller
+            val = obj.set_motor_generic(channelNo, 2);
         end
 
         function val = set_z_motor(obj, channelNo, ~)
             % check to make sure that no other motor is using this channel before setting z motor
-            if ~isnan(obj.motor_channels(3)) && obj.motor_channels(3) ~= channelNo
-                error(strcat('Channel ', num2str(channelNo), ' was already used for other motors.'))
-            else
-                val = channelNo;
-
-                if isnumeric(channelNo)
-                    obj.motor_channels(3) = channelNo;
-
-                elseif strcmp(channelNo, '<None>')
-                    obj.motor_channels(3) = NaN;
-                else
-                    error('x_motor assignment type was not recognised.')
-                end
-            end
-            obj.set_controller
+            val = obj.set_motor_generic(channelNo, 3);
         end
         
-        function set_controller(obj, SerialNo)
-            % take val, and instantiate the driver for the BSC203
-
-            obj.motors = Drivers.Kinesis.KinesisBSC203.instance(SerialNo, [0 8], SerialNo, obj.motor_channels);
-            % Listeners will follow lifecycle of their motor
-            addlistener(obj.motors,'isMoving','PostSet',@obj.movingCallback);
-            addlistener(obj.motors,'Homed','PostSet',@obj.homedCallback);
-            % Intialize values
-            obj.homedCallback;
-            obj.movingCallback;
+        function val = set_controller(obj, SerialNo, ~)
+            if ~isempty(SerialNo)
+                % take val, and instantiate the driver for the BSC203
+                val = SerialNo;
+                obj.motors = Drivers.Kinesis.KinesisBSC203.instance(SerialNo, [0 8], SerialNo, obj.motor_channels, obj.factor);
+                % Listeners will follow lifecycle of their motor
+                addlistener(obj.motors,'isMoving','PostSet',@obj.movingCallback);
+                addlistener(obj.motors,'Homed','PostSet',@obj.homedCallback);
+                % Intialize values
+                obj.homedCallback;
+                obj.movingCallback;
+            else
+                if ~isempty(obj.motors) && isobject(obj.motors) && isvalid(obj.motors) && obj.motors.isconnected
+                    obj.motors.disconnect;
+                    delete(obj.motors);
+                end
+                val = [];
+            end
         end
     end
 end
-

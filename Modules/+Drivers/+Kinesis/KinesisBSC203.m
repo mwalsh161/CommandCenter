@@ -1,5 +1,5 @@
 classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
-    
+    % Driver for kinesis stages. Currently only works with motor_channels = [1 2 3] (i.e. x y z motors in ascending order). Situations other than this will result in wrong motors moving, to be fixed.
     properties
         name
         motor_channels
@@ -25,7 +25,8 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         Homed;
         isMoving = false;
 
-        Travel = [-2 2] * 1000;
+        Travel;
+        factor;
     end
 
     properties(Hidden)
@@ -38,18 +39,19 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
 
     methods(Access=private)
         % Constructor
-        function obj = KinesisBSC203(serialNo, travel, name, motor_channels)  % Instantiate the KinesisBSC203 motor object
-            Drivers.Kinesis.KinesisBSC203.loaddlls; % Load DLLs if not already loaded           
+        function obj = KinesisBSC203(serialNo, travel, name, motor_channels, factor)  % Instantiate the KinesisBSC203 motor object
+            Drivers.Kinesis.KinesisBSC203.loaddlls; % Load DLLs if not already loaded 
+            obj.motor_channels = motor_channels;
+            obj.factor = factor;
             obj.connect(serialNo); % Connect device
             obj.Travel = travel;
-            obj.name = name;
-            obj.motor_channels = motor_channels;
+            obj.name = name;          
         end
     end
 
     methods(Static)
         % Use this to create/retrieve instance associated with serialNo
-        function obj = instance(serialNo, travel, name, motor_channels)
+        function obj = instance(serialNo, travel, name, motor_channels, factor)
             mlock;
             if nargin < 2
                 name = serialNo;
@@ -64,7 +66,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                     return
                 end
             end
-            obj = Drivers.Kinesis.KinesisBSC203(serialNo, travel, name, motor_channels); % Create an instance
+            obj = Drivers.Kinesis.KinesisBSC203(serialNo, travel, name, motor_channels, factor); % Create an instance
             obj.singleton_id = serialNo;   % Define singleton ID
             Objects(end+1) = obj;   % Add the instance to the object list
         end
@@ -76,14 +78,16 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             obj.GetDevices;  % Call this to build device list if not already done
             if ~obj.isconnected()   % Connect and initialize device if not connected  
                 obj.deviceNET = Thorlabs.MotionControl.Benchtop.StepperMotorCLI.BenchtopStepperMotor.CreateBenchtopStepperMotor(serialNo);  % Create an instance of .NET BenchtopStepperMotor
+                obj.deviceNET.Connect(serialNo);    % Connect to device via .NET interface
                 for i = obj.motor_channels
                     if ~isnan(i)
                         obj.channelsNET{i} = obj.deviceNET.GetChannel(i);   % Get channel objects of the device
                         obj.channelsNET{i}.ClearDeviceExceptions(); % Clear device exceptions via .NET interface
+                    else
+                        disp('Motor channel is empty')
                     end
                 end
                                                                         
-                obj.deviceNET.Connect(serialNo);    % Connect to device via .NET interface
                 obj.initialize(serialNo)    % Initialize the device
             else    % Device already connected
                 error('Device is already connected')
@@ -114,8 +118,9 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                         % Initialize current motor settings
                         obj.currentDeviceSettingsNET{i}=obj.channelsNET{i}.MotorDeviceSettings;
                         obj.deviceInfoNET{i} = obj.channelsNET{i}.GetDeviceInfo();  % Get deviceInfo via .NET interface
-                    catch
-                        error(['Unable to initialize channel ', num2str(i)]);
+                    catch err
+                        disp(['Unable to initialize channel ', num2str(i)]);
+                        rethrow err                     
                     end
                 end
             end
@@ -126,19 +131,20 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             obj.isconnected = obj.deviceNET.IsConnected();  % connection status
             homed = true(1, 3);
             moving = false(1, 3);            
-            for i = obj.motor_channels
-                if ~isnan(i)
-                    obj.serialnumbers{i}=char(obj.channelsNET{i}.DeviceID); % update serial number
-                    obj.controllername{i}=char(obj.deviceInfoNET{i}.Name);  % update controleller name
-                    obj.controllerdescription{i}=char(obj.deviceInfoNET{i}.Description);    % update controller description
-                    obj.stagename{i}=char(obj.motorSettingsNET{i}.DeviceSettingsName);  % update stagename                
-                    velocityparams{i}=obj.channelsNET{i}.GetVelocityParams();   % update velocity parameter
-                    obj.acceleration{i}=System.Decimal.ToDouble(velocityparams{i}.Acceleration);    % update acceleration parameter
-                    obj.maxvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MaxVelocity);  % update max velocit parameter
-                    obj.minvelocity{i}=System.Decimal.ToDouble(velocityparams{i}.MinVelocity);  % update Min velocity parameter
-                    obj.positions(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position); % motor positions
-                    homed(i) = ~obj.channelsNET{i}.NeedsHoming;
-                    if obj.channelsNET{i}.State == Thorlabs.MotionControl.GenericMotorCLI.MotorStates.Idle
+            for i = 1:3
+                
+                if ~isnan(obj.motor_channels(i))
+                    obj.serialnumbers{obj.motor_channels(i)}=char(obj.channelsNET{obj.motor_channels(i)}.DeviceID); % update serial number
+                    obj.controllername{obj.motor_channels(i)}=char(obj.deviceInfoNET{obj.motor_channels(i)}.Name);  % update controleller name
+                    obj.controllerdescription{obj.motor_channels(i)}=char(obj.deviceInfoNET{obj.motor_channels(i)}.Description);    % update controller description
+                    obj.stagename{obj.motor_channels(i)}=char(obj.motorSettingsNET{obj.motor_channels(i)}.DeviceSettingsName);  % update stagename                
+                    velocityparams{obj.motor_channels(i)}=obj.channelsNET{obj.motor_channels(i)}.GetVelocityParams();   % update velocity parameter
+                    obj.acceleration{obj.motor_channels(i)}=System.Decimal.ToDouble(velocityparams{obj.motor_channels(i)}.Acceleration);    % update acceleration parameter
+                    obj.maxvelocity{obj.motor_channels(i)}=System.Decimal.ToDouble(velocityparams{obj.motor_channels(i)}.MaxVelocity);  % update max velocit parameter
+                    obj.minvelocity{obj.motor_channels(i)}=System.Decimal.ToDouble(velocityparams{obj.motor_channels(i)}.MinVelocity);  % update Min velocity parameter
+                    obj.positions(i) = System.Decimal.ToDouble(obj.channelsNET{obj.motor_channels(i)}.Position) * obj.factor; % motor positions
+                    homed(i) = ~obj.channelsNET{obj.motor_channels(i)}.NeedsHoming;
+                    if obj.channelsNET{obj.motor_channels(i)}.State == Thorlabs.MotionControl.GenericMotorCLI.MotorStates.Idle
                         moving(i) = false;
                     else
                         moving(i) = true;
@@ -152,13 +158,13 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         function disconnect(obj) 
             obj.isconnected = obj.deviceNET.IsConnected();    % Read connection status
             if obj.isconnected  % Disconnect device if connected
-                for i = obj.motor_channels
-                    if ~isnan(i)
+                for i = 1:3
+                    if ~isnan(obj.motor_channels(i))
                         try
-                            obj.channelsNET{i}.StopPolling();   % Stop polling device via .NET interface
-                            obj.channelsNET{i}.DisableDevice(); % Disable device via .NET interface
+                            obj.channelsNET{obj.motor_channels(i)}.StopPolling();   % Stop polling device via .NET interface
+                            obj.channelsNET{obj.motor_channels(i)}.DisableDevice(); % Disable device via .NET interface
                         catch
-                            error(['Unable to disconnect device',obj.serialnumbers{i}]);
+                            error(['Unable to disconnect device',obj.serialnumbers{obj.motor_channels(i)}]);
                         end
 
                     end
@@ -166,7 +172,7 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
                 try
                     obj.deviceNET.Disconnect(true)
                 catch
-                    error(['Unable to disconnect device',obj.serialnumbers{i}]);
+                    error(['Unable to disconnect device',obj.serialnumbers{obj.motor_channels(i)}]);
                 end
                 obj.isconnected = obj.deviceNET.IsConnected();
             else % Cannot disconnect because device not connected
@@ -175,11 +181,11 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         end
 
         function home(obj)
-            for i = obj.motor_channels
-                if ~isnan(i)
-                    workDone=obj.channelsNET{i}.InitializeWaitHandler();     % Initialise Waithandler for timeout
-                    obj.channelsNET{i}.Home(workDone);                       % Home device via .NET interface
-                    obj.channelsNET{i}.Wait(obj.TIMEOUTMOVE);                % Wait for move to finish     
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
+                    workDone=obj.channelsNET{obj.motor_channels(i)}.InitializeWaitHandler();     % Initialise Waithandler for timeout
+                    obj.channelsNET{obj.motor_channels(i)}.Home(workDone);                       % Home device via .NET interface
+                    obj.channelsNET{obj.motor_channels(i)}.Wait(obj.TIMEOUTMOVE);                % Wait for move to finish     
                 end                 
             end
             obj.updatestatus; % Update status variables from device
@@ -191,42 +197,30 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             %   Error if the channel needs to be homed
             %   Otherwise returns true
             tf = true;
-            for i = obj.motor_channels
-                if ~isnan(i)
-                    assert(~obj.channelsNET{i}.NeedsHoming,'Motor %f is not homed!', i)
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
+                    assert(~obj.channelsNET{obj.motor_channels(i)}.NeedsHoming,'Motor %f is not homed!', i)
                     assert(target_pos(i) <= max(obj.Travel) && target_pos(i) >= min(obj.Travel),...
-                        'Attempted to move motor %f to %f, but it is limited to %f, %f', i, target_pos, min(obj.Travel), max(obj.Travel))
+                        'Attempted to move motor %f to %f, but it is limited to %f, %f', obj.motor_channels(i), target_pos, min(obj.Travel), max(obj.Travel))
                 end
             end
         end
 
         function moveto(obj, target_pos)
             %   Move to target position, target_pos := 1 * 3 array of double
-            tf = obj.checkMove(target_pos);
-            if tf
-                n = 1;
-                target_pos_channel = [NaN NaN NaN];
-                for channelNo = obj.motor_channels
-                    if isnan(channelNo)
-                        target_pos_channel(n) = NaN;
-                    else
-                        target_pos_channel(n) = target_pos(channelNo);
-                    n = n + 1;
+            assert(obj.checkMove(target_pos),'Target position is out of range')
+            target_pos_calib = target_pos / obj.factor;
+            obj.isMoving = true;
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
+                    try
+                        workDone=obj.channelsNET{obj.motor_channels(i)}.InitializeWaitHandler(); % Initialise Waithandler for timeout
+                        obj.channelsNET{obj.motor_channels(i)}.MoveTo(target_pos_calib(i), workDone);       % Move device to position via .NET interface
+                        obj.channelsNET{obj.motor_channels(i)}.Wait(obj.TIMEOUTMOVE);              % Wait for move to finish
+                    catch
+                        error(['Unable to Move channel ',obj.serialnumbers{obj.motor_channels(i)},' to ',num2str(target_pos(i))]);
                     end
                 end
-                for i = obj.motor_channels
-                    if ~isnan(i)
-                        try
-                            workDone=obj.channelsNET{i}.InitializeWaitHandler(); % Initialise Waithandler for timeout
-                            obj.channelsNET{i}.MoveTo(target_pos(i), workDone);       % Move device to position via .NET interface
-                            obj.channelsNET{i}.Wait(obj.TIMEOUTMOVE);              % Wait for move to finish
-                        catch
-                            error(['Unable to Move channel ',obj.serialnumber{i},' to ',num2str(target_pos(i))]);
-                        end
-                    end
-                end
-            else
-                error('Target position is out of range')
             end
             obj.updatestatus
         end  
@@ -244,7 +238,8 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
             
             % Calculate the position after the step 
             step_pos = [0 0 0];
-            obj.channelsNET{channelNo}.SetJogStepSize(abs(distance)) % Set the step size for jog
+            distance_calib = distance / obj.factor;
+            obj.channelsNET{channelNo}.SetJogStepSize(abs(distance_calib)) % Set the step size for jog
             step_pos(channelNo) = obj.channelsNET{channelNo}.GetJogStepSize();
             target_pos = obj.positions + step_pos;
             
@@ -276,12 +271,12 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
         end
         
         function stop(h, immediate) % Stop the motor moving (needed if set motor to continous)
-            for i = obj.motor_channels
-                if ~isnan(i)
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
                     if nargin > 1 && immediate
-                        h.channelsNET{i}.StopImmediate();
+                        h.channelsNET{obj.motor_channels(i)}.StopImmediate();
                     else
-                        h.channelsNET{channelNo}.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
+                        h.channelsNET{obj.motor_channels(i)}.Stop(h.TIMEOUTMOVE); % Stop motor movement via.NET interface
                     end
                 end
             end
@@ -290,26 +285,26 @@ classdef KinesisBSC203 < Drivers.Kinesis.Kinesis_invisible & Modules.Driver
 
         function pos = get.positions(obj)
             pos = [NaN NaN NaN];
-            for i = obj.motor_channels
-                if ~isnan(i)
-                    pos(i) = System.Decimal.ToDouble(obj.channelsNET{i}.Position);
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
+                    pos(i) = System.Decimal.ToDouble(obj.channelsNET{obj.motor_channels(i)}.Position) * obj.factor;
                 end
             end
         end
 
         function enable(obj)
-            for i = obj.motor_channels
-                if ~isnan(i)
-                    obj.channelsNET{i}.EnableDevice();  % Enable device via .NET interface
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
+                    obj.channelsNET{obj.motor_channels(i)}.EnableDevice();  % Enable device via .NET interface
                 end
             end
             obj.updatestatus
         end
 
         function disable(obj)
-            for i = obj.motor_channels
-                if ~isnan(i)
-                    obj.channelsNET{i}.DisableDevice();  % Enable device via .NET interface
+            for i = 1:3
+                if ~isnan(obj.motor_channels(i))
+                    obj.channelsNET{obj.motor_channels(i)}.DisableDevice();  % Enable device via .NET interface
                 end
             end
             obj.updatestatus
