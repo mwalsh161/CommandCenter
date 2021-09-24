@@ -20,6 +20,7 @@ classdef QR < Modules.Imaging
         X_expected = NaN;
         Y_expected = NaN;
     end
+    
     properties(Constant, Hidden)
         displaytypes = {'Raw', 'Flattened', 'Convolution X', 'Convolution Y', '(Convolution X)^3 + (Convolution Y)^3', 'Thresholded'};
     end
@@ -44,14 +45,14 @@ classdef QR < Modules.Imaging
         X = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected X position in QR-space of the center of the field of view.');
         Y = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected Y position in QR-space of the center of the field of view.');
         N = Prefs.Integer(NaN,  'readonly', true,                       'help_text', 'Number of self-consistent QR codes within a field of view.')
-        m
-        b
+        M = Prefs.DoubleArray(NaN, 'readonly', true, 'help_text', 'matrix for affine transformation between QR and camera space')
+        b = Prefs.DoubleArray(NaN, 'readonly', true, 'help_text', 'offset vector for affine transformation between QR and camera space')
     end
     
     % Variables required for imaging modules. This should be cleaned up in the future.
     properties
         maxROI = [-1 1; -1 1];
-        prefs = {'image', 'flip', 'rotate', 'display', 'calibration', 'QR_ang'};
+        prefs = {'image', 'flip', 'rotate', 'display', 'calibration', 'QR_ang', 'X', 'Y', 'N', 'M', 'b'};
     end
     properties(GetObservable,SetObservable)
         resolution = [120 120];
@@ -136,6 +137,8 @@ classdef QR < Modules.Imaging
             % Coordinates in QR-space of the center of the field of view.
             obj.X = options_fit.Vcen(1);
             obj.Y = options_fit.Vcen(2);
+            obj.M = options_fit.M;
+            obj.b = options_fit.b;
             
             % Number of successfully-decoded QRs.
             obj.N = sum(~options_fit.outliers & ~isnan(V(1,:)));
