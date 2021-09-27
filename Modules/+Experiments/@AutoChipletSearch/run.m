@@ -46,21 +46,20 @@ function run( obj,status,managers,ax )
                 figure; imagesc(img.CData);
                 %figure; imagesc(image)
 
-%                 % Focus
+                % Focus
+                % Just doing one focus type for the moment with the Kinesis stage
+                obj.AutoFocus(obj.autofocus_range, obj.autofocus_step_size);
 %                 try
-%                     obj.camera.ContrastFocus(managers, obj.fine_autofocus_range, obj.fine_autofocus_step_size, obj.fine_autofocus_stage, false);
+%                     obj.AutoFocus(obj.fine_autofocus_range, obj.fine_autofocus_step_size, obj.fine_autofocus_stage);
 %                 catch err
 %                     % If autofocus doesn't work, try coarse autofocus before giving up
-%                     obj.camera.ContrastFocus(managers, obj.coarse_autofocus_range, obj.coarse_autofocus_step_size, obj.coarse_autofocus_stage, false);
-%                     obj.camera.ContrastFocus(managers, obj.fine_autofocus_range, obj.fine_autofocus_step_size, obj.fine_autofocus_stage, false);
+%                     obj.AutoFocus(obj.coarse_autofocus_range, obj.coarse_autofocus_step_size, obj.fine_autofocus_stage);
+%                     obj.AutoFocus(obj.fine_autofocus_range, obj.fine_autofocus_step_size, obj.fine_autofocus_stage);
 %                 end
 
                 % Center chiplet
-                %serialNo = '70177684';
-                %motor_obj = motor();
-                %motor_obj.connect(serialNo);
-
-
+                obj.centering_info.shiftinfo = obj.ShiftToCenter;
+                
                 % Go to confocal scan
                 obj.whitelight.off;
                 obj.laser.on
