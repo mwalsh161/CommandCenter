@@ -7,19 +7,23 @@ classdef AutoChipletSearch < Modules.Experiment
         chiplet_spacing = Prefs.DoubleArray([65 65], 'units','um','help_text','Array of x and y spacing of chiplets');
         chiplet_number = Prefs.DoubleArray([2 2], 'units','um','help_text','Number of chiplets along x and y');
         
-        fine_autofocus_stage = Prefs.ModuleInstance('help_text','Stage that does fine autofocusing (probably piezo)');
-        fine_autofocus_range = Prefs.DoubleArray([0 1], 'units', 'um', 'help_text', 'Range around current stage position that autofocus will search to find focus');
-        fine_autofocus_step_size = Prefs.Double(0.1, 'units', 'um', 'help_text','Step size to use for fine autofocusing','min',0);
+        autofocus_stage = Prefs.ModuleInstance('help_text','Stage that does coarse autofocusing (probably setpper)');
+        autofocus_range = Prefs.Double(0.05, 'units', 'mm', 'help_text', 'Range around current stage position that autofocus will search to find focus');
+        autofocus_step_size = Prefs.Double(0.001, 'units', 'mm', 'help_text','Step size to use for autofocusing','min',0);
         
-        coarse_autofocus_stage = Prefs.ModuleInstance('help_text','Stage that does coarse autofocusing (probably setpper)');
-        coarse_autofocus_range = Prefs.DoubleArray([-1 1], 'units', 'um', 'help_text', 'Range around current stage position that autofocus will search to find focus');
-        coarse_autofocus_step_size = Prefs.Double(0.1, 'units', 'um', 'help_text','Step size to use for autofocusing','min',0);
+%         fine_autofocus_stage = Prefs.ModuleInstance('help_text','Stage that does fine autofocusing (probably piezo)');
+%         fine_autofocus_range = Prefs.DoubleArray([0 1], 'units', 'um', 'help_text', 'Range around current stage position that autofocus will search to find focus');
+%         fine_autofocus_step_size = Prefs.Double(0.1, 'units', 'um', 'help_text','Step size to use for fine autofocusing','min',0);
+%         
+%         coarse_autofocus_stage = Prefs.ModuleInstance('help_text','Stage that does coarse autofocusing (probably setpper)');
+%         coarse_autofocus_range = Prefs.DoubleArray([-1 1], 'units', 'um', 'help_text', 'Range around current stage position that autofocus will search to find focus');
+%         coarse_autofocus_step_size = Prefs.Double(0.1, 'units', 'um', 'help_text','Step size to use for autofocusing','min',0);
         
         calibration = Prefs.Double(0.08,'units', 'micron/pixel', 'help_text', 'Micron per pixel')
         centering_method = Prefs.MultipleChoice('intersection', 'allow_empty', false, 'choices', {'intersection', 'centroid', 'QR', 'straight lines'}, 'help_text', 'Method chosen for centering');
         motor_angle = Prefs.Double(0, 'units', 'deg', 'help_text', 'The angle that the motor moves the stage shown in the camera image', 'min', 0);
         max_shift_no = Prefs.Double(5, 'help_text', 'The maximum number of attempts to center before moving to the next chiplet');
-        flip = Prefs.Boolean(true, 'help_text', 'Whether the image needs to be flipped for processing');
+        toflip = Prefs.Boolean(true, 'help_text', 'Whether the image needs to be flipped for processing');
         flip_axis = Prefs.Double(1, 'help_text', 'The axis about which the image needs to be flipped');
 
         camera = Prefs.ModuleInstance('help_text','White light camera imaging module for focusing');
@@ -30,7 +34,7 @@ classdef AutoChipletSearch < Modules.Experiment
         experiments = Prefs.ModuleInstance('help_text','Experiment to run at each point');
     end
     properties
-        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size', 'centering_method', 'motor_angle', 'max_shift_no', 'flip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'experiments'};
+        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size', 'centering_method', 'motor_angle', 'max_shift_no', 'toflip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'experiments'};
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -46,6 +50,7 @@ classdef AutoChipletSearch < Modules.Experiment
         % cache for camera image and confocal scan image
         camera_img 
         confocal_img
+        centering_info
     end
 
     methods(Static)
@@ -182,7 +187,8 @@ classdef AutoChipletSearch < Modules.Experiment
 
             points = D(7:end,:);
         end
-
+        
+        % Mapping function to translate the ROI in camera pixel to galvo voltages
         function new_ROI = FindROI(obj, mapping_parameters)%mapping_parameters
             % Find the region of interest in galvo voltages from the camera image and the mapping parameters describing the tranformation relation between camera and galvo images
             % image := grey scale camera image
@@ -274,24 +280,22 @@ classdef AutoChipletSearch < Modules.Experiment
             mapping_params(2,2) = fitresult2.n2;
             mapping_params(2,3) = fitresult2.l2;
         end   
-
+        
+        % Centering functions
         function shiftinfo = ShiftToCenter(obj)
             % Move the motor to center the chiplet until the next required shift is below a certain threshold
             im_obj = obj.camera;
             method_for_centering = obj.centering_method;
             micron_per_pixel = obj.calibration;
             estimated_motor_angle = obj.motor_angle;
-            max_shift_no = obj.max_shift_no;
-            toflip = obj.flip;
-            flip_axis = obj.flip_axis;
 
             shiftinfo.shifted = false;
             shift_no = 1;
             previous_shift = [0, 0, 0];
             orig_pos = obj.motor.position;
-            while shift_no <= max_shift_no
+            while shift_no <= obj.max_shift_no
                 image_orig = im_obj.snapImage();
-                image = FlipImage(image_orig, toflip, flip_axis);
+                image = FlipImage(image_orig, obj.toflip, obj.flip_axis);
                 shift = GetShiftToCenter(image, method_for_centering, micron_per_pixel, estimated_motor_angle);
                 position = obj.motor.position;
                 target_pos = shift + position;
@@ -324,7 +328,7 @@ classdef AutoChipletSearch < Modules.Experiment
                 shift_no = shift_no + 1;     
             end
             
-            if shift_no == max_shift_no
+            if shift_no == obj.max_shift_no
                 shiftinfo.max_shift_not_reached = true;
             else
                 shiftinfo.max_shift_not_reached = false;
@@ -340,9 +344,7 @@ classdef AutoChipletSearch < Modules.Experiment
             %   micron_per_pixel := float, the scale bar, about 0.08 for images taken with 1000 pixel and 100 times lens
             %   motor_angle := float, estimated angle (radian) of motor movement relative to the image axes
             image = obj.camera_img;
-            method_for_centering = obj.centering_method;
             micron_per_pixel = obj.calibration;
-            motor_angle = obj.motor_angle;
 
             chip_center = obj.FindCenter(false);
         
@@ -350,7 +352,7 @@ classdef AutoChipletSearch < Modules.Experiment
             image_center = [fix(length(image)/2), fix(length(image)/2)];
             centroid_to_center = (image_center - chip_center) * micron_per_pixel; % converts the vector unit from pixels to microns
         
-            theta = motor_angle; % estimated angle of motor movement relative to the image axes
+            theta = obj.motor_angle; % estimated angle of motor movement relative to the image axes
             %   solve simultaneous equation for shift in x and y direction along the motor
             delta_x = centroid_to_center(1) * cos(theta) - centroid_to_center(2) * sin(theta);
             delta_y = -1 * centroid_to_center(1) * sin(theta) - centroid_to_center(2) * cos(theta);
@@ -362,7 +364,7 @@ classdef AutoChipletSearch < Modules.Experiment
         % isBW := Boolean, true if input image is binary
         % method := {'centroid', 'intersection'}
         % Returns the coordinate of the chiplet center  
-
+        method = obj.centering_method;
             if strcmp(method, 'intersection')
                 %     figure
                 %     imshow(image, [])
@@ -403,7 +405,7 @@ classdef AutoChipletSearch < Modules.Experiment
         %     scatter(chip_center(1), chip_center(2), 'filled')
         end
 
-        % helper functions
+        % helper functions for chiplet corner recognition
 
         function regionStats = FindChipletStats(obj,isBW)
             if ~isBW
@@ -419,6 +421,56 @@ classdef AutoChipletSearch < Modules.Experiment
         %     imshow(BW2,[])
         
             regionStats = regionprops(BW2, 'Extrema');
+        end
+        
+        % Autofocus functions
+        function opt_z_pos = AutoFocus(obj, z_scan_range, z_scan_step_size, threshold)
+        % Find the z position when the image is focused
+            orig_pos = obj.motor.positions;
+            found = false;
+            imgs = GetImagesInOneDir(orig_pos, z_scan_range, z_scan_step_size);
+            sharpness = FindMaxSharpness (imgs);
+            for z_pos = flip(orig_pos(3) - z_scan_range/2 : z_scan_step_size : orig_pos(3) + z_scan_range/2, 2)
+                motor_obj.moveto([orig_pos(1), orig_pos(2), z_pos])
+                img = im_obj.snapImage();
+                f = fft2(img);
+                s = sum(sum(sqrt(imag(f).^2+real(f).^2)));
+                if (sharpness - s)/10^10 < threshold 
+                    opt_z_pos = z_pos;
+                    found = true;
+                    break
+                end
+            end
+            if found == false
+                error('Focus not found')
+            end
+        end
+
+        function imgs = GetImagesInOneDir(orig_pos, z_scan_range, z_scan_step_size)
+            % Collect images for sharpness measurement
+            orig_x = orig_pos(1);
+            orig_y = orig_pos(2);
+            orig_z = orig_pos(3);
+            z_scan_bounds = [orig_z - z_scan_range/2, orig_z + z_scan_range/2];
+            imgs = cell(fix(z_scan_range/z_scan_step_size), 1);
+            n_img = 1;
+            for z_pos = z_scan_bounds(1) : z_scan_step_size : z_scan_bounds(2)
+                target_pos = [orig_x, orig_y, z_pos];
+                obj.motor.moveto(target_pos)
+                imgs{n_img} = obj.camera.snapImage();
+                n_img = n_img + 1;
+            end
+        end
+
+        function sharpness = FindMaxSharpness (imgs)
+        % Find the maximum sharpness from a set of images
+            s = zeros(1, length(imgs));
+            for i = 1 : length(imgs)
+                img = imgs{i};
+                f = fft2(img);
+                s(i) = sum(sum(sqrt(imag(f).^2+real(f).^2))); 
+            end
+            sharpness = max(s);
         end
     end
 end
