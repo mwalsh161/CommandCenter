@@ -66,7 +66,7 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_guess);
     
     if ~any(isnan([M(:); b(:)]))
-        Vcen = invaffine((size(img)/2)', M, b);
+        Vcen = invaffine([options_guess.img_H; options_guess.img_W]/2, M, b);
     else
         Vcen = [NaN; NaN];
     end
@@ -152,7 +152,7 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
     lxx = l*(sa0+ca0)/2;
     lyy = l*(sa0-ca0)/2;
     
-    [XX, YY] = meshgrid(1:S(1), 1:S(2));
+    [XX, YY] = meshgrid(1:S(2), 1:S(1));
 
     CC = bwconncomp(conv > max(max(conv))/8);
 
@@ -164,7 +164,7 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
         cx(ii) = mean(XX(CC.PixelIdxList{ii}));
         cy(ii) = mean(YY(CC.PixelIdxList{ii}));
     end
-
+    
     pad = abs(l*(sa0+ca0)/2) + 2*r;
 
     isQR = true(1, NQR);
@@ -189,10 +189,11 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
             isQR(ii) = false;   % QR is clipping the edge of screen and decoding should not be attempted.
         else
             m = NaN(5);
+            bitave = -1:1;
 
             for jj = 1:length(bitcoord)         % TODO: Replace for loop with one-liner.
                 for kk = 1:length(bitcoord)
-                    m(kk,jj) = bw(round(BITY(jj,kk) + cy(ii) + lyy), round(BITX(jj,kk) + cx(ii) + lxx));
+                    m(kk,jj) = mean(mean(bw(round(BITY(jj,kk) + cy(ii) + lyy) + bitave, round(BITX(jj,kk) + cx(ii) + lxx) + bitave))) > .5;
                 end
             end
 
@@ -262,6 +263,8 @@ function [CX, CY, version, checksum0] = interpretQR(m)
     if ~isempty(checksum)
         checksum0 = mod(sum(m), 2^cs) == checksum;
     end
+    
+    checksum0 = checksum0 && CX <= 120 && CY <= 120;
 end
 function cir = circleFunc(XX, YY, x0, y0, r)
     cir = (XX - x0).^2 + (YY - y0).^2 < r^2;
@@ -290,7 +293,7 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     else
         V_expected = [NaN; NaN];
     end
-    b_expected = [options_guess.img_W; options_guess.img_H] - M_guess * V_expected;
+    b_expected = [options_guess.img_W; options_guess.img_H]/2 - M_guess * V_expected;
     
     % Setup variables that we will change as we loop.
     mostvotes = 1;
@@ -309,7 +312,7 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
                 b_guess = mean(b_guesses(:, votes), 2);             % Estimate b as the average.
                 dist_ = norm(b_guess - b_expected);
                 
-                if sum(votes) > 1 || dist_ < dist
+                if (sum(votes) > 0 && dist_ < dist) || (mostvotes < sum(votes) || dist_ < dist)
                     dist = dist_;
                     mostvotes = sum(votes);                         % Record the record.
                     outliers = ~votes;                              % Record the candidates that were outside.
@@ -318,9 +321,9 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
         end
     end
     
-    if sum(~outliers) < 2 && ~any(isnan(b_expected)) && norm(b_guess - b_expected) > 3*options_guess.d
-        outliers(:) = true;
-    end
+%     if sum(~outliers) < 1 && ~any(isnan(b_expected)) && norm(b_guess - b_expected) > 3*options_guess.d
+%         outliers(:) = true;
+%     end
     
     % Trim the outliers.
     v_trim = v(:, ~outliers);
@@ -339,24 +342,29 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
     M2 = M_guess;
     b2 = b_guess;
 
-    % Fit the candidates fully to an affine transformation.
-    fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2)', p(3:4)'], p(5:6)') );
-    p_guess = [M_guess(:); b_guess]';
-    p_full = fminsearch(fun, p_guess, struct('TolFun', 1, 'TolX', 1e-1));
-    
-    M = [p_full(1:2)', p_full(3:4)'];
-    b = p_full(5:6)';
-    
+    if sum(~outliers) >= 2
+        % Fit the candidates fully to an affine transformation.
+        fun = @(p)( leastsquares(v_trim, V_trim, [p(1:2)', p(3:4)'], p(5:6)') );
+        p_guess = [M_guess(:); b_guess]';
+        p_full = fminsearch(fun, p_guess, struct('TolFun', 1, 'TolX', 1e-1));
+
+        M = [p_full(1:2)', p_full(3:4)'];
+        b = p_full(5:6)';
+    else
+        M = M2;
+        b = b2;
+    end
 end
 
 function img = threshold(img)
-    img = imbinarize(img);
+%     img = imbinarize(img);
+    img = imbinarize(imgaussfilt(img,1));
 end
 function img = flatten(img)
 %     img = imgaussfilt(img,10) - imgaussfilt(img,1);
 % class(imgaussfilt(img,10))
-    img = imgaussfilt(img,10) - img;
-%     img = imgaussfilt(img,10) - imgaussfilt(img,2);
+%     img = imgaussfilt(img,10) - img;
+    img = imgaussfilt(img,10) - imgaussfilt(img,3);
 end
 
 function v_ = affine(v, M, b)
