@@ -171,7 +171,7 @@ function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
 
     isQR = true(1, NQR);
     
-    bitcoord = .75*(-2:2)/6.25;
+    bitcoord = .75*(-2:2)/l;
     % Replace with meshgrid?
     bity = repmat(-bitcoord,  [5 1]);
     bitx = repmat(-bitcoord', [1 5]);
