@@ -11,7 +11,6 @@ classdef uc480 < Modules.Imaging
     end
     properties(GetObservable, SetObservable)
         exposure =      Prefs.Double(NaN, 'units', 'ms', 'min', 0, 'max', inf, 'allow_nan', true, 'set', 'set_exposure');
-%         serial_number = Prefs.String('', 'readonly', true, 'allow_empty', true);
     end
     properties(GetObservable, SetObservable)
         bitdepth = 0;
@@ -38,10 +37,6 @@ classdef uc480 < Modules.Imaging
             % Allocate memory and take image
             [~, obj.MemId] = obj.cam.Memory.Allocate(true);
             [~, W, H, B, ~] = obj.cam.Memory.Inquire(obj.MemId);
-            
-%             % Grab serial number
-%             info = obj.cam.GetSensorInfo()
-%             obj.serial_number
             
             % Deal with CC stuff
             obj.bitdepth = B;
