@@ -236,14 +236,14 @@ end
 function [CX, CY, version, checksum0] = interpretQR(m)
     % From the code contained in m, attempt to read information.
 
-    length = 25;    % Total length of code
-    pad = [1 6];    % Pad locations of bits (indexed from 1)
-    vb = 4;         % Version bits
-    rb = 8;         % Number of bits to encode the row
-    cb = 8;         % Number of bits to encode the col
-    cs = 3;         % Checksum
+    codelength = 25;    % Total length of code
+    pad = [1 6];        % Pad locations of bits (indexed from 1)
+    vb = 4;             % Version bits
+    rb = 8;             % Number of bits to encode the row
+    cb = 8;             % Number of bits to encode the col
+    cs = 3;             % Checksum
 
-    assert(numel(m) == length, 'm is the wrong size')
+    assert(numel(m) == codelength, 'code m is the wrong length')
 
     if size(m, 1) > 1
         m = m';
@@ -266,6 +266,7 @@ function [CX, CY, version, checksum0] = interpretQR(m)
         checksum0 = mod(sum(m), 2^cs) == checksum;
     end
     
+    % The 120 should be removed if we ever make diamonds this big. For now, this filters away a lot of the noise that accidently satisfies checksum.
     checksum0 = checksum0 && CX <= 120 && CY <= 120;
 end
 function cir = circleFunc(XX, YY, x0, y0, r)
