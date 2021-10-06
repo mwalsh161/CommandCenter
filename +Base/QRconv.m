@@ -1,7 +1,7 @@
 function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     % QRconv finds QRs in an image via a convoluation algorithm.
     % img is a NxM image.
-    % options_guess is a struct of the same format as options_fit: struct('ang', ..., 'calibration', ..., 'X_expected', ..., 'Y_expected', ...);
+    % options_guess is a struct of the same format as options_fit: struct('ang', [deg], 'calibration', [pix/um], 'X_expected', [QR-X], 'Y_expected', [QR-Y]);
     % v and V are arrays of column vectors (2xN) of the same size:
     %  - v are positions of candidate QR codes in the coordinate system of the image img, while 
     %  - V are the corresponding positons in QR space. 
@@ -11,9 +11,9 @@ function [v, V, options_fit, stages] = QRconv(img, options_guess, QR_parameters)
     
     % Default QR parameters.
     if nargin < 3
-        QR_parameters = struct( 'r', .3, ...    % Circle radius,
-                                'l', 6.25, ...  % Arm length,
-                                'd', 40);       % QR spacing.
+        QR_parameters = struct( 'r', .3, ...    % Circle radius [um],
+                                'l', 6.25, ...  % Arm length [um],
+                                'd', 40);       % QR spacing [um].
     end
     
     % Step 0: prepare some helper variables
@@ -104,6 +104,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     XX = repmat(X, [length(Y) 1]);
     YY = repmat(Y', [1 length(X)]);
 
+    % Amplitudes for the QR arm kernel. Derived in part by finding the parameters that work best.
     B = .5;
     sp = 2;
     sn = 1;
@@ -141,6 +142,7 @@ function [conv, convH, convV] = doConv(img, ang0, r, l)
     convH = convH(X + invx*ly, Y + invy*lx);
     convV = convV(X + (~invy)*lx, Y + invx*ly);
 
+    % Our final result is the sum of the cubes of the H and V components. Candidate QRs are where there is both H and V signal. Cube tended to work best.
     conv = convH.*convH.*convH + convV.*convV.*convV;
 end
 function [cx, cy, CX, CY] = findQRs(bw, conv, ang0, r, l, V_expected)
@@ -321,10 +323,6 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
         end
     end
     
-%     if sum(~outliers) < 1 && ~any(isnan(b_expected)) && norm(b_guess - b_expected) > 3*options_guess.d
-%         outliers(:) = true;
-%     end
-    
     % Trim the outliers.
     v_trim = v(:, ~outliers);
     V_trim = V(:, ~outliers);
@@ -357,14 +355,10 @@ function [M, b, M2, b2, outliers] = majorityVoteCoordinateFit(v, V, options_gues
 end
 
 function img = threshold(img)
-%     img = imbinarize(img);
     img = imbinarize(imgaussfilt(img,1));
 end
 function img = flatten(img)
-%     img = imgaussfilt(img,10) - imgaussfilt(img,1);
-% class(imgaussfilt(img,10))
-%     img = imgaussfilt(img,10) - img;
-    img = imgaussfilt(img,10) - imgaussfilt(img,3);
+    img = imgaussfilt(img,10) - imgaussfilt(img,2);
 end
 
 function v_ = affine(v, M, b)
