@@ -21,7 +21,11 @@ classdef uc480 < Modules.Imaging
     methods(Access=private)
         function obj = uc480()
             % Open camera connection
-            NET.addAssembly('C:\Program Files\Thorlabs\Scientific Imaging\DCx Camera Support\Develop\DotNet\uc480DotNet.dll');
+            try
+                NET.addAssembly('C:\Program Files\Thorlabs\Scientific Imaging\DCx Camera Support\Develop\DotNet\uc480DotNet.dll');
+            catch
+                error('Could not load uc480 NET. Make sure that ThorCam is installed.')
+            end
             
             % Create camera object handle and open the 1st available camera
             obj.cam = uc480.Camera;
