@@ -14,9 +14,9 @@ classdef PolarisationSpectrum < Modules.Experiment
     %       diamondbase - diamondbase data
 
     
-    properties(SetObservable,AbortSet)
+    properties(SetObservable,AbortSet,GetObservable)
         angles = '0:10:180';        % string of rotations (in degrees) at which spectra will be measured. Can specify a list or MATLAB range
-        motor_serial_number = @Drivers.APTMotor.getAvailMotors; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
+        motor_serial_number = Prefs.MultipleChoice([],'choices', Drivers.APTMotor.getAvailMotors,'allow_empty', true,'set','set_motor_serial_number') ; % Serial number for the rotation mount, to be used to create a driver for the rotation mount. Must be connected through APT Config first.
         spec_experiment = Experiments.Spectrum.instance % Handle for spectrum experiment to be run. Settings for the experiment accessed from GUI
         motor_move_time = 30;  % Maximum time allowed for motor to move between positions
         motor_home_time = 120; % Maximum time allowed for the motor to home itself
@@ -47,6 +47,7 @@ classdef PolarisationSpectrum < Modules.Experiment
             % Constructor (should not be accessible to command line!)
             obj.spec_experiment = Experiments.Spectrum.instance;
             obj.loadPrefs; % Load prefs specified as obj.prefs
+            obj.motor_serial_number
         end
     end
 
@@ -67,15 +68,16 @@ classdef PolarisationSpectrum < Modules.Experiment
             dat.meta = obj.meta;
         end
 
-        function set.motor_serial_number(obj,val)
+        function val = set_motor_serial_number(obj,val,pref)
+            %pref.choices = Drivers.APTMotor.getAvailMotors;
+            %obj.set_meta_pref('motor_serial_number', pref)
+            
             val_as_double = str2double(val); % must be double to instantiate motor
             assert(~isnan(val_as_double),'Motor SN must be a valid number.')
 
             % Handle proper deleting of smotor driver object
             delete(obj.rot); % Either motor obj or empty
             obj.rot = [];
-
-            obj.motor_serial_number = val;
             if val_as_double == 0
                 %Leave obj.rot empty if no serial number selected
                 return % Short circuit
