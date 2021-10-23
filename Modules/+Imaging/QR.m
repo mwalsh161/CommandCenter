@@ -42,7 +42,7 @@ classdef QR < Modules.Imaging
         display = Prefs.MultipleChoice('Raw', 'set', 'set_variable', 'allow_empty', false, 'choices', Imaging.QR.displaytypes, ...
                                                                         'help_text', 'These displaymodes allow the user to see the various stages in the algorithm that allows robust and fast convolutional QR detection.');
                                                                     
-        X = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected X position in QR-space of the center of the field of view.');
+        X = Prefs.Double(NaN,   'readonly', true,'allow_empty',true,                       'help_text', 'Detected X position in QR-space of the center of the field of view.');
         Y = Prefs.Double(NaN,   'readonly', true,                       'help_text', 'Detected Y position in QR-space of the center of the field of view.');
         N = Prefs.Integer(NaN,  'readonly', true,                       'help_text', 'Number of self-consistent QR codes within a field of view.')
         M = Prefs.DoubleArray(NaN, 'readonly', true, 'help_text', 'matrix for affine transformation between QR and camera space')

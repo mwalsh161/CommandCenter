@@ -48,7 +48,7 @@ function run( obj,status,managers,ax )
 
                 % Focus
                 % Just doing one focus type for the moment with the Kinesis stage
-                obj.AutoFocus(obj.autofocus_range, obj.autofocus_step_size);
+                obj.AutoFocus(obj.autofocus_range, obj.autofocus_step_size, 0.2);
 %                 try
 %                     obj.AutoFocus(obj.fine_autofocus_range, obj.fine_autofocus_step_size, obj.fine_autofocus_stage);
 %                 catch err

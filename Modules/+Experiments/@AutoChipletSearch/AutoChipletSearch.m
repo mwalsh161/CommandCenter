@@ -34,7 +34,7 @@ classdef AutoChipletSearch < Modules.Experiment
         experiments = Prefs.ModuleInstance('help_text','Experiment to run at each point');
     end
     properties
-        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size', 'centering_method', 'motor_angle', 'max_shift_no', 'toflip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'experiments'};
+        prefs = {'chiplet_spacing','chiplet_number', 'calibration', 'autofocus_stage', 'autofocus_range', 'autofocus_step_size','centering_method', 'motor_angle', 'max_shift_no', 'toflip', 'flip_axis', 'camera','galvo', 'laser', 'whitelight', 'experiments'}; % 'fine_autofocus_stage','fine_autofocus_range','fine_autofocus_step_size','coarse_autofocus_stage','coarse_autofocus_range','coarse_autofocus_step_size',
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -426,13 +426,13 @@ classdef AutoChipletSearch < Modules.Experiment
         % Autofocus functions
         function opt_z_pos = AutoFocus(obj, z_scan_range, z_scan_step_size, threshold)
         % Find the z position when the image is focused
-            orig_pos = obj.motor.positions;
+            orig_pos = obj.autofocus_stage.position;
             found = false;
             imgs = GetImagesInOneDir(orig_pos, z_scan_range, z_scan_step_size);
             sharpness = FindMaxSharpness (imgs);
             for z_pos = flip(orig_pos(3) - z_scan_range/2 : z_scan_step_size : orig_pos(3) + z_scan_range/2, 2)
-                motor_obj.moveto([orig_pos(1), orig_pos(2), z_pos])
-                img = im_obj.snapImage();
+                obj.autofocus_stage.move(orig_pos(1), orig_pos(2), z_pos)
+                img = obj.camera.snapImage();
                 f = fft2(img);
                 s = sum(sum(sqrt(imag(f).^2+real(f).^2)));
                 if (sharpness - s)/10^10 < threshold 
@@ -455,8 +455,7 @@ classdef AutoChipletSearch < Modules.Experiment
             imgs = cell(fix(z_scan_range/z_scan_step_size), 1);
             n_img = 1;
             for z_pos = z_scan_bounds(1) : z_scan_step_size : z_scan_bounds(2)
-                target_pos = [orig_x, orig_y, z_pos];
-                obj.motor.moveto(target_pos)
+                obj.autofocus_stage.move(orig_x, orig_y, z_pos)
                 imgs{n_img} = obj.camera.snapImage();
                 n_img = n_img + 1;
             end
