@@ -662,10 +662,9 @@ classdef dev < Modules.Driver
             % create a digital in channel
             err = NaN;
             try
-                task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines)
-                task.Start
-                warning('Not implemented yet')
-                state = 0;
+                task.CreateChannels('DAQmxCreateDIChan',line,'',obj.DAQmx_Val_ChanForAllLines);
+                task.Start;
+                [state,~] = task.ReadDigitalIn(1);
             catch err
             end
             task.Clear
