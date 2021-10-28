@@ -30,6 +30,7 @@ classdef AutoChipletSearch < Modules.Experiment
         galvo = Prefs.ModuleInstance('help_text','Galvo scanning imaging module for confocal scanning');
         laser = Prefs.ModuleInstance('help_text','laser used for galvo confocal scanning');
         whitelight = Prefs.ModuleInstance('help_text','White light used for camera focusing');
+        QR = Prefs.ModuleInstance('help_text', 'QR module to recognise the positions of successfully decoded QR codes');
         
         experiments = Prefs.ModuleInstance('help_text','Experiment to run at each point');
     end
@@ -363,8 +364,10 @@ classdef AutoChipletSearch < Modules.Experiment
         % Find the chiplet center
         % isBW := Boolean, true if input image is binary
         % method := {'centroid', 'intersection'}
-        % Returns the coordinate of the chiplet center  
-        method = obj.centering_method;
+        % Returns the coordinate of the chiplet center
+            hold off
+            figure(1)
+            method = obj.centering_method;
             if strcmp(method, 'intersection')
                 %     figure
                 %     imshow(image, [])
@@ -396,8 +399,122 @@ classdef AutoChipletSearch < Modules.Experiment
                 chip_center = [mean(stats.Extrema(:, 1)), mean(stats.Extrema(:, 2))];
             elseif strcmp(method, 'QR')
                 % add in method to find center with the QR codes
+                n_attempts = 1;
+                while n_attempts < 5;
+                    if ~isnan(obj.QR.N) && obj.QR.N >= 3
+                        obj.QR.snapImage
+                        x = (max(obj.QR.v_good(1, :)) + min(obj.QR.v_good(1, :)))/2;
+                        y = (max(obj.QR.v_good(2, :)) + min(obj.QR.v_good(2, :)))/2;
+                        chip_center = [x, y];
+                        break
+                    else
+                        n_attempts = n_attempt + 1
+                    end
+                end
+                if n_attempts == 5
+                    error('Cannot locate 3 or more QRs. Change to other centering method')
             elseif strcmp(method, 'straight_lines')
                 % add in method to find center with the straightlines
+                s=obj.camera.snapImage(); %s=image2.image.image; (second image)
+                C=corner(s,'SensitivityFactor',0.04); %get all the corner points from galvo scan
+                Nwg=10; %detection peak numbers
+                a0=0.45; % first line to look
+                a1=0.56; % second line to look, need two good line to determine the chiplet center
+                % Step 1: two long frame edge finding (black line) (complexity: nY*nK)
+                % fitting the frame with y=(k-nK/2)x/tiltK+i
+                nY=401; %yfit point
+                nK=200; %kfit point
+                dy=3;
+                errmax=5; %frame point tolerence
+                % find peaks along the line (complexity: Nd*number of peak*(number of peak-Nwg+1))
+                Nd=101; % number of spacing try
+                kd=0.2; % peak filtering factor
+                ex=2; % error distance 2
+                minpixel=20; % minimum sapcing
+
+                %figure(2)%figure(2) for image2
+                imagex=max(size(s(:,1)));
+                imagey=max(size(s(1,:)));
+                rangey=-imagey:3*imagey/(nY-1):imagey*2; % yfit range
+                tg_phimax=1;%(max 45 deg) for k fit
+                tiltK=nK/(2*tg_phimax);
+                s1=zeros(nY,nK);
+                s0=zeros(nY,nK,max(size(C(:,1))));
+                for i=1:nY
+                    for k=1:nK
+                        for j=1:max(size(C(:,1)))
+                            s0(i,k,j)=exp(-(C(j,2)-(k-nK/2)/tiltK*C(j,1)-rangey(i))^2/(2*dy^2));
+                        end
+                        s1(i,k)=sum(s0(i,k,:));
+                    end
+                end
+                [i0,k0]=find(s1==max(max(s1))); %fit the best y=(k0-nK/2)x/tiltK+i0;
+                s2=zeros(nY,max(size(C(:,1))));
+                s3=zeros(1,nY);
+                for i=1:nY
+                    for j=1:max(size(C(:,1)))
+                        s2(i,j)=exp(-(C(j,2)-(k0-nK/2)/tiltK*C(j,1)-rangey(i))^2/(2*dy^2));
+                    end
+                    s3(i)=sum(s2(i,:)');
+                end
+                [p1,p2]=findpeaks(s3);
+                p1(p1==max(p1))=0; %remove the best fit from y=(k0-nK/2)x/tiltK+i0;
+                i1=p2(find(p1==max(p1)));
+                %Using the same slope k0, find the other frame with the best fit y=(k0-nK/2)x/tiltK+i1;
+                out=[rangey(i0),rangey(i1),-(k0-nK/2)/tiltK];
+                %Step 2: Interplot the data from the line
+                Interp_points = interp2(1:imagey,1:imagex,double(s),1:imagey,a0*rangey(i1)+(1-a0)*rangey(i0)+(k0-nK/2)/tiltK*(1:imagey)); % weight a0 line
+                Interp_points2 = interp2(1:imagey,1:imagex,double(s),1:imagey,a1*rangey(i1)+(1-a1)*rangey(i0)+(k0-nK/2)/tiltK*(1:imagey)); % weight a1 line
+                dd=zeros(1,imagey-2);
+                dd2=zeros(1,imagey-2);
+                % average filtering
+                for (l=1:imagey-2)
+                    dd(l)=(Interp_points(l+2)^6+Interp_points(l+1)^6+Interp_points(l)^6)/3;
+                    dd2(l)=(Interp_points2(l+2)^6+Interp_points2(l+1)^6+Interp_points2(l)^6)/3;
+                end
+                [ap1,pp1]=findpeaks(dd,'MinPeakProminence',kd*max(dd));
+                [ap2,pp2]=findpeaks(dd2,'MinPeakProminence',kd*max(dd2));
+                % Step 3: Periodic peak fitting
+                delta=minpixel+(max(pp1)-min(pp1))*(0:Nd-1)/(10*(Nd-1)); % min spacing 20 pixel; max camera pixel/10
+                m1=zeros(max(size(pp1'))-(Nwg-1),Nd);
+                % weight a0 line peak fitting
+                for i=1:max(size(pp1'))-(Nwg-1)
+                    for j=1:Nd
+                        m0=zeros(1,max(size(pp1')));
+                        for k=1:max(size(pp1'))
+                            m0(k)=sum(exp(-(pp1(k)-pp1(i)-delta(j)*(0:(Nwg-1))).^2/(2*ex^2)));            
+                        end
+                        m1(i,j)=sum(m0);
+                    end
+                end
+                % weight a1 line peak fitting
+                delta2=minpixel+(max(pp2)-min(pp2))*(0:Nd-1)/(10*(Nd-1));
+                m2=zeros(max(size(pp2'))-(Nwg-1),Nd);
+                for i=1:max(size(pp2'))-(Nwg-1)
+                    for j=1:Nd
+                        m0=zeros(1,max(size(pp2')));
+                        for k=1:max(size(pp2'))
+                            m0(k)=sum(exp(-(pp2(k)-pp2(i)-delta2(j)*(0:(Nwg-1))).^2/(2*ex^2)));            
+                        end
+                        m2(i,j)=sum(m0);
+                    end
+                end
+                % Step 4: Get the result
+                imagesc(s)
+                hold on
+                [im,jm]=find(m1==max(max(m1)));% find matching period for weight a0 line
+                [im2,jm2]=find(m2==max(max(m2)));% find matching period for weight a1 line
+                cx=(pp1(im)+delta(jm)*(Nwg-1)/2)+((pp2(im2)+delta2(jm2)*(Nwg-1)/2)-(pp1(im)+delta(jm)*(Nwg-1)/2))*(0.5-a0)/(a1-a0);
+                cy=0.5*rangey(i1)+0.5*rangey(i0)+(k0-nK/2)/tiltK*cx;
+                chiplet_center = [cx, cy];
+                scatter(cx,cy,'r*') % chiplet center
+                scatter((pp1(im)+delta(jm)*4.5),a0*rangey(i1)+(1-a0)*rangey(i0)+(k0-nK/2)/tiltK*(pp1(im)+delta(jm)*4.5),'g*')
+                scatter((pp2(im2)+delta2(jm2)*4.5),a1*rangey(i1)+(1-a1)*rangey(i0)+(k0-nK/2)/tiltK*(pp2(im2)+delta2(jm2)*4.5),'g*')
+                plot(1:imagey,a1*rangey(i1)+(1-a1)*rangey(i0)+(k0-nK/2)/tiltK*(1:imagey),'y')
+                plot(1:imagey,a0*rangey(i1)+(1-a0)*rangey(i0)+(k0-nK/2)/tiltK*(1:imagey),'r')
+                plot(1:imagey,rangey(i0)+(k0-nK/2)/tiltK*(1:imagey),'k')
+                plot(1:imagey,rangey(i1)+(k0-nK/2)/tiltK*(1:imagey),'k')
+                title(['x=',num2str(round(cx*10)/10),' y=',num2str(round(cy*10)/10),' d1=',num2str(round(delta(jm)*10)/10),' d2=', num2str(round(delta2(jm2)*10)/10),' phi=', num2str(round(10*atan(-(k0-nK/2)/tiltK)*180/3.1415926)/10),'deg'])
             else
                 error('Method for centering is not recognised!')
             end
