@@ -9,6 +9,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
         imaging = Modules.Imaging.empty(1,0);
+        wl = Modules.Source.empty(1,0);
         
         repump_always_on = Prefs.Boolean(false);
         
@@ -33,7 +34,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
     
     methods
         function obj = WidefieldSlowScan_invisible()
-            obj.prefs = [obj.prefs,{'resLaser', 'repumpLaser', 'imaging', 'repump_always_on', 'save_freq', 'only_get_freq'}]; %additional preferences not in superclass
+            obj.prefs = [obj.prefs,{'resLaser', 'repumpLaser', 'wl', 'imaging', 'repump_always_on', 'save_freq', 'only_get_freq'}]; %additional preferences not in superclass
         end
         
         function run( obj,status,managers,ax)
@@ -56,7 +57,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                     if ~obj.only_get_freq
                         drawnow
                         if ~obj.repump_always_on
-                            obj.repumpLaser.on
+                            %obj.repumpLaser.on
                         end
                     end
                     

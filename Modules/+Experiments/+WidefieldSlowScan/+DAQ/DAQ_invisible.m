@@ -39,11 +39,11 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
         function get_scan_points(obj)
             base_percent = obj.resLaser.GetPercent;
             
-            stepTHz = obj.slow_step/1e6; % Step is in MHz
+            stepTHz = obj.slow_step/1e6; % obj.slow_step is in MHz
             
-            if obj.slow_to > obj.slow_from    % We are ascending
+            if obj.slow_to > obj.slow_from  % We are ascending
                 overshoot_percent = obj.slow_from - obj.slow_overshoot;
-            else                    % We are descending
+            else                            % We are descending
                 overshoot_percent = obj.slow_from + obj.slow_overshoot;
                 
                 stepTHz = -stepTHz;
@@ -95,9 +95,9 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
             obj.get_scan_points();
             obj.loadDAQ();
             
-            obj.resLaser.WavelengthLock(true);
-            pause(.5);
-            obj.resLaser.WavelengthLock(false);
+%             obj.resLaser.WavelengthLock(true);
+%             pause(.5);
+%             obj.resLaser.WavelengthLock(false);
             
             PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
             

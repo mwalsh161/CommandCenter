@@ -3,6 +3,7 @@ function [delay, ontime] = CalibrateDelay(laserLine,apdLine,NIDAQ_dev,PB_ip)
 %   laserline = hardware line for laser being calibrated (0 indexed)
 %   APDline = hardware line for APD being used for calibration
 
+
 apdBin = 0.1; %resolution of APD bin in us
 maxDelay = 10; %maximum expeceted delay in us
 maxCounts = 1e2;

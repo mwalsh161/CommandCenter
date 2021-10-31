@@ -319,7 +319,7 @@ classdef WinSpec < Modules.Driver
                     xlabel(ax,'Wavelength (nm)');
                     ylabel(ax,'Intensity');
                     title(ax,'Calibrating spectrometer');drawnow;
-                    specfit = fitpeaks(laserspec.x,laserspec.y,'fittype','gauss');
+                    specfit = fitpeaks(laserspec.x(1:end-1),laserspec.y(1:end-1),'fittype','gauss','AmplitudeSensitivity',1);
                     assert(~isempty(specfit.locations), sprintf('Unable to read laser cleanly on spectrometer (%i peaks)',length(specfit.locations)));
                     specloc(i) = specfit.locations;
                     plot(ax,specloc(i)*[1 1],get(ax,'ylim'),'--k');
