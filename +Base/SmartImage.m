@@ -102,7 +102,7 @@ classdef SmartImage < handle
             y = [roi(2,1) roi(2,2)];
             obj.imageH = imagesc(x,y,obj.info.image,'parent',ax,'hittest','off','tag',mfilename);
             obj.imageH.UserData = obj;
-            axis(ax,'image');
+%             axis(ax,'image');
             set(ax,'YDir','normal');
             
             % Lowest context menu

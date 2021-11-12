@@ -107,19 +107,35 @@ classdef SplitPanel < handle
         end
         
         function clicked(obj,varargin)
+            'clicked'
             iptPointerManager(obj.parent_fig,'disable');
             pos = obj.get_pos(obj.parent_fig,'CurrentPoint');
             obj.home = pos;
             obj.OldWindowButtonMotionFcn = get(obj.parent_fig,'WindowButtonMotionFcn');
+            if isequal(@obj.buttonMotionFcn, obj.OldWindowButtonMotionFcn)
+                obj.OldWindowButtonMotionFcn = [];
+            end
             set(obj.parent_fig,'WindowButtonMotionFcn',@obj.buttonMotionFcn)
+            obj.busy = false;
         end
         function unclicked(obj,varargin)
-            set(obj.parent_fig,'WindowButtonMotionFcn',obj.OldWindowButtonMotionFcn)
+            'unclocked'
+%             set(obj.parent_fig,'WindowButtonMotionFcn',obj.OldWindowButtonMotionFcn)
+            set(obj.parent_fig,'WindowButtonMotionFcn',[])
             iptPointerManager(obj.parent_fig,'enable')
         end
         function buttonMotionFcn(obj,varargin)
             if ~obj.busy
                 obj.busy = true;
+            
+            'movinfg'
+                
+%             if isempty(obj.OldWindowButtonDownFcn) || isempty(obj.OldWindowButtonUpFcn)
+%                 'test'
+%                 set(obj.parent_fig,'WindowButtonMotionFcn',obj.OldWindowButtonMotionFcn)
+%                 iptPointerManager(obj.parent_fig,'enable')
+%             end
+                
             pos = obj.get_pos(obj.parent_fig,'CurrentPoint');
             delta = pos - obj.home;
             temp = get([obj.panels,obj.dividerH],'units');
@@ -159,6 +175,7 @@ classdef SplitPanel < handle
             end
         end
         function enterFcn(obj,varargin)
+            'enter'
             if strcmp(obj.type,'horizontal')
                 set(obj.parent_fig,'pointer','right')
             else
@@ -172,6 +189,8 @@ classdef SplitPanel < handle
         function exitFcn(obj,varargin)
             set(obj.parent_fig,'WindowButtonDownFcn',obj.OldWindowButtonDownFcn)
             set(obj.parent_fig,'WindowButtonUpFcn',obj.OldWindowButtonUpFcn)
+            obj.OldWindowButtonDownFcn = [];
+            obj.OldWindowButtonUpFcn = [];
         end
         function set.type(obj,var)
             var = lower(var);
