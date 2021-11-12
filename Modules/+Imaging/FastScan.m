@@ -27,7 +27,7 @@ classdef FastScan < Modules.Imaging
         
         display_movmean =   Prefs.Integer(1, 'min', 1, 'help_text', 'Averaging of the bins such that data can be displayed on a screen with limited pixels.')
         
-        reset =         Prefs.Boolean(false, 'set', 'resetData', 'help_text', 'Erase all data.')
+        reset_data =    Prefs.Boolean(false, 'set', 'reset', 'help_text', 'Erase all data.')
         use_expt_axes = Prefs.Boolean(true, 'help_text', 'Uses the experiment axes to plot summary data. Useful in vertical mode.')
         
         repump_cw =     Prefs.Boolean(  'help_text', 'If this is checked, repump will be always on.');
@@ -78,7 +78,7 @@ classdef FastScan < Modules.Imaging
                 obj.resetData();
             end
         end
-        function val = resetData(obj, ~, ~)
+        function val = reset(obj, ~, ~)
             obj.data = NaN(obj.ROI(2,2), obj.bins);
             val = false;
         end
@@ -95,6 +95,25 @@ classdef FastScan < Modules.Imaging
             obj.ROI = val;
         end
         function focus(obj,ax,stageHandle)
+        end
+        function save(obj, fname)
+            if nargin < 2
+                fname = datestr(now,'yyyy.mm.dd_HH.MM.SS_FastScan.mat');
+            end
+            data = struct('data', obj.data, 'freqs', obj.freqs);
+            save(fname, 'data');
+        end
+        function snaps(obj, im, N)  % Takes snap() N times.
+            if nargin < 3
+                N = obj.ROI(2,2);
+            end
+            if N > obj.ROI(2,2)
+                N = obj.ROI(2,2);
+            end
+            
+            for x = 1:N
+                obj.snap(im)
+            end
         end
         function snap(obj,im,~, ~)
             im.Parent.XLabel.String = 'Voltage [V]';
@@ -177,22 +196,25 @@ classdef FastScan < Modules.Imaging
             im.Parent.XLim = [min(im.XData), max(im.XData)];
             axExp = [];
             if obj.use_expt_axes
-                axExp = findobj(im.Parent.Parent.Parent.Children, 'Tag', 'panel_exp').Children(1);
-                
-                if length(axExp.Children) == 1
-                    summary = axExp.Children;
-                else
-                    hold(axExp, 'off');
-                    summary = plot(axExp, NaN, NaN);
+                try
+                    axExp = findobj(im.Parent.Parent.Parent.Children, 'Tag', 'panel_exp').Children(1);
+
+                    if length(axExp.Children) == 1
+                        summary = axExp.Children;
+                    else
+                        hold(axExp, 'off');
+                        summary = plot(axExp, NaN, NaN);
+                    end
+
+                    axExp.XLabel.String = 'Voltage [V]';
+                    axExp.YLabel.String =  'Mean Signal [cts]';
+
+                    summary.XData = linspace(im.XData(1), im.XData(2), obj.bins);
+                    axExp.XLim = [min(im.XData), max(im.XData)];
+                    axExp.XDir = 'reverse';
+                catch
+                    axExp = [];
                 end
-                
-                axExp.XLabel.String = 'Voltage [V]';
-                axExp.YLabel.String =  'Mean Signal [cts]';
-                
-                summary.XData = linspace(im.XData(1), im.XData(2), obj.bins);
-                axExp.XLim = [min(im.XData), max(im.XData)];
-                axExp.XDir = 'reverse';
-%                 summary.YData = NaN * summary.XData;
             end
             
             % Configure tasks
@@ -264,7 +286,6 @@ classdef FastScan < Modules.Imaging
                 im.Parent.DataAspectRatioMode
                 if ~isempty(axExp)
                     summary.YData = nanmean(obj.data, 1);
-                    %summary.XData = 1:length(summary.YData);
                 end
                 
                 drawnow

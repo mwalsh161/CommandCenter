@@ -211,7 +211,7 @@ classdef ImagingManager < Base.Manager
             x = [obj.ROI(1,1) obj.ROI(1,2)];
             y = [obj.ROI(2,1) obj.ROI(2,2)];
             temp = imagesc(x,y,NaN(fliplr(obj.active_module.resolution)),'parent',obj.handles.axImage,'tag','temp');
-            axis(obj.handles.axImage,'image')
+            % axis(obj.handles.axImage,'image')
             set(obj.handles.axImage,'YDir','normal')
             if strcmp(obj.handles.colorbar_toggle.State,'on')
                 % This shows the colorbar as the module populates the temp image
