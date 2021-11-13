@@ -70,6 +70,7 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
             obj.start_volt = obj.keithley.get_voltage;
             %
             for volt = linspace(obj.start_volt,obj.scan_points(1),abs(ceil(obj.start_volt-obj.scan_points(1))))
+                pause(0.05);
                 obj.keithley.set_voltage(volt);
             end
             %
