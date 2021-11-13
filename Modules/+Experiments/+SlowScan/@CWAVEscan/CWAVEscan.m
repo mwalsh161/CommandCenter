@@ -13,18 +13,18 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
     % frequencies, or even close if laser mode hops. All averages are saved.
 
     properties(SetObservable,GetObservable,AbortSet)
-        tune_coarse =           Prefs.Boolean(false,     'help_text', 'Whether to tune to the coarse value before the scan.');
+        tune_coarse =           Prefs.Boolean(true,     'help_text', 'Whether to tune to the coarse value before the scan.');
         center_scan =           Prefs.Boolean(false,    'help_text', 'When true, percents will be shifted after tune_coarse completes to compensate position of percent.');
-        post_scan_tune_max =    Prefs.Boolean(false,     'help_text', 'Whether to tune to the maximum value after the scan has completed.');
+        post_scan_tune_max =    Prefs.Boolean(true,     'help_text', 'Whether to tune to the maximum value after the scan has completed.');
     end
     properties(SetObservable,AbortSet)
-        laser_freq_THz =      470;
-        percents = 'linspace(0,100,101)';
-        keithley;
-        scan_points = [];
+        freq_THz =      470;
+        CWAVE_voltage_in =      'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
     end
     properties(SetAccess=private,Hidden)
         percentInitialPosition = 50; % used to center scan if user wants
+        keithley;
+        start_volt;
     end
     properties(Constant)
         xlabel = 'Percent (%)';
@@ -36,8 +36,8 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
     end
     methods(Access=private)
         function obj = CWAVEscan()
-            obj.scan_points = eval(obj.MW_freq_MHz);
-            obj.prefs = [{'laser_freq_THz','wavemeter_override', 'wavemeter_channel', 'wavemeter', 'post_scan_tune_max','percents'}, obj.prefs];
+            obj.scan_points = eval(obj.CWAVE_voltage_in);
+            obj.prefs = [{'freq_THz','center_scan','tune_coarse','post_scan_tune_max','CWAVE_voltage_in'}, obj.prefs];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -47,49 +47,43 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
             %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
             %collection during resonant driving
             tunePoint = obj.scan_points(freqIndex);
-%             if obj.center_scan
-%                 tunePoint = tunePoint - (50-obj.percentInitialPosition);
-%                 % Only allow skipping points if center_scan enabled;
-%                 % otherwise user entered a bad range for percents should error
-%                 if tunePoint < 0 || tunePoint > 100
-%                     s = false;
-%                     return % Skip point by returning false
-%                 end
-%             end
-%             obj.resLaser.TunePercent(tunePoint);
-            obj.MWsource.set_frequency(tunePoint);
-            %BuildPulseSequence Builds pulse sequence for repump pulse followed by APD
-            %collection during resonant driving
-            if freqIndex > 1
-                s = obj.sequence;
-            else
-                s = sequence('SlowScan'); %#ok<CPROPLC> Calling HelperFunction
-                repumpChannel = channel('Repump','color','g','hardware',obj.repumpLaser.PB_line-1);
-                resChannel = channel('Resonant','color','r','hardware',obj.resLaser.PB_line-1);
-                MWChannel = channel('Resonant','color','r','hardware',obj.MWsource.PB_line-1);
-                APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
-                s.channelOrder = [repumpChannel, resChannel, APDchannel];
-                g = node(s.StartNode,repumpChannel,'units','us','delta',0);
-                g = node(g,repumpChannel,'units','us','delta',obj.repumpTime_us);
-                r = node(g,resChannel,'units','us','delta',obj.resOffset_us);
-                node(r,MWChannel,'units','us','delta',0);
-                node(r,APDchannel,'units','us','delta',0);
-                r = node(r,resChannel,'units','us','delta',obj.resTime_us);
-                node(r,MWChannel,'units','us','delta',0);
-                node(r,APDchannel,'units','us','delta',0);
-                
-                obj.sequence = s;
+            if obj.center_scan
+                tunePoint = tunePoint - (50-obj.percentInitialPosition);
+                % Only allow skipping points if center_scan enabled;
+                % otherwise user entered a bad range for percents should error
+                if tunePoint < 0 || tunePoint > 100
+                    s = false;
+                    return % Skip point by returning false
+                end
             end
+            %obj.resLaser.TunePercent(tunePoint);
+            obj.keithley.set_voltage(tunePoint);
+            s = BuildPulseSequence@Experiments.SlowScan.SlowScan_invisible(obj,freqIndex);
         end
         function PreRun(obj,~,managers,ax)
-            obj.keithley = Drivers.Keithley2400.instance(0, 10);
-            if obj.wavemeter_override
-                obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
+            if obj.tune_coarse
+                obj.resLaser.TuneCoarse(obj.freq_THz);
             end
             %obj.percentInitialPosition = obj.resLaser.GetPercent;
             PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
+            obj.keithley = Drivers.Keithley2400.instance(0,16);
+            obj.start_volt = obj.keithley.get_voltage;
+            %
+            for volt = linspace(obj.start_volt,obj.scan_points(1),abs(ceil(obj.start_volt-obj.scan_points(1))))
+                obj.keithley.set_voltage(volt);
+            end
+            %
+            obj.keithley.set_voltage(obj.scan_points(1));
+            obj.keithley.set_output(1);
         end  
         function PostRun(obj,~,managers,ax)
+            curr_volt = obj.keithley.get_voltage;
+            for volt = linspace(curr_volt,obj.start_volt,abs(ceil(curr_volt-obj.start_volt)))
+                obj.keithley.set_voltage(volt);
+                pause(0.05);
+            end
+            obj.keithley.set_voltage(obj.start_volt);
+            obj.keithley.set_output(0);
             if obj.post_scan_tune_max
                 x = obj.data.freqs_measured;
                 y = obj.data.sumCounts;
@@ -103,15 +97,15 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
                 end
                 
                 obj.meta.post_scan_freq_max = target_max;
-                
-%                 obj.resLaser.tune(obj.resLaser.c/target_max);
+                obj.resLaser.tune(obj.resLaser.c/target_max);
             end
         end
-%         function set.MW_freq_MHz(obj,val)
-%             numeric_vals = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
-%             assert(~isempty(numeric_vals),'Must have at least one value for percents.');
-%             obj.scan_points = numeric_vals;
-%             obj.MW_freq_MHz = val;
-%         end
+        function set.CWAVE_voltage_in(obj,val)
+            numeric_vals = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
+            assert(~isempty(numeric_vals),'Must have at least one value for percents.');
+            assert(min(numeric_vals)>=0&&max(numeric_vals)<=100,'Voltage must be between 0 and 100 (inclusive).');
+            obj.scan_points = numeric_vals;
+            obj.CWAVE_voltage_in = val;
+        end
     end
 end
