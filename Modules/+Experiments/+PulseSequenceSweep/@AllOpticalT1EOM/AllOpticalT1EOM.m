@@ -4,8 +4,14 @@ classdef AllOpticalT1EOM < Experiments.PulseSequenceSweep.PulseSequenceSweep_inv
     properties(SetObservable,AbortSet)
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
-        MWsource = Modules.Source.empty(1,0);
-        MW_freq_MHz = 2000;
+        MWSource_init = Modules.Source.empty(1,0);
+        MWSource_read = Modules.Source.empty(1,0);
+        MW_freq_MHz_init = 2000;
+        MW_freq_MHz_read = 2000;
+        MW_power_dBm_init = -4;
+        MW_power_dBm_read = -3;
+        
+        MWline = 4;
         APDline = 3;
         repumpTime_us = 1; %us
         resOffset_us = 0.1;
@@ -25,7 +31,7 @@ classdef AllOpticalT1EOM < Experiments.PulseSequenceSweep.PulseSequenceSweep_inv
     end
     methods(Access=private)
         function obj = AllOpticalT1EOM()
-            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','MWsource', 'MW_freq_MHz', 'APDline','repumpTime_us','resOffset_us',...
+            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','MWSource_init', 'MWSource_read','MW_freq_MHz_init', 'MW_freq_MHz_read','MW_power_dBm_init','MW_power_dBm_read','MWline','APDline','repumpTime_us','resOffset_us',...
             'resPulse1Time_us','resPulse2Time_us','tauTimes_us'}]; %additional preferences not in superclass
             obj.loadPrefs;
         end
@@ -35,8 +41,13 @@ classdef AllOpticalT1EOM < Experiments.PulseSequenceSweep.PulseSequenceSweep_inv
         pulseSeq = BuildPulseSequence(obj,tauIndex) %Defined in separate file
         
         function PreRun(obj,~,~,ax)
-            obj.MWsource.set_frequency(obj.MW_freq_MHz);
-            %prepare axes for plotting
+            obj.MWSource_init.set_frequency(obj.MW_freq_MHz_init);
+            obj.MWSource_read.set_frequency(obj.MW_freq_MHz_read);
+            obj.MWSource_init.set_power(obj.MW_power_dBm_init);
+            obj.MWSource_read.set_power(obj.MW_power_dBm_read);
+            obj.MWSource_init.source_on = 1; % still need to find out which state is which generator
+                
+%             %prepare axes for plotting
 %             hold(ax,'on');
 %             %plot data bin 1
 %             plotH = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1),'color','b');
