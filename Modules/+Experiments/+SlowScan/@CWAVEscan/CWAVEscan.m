@@ -1,4 +1,4 @@
-classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
+classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
     %Open Open-loop laser sweep for slowscan
     % Set center freq_THz
     % Sweeps over percents (usually corresponding to a piezo in a resonator)
@@ -19,8 +19,9 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
     end
     properties(SetObservable,AbortSet)
         laser_freq_THz =      470;
-        MW_freq_MHz =      'linspace(0,100,101)'; %eval(percents) will define percents for open-loop scan [scan_points]
-        MWsource = Modules.Source.empty(1,0);
+        percents = 'linspace(0,100,101)';
+        keithley;
+        scan_points = [];
     end
     properties(SetAccess=private,Hidden)
         percentInitialPosition = 50; % used to center scan if user wants
@@ -34,9 +35,9 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
         obj = instance()
     end
     methods(Access=private)
-        function obj = EOMscan()
+        function obj = CWAVEscan()
             obj.scan_points = eval(obj.MW_freq_MHz);
-            obj.prefs = [{'MWsource','laser_freq_THz','post_scan_tune_max','MW_freq_MHz'}, obj.prefs];
+            obj.prefs = [{'laser_freq_THz','wavemeter_override', 'wavemeter_channel', 'wavemeter', 'post_scan_tune_max','percents'}, obj.prefs];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -81,8 +82,9 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
             end
         end
         function PreRun(obj,~,managers,ax)
-            if obj.tune_coarse
-                obj.resLaser.TuneCoarse(obj.laser_freq_THz);
+            obj.keithley = Drivers.Keithley2400.instance(0, 10);
+            if obj.wavemeter_override
+                obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
             end
             %obj.percentInitialPosition = obj.resLaser.GetPercent;
             PreRun@Experiments.SlowScan.SlowScan_invisible(obj,[],managers,ax);
@@ -101,14 +103,15 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
                 end
                 
                 obj.meta.post_scan_freq_max = target_max;
-                obj.resLaser.tune(obj.resLaser.c/target_max);
+                
+%                 obj.resLaser.tune(obj.resLaser.c/target_max);
             end
         end
-        function set.MW_freq_MHz(obj,val)
-            numeric_vals = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
-            assert(~isempty(numeric_vals),'Must have at least one value for percents.');
-            obj.scan_points = numeric_vals;
-            obj.MW_freq_MHz = val;
-        end
+%         function set.MW_freq_MHz(obj,val)
+%             numeric_vals = str2num(val); %#ok<ST2NM> str2num uses eval but is more robust for numeric input
+%             assert(~isempty(numeric_vals),'Must have at least one value for percents.');
+%             obj.scan_points = numeric_vals;
+%             obj.MW_freq_MHz = val;
+%         end
     end
 end
