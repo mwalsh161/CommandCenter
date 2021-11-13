@@ -1,4 +1,4 @@
-classdef UC480 < Modules.Imaging
+classdef uc480 < Modules.Imaging
     % Connects with old-style Thorlabs cameras.
     
     properties
@@ -19,7 +19,7 @@ classdef UC480 < Modules.Imaging
         continuous = false;
     end
     methods(Access=private)
-        function obj = UC480()
+        function obj = uc480()
             % Open camera connection
             try
                 NET.addAssembly('C:\Program Files\Thorlabs\Scientific Imaging\DCx Camera Support\Develop\DotNet\uc480DotNet.dll');
@@ -64,7 +64,7 @@ classdef UC480 < Modules.Imaging
             mlock;
             persistent Object
             if isempty(Object) || ~isvalid(Object)
-                Object = Imaging.Thorlabs.UC480();
+                Object = Imaging.Thorlabs.uc480();
             end
             obj = Object;
         end

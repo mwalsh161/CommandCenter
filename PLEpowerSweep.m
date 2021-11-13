@@ -6,11 +6,11 @@ function PLEpowerSweep(managers)
     ard = Drivers.ArduinoServo.instance('localhost', 2);
 %     k = Drivers.Keithley2400.instance(16);
     
-    pm = Drivers.PM100.instance();
-    pm.set_average_count(50)
-    pm.set_range(1)
+%     pm = Drivers.PM100.instance();
+%     pm.set_average_count(50)
+%     pm.set_range(1)
     
-    cset = [5, 10, 20];
+    cset = [4, 5, 6];
     mang = [0, 80, 180];
     
     e = Experiments.SlowScan.Open.instance();
