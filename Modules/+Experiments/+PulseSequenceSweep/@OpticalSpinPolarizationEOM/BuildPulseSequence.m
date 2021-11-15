@@ -5,16 +5,26 @@ function s = BuildPulseSequence(obj,~)
 nCounters = obj.nCounterBins;
 
 s = sequence('OpticalSpinPolarization');
-repumpChannel = channel('repump','color','g','hardware',obj.repumpLaser.PBline-1);
-resChannel = channel('resonant','color','r','hardware',obj.resLaser.PBline-1);
+repumpChannel = channel('repump','color','g','hardware',obj.repumpLaser.PB_line-1);
+resChannel = channel('resonant','color','r','hardware',obj.resLaser.PB_line-1);
+MWChannel = channel('MWChannel','color','r','hardware',obj.MW_line-1);
 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
-s.channelOrder = [repumpChannel, resChannel, APDchannel];
+s.channelOrder = [repumpChannel, resChannel, MWChannel, APDchannel];
+% s.channelOrder = [repumpChannel, resChannel, APDchannel];
 g = node(s.StartNode,repumpChannel,'delta',0);
+
+% for n = 1 :ceil(obj.repumpTime_us +obj.resOffset_us)/(obj.counterDuration+obj.counterSpacing)
+%     counterStart = node(g, APDchannel, 'units','us','delta', (n -1)*(obj.counterDuration+obj.counterSpacing));
+%     node(counterStart, APDchannel, 'units','us','delta', obj.counterDuration)
+% end
+node(g,MWChannel,'units','us','delta',0);
 g = node(g,repumpChannel,'units','us','delta',obj.repumpTime_us);
 resStart = node(g,resChannel,'units','us','delta',obj.resOffset_us);
-node(resStart,resChannel,'units','us','delta',obj.resTime_us);
+resStop = node(resStart,resChannel,'units','us','delta',obj.resTime_us);
+node(resStop,MWChannel,'units','us','delta',0);
 
-for n = 1:nCounters
+
+for n = 1-2:nCounters-2
     counterStart = node(resStart,APDchannel,'units','us','delta',(n-1)*(obj.counterDuration+obj.counterSpacing));
     node(counterStart,APDchannel,'units','us','delta',obj.counterDuration);
 end

@@ -1,10 +1,11 @@
-classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible
+classdef OpticalSpinPolarizationEOM < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible
     %OpticalSpinPolarization measures the time dependence of the PLE signal
 
     properties(SetObservable,AbortSet)
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
         APDline = 3;
+        MW_line = 4;
         repumpTime_us = 1; %us
         resOffset_us = 0.1;
         resTime_us = 10;
@@ -23,8 +24,8 @@ classdef OpticalSpinPolarization < Experiments.PulseSequenceSweep.PulseSequenceS
         obj = instance()
     end
     methods(Access=private)
-        function obj = OpticalSpinPolarization()
-            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','repumpTime_us','resOffset_us',...
+        function obj = OpticalSpinPolarizationEOM()
+            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','MW_line','repumpTime_us','resOffset_us',...
             'resTime_us'}]; %additional preferences not in superclass
             obj.loadPrefs;
         end
