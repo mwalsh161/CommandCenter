@@ -6,7 +6,7 @@ function obj = instance(varargin)
     mlock;
     persistent Objects
     if isempty(Objects)
-        Objects = Experiments.PulseSequenceSweep.OpticalSpinPolarizationEMCCD.empty(1,0);
+        Objects = Experiments.PulseSequenceSweep.TransitionRates.empty(1,0);
     end
     for i = 1:length(Objects)
         if isvalid(Objects(i)) && isequal(varargin,Objects(i).singleton_id)
@@ -14,7 +14,7 @@ function obj = instance(varargin)
             return
         end
     end
-    obj = Experiments.PulseSequenceSweep.OpticalSpinPolarizationEMCCD(varargin{:});
+    obj = Experiments.PulseSequenceSweep.TransitionRates(varargin{:});
     obj.singleton_id = varargin;
     Objects(end+1) = obj;
 end
