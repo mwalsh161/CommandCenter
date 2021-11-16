@@ -128,7 +128,7 @@ classdef FastScan < Modules.Imaging
         function startVideo(obj,im)
             obj.continuous = true;
             while obj.continuous
-                obj.snap(im,true);
+                obj.snap(im,true); %breaks here on 2nd trip
                 drawnow;
             end
         end

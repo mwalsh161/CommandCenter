@@ -1,7 +1,7 @@
 function OvernightFastScan(managers)
     f = Imaging.FastScan.instance();
     
-    temp = imagesc(NaN, NaN, NaN, 'Parent', managers.handles.axImage, 'Tag', 'temp');
+    temp = imagesc(1, 1, 1, 'Parent', managers.handles.axImage, 'Tag', 'temp');
 
     while true
         f.frequencyCalibration()
