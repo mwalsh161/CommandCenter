@@ -3,17 +3,19 @@ classdef Imaging < Base.Module
     %   Simply enforces required properties. For future use.
     
     properties
-        calibration = 1;                % Calibration set and used by CommandCenter (um/#)
         % When saving, instructs CommandCenter to ignore the last stage (finest moving)
         %   This can be useful for confocal setups, where the stage is also
         %   used for scanning.
         uses_stage = '';
         path = '';
     end
-    properties(Constant,Hidden)
+    properties(Constant, Hidden)
         modules_package = 'Imaging';
     end
-    properties(Abstract,SetObservable)
+    properties(GetObservable, SetObservable)
+        calibration = 1;                % Calibration set and used by CommandCenter (um/#)
+    end
+    properties(Abstract, GetObservable, SetObservable)
         % Region of Interest. Set and Get methods should be used to make sure this works well!!!
         %   Format should be [xMin xMax; yMin yMax]
         %   Note, pixels are the unit for a CCD, voltage for galvos

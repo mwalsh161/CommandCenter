@@ -87,6 +87,15 @@ classdef PM100 < Modules.Driver
             out = str2num(out);
         end
         
+        function set_range(obj,auto)
+            obj.command(sprintf('CURR:RANG:AUTO %i',round(auto)));
+        end
+        
+        function out = get_range(obj)
+            out = obj.query('CURR:RANG:AUTO?');
+            out = str2num(out);
+        end
+        
         function out = get_power(obj, units)
             if ~strcmp(obj.unit_status, units)
                 if strcmp(units, 'DBM')

@@ -379,7 +379,21 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if isnan(val); return; end % Short circuit on NaN
             obj.getFrequency();
             obj.do_wavelength_lock = false;
+            
+            start = obj.resonator_voltage/2;
+            delta = val - start;
+            steps = abs(round(delta/2));
+            powers = start:(delta/steps):val;
+            try
+                powers(1) = [];
+                powers(end) = [];
+            end
+            
+            for p = powers
+                obj.com('set_resonator_val', 'solstis', p);
+            end
             obj.com('set_resonator_val', 'solstis', val);
+            obj.getFrequency();
         end
         function val = set_do_wavelength_lock(obj, val, pref)
             if val == pref.value; return; end
