@@ -10,7 +10,7 @@ resChannel = channel('resonant','color','r','hardware',obj.resLaser.PB_line-1);
 MWChannel = channel('MWChannel','color','r','hardware',obj.MW_line-1);
 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
 s.channelOrder = [repumpChannel, resChannel, MWChannel, APDchannel];
-% s.channelOrder = [repumpChannel, resChannel, APDchannel];
+% s.channelOrder = [repumpChannel, resChannel, APDchannel]; 
 g = node(s.StartNode,repumpChannel,'delta',0);
 
 % for n = 1 :ceil(obj.repumpTime_us +obj.resOffset_us)/(obj.counterDuration+obj.counterSpacing)
