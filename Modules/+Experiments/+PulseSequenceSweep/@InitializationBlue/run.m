@@ -49,12 +49,11 @@ try
     % BuildPulseSequence must take in vars in the order listed
     pulseSeq = obj.BuildPulseSequence;
     n_repump_p = 1;
-    n_res_p = 1;
-    
     for repumpPower = eval(obj.repumpLaserPower_range) % Looping over the range of repump power measurements
         obj.keithley.set_voltage(repumpPower);
         obj.data.repumpLaserPower(n_repump_p) = obj.keithley.get_voltage * obj.keithley.measureCurrent;
         obj.keithley.set_voltage(0);
+        n_res_p = 1;
         for resLaserPower = eval(obj.resLaserPower_range) % Looping over the range of resonant power measurements
             obj.arduino.angle = resLaserPower;
             if pulseSeq ~= false % Interpret a return of false as skip this one (leaving in NaN)
@@ -64,14 +63,14 @@ try
                 for i = 1 : obj.samples
                     drawnow('limitrate'); assert(~obj.abort_request,'User aborted.');
                     obj.keithley.set_voltage(repumpPower);
-                    pause(obj.repumpTime_us/1e6) % 
+                    pause(obj.repumpTime_us/1e6); % 
                     obj.keithley.set_voltage(0);
                     % run resonant laser pulse sequence
                     apdPS.start(1000); % hard coded
                     apdPS.stream(p);
                     obj.data.APDCounts(n_repump_p, n_res_p, i, :) = reshape(p.YData,obj.nCounterBins,[])';
                     % Whether there is counts in the initial bin
-                    if obj.data.APDCounts(n_repump_p, n_res_p, i, 1) > obj.counterDuration/2*obj.est_CountsPerSecond_cps % initialized successfully if bright for the first half of the bin
+                    if obj.data.APDCounts(n_repump_p, n_res_p, i, 1) > obj.counterDuration/1e6/2*obj.est_CountsPerSecond_cps % initialized successfully if bright for the first half of the bin
                         success = success  + 1; 
                     end
 

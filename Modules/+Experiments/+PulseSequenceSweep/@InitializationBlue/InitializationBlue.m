@@ -78,17 +78,17 @@ classdef InitializationBlue < Experiments.PulseSequenceSweep.PulseSequenceSweep_
 %             meanError = obj.data.stdCounts;
 %             end
 
-            %grab handles to data from axes plotted in PreRun
+            %grab handles to data from axes plotted in PreRun  
             for i = 1 : length(eval(obj.resLaserPower_range))
                 ax.UserData.plots{i}.YData = obj.data.probability(:, i);
                 drawnow limitrate;
             end        
         end
         
-        function PostRun(obj,~,~,~)
-            obj.keithley.delete
-            obj.arduino.delete
-        end
+%         function PostRun(obj,~,~,~)
+%             obj.keithley.delete
+%             obj.arduino.delete
+%         end
         
         function set.resTime_us(obj,val)
             obj.resTime_us = val;
