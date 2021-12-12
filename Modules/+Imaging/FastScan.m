@@ -20,7 +20,8 @@ classdef FastScan < Modules.Imaging
 %         voltage_end =   Prefs.Double(10, 'units', 'V', 'min', 0, 'max', 10)
         
         bins =          Prefs.Integer(1000, 'set', 'set_bins', 'min', 2)
-        up_percent =    Prefs.Double(10, 'units', '%', 'set', 'set_up_percent', 'min', 0, 'max', 100, ...
+        keep_upbins =   Prefs.Boolean(false,'set','help_text','Upbins are data bins when true');
+        repump_percent =    Prefs.Double(10, 'units', '%', 'set', 'set_repump_percent', 'min', 0, 'max', 100, ...
                                         'help_text', 'Percent of the scan to use for repump')
         up_bins =       Prefs.Integer(0, 'readonly', true, 'help_text', 'Number of bins for the repump and "Zig"')
         down_bins =     Prefs.Integer(0, 'readonly', true, 'help_text', 'Number of bins for the data and "Zag"')
@@ -66,21 +67,32 @@ classdef FastScan < Modules.Imaging
     end
     methods
         function val = set_bins(obj, val, ~)
-            obj.up_bins = round(val * obj.up_percent / 100);
+            if ~obj.keep_upbins %default is data in downbins
+                obj.up_bins = round(val * obj.repump_percent / 100);
+            else
+                obj.up_bins = val - round(val * obj.repump_percent / 100);
+            end
             obj.down_bins = val - obj.up_bins;
         end
-        function val = set_up_percent(obj, val, ~)
-            obj.up_bins = round(obj.bins * val / 100);
+        function val = set_repump_percent(obj, val, ~)
+            if ~obj.keep_upbins 
+                obj.up_bins = round(obj.bins * val / 100);
+            else
+                obj.up_bins = obj.bins - round(obj.bins * val / 100);
+            end
             obj.down_bins = obj.bins - obj.up_bins;
         end
         function checkData(obj)
             if ~all(size(obj.data) == [obj.ROI(2,2), obj.bins])
-                obj.resetData();
+                obj.reset();
             end
         end
         function val = reset(obj, ~, ~)
             obj.data = NaN(obj.ROI(2,2), obj.bins);
             val = false;
+            
+            ni = Drivers.NIDAQ.dev.instance('Dev1');
+            ni.ClearAllTasks;
         end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
@@ -98,7 +110,7 @@ classdef FastScan < Modules.Imaging
         end
         function save(obj, fname)
             if nargin < 2
-                fname = datestr(now,'yyyy.mm.dd_HH.MM.SS_FastScan.mat');
+                fname = ['X:\Experiments\MontanaII\2021_12_03_EG323\Fastscans\Fastscan_',datestr(now,'yyyy.mm.dd_HH.MM.SS'),'.mat'];
             end
             data = struct('data', obj.data, 'freqs', obj.freqs);
             save(fname, 'data');
@@ -140,18 +152,18 @@ classdef FastScan < Modules.Imaging
     methods
         function frequencyCalibration(obj)
             ni = Drivers.NIDAQ.dev.instance('Dev1');
-            wm = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu',2); %cwave on ch 2
+            wm = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu',7); %cwave on ch 2
 
             obj.freqs = [];
-            for i = 0:100
+            for i = 1:101
                 disp(['Setting voltage ' num2str(i/10)])
-                ni.WriteAOLines('laser',i/10)
+                ni.WriteAOLines('laser',(i-1)/10)
                 pause(1);
                 obj.freqs(i) = wm.getFrequency;
                 pause(1); 
             end 
-            for i = 100:-1:0
-                ni.WriteAOLines('laser',i/10)
+            for i = 101:-1:1
+                ni.WriteAOLines('laser',(i-1)/10)
                 pause(.01); 
             end 
 
@@ -159,6 +171,19 @@ classdef FastScan < Modules.Imaging
 %             xlabel('Applied voltage, V/10');
 %             ylabel('Measured frequency, THz');
         end
+        function fastCalibration(obj)
+           ni = Drivers.NIDAQ.dev.instance('Dev1');
+           ni.ClearAllTasks; %sometimes nidaq is sad 
+           wm = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu',7);
+           
+           obj.freqs = [];
+           ni.WriteAOLines('laser',0);
+           pause(1);
+           obj.freqs(1) = wm.getFrequency;
+           ni.WriteAOLines('laser',10);
+           pause(1);
+           obj.freqs(2) = wm.getFrequency;
+        end 
         function fastscan(obj, im)
             obj.data = circshift(obj.data, 1);
             obj.data(1,:) = NaN;
@@ -183,7 +208,11 @@ classdef FastScan < Modules.Imaging
             if obj.repump_cw
                 dlist = ones(1, tb);
             elseif obj.repump_next
-                dlist = [ones(1, ub) zeros(1, db)];
+                if ~obj.keep_upbins %keep downbins by default
+                    dlist = [ones(1, ub) zeros(1, db)];
+                else 
+                    dlist = [zeroes(1, ub) ones(1, db)];
+                end 
                 obj.repump_next = false;
             else
                 dlist = zeros(1, tb);
