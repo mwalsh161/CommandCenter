@@ -20,7 +20,7 @@ classdef FastScan < Modules.Imaging
 %         voltage_end =   Prefs.Double(10, 'units', 'V', 'min', 0, 'max', 10)
         
         bins =          Prefs.Integer(1000, 'set', 'set_bins', 'min', 2)
-        keep_upbins =   Prefs.Boolean(false,'set','help_text','Upbins are data bins when true');
+        keep_upbins =   Prefs.Boolean(false,'help_text','Upbins are data bins when true');
         repump_percent =    Prefs.Double(10, 'units', '%', 'set', 'set_repump_percent', 'min', 0, 'max', 100, ...
                                         'help_text', 'Percent of the scan to use for repump')
         up_bins =       Prefs.Integer(0, 'readonly', true, 'help_text', 'Number of bins for the repump and "Zig"')
@@ -67,19 +67,11 @@ classdef FastScan < Modules.Imaging
     end
     methods
         function val = set_bins(obj, val, ~)
-            if ~obj.keep_upbins %default is data in downbins
-                obj.up_bins = round(val * obj.repump_percent / 100);
-            else
-                obj.up_bins = val - round(val * obj.repump_percent / 100);
-            end
+            obj.up_bins = round(val * obj.repump_percent / 100);
             obj.down_bins = val - obj.up_bins;
         end
         function val = set_repump_percent(obj, val, ~)
-            if ~obj.keep_upbins 
-                obj.up_bins = round(obj.bins * val / 100);
-            else
-                obj.up_bins = obj.bins - round(obj.bins * val / 100);
-            end
+            obj.up_bins = round(obj.bins * val / 100);
             obj.down_bins = obj.bins - obj.up_bins;
         end
         function checkData(obj)
@@ -194,8 +186,13 @@ classdef FastScan < Modules.Imaging
             vi = obj.ROI(1,1);
             vf = obj.ROI(1,2);
             
-            ub = obj.up_bins;
-            db = obj.down_bins;
+            if ~obj.keep_upbins
+                ub = obj.up_bins;
+                db = obj.down_bins;
+            else
+                ub = obj.down_bins;
+                db = obj.up_bins;
+            end
             tb = (ub + db);         % Total bins
             
             dwell = obj.dwell/1000;           % Dwell per bin
@@ -211,7 +208,7 @@ classdef FastScan < Modules.Imaging
                 if ~obj.keep_upbins %keep downbins by default
                     dlist = [ones(1, ub) zeros(1, db)];
                 else 
-                    dlist = [zeroes(1, ub) ones(1, db)];
+                    dlist = [zeros(1, ub) ones(1, db)];
                 end 
                 obj.repump_next = false;
             else
