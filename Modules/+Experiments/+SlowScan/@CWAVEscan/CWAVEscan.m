@@ -71,7 +71,7 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
             %
             for volt = linspace(obj.start_volt,obj.scan_points(1),abs(ceil(obj.start_volt-obj.scan_points(1))))
                 obj.keithley.set_voltage(volt);
-                pause(0.05);
+                pause(0.1);
             end
             %
             obj.keithley.set_voltage(obj.scan_points(1));
@@ -81,7 +81,7 @@ classdef CWAVEscan < Experiments.SlowScan.SlowScan_invisible
             curr_volt = obj.keithley.get_voltage;
             for volt = linspace(curr_volt,obj.start_volt,abs(ceil(curr_volt-obj.start_volt)))
                 obj.keithley.set_voltage(volt);
-                pause(0.05);
+                pause(0.1);
             end
             obj.keithley.set_voltage(obj.start_volt);
             obj.keithley.set_output(0);
