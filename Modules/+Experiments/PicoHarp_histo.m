@@ -18,15 +18,12 @@ classdef PicoHarp_histo < Modules.Experiment
         Ch0_CFDlevel = 50;% mV
         Ch1_CFDzero = 10;% mV
         Ch1_CFDlevel = 50;% mV
-        Binning = num2cell(0:7); % Binning can be 0 to MAXBINSTEPS-1
-        Session = num2cell(1:5);
-        Waveguide = num2cell(16:10:96);
-        PostSize = num2cell([100,112,125,137,150,162]);
+        Binning = num2cell(0:7); % Binning can be 0 to MAXBINSTEPS-1 %time resolution = (PH_BaseResolution*2^Binning) ps
         Offset = 0; %ms - still not sure what offset is this
         StopAtOverflow = true;
         OverflowCounts = 65535; %65535 is max value
         prefs = {'connection'};
-        show_prefs = {'PH_serialNr','PH_BaseResolution','connection','MaxTime_s','MaxCounts','plot_x_max_ns','Session','Waveguide','PostSize','Binning','SyncDivider','SyncOffset','Ch0_CFDzero','Ch0_CFDlevel','Ch1_CFDzero','Ch1_CFDlevel','Tacq_ms','StopAtOverflow','OverflowCounts'};
+        show_prefs = {'PH_serialNr','PH_BaseResolution','connection','MaxTime_s','MaxCounts','plot_x_max_ns','Binning','SyncDivider','SyncOffset','Ch0_CFDzero','Ch0_CFDlevel','Ch1_CFDzero','Ch1_CFDlevel','Tacq_ms','StopAtOverflow','OverflowCounts'};
         readonly_prefs = {'PH_serialNr','PH_BaseResolution'};
     end
     properties(SetAccess=private,Hidden)
@@ -112,7 +109,7 @@ classdef PicoHarp_histo < Modules.Experiment
             obj.meta.resolution = resolution;
             obj.data.x = uint32(resolution*[0:obj.picoharpH.HISTCHAN-1]);
             obj.data.y = uint32(zeros(1,obj.picoharpH.HISTCHAN));
-            plot(ax,obj.data.x/1000,obj.data.y);
+            plot(ax,double(obj.data.x)/1000,obj.data.y);
             set(ax,'YLim',[0 inf])
             if obj.plot_x_max_ns*1000<max(obj.data.x)
                 set(ax,'XLim',[0 obj.plot_x_max_ns])
