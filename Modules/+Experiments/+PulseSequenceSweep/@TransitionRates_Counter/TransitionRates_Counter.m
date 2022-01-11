@@ -1,4 +1,4 @@
-classdef TransitionRates_2 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible
+classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible
     %OpticalSpinPolarization measures the time dependence of the PLE signal
 
     properties(SetObservable,GetObservable, AbortSet)
@@ -12,6 +12,7 @@ classdef TransitionRates_2 < Experiments.PulseSequenceSweep.PulseSequenceSweep_i
         
         resLaserPower_range = 'linspace(0,180,101)';
         repumpLaserPower_range = 'linspace(0.1,10,101)';
+        counter = Drivers.Counter.instance('APD1','CounterSync');
         
     end
     properties
@@ -28,9 +29,9 @@ classdef TransitionRates_2 < Experiments.PulseSequenceSweep.PulseSequenceSweep_i
         obj = instance()
     end
     methods(Access=private)
-        function obj = TransitionRates_2()
+        function obj = TransitionRates_Counter()
             obj.prefs = [obj.prefs,{'resLaser','APDline','repumpTime_us','repumpLaser',...
-            'resLaserPower_ang', 'repumpLaserPower_mW', 'resLaserPower_range', 'repumpLaserPower_range'}]; %additional preferences not in superclass
+            'resLaserPower_ang', 'repumpLaserPower_mW', 'resLaserPower_range', 'repumpLaserPower_range', 'counter'}]; %additional preferences not in superclass
             obj.loadPrefs;
         end
     end
