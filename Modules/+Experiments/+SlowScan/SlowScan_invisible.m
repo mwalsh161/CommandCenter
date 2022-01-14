@@ -86,6 +86,7 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
         function UpdateRun(obj,~,~,ax,average,freqIndex)
             %pull frequency that latest sequence was run at
             if obj.wavemeter_override
+                %obj.wavemeter.SetSwitcherSignalState(obj.wavemeter_channel);
                 obj.data.freqs_measured(average,freqIndex) = obj.wavemeter.getFrequency;
             else
                 obj.data.freqs_measured(average,freqIndex) = obj.resLaser.getFrequency;

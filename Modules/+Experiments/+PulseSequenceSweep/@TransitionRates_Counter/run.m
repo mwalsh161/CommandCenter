@@ -37,35 +37,86 @@ p = plot(NaN,'Parent',a);
 
 ard = Drivers.ArduinoServo.instance('localhost', 2);
 
-numresLaserPowers = length(eval(obj.resLaserPower_range));
-obj.data.APDCounts = NaN([1000, numresLaserPowers]); % what is the number of APD bins obj.APDbins
+numrepumpLaserPowers = length(eval(obj.repumpLaserPower_range));
+obj.data.APDCounts = NaN([obj.APD_buffer_s/obj.dwell_ms*1000-1, numrepumpLaserPowers]); % what is the number of APD bins obj.APDbins
 try
-    obj.PreRun(status,managers,ax);
-    % Construct APDPulseSequence once, and update apdPS.seq
-    % Not only will this be faster than constructing many times,
-    % APDPulseSequence upon deletion closes PulseBlaster connection
-    apdPS = APDPulseSequence(obj.nidaqH,obj.pbH,sequence('placeholder')); %create an instance of apdpulsesequence to avoid recreating in loop
     n = 1;
-    for resLaserPower = eval(obj.resLaserPower_range)
-        ard.angle = resLaserPower;
+    for repumpLaserPower = eval(obj.repumpLaserPower_range)
+        obj.repumpLaser.power = repumpLaserPower;
         drawnow('limitrate'); assert(~obj.abort_request,'User aborted.');
-        % BuildPulseSequence must take in vars in the order listed
-        pulseSeq = obj.BuildPulseSequence;
-
-        if pulseSeq ~= false % Interpret a return of false as skip this one (leaving in NaN)
-            pulseSeq.repeat = obj.samples;
-            apdPS.seq = pulseSeq;
-
-            apdPS.start(1000); % hard coded
-            apdPS.stream(p);
-            dat = p.YData;
-            obj.data.APDCounts(:,n) = dat';
+        obj.PreRun(status,managers,ax);
+        obj.nidaqH.ClearAllTasks();
+        % Start APD
+        PulseTrainH = obj.nidaqH.CreateTask('Counter PulseTrain');
+        try
+            PulseTrainH.ConfigurePulseTrainOut('CounterSync',1/obj.dwell_ms*1000);
+        catch err
+            rethrow(err)
         end
-            obj.UpdateRun(status,managers,ax,n,n);
-            n = n + 1;
+        CounterH = obj.nidaqH.CreateTask('Counter CounterObj');
+        try
+            continuous = false;
+            buffer = obj.APD_buffer_s/obj.dwell_ms*1000;
+            CounterH.ConfigureCounterIn('APD1',buffer,PulseTrainH,continuous)
+        catch err
+            rethrow(err)
+        end
+        CounterH.Start;
+        PulseTrainH.Start;
+
+
+        % Directly start the laser pulses with pulseblaster
+        overrideMinDuration = false;
+        try
+            [program, ~, ~, ~] = obj.BuildPulseSequence.compile(overrideMinDuration);
+            obj.pbH.load(program);
+            obj.pbH.start;
+        catch err
+            rethrow(err)
+        end
+
+        while ~CounterH.IsTaskDone 
+            pause(0.1)
+        end
+
+        % Record APD
+        nsamples = CounterH.AvailableSamples;
+        %obj.data.APDCounts(:,1) = ones([obj.APD_buffer_s/obj.dwell_ms*1000-1, numresLaserPowers]);
+        if nsamples
+            obj.data.APDCounts(:,n) = diff(CounterH.ReadCounter(nsamples));
+        end
+        obj.UpdateRun(status,managers,ax);
+        n = n + 1;
+        if ~isempty(CounterH)&&isvalid(CounterH)
+            CounterH.Clear;
+        end
+        if ~isempty(PulseTrainH)&&isvalid(PulseTrainH)
+            PulseTrainH.Clear
+        end
     end
+    
+%     apdPS = APDPulseSequence(obj.nidaqH,obj.pbH,sequence('placeholder')); %create an instance of apdpulsesequence to avoid recreating in loop
+%     n = 1;
+%     for resLaserPower = eval(obj.resLaserPower_range)
+%         ard.angle = resLaserPower;
+%         drawnow('limitrate'); assert(~obj.abort_request,'User aborted.');
+%         % BuildPulseSequence must take in vars in the order listed
+%         pulseSeq = obj.BuildPulseSequence;
+% 
+%         if pulseSeq ~= false % Interpret a return of false as skip this one (leaving in NaN)
+%             pulseSeq.repeat = obj.samples;
+%             apdPS.seq = pulseSeq;
+% 
+%             apdPS.start(1000); % hard coded
+%             apdPS.stream(p);
+%             dat = p.YData;
+%             obj.data.APDCounts(:,n) = dat';
+%         end
+%             obj.UpdateRun(status,managers,ax,n,n);
+%             n = n + 1;
+%     end
         
-    obj.PostRun(status,managers,ax);
+%     obj.PostRun(status,managers,ax);
     
 catch err
 end

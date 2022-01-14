@@ -28,7 +28,7 @@ classdef CS235CU < Modules.Imaging
             end
             
             % Create an Instance of ITLCameraSDK
-            tlCameraSDK = Thorlabs.TSI.TLCamera.TLCameraSDK.OpenTLCameraSDK;
+            tlCameraSDK = Thorlabs.TSI.TLCamera.TLCameraSDK.OpenTLCameraSDK; % seems that matlab directory needs to in the same folder as this .m file
             % Discover connected Thorlabs scientific cameras
             serialNumbers = tlCameraSDK.DiscoverAvailableCameras;
             % Open the first camera in the list

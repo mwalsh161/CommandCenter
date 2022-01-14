@@ -7,12 +7,17 @@ function s = BuildPulseSequence(obj)
 
 s = sequence('TransitionRatesMeasurement');
 repumpChannel = channel('repump','color','g','hardware',obj.repumpLaser.PB_line-1);
-% resChannel = channel('resonant','color','r','hardware',obj.resLaser.PB_line-1);
+resChannel = channel('resonant','color','r','hardware',obj.resLaser.PB_line-1);
 % MWChannel = channel('MWChannel','color','r','hardware',obj.MW_line-1);
 % APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
-s.channelOrder = [repumpChannel];
-g = node(s.StartNode, repumpChannel, 'units', 'us', 'delta', obj.resOffset_us);
+s.channelOrder = [repumpChannel,resChannel];
+r = node(s.StartNode, resChannel, 'units', 'us', 'delta', 0);
+r = node(r, resChannel, 'units','us','delta', obj.APD_buffer_s*1e6);
+% g = node(g, repumpChannel, 'units', 'us', 'delta', 1000);
+% g = node(g, repumpChannel, 'units','us','delta', obj.repumpTime_us);
+
+g = node(s.StartNode, repumpChannel, 'units', 'us', 'delta', obj.repumpOffset_us);
 g = node(g, repumpChannel, 'units','us','delta', obj.repumpTime_us);
 
-% s.draw()
+%s.draw()
 end

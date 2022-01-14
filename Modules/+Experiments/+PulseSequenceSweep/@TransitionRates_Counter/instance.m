@@ -6,7 +6,7 @@ function obj = instance(varargin)
     mlock;
     persistent Objects
     if isempty(Objects)
-        Objects = Experiments.PulseSequenceSweep.TransitionRates_2.empty(1,0);
+        Objects = Experiments.PulseSequenceSweep.TransitionRates_Counter.empty(1,0);
     end
     for i = 1:length(Objects)
         if isvalid(Objects(i)) && isequal(varargin,Objects(i).singleton_id)
@@ -14,7 +14,7 @@ function obj = instance(varargin)
             return
         end
     end
-    obj = Experiments.PulseSequenceSweep.TransitionRates_2(varargin{:});
+    obj = Experiments.PulseSequenceSweep.TransitionRates_Counter(varargin{:});
     obj.singleton_id = varargin;
     Objects(end+1) = obj;
 end

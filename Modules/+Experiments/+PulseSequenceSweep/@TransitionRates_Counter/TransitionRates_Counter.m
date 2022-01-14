@@ -5,7 +5,10 @@ classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceS
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
         APDline = 3;
+        repumpOffset_us = 10;
         repumpTime_us = 1; %us
+        dwell_ms = 1;
+        APD_buffer_s = 1;
         
         resLaserPower_ang = 0; % angle on filter wheel, might need to calibrate the corresponding laser power
         repumpLaserPower_mW = 1;
@@ -30,7 +33,7 @@ classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceS
     end
     methods(Access=private)
         function obj = TransitionRates_Counter()
-            obj.prefs = [obj.prefs,{'resLaser','APDline','repumpTime_us','repumpLaser',...
+            obj.prefs = [obj.prefs,{'resLaser','APDline','repumpOffset_us','repumpTime_us','repumpLaser','dwell_ms',...
             'resLaserPower_ang', 'repumpLaserPower_mW', 'resLaserPower_range', 'repumpLaserPower_range', 'counter'}]; %additional preferences not in superclass
             obj.loadPrefs;
         end
@@ -40,13 +43,13 @@ classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceS
         pulseSeq = BuildPulseSequence(obj) %Defined in separate file
         
         function PreRun(obj,~,~,ax)
-            obj.repumpLaser.on
+            %obj.repumpLaser.on
             %prepare axes for plotting
             hold(ax,'on');
 % %             colors = lines(2);
 %             %plot data bin 1
-            resLaser_range = eval(obj.resLaserPower_range);
-            for i = 1 : length(resLaser_range)
+            repumpLaser_range = eval(obj.repumpLaserPower_range);
+            for i = 1 : length(repumpLaser_range)
                 plotH{i} = plot(obj.data.APDCounts(:,i),'parent',ax);
             end
             ylabel(ax,'Counts');
@@ -67,7 +70,8 @@ classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceS
 %             end
             
             %grab handles to data from axes plotted in PreRun
-            for i = 1 : length(eval(obj.resLaserPower_range))
+            for i = 1 : length(eval(obj.repumpLaserPower_range))
+                hold on
                 ax.UserData.plots{i}.YData = obj.data.APDCounts(:,i);
                 drawnow limitrate;
             end        
