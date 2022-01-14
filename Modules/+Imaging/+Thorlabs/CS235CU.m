@@ -6,11 +6,13 @@ classdef CS235CU < Modules.Imaging
         
         prefs = {'exposure'};
         
-        cam = []
-        MemId = []
+        cam = [];
+        MemId = [];
+        tlCameraSDK;
     end
     properties(GetObservable, SetObservable)
         exposure =      Prefs.Double(NaN, 'units', 'ms', 'min', 0, 'max', inf, 'allow_nan', true, 'set', 'set_exposure');
+        gain = Prefs.Double(NaN, 'units', 'dB', 'min', 0, 'max', 480, 'allow_nan', true, 'set', 'set_gain');
     end
     properties(GetObservable, SetObservable)
         bitdepth = 0;
@@ -28,33 +30,30 @@ classdef CS235CU < Modules.Imaging
             end
             
             % Create an Instance of ITLCameraSDK
-            tlCameraSDK = Thorlabs.TSI.TLCamera.TLCameraSDK.OpenTLCameraSDK; % seems that matlab directory needs to in the same folder as this .m file
+            obj.tlCameraSDK = Thorlabs.TSI.TLCamera.TLCameraSDK.OpenTLCameraSDK; % seems that matlab directory needs to in the same folder as this .m file
             % Discover connected Thorlabs scientific cameras
-            serialNumbers = tlCameraSDK.DiscoverAvailableCameras;
+            serialNumbers = obj.tlCameraSDK.DiscoverAvailableCameras;
             % Open the first camera in the list
-            obj.cam = tlCameraSDK.OpenCamera(serialNumbers.Item(0), false);
-            
-%             % Set display mode to bitmap (DiB) and color mode to 8-bit RGB
-%             obj.cam.Display.Mode.Set(uc480.Defines.DisplayMode.DiB);
-%             obj.cam.PixelFormat.Set(uc480.Defines.ColorMode.RGBA8Packed);
+            obj.cam = obj.tlCameraSDK.OpenCamera(serialNumbers.Item(0), false);
             
             % Set trigger mode to software (single image acquisition)
             obj.cam.OperationMode = Thorlabs.TSI.TLCameraInterfaces.OperationMode.SoftwareTriggered;
+            % Set camera to be under continous acquisition
+            obj.cam.FramesPerTrigger_zeroForUnlimited = 0;
             % Prepare camera for software trigger
             obj.cam.Arm;
-%             % Issue software trigger
-%             obj.cam.IssueSoftwareTrigger;
-%             
-%             % Allocate memory and take image
-%             [~, obj.MemId] = obj.cam.Memory.Allocate(true);
-%             [~, W, H, B, ~] = obj.cam.Memory.Inquire(obj.MemId);
-%             
-%             % Deal with CC stuff
-%             obj.bitdepth = B;
-%             obj.resolution = [double(W), double(H)];
-%             obj.maxROI = [1 obj.resolution(1); 1 obj.resolution(2)];
-%             obj.ROI = obj.maxROI;
-%             obj.loadPrefs;
+            % Issue software trigger
+            obj.cam.IssueSoftwareTrigger;
+         
+            % Deal with CC stuff
+            obj.bitdepth = obj.cam.BitDepth;
+            W = obj.cam.ImageWidth_pixels;
+            H = obj.cam.ImageHeight_pixels;
+            
+            obj.resolution = [double(W), double(H)];
+            obj.maxROI = [1 obj.resolution(1); 1 obj.resolution(2)];
+            obj.ROI = obj.maxROI;
+            obj.loadPrefs;
         end
     end
     methods
@@ -63,6 +62,11 @@ classdef CS235CU < Modules.Imaging
                 if ~isempty(obj.cam)
                     obj.cam.Disarm;
                     obj.cam.Dispose;
+                    delete(obj.cam);
+
+                    % Release the TLCameraSDK.
+                    obj.tlCameraSDK.Dispose;
+                    delete(obj.tlCameraSDK);
                 end
             end
         end
@@ -83,6 +87,16 @@ classdef CS235CU < Modules.Imaging
             obj.cam.ExposureTime_us =  milliseconds * 1000;%us
             milliseconds = obj.cam.ExposureTime_us / 1000;
         end
+        function gain = set_gain(obj, gain, ~)
+            gainRange = obj.cam.GainRange;
+            if (gainRange.Maximum > 0)
+                obj.cam.Gain = gain;
+                gain = obj.cam.Gain;
+            else
+                gain = NaN;
+            end
+            
+        end
         function set.ROI(obj,val)
             % Update ROI without going outside maxROI
             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>
@@ -100,23 +114,21 @@ classdef CS235CU < Modules.Imaging
             error('Thorlabs.uc480.focus() NotImplemented')
         end
         function img = snapImage(obj)
-            % Acquire image
-            imageFrame = obj.cam.GetPendingFrameOrNull;
-            if ~isempty(imageFrame)
-                img = imageFrame;
-            end
-                
-%             % Acquire image
-%             obj.cam.Acquisition.Freeze(uc480.Defines.DeviceParameter.Wait);
-%             
-%             % Copy image from memory
-%             [~, tmp] = obj.cam.Memory.CopyToArray(obj.MemId);
-%             
-%             % Reshape image (make more efficient)
-%             img = reshape(uint8(tmp), [obj.bitdepth/8, obj.resolution(1), obj.resolution(2)]);
-%             img = img(1:3, 1:obj.resolution(1), 1:obj.resolution(2));
-%             img = permute(img, [3,2,1]);
-%             img = sum(img, 3);
+%             if (obj.cam.NumberOfQueuedFrames > 0)
+                % Acquire image
+                imageFrame = obj.cam.GetPendingFrameOrNull;
+                while isempty(imageFrame)
+                    imageFrame = obj.cam.GetPendingFrameOrNull;
+                end
+                % Get the image data as 1D uint16 array
+                imageData = uint16(imageFrame.ImageData.ImageData_monoOrBGR);
+
+                % TODO: custom image processing code goes here
+                imageHeight = imageFrame.ImageData.Height_pixels;
+                imageWidth = imageFrame.ImageData.Width_pixels;
+                img = reshape(imageData, [imageWidth, imageHeight]);
+
+%             end
         end
         % Required method of Modules.Imaging. The "snap button" in the UI calls this and displays the camera result on the imaging axis.
         function snap(obj, im, ~)
