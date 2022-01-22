@@ -21,7 +21,7 @@ classdef TransitionRates < Experiments.PulseSequenceSweep.PulseSequenceSweep_inv
         counterDuration = 0; %calculated in set.resTime_us
     end
     properties(Constant)
-        nCounterBins = 20; %number of APD bins for this pulse sequence (with more than 20 the PB errors)
+        nCounterBins = 40; %number of APD bins for this pulse sequence (with more than 20 the PB errors)
         counterSpacing = 0.1; %spacing between APD bins
         vars = {'placeHolderVariable'}; %names of variables to be swept
         

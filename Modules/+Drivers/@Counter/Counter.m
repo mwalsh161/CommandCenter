@@ -7,6 +7,7 @@ classdef Counter < Modules.Driver
         update_rate = 0.1;      % s (time between Matlab reading DAQ).  Takes effect at start.
         WindowMax = 60;         % Max axes width in seconds
         prefs = {'dwell','update_rate','WindowMax'};
+        pltH;
     end
     properties(Access=private)
         timerH                  % Handle to timer
@@ -201,6 +202,7 @@ classdef Counter < Modules.Driver
             obj.CounterH.Start;
             start(obj.timerH)
             obj.running = true;
+            obj.pltH = obj.plt;
         end
         
         function stop(obj)
