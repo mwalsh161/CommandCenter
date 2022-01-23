@@ -1,14 +1,14 @@
 classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible
-    %OpticalSpinPolarization measures the time dependence of the PLE signal
+    %Perform obj.Repeats times laser pulse cycle with period = 2 *
+    %obj.repumpOff_ms + obj. repumpTime
 
     properties(SetObservable,GetObservable, AbortSet)
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
-        APDline = 3;
-        repumpOffset_us = 10;
-        repumpTime_us = 1; %us
+        repeats = 1;
+        repumpOff_ms = 1; %ms each cycle consists of repumpOff, repump, repumpOff
+        repumpTime_ms = 1; %ms
         dwell_ms = 1;
-        APD_buffer_s = 1;
         
         resLaserPower_ang = 0; % angle on filter wheel, might need to calibrate the corresponding laser power
         repumpLaserPower_mW = 1;
@@ -33,7 +33,7 @@ classdef TransitionRates_Counter < Experiments.PulseSequenceSweep.PulseSequenceS
     end
     methods(Access=private)
         function obj = TransitionRates_Counter()
-            obj.prefs = [obj.prefs,{'resLaser','APDline','repumpOffset_us','repumpTime_us','repumpLaser','dwell_ms',...
+            obj.prefs = [obj.prefs,{'resLaser','repeats', 'repumpOff_ms','repumpTime_ms','repumpLaser','dwell_ms',...
             'resLaserPower_ang', 'repumpLaserPower_mW', 'resLaserPower_range', 'repumpLaserPower_range', 'counter'}]; %additional preferences not in superclass
             obj.loadPrefs;
         end

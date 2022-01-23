@@ -37,8 +37,26 @@ p = plot(NaN,'Parent',a);
 
 ard = Drivers.ArduinoServo.instance('localhost', 2);
 
+MeasSync = 'CounterSync';
+RepumpLine = 'RepumpTrigger';
+ResLine = 'EMMTrigger';
+APD_line = 'APD1';
+cycle_ms = obj.repumpOff_ms + obj.repumpTime_ms + obj.repumpOff_ms;
+total_time = cycle_ms * obj.repeats; %ms
+nsamples_APD = ceil(total_time / obj.dwell_ms);
+nsamples_cycle = ceil(cycle_ms / obj.dwell_ms);
+off_sample = ceil(obj.repumpOff_ms/obj.dwell_ms);
+on_sample = ceil(nsamples_cycle - off_sample * 2);
+
+
+pulseUnit = NaN(1, nsamples_cycle);
+pulseUnit(1 : off_sample) = zeros(1, length(1 : off_sample));
+pulseUnit(off_sample + 1 : off_sample + on_sample) = ones(1, length(1 : on_sample));
+pulseUnit(off_sample + on_sample + 1 : off_sample + on_sample + off_sample) = zeros(1, length(1 : off_sample));
+pulseTotal = repmat(pulseUnit, 1, obj.repeats)';
+
 numrepumpLaserPowers = length(eval(obj.repumpLaserPower_range));
-obj.data.APDCounts = NaN([obj.APD_buffer_s/obj.dwell_ms*1000-1, numrepumpLaserPowers]); % what is the number of APD bins obj.APDbins
+obj.data.APDCounts = NaN([ceil(total_time/obj.dwell_ms)-1, numrepumpLaserPowers]); % what is the number of APD bins obj.APDbins
 try
     n = 1;
     for repumpLaserPower = eval(obj.repumpLaserPower_range)
@@ -47,41 +65,57 @@ try
         obj.PreRun(status,managers,ax);
         obj.nidaqH.ClearAllTasks();
         % Start APD
-        PulseTrainH = obj.nidaqH.CreateTask('Counter PulseTrain');
+%         PulseTrainH = obj.nidaqH.CreateTask('Counter PulseTrain');
+%         try
+%             PulseTrainH.ConfigurePulseTrainOut('CounterSync',1/obj.dwell_ms*1000);
+%         catch err
+%             rethrow(err)
+%         end
+%         CounterH = obj.nidaqH.CreateTask('Counter CounterObj');
+%         try
+%             continuous = false;
+%             buffer = obj.cycle_s/obj.dwell_ms*1000;
+%             CounterH.ConfigureCounterIn('APD1',buffer,PulseTrainH,continuous)
+%         catch err
+%             rethrow(err)
+%         end
+%         CounterH.Start;
+%         PulseTrainH.Start;
         try
-            PulseTrainH.ConfigurePulseTrainOut('CounterSync',1/obj.dwell_ms*1000);
+            %(Code block, trigger green laser pulsing with DAQ)
+            PulseTrainH = obj.nidaqH.CreateTask('Measurement PT');
+            PulseTrainH.ConfigurePulseTrainOut(MeasSync,1/obj.dwell_ms,nsamples_APD);
+
+            CounterH = obj.nidaqH.CreateTask('Counter');
+            CounterH.ConfigureCounterIn(APD_line,nsamples_APD,PulseTrainH);
+
+            laser = obj.nidaqH.CreateTask('LaserPulse');
+            laser.ConfigureDigitalOut({RepumpLine},pulseTotal,PulseTrainH);
+
+            % Arm tasks (CLKs will wait for trigger)
+            PulseTrainH.Start; CounterH.Start; laser.Start;
         catch err
             rethrow(err)
         end
-        CounterH = obj.nidaqH.CreateTask('Counter CounterObj');
-        try
-            continuous = false;
-            buffer = obj.APD_buffer_s/obj.dwell_ms*1000;
-            CounterH.ConfigureCounterIn('APD1',buffer,PulseTrainH,continuous)
-        catch err
-            rethrow(err)
-        end
-        CounterH.Start;
-        PulseTrainH.Start;
 
 
         % Directly start the laser pulses with pulseblaster
-        overrideMinDuration = false;
-        try
-            [program, ~, ~, ~] = obj.BuildPulseSequence.compile(overrideMinDuration);
-            obj.pbH.load(program);
-            obj.pbH.start;
-        catch err
-            rethrow(err)
-        end
-
+%         overrideMinDuration = false;
+%         try
+%             [program, ~, ~, ~] = obj.BuildPulseSequence.compile(overrideMinDuration);
+%             obj.pbH.load(program);
+%             obj.pbH.start;
+%         catch err
+%             rethrow(err)
+%         end
+% 
         while ~CounterH.IsTaskDone 
             pause(0.1)
         end
 
         % Record APD
         nsamples = CounterH.AvailableSamples;
-        %obj.data.APDCounts(:,1) = ones([obj.APD_buffer_s/obj.dwell_ms*1000-1, numresLaserPowers]);
+        %obj.data.APDCounts(:,1) = ones([obj.cycle_s/obj.dwell_ms*1000-1, numresLaserPowers]);
         if nsamples
             obj.data.APDCounts(:,n) = diff(CounterH.ReadCounter(nsamples));
         end
