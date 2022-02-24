@@ -55,8 +55,10 @@ classdef OpenPhotodiode < Experiments.SlowScan.SlowScan_invisible
                 end
             end
             obj.resLaser.TunePercent(tunePoint);
+            obj.resLaser.on;
             PDvalue = obj.nidaqH.ReadAILine('PDreadout');
             obj.data.PDvalues(freqIndex) = PDvalue;
+            obj.resLaser.off;
             s = BuildPulseSequence@Experiments.SlowScan.SlowScan_invisible(obj,freqIndex);
         end
         function PreRun(obj,~,managers,ax)

@@ -66,7 +66,8 @@ function runSweep( obj,status,managers,ax )
         InitCLK.Start;
         InitCLK.WaitUntilTaskDone;
         
-        emmLaser = Sources.msquared.EMM.instance;
+%         emmLaser = Sources.msquared.EMM.instance;
+        emmLaser = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 7, false);
         startFreq = emmLaser.getFrequency;
         obj.data.startFreq = startFreq;
         

@@ -54,7 +54,8 @@ function runSweep( obj,status,managers,ax )
         InitCLK.Start;
         InitCLK.WaitUntilTaskDone;
         
-        emmLaser = Sources.msquared.EMM.instance;
+        emmLaser = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', 7, false);
+        %Sources.msquared.EMM.instance;
         startFreq = emmLaser.getFrequency;
         obj.data.startFreq = startFreq;
         
@@ -100,6 +101,7 @@ function runSweep( obj,status,managers,ax )
             while ~sweep.IsTaskDone; drawnow; end
             
             all_data(2*k-1,:) = plt.YData;
+            pause(0.4);
             all_freqs(2*k-1,2) = emmLaser.getFrequency;
             
             MeasCLK.Clear;
@@ -145,6 +147,7 @@ function runSweep( obj,status,managers,ax )
             while ~sweep.IsTaskDone; drawnow; end
             
             all_data(2*k,:) = plt.YData;
+            pause(0.4);
             all_freqs(2*k,1) = emmLaser.getFrequency;
             
             MeasCLK.Clear;

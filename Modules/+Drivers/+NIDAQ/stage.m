@@ -167,6 +167,123 @@ classdef stage < Modules.Driver
         end
         
         %% Scanning methods
+        function SetupScanVoltage(obj,xVals,yVals,dwellTime)
+            % Takes array of xVals and yVals then re-organizes and loads to NIDAQ
+            % dwellTime should be in ms
+            % NIDAQ will be ready to trigger at StartScan
+            if ~isempty(xVals)
+                assert(~isempty(obj.x_line),'Trying to setup 1D scan on x axis, but no line defined.')
+            end
+            if ~isempty(yVals)
+                assert(~isempty(obj.y_line),'Trying to setup 1D scan on y axis, but no line defined.')
+            end
+            assert(~isempty(yVals)||~isempty(xVals),'No voltages supplied!')
+            if dwellTime < obj.min_dwell
+                dwellTime = obj.min_dwell;
+                warning('Tried to set a dwell of %0.1f, which is less than the min_dwell of %0.1f. Set to minimum.',dwellTime,obj.min_dwell)
+            end
+            dwellTime = dwellTime/1000;  % ms to s
+            obj.xVals = xVals;
+            obj.yVals = yVals;
+            numpoints = max(length(xVals),1)*max(length(yVals),1);  % If ignoring a line, we still need to keep numpoints nonzero!
+            voltages = zeros(numpoints,~isempty(xVals)+~isempty(yVals)); % Second dimension determined by number of non-empty axes
+            for i = 1:numel(yVals)
+                for j = 1:numel(xVals)
+                    if mod(i,2) || ~obj.zigzag
+                        % Increasing Vx, Vy
+                        voltages((i-1)*length(xVals)+j,:) = [xVals(j) yVals(i)];
+                    else
+                        % Decreasing Vx, Vy
+                        voltages((i-1)*length(xVals)+j,:) = [xVals(end-j+1) yVals(i)];
+                    end
+                end
+            end
+            % Set Pulse Train
+            obj.taskPulseTrain = obj.nidaq.CreateTask('GalvoPulseTrain');
+            obj.dwell = dwellTime;
+            freq = 1/dwellTime;
+            try
+                obj.taskPulseTrain.ConfigurePulseTrainOut(obj.ext_sync,freq,numpoints+1);
+            catch err
+                obj.taskPulseTrain.Clear
+                rethrow(err)
+            end
+            % Set Voltage out to galvos
+            obj.taskScan = obj.nidaq.CreateTask('GalvoScan');
+            try
+                if isempty(xVals)
+                	obj.taskScan.ConfigureVoltageOut({obj.y_line},voltages,obj.taskPulseTrain);
+                elseif isempty(yVals)
+                    obj.taskScan.ConfigureVoltageOut({obj.x_line},voltages,obj.taskPulseTrain);
+                else
+                    obj.taskScan.ConfigureVoltageOut({obj.x_line,obj.y_line},voltages,obj.taskPulseTrain);
+                end
+            catch err
+                obj.taskPulseTrain.Clear
+                obj.taskScan.Clear
+                rethrow(err)
+            end
+            % Set Counter from APD
+            obj.taskCounter = obj.nidaq.CreateTask('GalvoCounter');
+            try
+                %obj.taskCounter.ConfigureCounterIn(obj.count_in,numpoints+1,obj.taskPulseTrain);
+                obj.taskCounter.ConfigureVoltageIn(obj.count_in,obj.taskPulseTrain,numpoints+1);
+            catch err
+                obj.taskPulseTrain.Clear
+                obj.taskScan.Clear
+                obj.taskCounter.Clear
+                rethrow(err)
+            end
+            addlistener(obj.taskScan,'status','PostSet',@obj.TaskUpdated);
+        end
+        function StartScanVoltage(obj)
+            assert(isvalid(obj.taskPulseTrain),'No scan setup!')
+            % Arm output/data lines
+            obj.VoltBeforeScan = obj.voltage;
+            obj.taskCounter.Start;
+            obj.taskScan.Start;
+            % Trigger to go!
+            obj.taskPulseTrain.Start;
+        end
+        function StreamToImageVoltage(obj,imObj)
+            assert(isvalid(imObj),'Invalid imObj handle')
+            assert(~isempty(obj.taskPulseTrain)&&isobject(obj.taskPulseTrain)&&isvalid(obj.taskPulseTrain),'No scan setup!')
+            numpoints = max(length(obj.xVals),1)*max(length(obj.yVals),1);
+            CounterRawData = NaN(numpoints+1,1);
+            ydat = linspace(imObj.YData(1),imObj.YData(end),size(imObj.CData,1));
+            tracker = line(imObj.Parent,imObj.XData([1 end]),NaN(1,2),'color','g');
+            ii = 0;
+            while isvalid(obj.taskCounter)&&(~obj.taskCounter.IsTaskDone || obj.taskCounter.AvailableSamples)
+                SampsAvail = obj.taskCounter.AvailableSamples;
+                % Change to counts per second
+                %counts = obj.taskCounter.ReadCounter(SampsAvail);
+                counts = obj.taskCounter.ReadVoltageIn(SampsAvail);
+                CounterRawData(ii+1:ii+SampsAvail) = counts;
+                ImageData = reshape(CounterRawData(2:end),[max(length(obj.xVals),1),max(length(obj.yVals),1)])';
+                ii = ii + SampsAvail;
+                % Adjust for zig zag scan
+                for row = 1:size(ImageData,1)
+                    if ~mod(row,2) && obj.zigzag
+                        ImageData(row,:)=fliplr(ImageData(row,:));
+                    end
+                end
+                mask = ~isnan(ImageData);
+                imObj.CData(mask) = ImageData(mask); % Only update new data
+                yloc = find(any(~mask,2),1);
+                if ~isempty(yloc)
+                    tracker.YData = [0 0] + ydat(yloc);
+                end
+                drawnow;
+            end
+            delete(tracker);
+            if ~isvalid(obj.taskCounter)
+                return
+            end
+            % Wait for pulse train to complete, then clean up.
+            obj.taskPulseTrain.WaitUntilTaskDone;
+            obj.clear_tasks;
+        end
+        %%%%%
         function SetupScan(obj,xVals,yVals,dwellTime)
             % Takes array of xVals and yVals then re-organizes and loads to NIDAQ
             % dwellTime should be in ms

@@ -13,7 +13,7 @@ function run( obj,status,managers,ax )
     
     ni = Drivers.NIDAQ.dev.instance('Dev1');
     trigger_line = 'trigger'; % out/in
-    AO_line = 'LED'; % out
+    AO_line = 'SolstisResonator'; % out
     MeasSync = 'Widefield Lens'; % out
     SweepSync = 'sync'; % out
     APD_line = 'APD1'; % in
