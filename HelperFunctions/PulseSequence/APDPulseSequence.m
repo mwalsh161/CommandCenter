@@ -80,6 +80,7 @@ classdef APDPulseSequence < handle
             for i = 1:numel(gate_chans)
                 GateLineName = gate_chans(i).label;
                 obj.tasks(end+1) = obj.ni.CreateTask([mfilename ' ' GateLineName]);
+                %obj.tasks(end+1) = obj.ni.CreateTask([mfilename ' ' i ' ' GateLineName]);
                 obj.tasks(i).UserData.N = obj.count_bins(s,GateLineName);
                 obj.tasks(i).UserData.raw_data = NaN(obj.tasks(i).UserData.N,1);
                 obj.tasks(i).UserData.ii = 0;
@@ -144,6 +145,59 @@ classdef APDPulseSequence < handle
                             obj.tasks(i).Clear
                             obj.tasks(i) = [];
                         end
+                    end
+                end
+
+                if toc(t) >= obj.timeout
+                    error('APDPulseSequence operation timed out without reading samples from DAQ. Make sure that PulseBlaster pulses are reaching the DAQ!')
+                end
+            catch err
+            end
+            for j = 1:numel(obj.tasks)
+                obj.tasks(j).Clear;
+            end
+            obj.tasks = Drivers.NIDAQ.task.empty(0);
+            if ~isempty(err)
+                rethrow(err)
+            end
+        end
+        function stream2APD(obj,varargin)
+            % Inputs are line objects (one for each counter)
+            assert(~isempty(obj.tasks),'Nothing setup!')
+            assert(numel(varargin)==numel(obj.tasks),sprintf('%i Counters. Only received %i inputs.',numel(obj.tasks),numel(varargin)))
+            for i = 1:numel(varargin)
+                assert(isvalid(varargin{i}),'Invalid line handle')
+            end
+            err = [];
+            try
+                t = tic;
+                clearFlag = zeros(numel(varargin),1);
+%                 while ~isempty(obj.tasks) && toc(t) < obj.timeout
+                while ~all(clearFlag) && toc(t) < obj.timeout
+%                     i = 0;
+                    for i = 1:numel(obj.tasks)
+%                         i = i+1;
+                        if obj.tasks(i).IsTaskDone
+                            clearFlag(i) = 1;
+                        else
+                            clearFlag(i) = 0;
+                        end
+                        SampsAvail = obj.tasks(i).AvailableSamples;
+                        if SampsAvail
+                            ii = obj.tasks(i).UserData.ii;
+                            % Change to counts per second
+                            counts = obj.tasks(i).ReadCounter(SampsAvail);
+                            obj.tasks(i).UserData.raw_data(ii+1:ii+SampsAvail) = counts;
+                            obj.tasks(i).UserData.ii = obj.tasks(i).UserData.ii + SampsAvail;
+                            set(varargin{i},'ydata',obj.tasks(i).UserData.raw_data,...
+                                'xdata',1:numel(obj.tasks(i).UserData.raw_data))
+                            drawnow;
+                        end
+%                         if clearFlag
+%                             obj.tasks(i).Clear
+%                             obj.tasks(i) = [];
+%                             i = i-1;
+%                         end
                     end
                 end
 

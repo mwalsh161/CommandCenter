@@ -9,6 +9,7 @@ classdef OpticalSpinPolarizationEOM < Experiments.PulseSequenceSweep.PulseSequen
         repumpTime_us = 1; %us
         resOffset_us = 0.1;
         resTime_us = 10;
+        invert_MW_line = false;
     end
     properties
         placeHolderVariable = 1; %all APD bins are acquired in one shot, no variable is swept
@@ -25,7 +26,7 @@ classdef OpticalSpinPolarizationEOM < Experiments.PulseSequenceSweep.PulseSequen
     end
     methods(Access=private)
         function obj = OpticalSpinPolarizationEOM()
-            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','MW_line','repumpTime_us','resOffset_us',...
+            obj.prefs = [obj.prefs,{'resLaser','repumpLaser','APDline','MW_line','invert_MW_line','repumpTime_us','resOffset_us',...
             'resTime_us'}]; %additional preferences not in superclass
             obj.loadPrefs;
         end
@@ -33,6 +34,8 @@ classdef OpticalSpinPolarizationEOM < Experiments.PulseSequenceSweep.PulseSequen
 
     methods
         pulseSeq = BuildPulseSequence(obj,tauIndex) %Defined in separate file
+        
+        %Experiments.PulseSequenceSweep.PulseSequenceSweep_invisible.run(obj,status,managers,ax);
         
         function PreRun(obj,~,managers,ax)
             %prepare axes for plotting

@@ -1,5 +1,5 @@
 function run( obj,status,managers,ax)
-% Main run method (callback for CC run button) for EMCCD T1
+% Main run method (callback for CC run button)
 obj.abort_request = false;
 status.String = 'Experiment started';
 drawnow;
@@ -11,13 +11,8 @@ drawnow;
 % - try/catch/end statements useful for cleaning up
 % - You can get a figure-like object (to create subplots) by:
 %     panel = ax.Parent; delete(ax);
-%     ax(1) = subplot(1,2,1,'parent',panel);32
+%     ax(1) = subplot(1,2,1,'parent',panel);
 % - drawnow can be used to update status box message and any plots
-
-
-ROI_EMCCD = obj.cameraEMCCD.ROI;
-imgSize_EMCCD = ROI_EMCCD(:,2) - ROI_EMCCD(:,1);
-obj.data.images_EMCCD = NaN(imgSize_EMCCD(1), imgSize_EMCCD(2), length(obj.vars));
 
 % Assert user implemented abstract properties correctly
 assert(iscell(obj.vars)&&~isempty(obj.vars)&&min(size(obj.vars))==1,'Property "vars" should be a 1D cell array with at least one value!');
@@ -34,8 +29,10 @@ for i = 1:numVars
     varLength(i) = length(obj.(obj.vars{i}));
 end
 
-obj.data.sumCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
-obj.data.stdCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
+obj.data.data1.sumCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
+obj.data.data1.stdCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
+obj.data.data2.sumCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
+obj.data.data2.stdCounts = NaN([obj.averages,varLength,obj.nCounterBins]);
 
 obj.meta.prefs = obj.prefs2struct;
 for i = 1:length(obj.vars)
@@ -46,7 +43,11 @@ obj.meta.position = managers.Stages.position; % Stage position
 
 f = figure('visible','off','name',mfilename);
 a = axes('Parent',f);
-p = plot(NaN,'Parent',a);
+hold(a,'on');
+p1 = plot(NaN,'Parent',a);
+p2 = plot(NaN,'Parent',a);
+p(1)=p1;p(2)=p2;
+hold(a,'off');
 
 try
     obj.PreRun(status,managers,ax);
@@ -70,42 +71,33 @@ try
             pulseSeq = obj.BuildPulseSequence(indices{:});
             if pulseSeq ~= false % Interpret a return of false as skip this one (leaving in NaN)
                 pulseSeq.repeat = obj.samples;
+                apdPS.seq = pulseSeq;
                 
-                overrideMinDuration = false;
-                [program, ~, ~, time] = pulseSeq.compile(overrideMinDuration);
-                timeout = 1.5*time + 1;
-                obj.pbH.load(program);
-                obj.pbH.start;
-                
-                
-%                 apdPS.seq = pulseSeq;
-%                 apdPS.start(1000); % hard coded
-                
-%                 apdPS.stream(p);
-%                 dat = reshape(p.YData,obj.nCounterBins,[])';
-%                 obj.data.sumCounts(j,indices{:},:) = sum(dat);
-%                 obj.data.stdCounts(j,indices{:},:) = std(dat);
+                apdPS.start(1000); % hard coded
+                apdPS.stream2APD(p1,p2);
+                dat1 = reshape(p1.YData,obj.nCounterBins,[])';
+                dat2 = reshape(p2.YData,obj.nCounterBins,[])';
+                if size(dat1,1)==1
+                    obj.data.data1.sumCounts(j,indices{:},:) = dat1;
+                    obj.data.data1.stdCounts(j,indices{:},:) = dat1;
+                else
+                    obj.data.data1.sumCounts(j,indices{:},:) = sum(dat1);
+                    obj.data.data1.stdCounts(j,indices{:},:) = std(dat1);
+                end
+                if size(dat2,1)==1
+                    obj.data.data2.sumCounts(j,indices{:},:) = dat2;
+                    obj.data.data2.stdCounts(j,indices{:},:) = dat2;
+                else
+                    obj.data.data2.sumCounts(j,indices{:},:) = sum(dat2);
+                    obj.data.data2.stdCounts(j,indices{:},:) = std(dat2);
+                end
             end
-            %wait for buffer to have new camera image:
-            img_ready = 0;
-            timeout = 10;
-            tic
-            while (img_ready<1&toc<timeout)
-                img_ready = obj.cameraEMCCD.core.getRemainingImageCount();
-                %pause(obj.sequenceduration/1e3); %wait for camera readout?
-                pause(0.1);
-            end
-            %acquire camera image
-            obj.data.images_EMCCD(:,:,i) = obj.cameraEMCCD.popNextImage();
-            imagesc(ax,obj.data.images_EMCCD(:,:,i));
-            colorbar;
             obj.UpdateRun(status,managers,ax,j,indices{:});
         end
     end
     obj.PostRun(status,managers,ax);
     
 catch err
-    obj.PostRun(status,managers,ax);
 end
 delete(f);
 if exist('err','var')

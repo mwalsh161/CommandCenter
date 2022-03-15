@@ -16,6 +16,7 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
         tune_coarse =           Prefs.Boolean(false,     'help_text', 'Whether to tune to the coarse value before the scan.');
         center_scan =           Prefs.Boolean(false,    'help_text', 'When true, percents will be shifted after tune_coarse completes to compensate position of percent.');
         post_scan_tune_max =    Prefs.Boolean(false,     'help_text', 'Whether to tune to the maximum value after the scan has completed.');
+        invert_MW_line =    Prefs.Boolean(false,     'help_text', '.');
     end
     properties(SetObservable,AbortSet)
         laser_freq_THz =      470;
@@ -36,7 +37,7 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
     methods(Access=private)
         function obj = EOMscan()
             obj.scan_points = eval(obj.MW_freq_MHz);
-            obj.prefs = [{'MWsource','laser_freq_THz','post_scan_tune_max','MW_freq_MHz'}, obj.prefs];
+            obj.prefs = [{'MWsource','laser_freq_THz','post_scan_tune_max','MW_freq_MHz','invert_MW_line'}, obj.prefs];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -62,13 +63,16 @@ classdef EOMscan < Experiments.SlowScan.SlowScan_invisible
             if freqIndex > 1
                 s = obj.sequence;
             else
-                s = sequence('SlowScan'); %#ok<CPROPLC> Calling HelperFunction
+                s = sequence('EOMscan'); %#ok<CPROPLC> Calling HelperFunction
                 repumpChannel = channel('Repump','color','g','hardware',obj.repumpLaser.PB_line-1);
                 resChannel = channel('Resonant','color','r','hardware',obj.resLaser.PB_line-1);
-                MWChannel = channel('Resonant','color','r','hardware',obj.MWsource.PB_line-1);
+                MWChannel = channel('MW','color','k','hardware',obj.MWsource.PB_line-1);
                 APDchannel = channel('APDgate','color','b','hardware',obj.APDline-1,'counter','APD1');
-                s.channelOrder = [repumpChannel, resChannel, APDchannel];
+                s.channelOrder = [repumpChannel, resChannel, MWChannel, APDchannel];
                 g = node(s.StartNode,repumpChannel,'units','us','delta',0);
+                if obj.invert_MW_line
+                    node(g,MWChannel,'units','us','delta',0);
+                end
                 g = node(g,repumpChannel,'units','us','delta',obj.repumpTime_us);
                 r = node(g,resChannel,'units','us','delta',obj.resOffset_us);
                 node(r,MWChannel,'units','us','delta',0);

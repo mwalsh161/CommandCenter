@@ -17,14 +17,19 @@ g = node(s.StartNode,repumpChannel,'delta',0);
 %     counterStart = node(g, APDchannel, 'units','us','delta', (n -1)*(obj.counterDuration+obj.counterSpacing));
 %     node(counterStart, APDchannel, 'units','us','delta', obj.counterDuration)
 % end
-node(g,MWChannel,'units','us','delta',0);
+
+if obj.invert_MW_line
+    node(g,MWChannel,'units','us','delta',0);
+end
+
 g = node(g,repumpChannel,'units','us','delta',obj.repumpTime_us);
 resStart = node(g,resChannel,'units','us','delta',obj.resOffset_us);
 resStop = node(resStart,resChannel,'units','us','delta',obj.resTime_us);
+node(resStart,MWChannel,'units','us','delta',0);
 node(resStop,MWChannel,'units','us','delta',0);
 
 
-for n = 1-2:nCounters-2
+for n = 1:nCounters
     counterStart = node(resStart,APDchannel,'units','us','delta',(n-1)*(obj.counterDuration+obj.counterSpacing));
     node(counterStart,APDchannel,'units','us','delta',obj.counterDuration);
 end
