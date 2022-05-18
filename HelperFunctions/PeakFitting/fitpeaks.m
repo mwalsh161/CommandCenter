@@ -144,7 +144,18 @@ if ismember('AmplitudeSensitivity',pSpecified)
     [~,I] = sort(prom_proms,'descend');
     sortwids = prom_wids(I);
     sortlocs = prom_locs(I);
-    thresh = sortlocs(1)+p.AmplitudeSensitivity *sortwids(1); %assume most prominent prominence corresponds to noise
+    if ~isempty(sortwids) & ~isempty(sortlocs)
+        thresh = sortlocs(1)+p.AmplitudeSensitivity *sortwids(1); %assume most prominent prominence corresponds to noise
+    else
+        vals = [];
+        confs = [];
+        fit_results = [];
+        gofs = [];
+        init = [];
+        stop_condition = [];
+        fprintf('Consider searching for n=1 peaks');
+        return
+    end
     p.n = sum(init.amplitudes >= thresh);
 end
 
