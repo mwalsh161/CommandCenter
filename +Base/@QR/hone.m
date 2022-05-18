@@ -178,6 +178,8 @@ npoints = size(markers_theory,1);
 readInfo.tform = im2QRT;
 readInfo.std = err;
 readInfo.npoints = npoints;
+readInfo.labC = labC;
+readInfo.honedC = honedC;
 end
 
 function h = circle(c,r,varargin)
