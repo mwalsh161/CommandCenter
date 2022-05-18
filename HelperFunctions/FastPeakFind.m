@@ -2,6 +2,7 @@ function [cent, varargout]=FastPeakFind(d,thresh)
 edg = 3;
 if any(d(:))
 	d=d.*(d>thresh);
+    %d = d(d>thresh); ??? 
 	if any(d(:))
 		sd=size(d);
         [x, y]=find(d(edg:sd(1)-edg,edg:sd(2)-edg));
