@@ -1,12 +1,24 @@
-function [varargout] = NV_Finder(im,NVsize)
+function [varargout] = NV_Finder(im,NVsize) %NVsize in diameter (later converted to sigma) 
 sensitivity = 2; %number of STD's above the noise
-scaley = (size(im.image,1)-1)/diff(im.ROI(2,:));
-scalex = (size(im.image,2)-1)/diff(im.ROI(1,:));
+if isstruct(im)
+    scaley = (size(im.image,1)-1)/diff(im.ROI(2,:));
+    scalex = (size(im.image,2)-1)/diff(im.ROI(1,:));
+else %for generic images 
+    s = size(im);
+    scaley = s(1);
+    scalex = s(2);
+end
 NVsize = scaley*NVsize;
 lp = NVsize/2*0.5;  % Wants sigma (NVsize was originaly a diameter)
 hp = NVsize/2*1.5;
-% Assume im is the image matrix
-im_filt = imgaussfilt(im.image,lp) - imgaussfilt(im.image,hp);  % BP filter: LP-HP
+
+% Don't assume im is the image matrix
+if isstruct(im)
+    im_filt = imgaussfilt(im.image,lp) - imgaussfilt(im.image,hp);  % BP filter: LP-HP
+else 
+    %im_filt = imgaussfilt(im,lp) - imgaussfilt(im,hp); 
+    im_filt = im;
+end 
 
 % Calculate threshold
 temp = im_filt;
