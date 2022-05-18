@@ -5,6 +5,11 @@ function [scatterH,f] = imfindpeaks( imH,varargin )
 %   IMFINDPEAKS(imH,default)
 %   IMFINDPEAKS(imH,varargin)
 %   IMFINDPEAKS(imH,default,varargin)
+%   example input:
+%       f = figure;
+%       ax_temp = axes('parent',f); 
+%       imH = imagesc(image,'parent',ax_temp);
+%
 %     - default is a struct with optional fields: sigmas, thresh, clim
 %     - varargin is piped directly to scatter(__,varargin)
 %   Modifies imcontrast figure to add gaussian bandpass filtering options.
