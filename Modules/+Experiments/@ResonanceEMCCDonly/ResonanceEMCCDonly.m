@@ -1,4 +1,4 @@
-classdef ResonanceEMCCD < Modules.Experiment
+classdef ResonanceEMCCDonly < Modules.Experiment
     % Resonance Description of experiment
     % Useful to list any dependencies here too
 
@@ -6,10 +6,7 @@ classdef ResonanceEMCCD < Modules.Experiment
         % These should be preferences you want set in default settings method
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
-        camera1 = Modules.Imaging.empty(1,0);
         cameraEMCCD = Modules.Imaging.empty(1,0);
-        camera_exposure = 100;
-        camera_gain = 0;
         EMCCD_binning = 1;
         EMCCD_exposure = 100;
         EMCCD_gain = 1200;
@@ -32,7 +29,7 @@ classdef ResonanceEMCCD < Modules.Experiment
     end
     
     properties
-        prefs = {'percents', 'tune_coarse', 'set_wavelength', 'wavemeter_override','wavemeter_channel','resLaser', 'repumpLaser', 'camera1', 'cameraEMCCD','EMCCD_binning', 'EMCCD_exposure', 'EMCCD_gain','camera_exposure','camera_gain'};  % String representation of desired prefs
+        prefs = {'percents', 'tune_coarse', 'set_wavelength', 'wavemeter_override','wavemeter_channel','resLaser', 'repumpLaser', 'cameraEMCCD','EMCCD_binning', 'EMCCD_exposure', 'EMCCD_gain'};  % String representation of desired prefs
         %show_prefs = {};   % Use for ordering and/or selecting which prefs to show in GUI
         %readonly_prefs = {}; % CC will leave these as disabled in GUI (if in prefs/show_prefs)
     end
@@ -54,7 +51,7 @@ classdef ResonanceEMCCD < Modules.Experiment
         obj = instance()
     end
     methods(Access=private)
-        function obj = ResonanceEMCCD()
+        function obj = ResonanceEMCCDonly()
             % Constructor (should not be accessible to command line!)
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end

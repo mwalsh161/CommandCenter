@@ -5,6 +5,8 @@ classdef Hamamatsu < Modules.Imaging
     properties
         exposure = 100        % Exposure time in ms
         binning = 1         % Bin pixels
+%         exposure =      Prefs.Double(NaN, 'units', 'ms', 'min', 0, 'max', inf, 'allow_nan', true, 'set', 'set_exposure');
+%         gain = Prefs.Double(NaN, 'units', 'dB', 'min', 0, 'max', 480, 'allow_nan', true, 'set', 'set_gain');
         EMGain = 4
         ImRot90 
         FlipVer 

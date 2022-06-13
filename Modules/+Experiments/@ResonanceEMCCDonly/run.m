@@ -15,8 +15,6 @@ function run( obj,status,managers,ax )
 
     obj.resLaser.on
     obj.repumpLaser.on
-    obj.camera1.set_exposure(obj.camera_exposure);
-    obj.camera1.set_gain(obj.camera_gain);
     obj.cameraEMCCD.binning = obj.EMCCD_binning;
     obj.cameraEMCCD.exposure = obj.EMCCD_exposure;
     obj.cameraEMCCD.EMGain = obj.EMCCD_gain;
@@ -25,26 +23,25 @@ function run( obj,status,managers,ax )
     ROI_EMCCD = obj.cameraEMCCD.ROI;
     %imgSize_EMCCD = max(ROI_EMCCD) - min(ROI_EMCCD);
     imgSize_EMCCD = ROI_EMCCD(:,2) - ROI_EMCCD(:,1);
-    ROI_cam = obj.camera1.ROI;
-    %imgSize_cam = max(ROI_cam) - min(ROI_cam);
-    imgSize_cam = ROI_cam(:,2) - ROI_cam(:,1) +1;
-    obj.data.images_camera = NaN(imgSize_cam(1), imgSize_cam(2), length(obj.scan_points));
     obj.data.images_EMCCD = NaN(imgSize_EMCCD(1), imgSize_EMCCD(2), length(obj.scan_points));
     obj.data.freqMeasured = NaN(1,length(obj.scan_points));
-
+    if obj.wavemeter_override
+        obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu',obj.wavemeter_channel,false);
+    end
+    
     for i = 1 : length(obj.scan_points)
         drawnow('limitrate'); assert(~obj.abort_request,'User aborted.');
+        
         % change laser wavelength
         obj.resLaser.TunePercent(obj.scan_points(i));
-        
 %         obj.resLaser.set_resonator_percent_limitrate(obj.scan_points(i));
         
-        obj.data.images_camera(:,:,i) = obj.camera1.snapImage();
         obj.data.images_EMCCD(:,:,i) = obj.cameraEMCCD.snapImage();
         
         if obj.wavemeter_override
-%             obj.wavemeter.SetSwitcherSignalState(1);
-            obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
+            
+            obj.wavemeter.SetSwitcherSignalState(1);
+            %obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
             obj.data.freqMeasured(i) = obj.wavemeter.getFrequency;
         else
             obj.data.freqMeasured(i) = obj.resLaser.getFrequency;

@@ -76,6 +76,7 @@ classdef TunableLaser_invisible < handle
                     dfreqH.XData(end+1) = dt;
                     dfreqH.YData = abs(diff(freqH.YData));
                 end
+                pause(1)
                 drawnow limitrate;
             end
             
