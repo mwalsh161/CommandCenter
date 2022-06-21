@@ -171,9 +171,6 @@ classdef metastage < handle % Modules.Driver
                 metric2(ii) = obj.image.N;              % QR detection confidence (num QRs)
                 
                 % Should also use X & Y reasonability as a metric.
-%                 obj.image.X
-%                 obj.image.Y
-
                 XX(ii) = obj.image.X;
                 YY(ii) = obj.image.Y;
                 
@@ -188,6 +185,11 @@ classdef metastage < handle % Modules.Driver
                 end
                 
                 if max(metric2) == 4 && metric2(ii) < 3
+                    if ii < 4   % If we break near the start of our sweep, we will be dominated by hysteresis, so we need to try again.
+                        success = obj.focus(N, zspan, isfine);  % So start another sweep about our current location.
+                        return
+                    end
+                    
                     break;
                 end
             end
@@ -264,7 +266,7 @@ classdef metastage < handle % Modules.Driver
                 end
 
                 positions = 0:10;
-                base = pref.read()
+                base = pref.read();
                 Vs = NaN(2, length(positions));
                 kk = 1;
                 

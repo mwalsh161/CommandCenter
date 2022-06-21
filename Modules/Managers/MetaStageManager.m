@@ -77,7 +77,7 @@ classdef MetaStageManager < Base.Manager
             panel.Position(4) = H;
             pos = panel.Position;
             
-            dropdown =  uicontrol(panel, 'Style', 'popupmenu',  'String', {''}, 'Value', 1, 'Position', [m,         H-h-p-h-p, w,   h]);
+            dropdown =  uicontrol(panel, 'Style', 'popupmenu',  'String', {''}, 'Value', 1, 'Position', [m,         H-h-p, w-h-2*p,   h]);
             
             x = m + 2*B;
             y = H-h-2*p-2*B;
@@ -284,7 +284,6 @@ classdef MetaStageManager < Base.Manager
             end
         end
         function initializeJoystick(obj, address)
-            
 %             splt = split(address, ':');
 %             switch length(splt)
 %                 case 1
@@ -349,7 +348,8 @@ classdef MetaStageManager < Base.Manager
 
                 if strcmp(hello, 'No Server') && strcmp(host, 'localhost')
                     disp('Starting server')
-                    system('python startjoystick.py');
+%                     system('python startjoystick.py');
+                    system('initializeLocalJoystick.bat');
                     
                     pause(.5)
 

@@ -7,9 +7,9 @@ function ms = eg308setup
 %     ms.coarse_y = stage.motors{2}.get_meta_pref('Position');
 %     ms.coarse_z = stage.motors{3}.get_meta_pref('Position');
     
-    mx = Drivers.APTMotor.instance(90878996, [0 10]);
-    my = Drivers.APTMotor.instance(90878998, [0 10]);
-    mz = Drivers.APTMotor.instance(90878997, [0 10]);
+    mx = Drivers.APTMotor.instance(90878996, [-2 14]);
+    my = Drivers.APTMotor.instance(90878998, [-2 14]);
+    mz = Drivers.APTMotor.instance(90878997, [-2 14]);
     
     ms.coarse_x = mx.get_meta_pref('Position');
     ms.coarse_y = my.get_meta_pref('Position');

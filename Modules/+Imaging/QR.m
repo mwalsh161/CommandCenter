@@ -34,6 +34,7 @@ classdef QR < Modules.Imaging
         current_img;    % Cache for the previous image.
     end
     properties(SetAccess=private)
+        options_fit = []
         X
         Y
         N
@@ -134,6 +135,7 @@ classdef QR < Modules.Imaging
             [v, V, options_fit, stages] = Base.QRconv(img, options_guess);
             
             %save props
+            obj.options_fit = options_fit;
             obj.X = options_fit.Vcen(1);
             obj.Y = options_fit.Vcen(2);
             obj.N = sum(~options_fit.outliers & ~isnan(V(1,:))); % N -> numQRs

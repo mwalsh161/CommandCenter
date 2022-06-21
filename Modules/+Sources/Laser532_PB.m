@@ -9,7 +9,7 @@ classdef Laser532_PB < Modules.Source
         PB_line =       Prefs.Integer(1, 'min', 1, 'help_text', 'Pulse Blaster flag bit (indexed from 1)');
         PB_host =       Prefs.String('No Server', 'set', 'set_pb_host', 'help_text', 'hostname of hwserver computer with PB');
     end
-    properties(SetAccess=private)
+    properties(Hidden)
         PulseBlaster                 % Hardware handle
     end
     methods(Access=protected)
