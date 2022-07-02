@@ -84,7 +84,19 @@ classdef Reference < Base.Pref
         function obj = set_ui_value(obj,val)
             if ~isempty(obj.reference)
                 obj.ui.set_value(val);
+                % if obj.name == 'X'
+                %     obj.parent.X_value = val;
+                % end
+                % if obj.name == 'Y'
+                %     obj.parent.Y_value = val;
+                % end
+                % if obj.name == 'Z'
+                %     obj.parent.Z_value = val;
+%                 end
+            else
+                warning("UI value of %s is not properly set\n", val);
             end
+            
         end
         
         function val = read(obj)

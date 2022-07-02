@@ -137,18 +137,18 @@ classdef metastage < handle % Modules.Driver
             % Plot sharpness and #QRs.
             yyaxis(obj.graphics.axes, 'left');
             p1 = plot(obj.graphics.axes, zbase + dZ, metric1);
-            ylabel('~Sharpness');
+            ylabel(obj.graphics.axes, '~Sharpness');
             
             yyaxis(obj.graphics.axes, 'right');
             p2 = plot(obj.graphics.axes, zbase + dZ, metric2);
-            ylabel('Number of Self-Consistent QRs Detected');
+            ylabel(obj.graphics.axes, 'Number of Self-Consistent QRs Detected');
             
-            xlim(zbase + [min(dZ), max(dZ)])
+            xlim(obj.graphics.axes, zbase + [min(dZ), max(dZ)])
             
             if isfine
-                xlabel(obj.fine_z.get_label());
+                xlabel(obj.graphics.axes, obj.fine_z.get_label());
             else
-                xlabel(obj.coarse_z.get_label());
+                xlabel(obj.graphics.axes, obj.coarse_z.get_label());
             end
             
             % Sweep over Z, recording 'focus metrics' at every step

@@ -53,7 +53,7 @@ classdef Pref < matlab.mixin.Heterogeneous % value class
     %   instantiations, but not between sessions (e.g. we can't replace current Pref
     %   architecture with this)
 
-    properties (Hidden, SetAccess={?Base.Module, ?Base.Input, ?Base.Pref})
+    properties (Hidden, SetAccess={?Base.Module, ?Base.Input, ?Base.Pref, ?Base.Reference})
         value = NaN;                        % The property at the heart of it all: value that we are controlling.
     end
     

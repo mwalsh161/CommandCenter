@@ -238,7 +238,8 @@ try
     % Init managers
     set(textH,'String', 'Loading StageManager'); drawnow;
     handles.Managers.Stages = StageManager(handles);
-    
+
+    % MetaStageManager has to be the last to load, since it relies on other preferences.
     set(textH,'String', 'Loading MetaStageManager'); drawnow;
     handles.Managers.MetaStage = MetaStageManager(handles);
     
@@ -259,6 +260,8 @@ try
     
     set(textH,'String', 'Loading Paths'); drawnow;
     handles.Managers.Path = PathManager(handles); % Generates its own menu item
+
+
     
     set(textH,'String', 'Preparing GUI'); drawnow;
     set(textH,'String', 'Done'); drawnow;
@@ -388,6 +391,9 @@ wait = msgbox('Please Wait, CommandCenter is saving modules','help','modal');
 delete(findall(wait,'tag','OKButton'))
 drawnow
 h_list = {handles.Managers};
+if (isprop(handles.Managers, 'MetaStage'))
+    delete(handles.Managers.MetaStage)
+end
 for i = 1:numel(h_list)
     for j = 1:numel(h_list{i})
     h = h_list{i}(j);
@@ -397,13 +403,17 @@ for i = 1:numel(h_list)
     end
 end
 % Now delete, any leftover modules (drivers usually)
-mods = getappdata(hObject,'ALLmodules');
-for i = 1:numel(mods)
-    if isvalid(mods{i})
-        handles.logger.log(sprintf('(Unmanaged) - Destroying <a href="matlab: opentoline(%s,1)">%s</a>',which(class(mods{i})),class(mods{i})))
-        delete(mods{i})
+try
+    mods = getappdata(hObject,'ALLmodules');
+    for i = 1:numel(mods)
+        if isvalid(mods{i})
+            handles.logger.log(sprintf('(Unmanaged) - Destroying <a href="matlab: opentoline(%s,1)">%s</a>',which(class(mods{i})),class(mods{i})))
+            delete(mods{i})
+        end
     end
-end
+catch err
+    warning(sprintf("Failed to delete handles %s", err.message));
+end 
 stop(handles.inactivity_timer);
 delete(handles.inactivity_timer)
 handles.logger.sendLogs;  % Send logs to server

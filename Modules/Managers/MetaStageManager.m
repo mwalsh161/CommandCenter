@@ -40,7 +40,7 @@ classdef MetaStageManager < Base.Manager
     methods
         function obj = MetaStageManager(handles)
             scrollpanel = handles.panelMetaStage;
-            
+
             base = scrollpanel.content;
             panels = scrollpanel.content.Children;
             panel = [];
@@ -85,6 +85,7 @@ classdef MetaStageManager < Base.Manager
             obj = obj@Base.Manager(Modules.MetaStage.modules_package, handles, handles.panelMetaStage, dropdown);
             
             obj.scrollpanel = scrollpanel;
+            obj.prefs = [obj.prefs, 'keyboard', 'joystick'];
             
             gear =  uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699), 'Callback', @(~,~)obj.propedit,     'Tooltip', 'Edit settings such as keyboard or joystick step.', 'Position', [w+m-h-p,   H-h-p, h,       h]);
             
@@ -110,9 +111,9 @@ classdef MetaStageManager < Base.Manager
             obj.keycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
             obj.joycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
             obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+h 2*b h2]);
-            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2]);
+            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2], 'Enable', 'off');
             
-            
+            obj.loadPrefs;
             panel.Units = 'characters';
             base.Units = 'characters';
         end
@@ -441,7 +442,6 @@ classdef MetaStageManager < Base.Manager
             
             obj.modules{end+1} = Modules.MetaStage.instance(name);
         end
-        
         % Callbacks for GUI button press
 %         function set_num(obj,hObject,varargin)
 %             str = get(hObject,'String');
@@ -482,5 +482,98 @@ classdef MetaStageManager < Base.Manager
 %             delta(index) = mult*instr(index);
 %             obj.jog(delta)
 %         end
+        function manualSavePrefs(obj)
+            obj.savePrefs;
+        end
+        function manualLoadPrefs(obj)
+            obj.loadPrefs;
+        end
+    end
+    methods(Access=protected)
+        function savePrefs(obj)
+            for i = 1:numel(obj.prefs)
+                try
+                    setpref(obj.namespace,obj.prefs{i},obj.(obj.prefs{i}));
+                catch err
+                    warning('MANAGER:save_prefs','%s',err.message)
+                end
+            end
+            % Save loaded modules as strings
+            % module_strs = obj.get_modules_str;
+            modules_bak = cell(1, numel(obj.modules));
+            for i = 1:numel(obj.modules)
+                modules_bak{i} = struct();
+                metastage_i = obj.modules{i};
+                modules_bak{i}.name = metastage_i.name;
+                try
+                    for k = 1:numel(metastage_i.prefs)
+                        
+                        mp = metastage_i.get_meta_pref(metastage_i.prefs{k});
+                        % if metastage_i.prefs{k} == 'X'
+                        %     modules_bak{i}.X_value = metastage_i.X_value;
+                        % elseif metastage_i.prefs{k} == 'Y'
+                        %     modules_bak{i}.Y_value = metastage_i.Y_value;
+                        % elseif metastage_i.prefs{k} == 'Z'
+                        %     modules_bak{i}.Z_value = metastage_i.Z_value;
+                        % end
+                        modules_bak{i}.(metastage_i.prefs{k}) = mp.encodeValue( metastage_i.(metastage_i.prefs{k}));
+                    end
+                catch err
+                    warning(sprintf("   Pref %s in %s is not properlly saved: %s\n", metastage_i.prefs{k}, metastage_i.name, err.message))
+                end
+                modules_bak{i}.prefs = metastage_i.prefs;
+            end
+            setpref(obj.namespace,'loaded_modules',modules_bak) % `modules` is a cell with each element as a struct. Each struct contains the preferences of a metastage.
+        end
+        function loadPrefs(obj)
+            % Load modules
+            if ispref(obj.namespace,'loaded_modules')
+                modules_bak = getpref(obj.namespace,'loaded_modules'); % is a 
+                % obj.modules = obj.load_module_str(class_strs);
+                try
+                    for i = 1:numel(modules_bak)
+                        obj.modules{i} = Modules.MetaStage.instance(modules_bak{i}.name);
+                        for k = 1:numel(modules_bak{i}.prefs)
+                            try
+                                mp = obj.modules{i}.get_meta_pref(modules_bak{i}.prefs{k});
+                                [temp, mp_bak] = mp.decodeValue(modules_bak{i}.(modules_bak{i}.prefs{k}));
+                                mp_bak.set_value(temp);
+                                obj.modules{i}.set_meta_pref(mp_bak.property_name, mp_bak);
+                                if isprop(mp_bak, 'reference') % for references
+                                    mp.set_reference(mp_bak.reference)
+                                else
+                                    obj.modules{i}.(modules_bak{i}.prefs{k}) = temp;
+                                end
+                            catch err
+                                warning("Error in decoding and setting meta preference for %s\n", modules_bak{i}.prefs{k})
+                            end
+                            % if modules_bak{i}.prefs{k} == 'X'
+                            %     obj.modules{i}.X = modules_bak{i}.X_value;
+                            % elseif modules_bak{i}.prefs{k} == 'Y'
+                            %     obj.modules{i}.Y = modules_bak{i}.Y_value;
+                            % elseif modules_bak{i}.prefs{k} == 'Z'
+                            %     obj.modules{i}.Z = modules_bak{i}.Z_value;
+                            % end
+                        end
+                    end
+                catch err
+                    warning('MANAGER:load_prefs','Error on MetaStageManager.loadPrefs : %s',err.message)
+                end
+            else
+                obj.modules = {};
+            end
+            % Load prefs
+            for i = 1:numel(obj.prefs)
+                if ispref(obj.namespace,obj.prefs{i})
+                    show_pref = getpref(obj.namespace,obj.prefs{i});
+                    try
+                        obj.(obj.prefs{i}) = show_pref;
+                    catch err
+                        warning('MANAGER:load_prefs','Error on loadPrefs (%s): %s',obj.prefs{i},err.message)
+                    end
+                end
+            end
+            obj.update_settings
+        end
     end
 end

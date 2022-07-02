@@ -5,24 +5,28 @@ classdef MetaStage < Base.Module
         X = Prefs.Reference();
         Y = Prefs.Reference();
         Z = Prefs.Reference();
+        % X_value = []
+        % Y_value = []
+        % Z_value = []
         
-        key_step_x = .1; % Prefs.Double();
-        key_step_y = .1; % Prefs.Double();
-        key_step_z = .1; % Prefs.Double();
-        
-        joy_step_x = .1; % Prefs.Double();
-        joy_step_y = .1; % Prefs.Double();
-        joy_step_z = .1; % Prefs.Double();
+        key_step_x = Prefs.Double(0.1);
+        key_step_y = Prefs.Double(0.1);
+        key_step_z = Prefs.Double(0.1);
+        joy_step_x = Prefs.Double(0.1);
+        joy_step_y = Prefs.Double(0.1);
+        joy_step_z = Prefs.Double(0.1);
     end
     properties(SetAccess=immutable)
         name;
     end
     properties(Constant,Hidden)
         modules_package = 'MetaStage';
-        
-        show_prefs = {'X', 'Y', 'Z'};
     end
     
+    properties(SetObservable, AbortSet)
+        show_prefs = {'X', 'Y', 'Z', 'key_step_x', 'key_step_y', 'key_step_z', 'joy_step_x', 'joy_step_y', 'joy_step_z'};
+        prefs = {'X', 'Y', 'Z', 'key_step_x', 'key_step_y', 'key_step_z', 'joy_step_x', 'joy_step_y', 'joy_step_z'};
+    end
     methods(Static)
         function obj = instance(name)
             mlock;
@@ -44,6 +48,8 @@ classdef MetaStage < Base.Module
     methods(Access=private)
         function obj = MetaStage(name)
             obj.name = name;
+            % obj.loadPrefs;
+            % obj.namespace = sprintf("MetaStage.%s", name);
         end
     end
 end

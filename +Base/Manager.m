@@ -89,7 +89,6 @@ classdef Manager < handle
                 module_str = module_strs{i};
                 module_fullstr = [prefix module_str];
                 checked = 'off';
-                module_fullstr
                 nargin([module_fullstr '.instance'])
                 if fun_in_use([prefix module_str])
                     checked = 'on';
