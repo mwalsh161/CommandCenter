@@ -423,11 +423,49 @@ classdef MetaStageManager < Base.Manager
             end
             uimenu(parent_menu, 'separator', 'on', 'label', 'New MetaStage',...
                 'callback', @obj.new_callback);
+            uimenu(parent_menu, 'separator', 'on', 'label', 'Delete MetaStage',...
+                'callback', @obj.delete_callback);
         end
         function new_callback(obj, ~, ~)
             obj.new()
         end
+        function delete_callback(obj, ~, ~)
+            obj.delete_stage()
+        end
+        function delete_stage(obj, name)
+            present_names = cell(1, numel(obj.modules));
+            for k = 1:numel(obj.modules)
+                present_names{k} = obj.modules{k}.name;
+            end
+            if nargin < 2
+                name = '';
+                while ~isvarname(name)
+                    result = inputdlg('Enter a MetaStage name to delete.', 'New MetaStage Name');
+                    name = result{1};
+                    
+                    if isempty(name)
+                        warning('Delete MetaStage prompt terminated.')
+                        return
+                    end
+                    for k = 1:numel(obj.modules)
+                        if strcmp(name, present_names{k})
+                            obj.modules{k}.delete;
+                            obj.modules(k) = []; % Delete the k-th element in cell `obj.modules`
+                            return;
+                        end
+                    end
+                    warning("Delete metastage name '%s' does not exists. Please try a new name.", name)
+                    name = '';
+                end
+            end
+            
+            obj.modules{end+1} = Modules.MetaStage.instance(name);
+        end
         function new(obj, name)
+            present_names = cell(1, numel(obj.modules));
+            for k = 1:numel(obj.modules)
+                present_names{k} = obj.modules{k}.name;
+            end
             if nargin < 2
                 name = '';
                 while ~isvarname(name)
@@ -437,6 +475,13 @@ classdef MetaStageManager < Base.Manager
                     if isempty(name)
                         warning('New MetaStage prompt terminated.')
                         return
+                    end
+                    for k = 1:numel(obj.modules)
+                        if strcmp(name, present_names{k})
+                            warning("New metastage name '%s' already exists. Please try a new name.", name)
+                            name = '';
+                            break;
+                        end
                     end
                 end
             end
