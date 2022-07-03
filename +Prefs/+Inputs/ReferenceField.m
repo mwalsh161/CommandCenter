@@ -38,8 +38,12 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             
             obj.ui = reference.ui.ui;
             obj.label = reference.ui.label;
-            
-            if ~readonly && (isempty(obj.optimize) || ~isvalid(obj.optimize) || ~isprop(obj.optimize, 'UserData') || isempty(obj.optimize.UserData))
+            if readonly || isempty(reference)
+                enable = 'off';
+            else
+                enable = 'on';
+            end
+            if (isempty(obj.optimize) || ~isvalid(obj.optimize) || ~isprop(obj.optimize, 'UserData') || isempty(obj.optimize.UserData))
                 obj.optimize = uicontrol(parent,...
                                 'Style', 'togglebutton',...
                                 'String', char(0x2699),...  % Gear icon 0x2699, tool icon 0x2692
@@ -50,6 +54,7 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
                                 'Enable', 'on',...
                                 'Tooltip', 'This is a button for optimizing the target value in one click. It will automatically release after finishing optimization, or user can click again to abort optimization.',...
                                 'Callback', @pref.optimize_Callback,...
+                                'Enable', enable, ...
                                 'UserData', reference);
             end
 
@@ -67,6 +72,7 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
                             'UserData', reference);
             end
                     
+
             obj.ui.Position(2) = yloc_px;
         end
         

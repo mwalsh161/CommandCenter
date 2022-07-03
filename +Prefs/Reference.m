@@ -41,6 +41,7 @@ classdef Reference < Base.Pref
         function obj = set_reference(obj, val)
             if ismember('Prefs.Inputs.LabelControlBasic', superclasses(val.ui)) && ~isa(val, 'Prefs.Reference') && ~ismember('Prefs.Reference', superclasses(val)) && ~isequal(obj.parent, val.parent)
                 obj.reference = val;
+                obj.readonly = val.readonly;
                 obj.parent.set_meta_pref(obj.property_name, obj);
 
                 notify(obj.parent, 'update_settings');
@@ -53,7 +54,32 @@ classdef Reference < Base.Pref
 
         function obj = optimize_Callback(obj, src, evt)
             msm = obj.parent; % MetaStageManager
-            
+            global optimizing; % How to let different callback functions share a same variable?
+            if ~isstring(optimizing) && ~ischar(optimizing)
+                optimizing = "";
+            end
+            if src.Value == true
+                if optimizing ~= ""
+                    warning("Optimization on %s is already started. Please stop the running optimization to start a new one.", optimizing);
+                    src.Value = false;
+
+                else % No optimization is started.
+                    optimizing = obj.name;
+                    while(optimizing == obj.name)
+                        fprintf("Optimizing axis %s (%s).\n", obj.name, obj.reference.name);
+                        pause(1);
+                    end
+                end
+            else % src.Value == false
+                if obj.name == optimizing
+                    optimizing = ""; % to end an optimization
+                    fprintf("Optimization of axis %s (%s) is interrupted.\n", obj.name, obj.reference.name);
+                else % obj.name ~= optimizing, which should not happen if operated correctly
+                    warning("Optimization of axis %s is interrupted by button in %s.\n", optimizing, obj.name);
+                    optimizing = "";
+                end
+            end
+
         end
         
         function obj = link_callback(obj,callback)
