@@ -50,6 +50,11 @@ classdef Reference < Base.Pref
             pr = Base.PrefRegister.instance;
             pr.getMenu([], @obj.set_reference);
         end
+
+        function obj = optimize_Callback(obj, src, evt)
+            msm = obj.parent; % MetaStageManager
+            
+        end
         
         function obj = link_callback(obj,callback)
             % This wraps ui.link_callback; careful overloading
@@ -60,7 +65,7 @@ classdef Reference < Base.Pref
         
         function [obj,height_px,label_width_px] = make_UI(obj,varargin)
             % This wraps ui.make_UI; careful overloading
-            [obj.ui, height_px, label_width_px] = obj.ui.make_UI(obj,varargin{:});
+            [obj.ui, height_px, label_width_px] = obj.ui.make_UI(obj,varargin{:}, obj.readonly);
             obj.reference = obj.ui.gear.UserData;
         end
         

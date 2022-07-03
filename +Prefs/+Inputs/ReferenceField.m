@@ -3,11 +3,12 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
 
     properties
         gear =  gobjects(1)
+        optimize = gobjects(1)
         uistyle = 'pushbutton'
     end
 
     methods
-        function [obj, height_px, label_width_px] = make_UI(obj, pref, parent, yloc_px, width_px, margin_px)
+        function [obj, height_px, label_width_px] = make_UI(obj, pref, parent, yloc_px, width_px, margin_px, readonly)
             assert(isprop(pref, 'reference'), 'Pref using Inputs.ReferenceField must have a ''reference'' property.')
             reference = pref.reference;
             
@@ -26,7 +27,10 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
                 reference.name = [pref.name ' ' char(0x2799) ' ' reference.name]; % reference.parent.encodeReadable(true) '.'
             end
             
-            
+            % if ~readonly
+            %     width_px = width_px - 30;
+            % end
+            % width_px = width_px - 50;
             [reference.ui, height_px, label_width_px] = reference.ui.make_UI(reference, parent, yloc_px, width_px, margin_px);
             
             reference.help_text =   temp.help_text;
@@ -35,6 +39,20 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             obj.ui = reference.ui.ui;
             obj.label = reference.ui.label;
             
+            if ~readonly && (isempty(obj.optimize) || ~isvalid(obj.optimize) || ~isprop(obj.optimize, 'UserData') || isempty(obj.optimize.UserData))
+                obj.optimize = uicontrol(parent,...
+                                'Style', 'togglebutton',...
+                                'String', char(0x2699),...  % Gear icon 0x2699, tool icon 0x2692
+                                'FontSize', 11, ...
+                                'HorizontalAlignment','center',...
+                                'Units', 'pixels',...
+                                'Tag', tag,...
+                                'Enable', 'on',...
+                                'Tooltip', 'This is a button for optimizing the target value in one click. It will automatically release after finishing optimization, or user can click again to abort optimization.',...
+                                'Callback', @pref.optimize_Callback,...
+                                'UserData', reference);
+            end
+
             if isempty(obj.gear) || ~isvalid(obj.gear) || ~isprop(obj.gear, 'UserData') || isempty(obj.gear.UserData)
                 obj.gear = uicontrol(parent,...
                             'Style', obj.uistyle,...
@@ -65,15 +83,20 @@ classdef ReferenceField < Prefs.Inputs.LabelControlBasic
             obj.gear.Position(2) = reference.ui.ui.Position(2);
             obj.gear.Position(3) = reference.ui.ui.Position(4);
             obj.gear.Position(4) = reference.ui.ui.Position(4);
+            obj.optimize.Position(2) = reference.ui.ui.Position(2);
+            obj.optimize.Position(3) = reference.ui.ui.Position(4);
+            obj.optimize.Position(4) = reference.ui.ui.Position(4);
             
             if isprop(reference.ui, 'unit') && isgraphics(reference.ui.unit)
+                obj.optimize.Position(1) = reference.ui.unit.Position(1) + reference.ui.unit.Position(3) - reference.ui.ui.Position(4)*2-margin_px(1);
                 obj.gear.Position(1) = reference.ui.unit.Position(1) + reference.ui.unit.Position(3) - reference.ui.ui.Position(4);
-                reference.ui.unit.Position(1) = reference.ui.unit.Position(1) - reference.ui.ui.Position(4);
+                reference.ui.unit.Position(1) = reference.ui.unit.Position(1) - reference.ui.ui.Position(4)*2-margin_px(1);
             else
+                obj.optimize.Position(1) = reference.ui.ui.Position(1) + reference.ui.ui.Position(3) - reference.ui.ui.Position(4)*2-margin_px(1);
                 obj.gear.Position(1) = reference.ui.ui.Position(1) + reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
             end
             
-            reference.ui.ui.Position(3) = reference.ui.ui.Position(3) - reference.ui.ui.Position(4);
+            reference.ui.ui.Position(3) = reference.ui.ui.Position(3) - reference.ui.ui.Position(4)*2-margin_px(1);
         end
         
         % To check if the UI is valid

@@ -8,6 +8,7 @@ classdef MetaStageManager < Base.Manager
         X = [];
         Y = [];
         Z = [];
+        target = []; % A reference for optimization target
     end
         
     properties
@@ -86,7 +87,6 @@ classdef MetaStageManager < Base.Manager
             
             obj.scrollpanel = scrollpanel;
             obj.prefs = [obj.prefs, 'keyboard', 'joystick'];
-            
             gear =  uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x2699), 'Callback', @(~,~)obj.propedit,     'Tooltip', 'Edit settings such as keyboard or joystick step.', 'Position', [w+m-h-p,   H-h-p, h,       h]);
             
             mx =    uicontrol(panel, 'Style', 'pushbutton', 'String', char(0x25C0), 'Callback', @(~,~)obj.step(-1,1,1), 'Tooltip', 'Left (-x)', 'Position', [x     y   b b]);
@@ -110,12 +110,13 @@ classdef MetaStageManager < Base.Manager
             
             obj.keycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
             obj.joycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
-            obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+h 2*b h2]);
-            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Version', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2], 'Enable', 'off');
+            obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Server ip of joystick.', 'Position', [x y+h 2*b h2]);
+            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Version', 'Enable', 'off', 'Tooltip', 'Joystick module version.', 'Position', [x y 2*b h2]);
             
             obj.loadPrefs;
             panel.Units = 'characters';
             base.Units = 'characters';
+            obj.joystatus.Enable = 'off';
         end
         
         % Return string representation of modules
@@ -146,6 +147,7 @@ classdef MetaStageManager < Base.Manager
             obj.X = obj.active_module.get_meta_pref('X');
             obj.Y = obj.active_module.get_meta_pref('Y');
             obj.Z = obj.active_module.get_meta_pref('Z');
+            obj.target = obj.active_module.get_meta_pref('Target');
         end
     end
     methods
