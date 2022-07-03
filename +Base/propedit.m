@@ -1,4 +1,4 @@
-function fig = propedit( obj )
+function fig = propedit(obj, no_substitution)
 %PROPEDIT - open property manager for obj for SetAccess=public properties
 
 meta = metaclass(obj);
@@ -16,7 +16,11 @@ k = 1;
 for i = 1:nprops
     val = obj.(props(i).Name);
     if (isnumeric(val) || islogical(val) || ischar(val)) && all(size(val) == [1 1])
-        d(k,:) = {strrep(props(i).Name,'_',' '), val};
+        if (~exist('no_substitution', 'var') || no_substitution == false)
+            d(k,:) = {strrep(props(i).Name,'_',' '), val};
+        else
+            d(k,:) = {props(i).Name, val};
+        end
         k = k + 1;
     end
 end

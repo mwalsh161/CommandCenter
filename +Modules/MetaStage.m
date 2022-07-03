@@ -24,7 +24,7 @@ classdef MetaStage < Base.Module
     end
     
     properties(SetObservable, AbortSet)
-        show_prefs = {'X', 'Y', 'Z', 'key_step_x', 'key_step_y', 'key_step_z', 'joy_step_x', 'joy_step_y', 'joy_step_z'};
+        show_prefs = {'X', 'Y', 'Z'};
         prefs = {'X', 'Y', 'Z', 'key_step_x', 'key_step_y', 'key_step_z', 'joy_step_x', 'joy_step_y', 'joy_step_z'};
     end
     methods(Static)

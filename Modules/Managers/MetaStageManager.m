@@ -111,7 +111,7 @@ classdef MetaStageManager < Base.Manager
             obj.keycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
             obj.joycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
             obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+h 2*b h2]);
-            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2], 'Enable', 'off');
+            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Version', 'Enable', 'off', 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y 2*b h2], 'Enable', 'off');
             
             obj.loadPrefs;
             panel.Units = 'characters';
@@ -203,7 +203,7 @@ classdef MetaStageManager < Base.Manager
         % Keyboard callbacks
         function set.keyboard(obj, val)
             obj.keyboard = val;
-            
+            obj.keycheck.Value = val;
             if val
                 obj.handles.figure1.KeyPressFcn = @obj.KeyPressFcn;
             else
@@ -261,6 +261,7 @@ classdef MetaStageManager < Base.Manager
         % Joystick callbacks
         function set.joystick(obj, val)
             obj.joystick = val;
+            obj.joycheck.Value = val;
             obj.colorBorder();
             choices = {'off', 'on'};
             obj.joyserver.Enable = choices{val+1};
@@ -404,7 +405,7 @@ classdef MetaStageManager < Base.Manager
             if isempty(obj.active_module)
                 obj.new
             else
-                Base.propedit(obj.active_module);
+                Base.propedit(obj.active_module, true); % set no_substitution to true to avoid errors
             end
         end
         
