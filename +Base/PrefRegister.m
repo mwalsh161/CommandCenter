@@ -179,6 +179,24 @@ classdef PrefRegister < Base.Singleton
 
             obj.register{end+1} = struct('parent', pref.parent, 'prefs', struct(pref.property_name, pref));
         end
+        function val = getPref(obj, pref_name, parent_singleton_id)
+            % Find preference by name in PrefRegister in case the preference cannot be accessed by module name directly.
+            obj.removeDead();
+            [modules, I] = sort(obj.getModules(true));
+            for ii = 1:length(modules)
+                prefs = fields(obj.register{I(ii)}.prefs);
+                for jj = 1:length(prefs)    % First fields will always be .parent
+                    pref = obj.register{I(ii)}.prefs.(prefs{jj});
+                    if strcmp(pref_name, pref.property_name) && strcmp(parent_singleton_id, pref.parent.singleton_id)
+                        val = pref;
+                        fprintf("Find pref %s.%s(%s) by name %s\n", pref.parent.namespace, pref.name, pref.property_name, pref_name);
+                        return;
+                    end
+                end
+            end
+            warning("Pref %s not found in PrefRegister.\n", pref_name);
+
+        end
         function delete(obj)
             obj.register = [];    % Prevent objects from being deleted by getting rid of reference to the struct beforehand. Note that record of these objects will be erased.
         end

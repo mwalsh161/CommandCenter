@@ -11,12 +11,12 @@ classdef Galvo < Modules.Imaging
         data_name = 'Confocal';                 % For diamondbase (via ImagingManager)
         data_type = 'General';                  % For diamondbase (via ImagingManager)
     end
-    properties(SetObservable)
+    properties(SetObservable, GetObservable)
         resolution = [120 120];                 % Pixels
         ROI = [-3 3;-3 3];                      % voltage
         continuous = false;
-        dwell = 1;                              % Per pixel in ms (will only update between frames)
-        use_z = true;                           % To use z or to not use
+        dwell = Prefs.Double(1);                              % Per pixel in ms (will only update between frames)
+        use_z = Prefs.Boolean(true);                           % To use z or to not use
     end
     properties(Access=private)
         counter_was_running = false;

@@ -34,8 +34,19 @@ classdef Reference < Base.Pref
             end
         end
         function [data, obj] = decodeValue(obj, saved)
-            obj.reference = Base.Pref.decode(saved);
-            data = obj.reference.read();
+            if isempty(saved)
+                return
+            end
+            try
+                obj.reference = Base.Pref.decode(saved);
+                data = obj.reference.read();
+            catch err
+                warning(err.identifier, '%s', err.message);
+                pr = Base.PrefRegister.instance();
+                obj.reference = pr.getPref(saved.pref, saved.parent.singleton_id);
+                data = obj.reference.read();
+            end
+            
         end
         
         function obj = set_reference(obj, val)

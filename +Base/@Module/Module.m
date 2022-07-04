@@ -626,8 +626,6 @@ classdef Module < Base.Singleton & matlab.mixin.Heterogeneous
                     catch
                         str2 = '';
                     end
-                elseif iscell(obj.singleton_id) % for Counter
-                    str2 = sprintf('%s_%s', obj.singleton_id{1}, obj.singleton_id{2});
                 end
 
                 if ~isempty(str2)

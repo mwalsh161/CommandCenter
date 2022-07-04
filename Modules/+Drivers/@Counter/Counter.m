@@ -106,7 +106,9 @@ classdef Counter < Modules.Driver
     methods(Static)
         function obj = instance(lineIn,lineOut)
             mlock;
-            id = {lineIn,lineOut};
+            id = [lineIn,lineOut]; 
+            % Using cell `id` directly may lead to numerous problems in encoding preferences. 
+            % Should use char array concatenation instead.
             persistent Objects
             if isempty(Objects)
                 Objects = Drivers.Counter.empty(1,0);
@@ -118,7 +120,7 @@ classdef Counter < Modules.Driver
                 end
             end
             obj = Drivers.Counter(lineIn,lineOut);
-            obj.singleton_id = id;
+            obj.singleton_id = id; 
             Objects(end+1) = obj;
         end
     end

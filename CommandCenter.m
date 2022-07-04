@@ -239,9 +239,7 @@ try
     set(textH,'String', 'Loading StageManager'); drawnow;
     handles.Managers.Stages = StageManager(handles);
 
-    % MetaStageManager has to be the last to load, since it relies on other preferences.
-    set(textH,'String', 'Loading MetaStageManager'); drawnow;
-    handles.Managers.MetaStage = MetaStageManager(handles);
+
     
     set(textH,'String', 'Loading Experiment Modules');
     handles.Managers.Experiment = ExperimentManager(handles);
@@ -261,7 +259,9 @@ try
     set(textH,'String', 'Loading Paths'); drawnow;
     handles.Managers.Path = PathManager(handles); % Generates its own menu item
 
-
+    % MetaStageManager has to be the last to load, since it relies on other preferences.
+    set(textH,'String', 'Loading MetaStageManager'); drawnow;
+    handles.Managers.MetaStage = MetaStageManager(handles);
     
     set(textH,'String', 'Preparing GUI'); drawnow;
     set(textH,'String', 'Done'); drawnow;
