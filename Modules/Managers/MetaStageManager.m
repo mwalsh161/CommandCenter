@@ -111,7 +111,7 @@ classdef MetaStageManager < Base.Manager
             obj.keycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Keyboard', 'Callback', @obj.keyboard_Callback, 'Tooltip', 'Whether to use the keyboard arrow keys for user input.', 'Position', [x y+3*h 2*b h2]);
             obj.joycheck =  uicontrol(panel, 'Style', 'checkbox', 'String', 'Joystick', 'Callback', @obj.joystick_Callback, 'Tooltip', 'Whether to use a joystick for user input.', 'Position', [x y+2*h 2*b h2]);
             obj.joyserver = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Callback', @obj.joyserver_Callback, 'Tooltip', 'Server ip of joystick.', 'Position', [x y+h 2*b h2]);
-            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Version', 'Enable', 'off', 'Tooltip', 'Joystick module version.', 'Position', [x y 2*b h2]);
+            obj.joystatus = uicontrol(panel, 'Style', 'edit', 'String', 'No Server', 'Enable', 'off', 'Tooltip', 'Joystick module version.', 'Position', [x y 2*b h2]);
             
             obj.loadPrefs;
             panel.Units = 'characters';
@@ -237,10 +237,10 @@ classdef MetaStageManager < Base.Manager
             if proceed                                  % If it is appropriate, then proceed.
                 multiplier = 1;
                 if ismember(event.Modifier, 'shift')    % The shift key speeds all movement by a factor of 10.
-                    multiplier = multiplier*keyMult;
+                    multiplier = multiplier*obj.keyMult;
                 end
                 if ismember(event.Modifier, 'alt')      % The alt key slows all movement by a factor of 10.
-                    multiplier = multiplier/keyMult;
+                    multiplier = multiplier/obj.keyMult;
                 end
 
                 switch event.Key                        % Now figure out which way we should move...
@@ -277,17 +277,22 @@ classdef MetaStageManager < Base.Manager
                 else
                     obj.joystick = src.Value;
                 end
+                if ~strcmp(obj.joyserver, "No Server")
+                    obj.initializeJoystick(obj.joyserver)
+                end 
             else
                 obj.joystick = false;
                 src.Value = 0;
+                obj.joytcpip.delete;
             end
         end
         function joyserver_Callback(obj, src, ~)
-            if length(obj.modules) > 1
+            if length(obj.modules) >= 1 % Why does obj.modules need to be larger than 1?
                 obj.initializeJoystick(src.String);
             end
         end
         function initializeJoystick(obj, address)
+            
 %             splt = split(address, ':');
 %             switch length(splt)
 %                 case 1
@@ -352,8 +357,8 @@ classdef MetaStageManager < Base.Manager
 
                 if strcmp(hello, 'No Server') && strcmp(host, 'localhost')
                     disp('Starting server')
-%                     system('python startjoystick.py');
-                    system('initializeLocalJoystick.bat');
+                    % system('python startjoystick.py');
+                    % system('initializeLocalJoystick.bat');
                     
                     pause(.5)
 
@@ -363,13 +368,7 @@ classdef MetaStageManager < Base.Manager
             function [t, hello] = connect(host)
                 try
                     t = tcpclient(host, 4001);
-                    
-                    t
-
                     hello = t.readline();
-                    
-                    hello
-
                     if isempty(hello) || strcmp(hello, 'No Joystick')
                         t.flush();
                         clear t;
@@ -487,7 +486,7 @@ classdef MetaStageManager < Base.Manager
                     end
                 end
             end
-            
+            obj.joystatus.Enable = 'off';
             obj.modules{end+1} = Modules.MetaStage.instance(name);
         end
         % Callbacks for GUI button press

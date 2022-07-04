@@ -149,6 +149,20 @@ while not done:
                 else:
                     raise Exception('Mapping not created for platform ' + str(sys.platform))
 
+            elif "T.A320 Copilot" in name:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:       # If user clicked close.
+                        done2 = True                    # Flag that we are done so we exit this loop.
+                    elif event.type == pygame.JOYHATMOTION:
+                        hat = joystick.get_hat(0)
+                        if hat[0] != 0:
+                            dict['bx'] = hat[0]
+                        if hat[1] != 0:
+                            dict['by'] = hat[1]
+                dict['ax'] = joystick.get_axis(0)
+                dict['ay'] = -joystick.get_axis(1)
+                dict['az'] = joystick.get_axis(2)
+
             if debug:
                 print('Interpretation')
                 for key in dict.keys():

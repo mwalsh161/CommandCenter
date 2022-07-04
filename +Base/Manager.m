@@ -86,21 +86,25 @@ classdef Manager < handle
             end
             
             for i = 1:numel(module_strs)
-                module_str = module_strs{i};
-                module_fullstr = [prefix module_str];
-                checked = 'off';
-                nargin([module_fullstr '.instance'])
-                if fun_in_use([prefix module_str])
-                    checked = 'on';
-                    if strcmp(parent_menu.Tag,'module') && ~startswith(parent_menu.Label,'<html>')
-                        % Make bold
-                        parent_menu.Label = sprintf('<html><font style="font-weight:bold">%s</font></html>',...
-                            parent_menu.Label);
+                try
+                    module_str = module_strs{i};
+                    module_fullstr = [prefix module_str];
+                    checked = 'off';
+                    nargin([module_fullstr '.instance']);
+                    if fun_in_use([prefix module_str])
+                        checked = 'on';
+                        if strcmp(parent_menu.Tag,'module') && ~startswith(parent_menu.Label,'<html>')
+                            % Make bold
+                            parent_menu.Label = sprintf('<html><font style="font-weight:bold">%s</font></html>',...
+                                parent_menu.Label);
+                        end
                     end
+                    h = uimenu(parent_menu, 'label', module_str, 'checked', checked,...
+                        'callback', fun_callback, 'tag', 'module');
+                    h.UserData = module_fullstr;
+                catch err
+                    warning("%s is not a Module with .instance method!\n %s", module_str, err.message);
                 end
-                h = uimenu(parent_menu, 'label', module_str, 'checked', checked,...
-                    'callback', fun_callback, 'tag', 'module');
-                h.UserData = module_fullstr;
             end
             
             for i = 1:length(previousStuff)
