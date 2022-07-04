@@ -2,8 +2,10 @@ classdef WhiteLight < Modules.Source
     %WHITELIGHT Is an antiquanted Source for analog LEDs such as:
     % https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=2616
     
+    properties(SetObservable, GetObservable)
+        intensity = Prefs.Double(100, 'set', 'set_intensity'); % Intenisty 0-100 (0-5 V)
+    end
     properties
-        intensity = 100;               % Intenisty 0-100 (0-5 V)
         prefs = {'intensity'};
     end
     properties(Access=private)
@@ -50,19 +52,32 @@ classdef WhiteLight < Modules.Source
         function delete(obj)
             delete(obj.listeners)
         end
-        function set.intensity(obj,val)
+        function val = set_intensity(obj,val, ~)
             obj.intensity = val;
             err = [];
             try
-            if obj.source_on %#ok<*MCSUP>
-                obj.on;  % Reset to this value
-                line = obj.ni.getLine('LED',obj.ni.OutLines);
-                obj.intensity = line.state*20;
-            end
+                if obj.source_on %#ok<*MCSUP>
+                    obj.on;  % Reset to this value
+                    line = obj.ni.getLine('LED',obj.ni.OutLines);
+                    obj.intensity = line.state*20;
+                end
             catch err
             end
+            
+            
             if ~isempty(err)
-                rethrow(err)
+                err = [];
+                try
+                    if obj.source_on.value %#ok<*MCSUP>
+                        obj.on;  % Reset to this value
+                        line = obj.ni.getLine('LED',obj.ni.OutLines);
+                        val = line.state*20;
+                    end
+                catch err
+                end
+                if ~isempty(err)
+                    rethrow(err)
+                end
             end
         end
         function val = set_source_on(obj, val, ~)
