@@ -334,6 +334,8 @@ handles.panelSweeping.minimize();
 handles.panelExperiment.minimize();
 handles.panelDrivers.minimize();
 handles.panelSave.minimize();
+handles.panelMetaStage.setMaximizedHeight(30);
+
 
 drawnow
 
