@@ -7,8 +7,6 @@ classdef Galvo < Modules.Imaging
     
     properties
         maxROI = [-1.18 1.18; -1.18 1.18];
-        dwell = 1;                              % Per pixel in ms (will only update between frames)
-        use_z = true;                           % To use z or to not use
         prefs = {'dwell','resolution','ROI','use_z'};
         data_name = 'Confocal';                 % For diamondbase (via ImagingManager)
         data_type = 'General';                  % For diamondbase (via ImagingManager)
@@ -17,6 +15,8 @@ classdef Galvo < Modules.Imaging
         resolution = [120 120];                 % Pixels
         ROI = [-3 3;-3 3];                      % voltage
         continuous = false;
+        dwell = 1;                              % Per pixel in ms (will only update between frames)
+        use_z = true;                           % To use z or to not use
     end
     properties(Access=private)
         counter_was_running = false;
