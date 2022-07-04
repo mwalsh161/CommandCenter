@@ -556,13 +556,6 @@ classdef MetaStageManager < Base.Manager
                     for k = 1:numel(metastage_i.prefs)
                         
                         mp = metastage_i.get_meta_pref(metastage_i.prefs{k});
-                        % if metastage_i.prefs{k} == 'X'
-                        %     modules_bak{i}.X_value = metastage_i.X_value;
-                        % elseif metastage_i.prefs{k} == 'Y'
-                        %     modules_bak{i}.Y_value = metastage_i.Y_value;
-                        % elseif metastage_i.prefs{k} == 'Z'
-                        %     modules_bak{i}.Z_value = metastage_i.Z_value;
-                        % end
                         modules_bak{i}.(metastage_i.prefs{k}) = mp.encodeValue( metastage_i.(metastage_i.prefs{k}));
                     end
                 catch err
@@ -594,13 +587,6 @@ classdef MetaStageManager < Base.Manager
                             catch err
                                 warning("Error in decoding and setting meta preference for %s\n", modules_bak{i}.prefs{k})
                             end
-                            % if modules_bak{i}.prefs{k} == 'X'
-                            %     obj.modules{i}.X = modules_bak{i}.X_value;
-                            % elseif modules_bak{i}.prefs{k} == 'Y'
-                            %     obj.modules{i}.Y = modules_bak{i}.Y_value;
-                            % elseif modules_bak{i}.prefs{k} == 'Z'
-                            %     obj.modules{i}.Z = modules_bak{i}.Z_value;
-                            % end
                         end
                     end
                 catch err

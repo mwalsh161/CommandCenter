@@ -6,9 +6,6 @@ classdef MetaStage < Base.Module
         Y = Prefs.Reference();
         Z = Prefs.Reference();
         Target = Prefs.Reference();
-        % X_value = []
-        % Y_value = []
-        % Z_value = []
         
         key_step_x = Prefs.Double(0.1);
         key_step_y = Prefs.Double(0.1);
