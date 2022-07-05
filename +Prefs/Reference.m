@@ -64,7 +64,7 @@ classdef Reference < Base.Pref
         end
 
         function obj = optimize_Callback(obj, src, evt)
-            msm = obj.parent; % MetaStageManager
+            ms = obj.parent; % MetaStage
             global optimizing; % How to let different callback functions share a same variable?
             if ~isstring(optimizing) && ~ischar(optimizing)
                 optimizing = "";
@@ -138,10 +138,15 @@ classdef Reference < Base.Pref
             end
         end
         function tf = writ(obj, val)
+
             if isempty(obj.reference)
                 tf = false;
             else
                 tf = obj.reference.writ(val);
+            end
+            if isprop(obj.parent, 'parent') && ~isempty(obj.parent.parent)
+                msm = obj.parent.parent; % Handle to the MetaStageManager
+                notify(msm, 'updated');
             end
         end
     end

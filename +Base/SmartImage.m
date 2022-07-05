@@ -17,6 +17,7 @@ classdef SmartImage < handle
     properties(Access=private)
         ax                      % Handle to axis
         stage                   % Handle to stage manager
+        metastage               % Handle to metastage manager
         imager                  % Handle to imaging manager
         imageH                  % Handle to image object
         contextmenu             % Handle to contextmenu for this image
@@ -60,7 +61,7 @@ classdef SmartImage < handle
         end
     end
     methods
-        function obj = SmartImage(firstInp,ax,stage,source,imager,dumbimage)
+        function obj = SmartImage(firstInp,ax,stage, metastage,source,imager,dumbimage)
             % The first input can either be the image cdata, or the info from another SmartImage
             % stage -> stage manager
             % source -> source manager
@@ -70,6 +71,7 @@ classdef SmartImage < handle
                 dumbimage = false;
             end
             obj.stage = stage;
+            obj.metastage = metastage;
             obj.imager = imager;
             if isa(firstInp,'struct')
                 obj.info = firstInp;
@@ -158,6 +160,7 @@ classdef SmartImage < handle
             % Add listeners
             obj.listeners(2) = addlistener(imager,'ROI','PostSet',@obj.updateROI);
             obj.listeners(3) = addlistener(stage,'newPosition',@obj.updatePos);
+            obj.listeners(9) = addlistener(metastage, 'updated', @obj.updatePos);
             % Set up remaining contextmenus (note obj.contextmenu = axes, parent = imrect stuff)
             obj.ROIMenu = uimenu(obj.contextmenu,'Label','ROI Visible','Callback',@obj.visCallback,'checked','on','UserData','ROI','tag','smartimage');
             obj.crosshairMenu = uimenu(obj.contextmenu,'Label','CrossHair Visible','Callback',@obj.visCallback,'checked','on','UserData','crosshair','tag','smartimage');
@@ -181,6 +184,7 @@ classdef SmartImage < handle
             obj.listeners(5) = addlistener(fig,'Close',@obj.delete);
             obj.listeners(6) = addlistener(stage,'ObjectBeingDestroyed',@obj.DeleteObjs);
             obj.listeners(7) = addlistener(imager,'ObjectBeingDestroyed',@obj.DeleteObjs);
+            obj.listeners(8) = addlistener(metastage,'ObjectBeingDestroyed',@obj.DeleteObjs);
         end
         function useROI(obj,h,eventdata)
             obj.imager.setROI(obj.info.ROI);
@@ -291,6 +295,7 @@ classdef SmartImage < handle
             NewAx = axes('parent',newFig);
             colormap(newFig,colormap(obj.ax))
             Base.SmartImage(obj.info,NewAx,managers.Stages,...
+                                            Managers.MetaStage,...
                                            managers.Sources,...
                                            managers.Imaging);
             newFig.UserData.Managers = managers; % For popout in new figure

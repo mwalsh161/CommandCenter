@@ -16,6 +16,7 @@ classdef MetaStage < Base.Module
     end
     properties(SetAccess=immutable)
         name;
+        parent;
     end
     properties(Constant,Hidden)
         modules_package = 'MetaStage';
@@ -26,7 +27,7 @@ classdef MetaStage < Base.Module
         prefs = {'X', 'Y', 'Z', 'Target', 'key_step_x', 'key_step_y', 'key_step_z', 'joy_step_x', 'joy_step_y', 'joy_step_z'};
     end
     methods(Static)
-        function obj = instance(name)
+        function obj = instance(name, manager)
             mlock;
             persistent Objects
             if isempty(Objects)
@@ -38,14 +39,18 @@ classdef MetaStage < Base.Module
                     return
                 end
             end
-            obj = Modules.MetaStage(name);
+            obj = Modules.MetaStage(name, manager);
             obj.singleton_id = name;
             Objects(end+1) = obj;
+
         end
     end
     methods(Access=private)
-        function obj = MetaStage(name)
+        function obj = MetaStage(name, manager)
             obj.name = name;
+            if ~isempty(manager)
+                obj.parent = manager;
+            end
             % obj.loadPrefs;
             % obj.namespace = sprintf("MetaStage.%s", name);
         end

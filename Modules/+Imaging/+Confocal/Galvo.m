@@ -12,8 +12,8 @@ classdef Galvo < Modules.Imaging
         data_type = 'General';                  % For diamondbase (via ImagingManager)
     end
     properties(SetObservable, GetObservable)
-        resolution = [120 120];                 % Pixels
-        ROI = [-3 3;-3 3];                      % voltage
+        resolution = Prefs.DoubleArray([120 120]);                 % Pixels
+        ROI = Prefs.DoubleArray([-3 3;-3 3], 'set', 'set_ROI');                      % voltage
         continuous = false;
         dwell = Prefs.Double(1);                              % Per pixel in ms (will only update between frames)
         use_z = Prefs.Boolean(true);                           % To use z or to not use
@@ -62,8 +62,9 @@ classdef Galvo < Modules.Imaging
         end
     end
     methods
-        function set.ROI(obj,val)
+        function val = set_ROI(obj,val, ~)
             % Update ROI without going outside maxROI
+
             val(1,1) = max(obj.maxROI(1,1),val(1,1)); %#ok<*MCSUP>
             val(1,2) = min(obj.maxROI(1,2),val(1,2));
             val(2,1) = max(obj.maxROI(2,1),val(2,1));
@@ -71,7 +72,6 @@ classdef Galvo < Modules.Imaging
             % Now make sure no cross over
             val(1,2) = max(val(1,1),val(1,2));
             val(2,2) = max(val(2,1),val(2,2));
-            obj.ROI = val;
         end
         function focus(obj,ax,stageHandle)
         end

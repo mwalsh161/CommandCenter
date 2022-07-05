@@ -7,7 +7,7 @@ classdef Galvos < Modules.Stage
         prefs = {'use_z'}
     end
     properties(SetObservable, GetObservable)
-        use_z = true;
+        use_z = Prefs.Boolean(true);
     end
     properties(SetAccess=private)
         position

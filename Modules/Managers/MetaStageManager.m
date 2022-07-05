@@ -14,6 +14,11 @@ classdef MetaStageManager < Base.Manager
     properties
         fps = 5;
     end
+
+    events 
+        updated;
+        
+    end
     
     % UI objects
     properties(SetAccess=private)
@@ -118,6 +123,7 @@ classdef MetaStageManager < Base.Manager
             base.Units = 'characters';
             obj.joystatus.Enable = 'off';
         end
+
         
         % Return string representation of modules
         function strs = get_modules_str(obj,~)
@@ -487,7 +493,7 @@ classdef MetaStageManager < Base.Manager
                 end
             end
             obj.joystatus.Enable = 'off';
-            obj.modules{end+1} = Modules.MetaStage.instance(name);
+            obj.modules{end+1} = Modules.MetaStage.instance(name, obj); % set metastage.parent = obj to visit manager from references
         end
         % Callbacks for GUI button press
 %         function set_num(obj,hObject,varargin)
@@ -529,12 +535,6 @@ classdef MetaStageManager < Base.Manager
 %             delta(index) = mult*instr(index);
 %             obj.jog(delta)
 %         end
-        function manualSavePrefs(obj)
-            obj.savePrefs;
-        end
-        function manualLoadPrefs(obj)
-            obj.loadPrefs;
-        end
     end
     methods(Access=protected)
         function savePrefs(obj)
