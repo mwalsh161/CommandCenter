@@ -11,6 +11,7 @@ classdef Reference < Base.Pref
         reference = []; % Prefs.Numeric.empty(1,0);
         
         lsh = [];
+    
     end
 
     methods
@@ -63,6 +64,35 @@ classdef Reference < Base.Pref
             pr.getMenu([], @obj.set_reference);
         end
 
+
+        function [avg, st] = get_avg_val(obj, average_time, max_std_ratio)
+            target = obj.parent.get_meta_pref('Target');
+            if ~exist('average_time', 'var')
+                average_time = 5;
+            end
+            if ~exist('max_std_ratio', 'var')
+                max_std_ratio = 0.2;
+            end
+            test_vals = zeros(1, average_time);
+            for k = 1:average_time
+                test_vals(k) = target.read;
+                pause(0.1)
+            end
+            avg = mean(test_vals);
+            st = std(test_vals);
+            if abs(st/avg) > max_std_ratio
+                % The standart deviation is too large. Retake the measurement.
+                average_time = average_time*2;
+                test_vals = zeros(1, average_time);
+                for k = 1:average_time
+                    test_vals(k) = target.read;
+                    pause(0.1)
+                end
+                avg = mean(test_vals);
+                st = std(test_vals);
+            end
+        end
+
         function obj = optimize_Callback(obj, src, evt)
             ms = obj.parent; % MetaStage
             global optimizing; % How to let different callback functions share a same variable?
@@ -86,31 +116,44 @@ classdef Reference < Base.Pref
 
                     optimizing = obj.name;
                     start_pos = obj.read;
-                    target = ms.get_meta_pref('Target');
+                    
+
 
                     base_step = ms.(sprintf('key_step_%s', lower(obj.name)));
                     step = base_step;
-                    success_step = step;
+
+                    % Record all tried positions and values
+                    pos_list = [];
+                    val_list = [];
+                    st_list = []; % Standard deviation of each measurement
+
+
                     % Set the optimization range to [start_pos - max_range, start_pos + max_range]
                     % The optimization will automatically stop once current value is out of range.
                     max_range = 20*base_step; 
                     max_iteration = 50;
                     min_step = 0.1*base_step; % Optimization will stop if the current step is too short and there is no improvement.
-                    max_step = 10*base_step;
-
-
+                    
                     fixed_pos = obj.read;
-                    average_time = 5;
-                    test_vals = zeros(1, average_time);
-                    for k = 1:average_time
-                        test_vals(k) = target.read;
-                        pause(0.1)
+                    sweep_num = 3;
+                    % Sweep [-5:5]*base_step to find a starting point of optimization
+                    for k = -sweep_num:sweep_num
+                        temp_pos = fixed_pos + k*base_step;
+                        pos_list(end+1) = temp_pos;
+                        obj.writ(temp_pos);
+                        [avg, st] = obj.get_avg_val;
+                        val_list(end+1) = avg;
+                        st_list(end+1) = st;
                     end
-                    test_val_avg = mean(test_vals);
-                    fixed_val = test_val_avg;
+
+                    [max_val, max_k] = max(val_list);
+                    fixed_pos = pos_list(max_k); % Set the best position to be the fixed point
+                    fixed_val = max_val;
+                    % fixed_val = obj.get_avg_val;
+
+
                     iteration_num = 0;
                     direction_changed = false; % A flag to record whether the step direction is changed after the previous iteration.
-                    exploring = false; % Whether we have reached the (maybe local) maximum value during the optimization.
                     while(optimizing == obj.name)
                         % Use hill climbing to optimize a single axis
                         % Step length is based on key_step_(obj.name).
@@ -120,7 +163,7 @@ classdef Reference < Base.Pref
                             optimizing = "";
                             src.Value = false;
                             obj.writ(fixed_pos);
-                            return;
+                            break;
                         end
 
                         if (iteration_num > max_iteration)
@@ -128,48 +171,34 @@ classdef Reference < Base.Pref
                             optimizing = "";
                             src.Value = false;
                             obj.writ(fixed_pos);
-                            return;
+                            break;
                         end
                         test_pos = fixed_pos + step;
                         obj.writ(test_pos);
-                        for k = 1:average_time
-                            test_vals(k) = target.read;
-                            pause(0.1)
-                        end
+                        [avg, st] = obj.get_avg_val;
+                        pos_list(end+1) = test_pos;
+                        val_list(end+1) = avg;
+                        st_list(end+1) = st;
+                        diff = avg - fixed_val;
+                        
                         iteration_num = iteration_num + 1;
-                        test_val_avg = mean(test_vals);
-                        diff = test_val_avg - fixed_val;
-                        fprintf("Optimizing axis %s (%s) it:%d step:%.2e fixed_pos: %.2e fixed_val: %.2e test_pos: %.2e, try_val: %.2e.\n", obj.name, obj.reference.name, iteration_num, step, fixed_pos, fixed_val, test_pos, test_val_avg);
+                        fprintf("Optimizing axis %s (%s) it:%d step:%.2e fixed_pos: %.2e fixed_val: %.2e test_pos: %.2e, try_val: %.2e.\n", obj.name, obj.reference.name, iteration_num, step, fixed_pos, fixed_val, test_pos, avg);
 
                         if diff > 0 % Is a successful optimization step. Keep moving on this direction.
                             direction_changed = false;
-                            if exploring
-                                exploring = false;
-                                step = base_step;
-                            end
-
-                            fixed_val = test_val_avg;
+                            fixed_val = avg;
                             fixed_pos = fixed_pos + step;
-                            success_step = step;
                         else % Fails to optimize: try another direction or shorten the step length.
                             
                             if direction_changed % If already failed in last iteration, shorten the step length.
-                                if exploring
-                                    step = step + base_step;
-                                else
-                                    step = step / 2;
-                                end
+
+                                step = step / 2;
                                 if (abs(step) < min_step)
-                                    fprintf("Reach local maximum. Try to expand the step length.\n")
-                                    exploring = true;
-                                    step = success_step; % Set step to its previous value (latest successful iteration step)
-                                end
-                                if (abs(step) > max_step)
-                                    fprintf("Reach maximum in range [%.2e, %.2e]. Abort.\n", fixed_pos - max_step, fixed_pos + max_step);
+                                    fprintf("Reach local maximum. Abort.\n")
                                     obj.writ(fixed_pos);
                                     optimizing = "";
                                     src.Value = false;
-                                    return;
+                                    break;
                                 end
                                 direction_changed = false; % Refresh this flag.
                             else % The first time to fail
@@ -177,8 +206,11 @@ classdef Reference < Base.Pref
                                 direction_changed = true;
                             end
                         end
-
-                    end
+                    end % End while loop
+                    fig = figure;
+                    ax = axes;
+                    errorbar(ax, pos_list, val_list, st_list, '.');
+                    
                 end
             else % src.Value == false
                 if obj.name == optimizing

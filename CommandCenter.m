@@ -244,15 +244,7 @@ try
     set(textH,'String', 'Loading Experiment Modules');
     handles.Managers.Experiment = ExperimentManager(handles);
     
-    set(textH,'String', 'Loading Imaging Modules'); drawnow;
-    handles.Managers.Imaging = ImagingManager(handles);
-    set(handles.(handles.Managers.Imaging.set_colormap),'checked','on') % Tags correspond to colormaps
-    set(allchild(handles.menu_colormap),'callback',...
-        @(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
-    
-    set(textH,'String', 'Loading Database Modules'); drawnow;
-    handles.Managers.DB = DBManager(handles);
-    
+
     set(textH,'String', 'Loading Source Modules'); drawnow;
     handles.Managers.Sources = SourcesManager(handles);
     
@@ -263,6 +255,19 @@ try
     set(textH,'String', 'Loading MetaStageManager'); drawnow;
     handles.Managers.MetaStage = MetaStageManager(handles);
     
+    set(textH,'String', 'Loading Imaging Modules'); drawnow;
+    handles.Managers.Imaging = ImagingManager(handles);
+    
+
+    set(handles.(handles.Managers.Imaging.set_colormap),'checked','on') % Tags correspond to colormaps
+    set(allchild(handles.menu_colormap),'callback',...
+    @(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
+
+    
+    set(textH,'String', 'Loading Database Modules'); drawnow;
+    handles.Managers.DB = DBManager(handles);
+    
+
     set(textH,'String', 'Preparing GUI'); drawnow;
     set(textH,'String', 'Done'); drawnow;
     
