@@ -74,11 +74,110 @@ classdef Reference < Base.Pref
                     warning("Optimization on %s is already started. Please stop the running optimization to start a new one.", optimizing);
                     src.Value = false;
 
-                else % No optimization is started.
+                else % No optimization process has been started yet.
+
+                    if strcmp(ms.get_meta_pref('Target').reference.name, 'count')
+                        counter = ms.get_meta_pref('Target').reference.parent;
+                        running = counter.running;
+                        if ~running
+                            counter.start;
+                        end
+                    end
+
                     optimizing = obj.name;
+                    start_pos = obj.read;
+                    target = ms.get_meta_pref('Target');
+
+                    base_step = ms.(sprintf('key_step_%s', lower(obj.name)));
+                    step = base_step;
+                    success_step = step;
+                    % Set the optimization range to [start_pos - max_range, start_pos + max_range]
+                    % The optimization will automatically stop once current value is out of range.
+                    max_range = 20*base_step; 
+                    max_iteration = 50;
+                    min_step = 0.1*base_step; % Optimization will stop if the current step is too short and there is no improvement.
+                    max_step = 10*base_step;
+
+
+                    fixed_pos = obj.read;
+                    average_time = 5;
+                    test_vals = zeros(1, average_time);
+                    for k = 1:average_time
+                        test_vals(k) = target.read;
+                        pause(0.1)
+                    end
+                    test_val_avg = mean(test_vals);
+                    fixed_val = test_val_avg;
+                    iteration_num = 0;
+                    direction_changed = false; % A flag to record whether the step direction is changed after the previous iteration.
+                    exploring = false; % Whether we have reached the (maybe local) maximum value during the optimization.
                     while(optimizing == obj.name)
-                        fprintf("Optimizing axis %s (%s).\n", obj.name, obj.reference.name);
-                        pause(1);
+                        % Use hill climbing to optimize a single axis
+                        % Step length is based on key_step_(obj.name).
+                        
+                        if (abs(fixed_pos + step-start_pos) > max_range)
+                            fprintf("Optimization position run out of range. Abort.\n");
+                            optimizing = "";
+                            src.Value = false;
+                            obj.writ(fixed_pos);
+                            return;
+                        end
+
+                        if (iteration_num > max_iteration)
+                            fprintf("Optimization iteration rounds exceed %d. Abort.\n", max_iteration);
+                            optimizing = "";
+                            src.Value = false;
+                            obj.writ(fixed_pos);
+                            return;
+                        end
+                        test_pos = fixed_pos + step;
+                        obj.writ(test_pos);
+                        for k = 1:average_time
+                            test_vals(k) = target.read;
+                            pause(0.1)
+                        end
+                        iteration_num = iteration_num + 1;
+                        test_val_avg = mean(test_vals);
+                        diff = test_val_avg - fixed_val;
+                        fprintf("Optimizing axis %s (%s) it:%d step:%.2e fixed_pos: %.2e fixed_val: %.2e test_pos: %.2e, try_val: %.2e.\n", obj.name, obj.reference.name, iteration_num, step, fixed_pos, fixed_val, test_pos, test_val_avg);
+
+                        if diff > 0 % Is a successful optimization step. Keep moving on this direction.
+                            direction_changed = false;
+                            if exploring
+                                exploring = false;
+                                step = base_step;
+                            end
+
+                            fixed_val = test_val_avg;
+                            fixed_pos = fixed_pos + step;
+                            success_step = step;
+                        else % Fails to optimize: try another direction or shorten the step length.
+                            
+                            if direction_changed % If already failed in last iteration, shorten the step length.
+                                if exploring
+                                    step = step + base_step;
+                                else
+                                    step = step / 2;
+                                end
+                                if (abs(step) < min_step)
+                                    fprintf("Reach local maximum. Try to expand the step length.\n")
+                                    exploring = true;
+                                    step = success_step; % Set step to its previous value (latest successful iteration step)
+                                end
+                                if (abs(step) > max_step)
+                                    fprintf("Reach maximum in range [%.2e, %.2e]. Abort.\n", fixed_pos - max_step, fixed_pos + max_step);
+                                    obj.writ(fixed_pos);
+                                    optimizing = "";
+                                    src.Value = false;
+                                    return;
+                                end
+                                direction_changed = false; % Refresh this flag.
+                            else % The first time to fail
+                                step = -step;
+                                direction_changed = true;
+                            end
+                        end
+
                     end
                 end
             else % src.Value == false
