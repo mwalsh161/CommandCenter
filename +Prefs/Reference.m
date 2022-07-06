@@ -229,6 +229,49 @@ classdef Reference < Base.Pref
 
         end
         
+        function obj = global_optimize_Callback(obj, src, evt)
+            ms = obj.parent; % MetaStage
+            global optimizing; % How to let different callback functions share a same variable?
+            if ~isstring(optimizing) && ~ischar(optimizing)
+                optimizing = "";
+            end
+            if src.Value == true
+                if optimizing ~= ""
+                    warning("Optimization on %s is already started. Please stop the running optimization to start a new one.", optimizing);
+                    src.Value = false;
+
+                else % No optimization process has been started yet.
+                    optimizing = "Target";
+                    if strcmp(ms.get_meta_pref('Target').reference.name, 'count')
+                        counter = ms.get_meta_pref('Target').reference.parent;
+                        running = counter.running;
+                        if ~running
+                            counter.start;
+                        end
+                    end
+
+                    while(optimizing == obj.name)
+                        % Use hill climbing to iteratively optimize all axes
+                        fprintf("Globally optimizing\n");
+
+                    end % End while loop
+                    
+                    % for k = 1:3
+                                        
+
+                end
+            else % src.Value == false
+                if obj.name == optimizing
+                    optimizing = ""; % to end an optimization
+                    fprintf("Optimization of axis %s (%s) is interrupted.\n", obj.name, obj.reference.name);
+                else % obj.name ~= optimizing, which should not happen if operated correctly
+                    warning("Optimization of axis %s is interrupted by button in %s.\n", optimizing, obj.name);
+                    optimizing = "";
+                end
+            end
+
+        end
+
         function obj = link_callback(obj,callback)
             % This wraps ui.link_callback; careful overloading
             if ~isempty(obj.reference)

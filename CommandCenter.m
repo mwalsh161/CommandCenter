@@ -251,18 +251,18 @@ try
     set(textH,'String', 'Loading Paths'); drawnow;
     handles.Managers.Path = PathManager(handles); % Generates its own menu item
 
-    % MetaStageManager has to be the last to load, since it relies on other preferences.
-    set(textH,'String', 'Loading MetaStageManager'); drawnow;
-    handles.Managers.MetaStage = MetaStageManager(handles);
     
     set(textH,'String', 'Loading Imaging Modules'); drawnow;
     handles.Managers.Imaging = ImagingManager(handles);
     
-
+    
     set(handles.(handles.Managers.Imaging.set_colormap),'checked','on') % Tags correspond to colormaps
     set(allchild(handles.menu_colormap),'callback',...
     @(hObject,eventdata)CommandCenter('colormap_option_set',hObject,eventdata,guidata(hObject)));
-
+    
+    % MetaStageManager has to be the last to load, since it relies on other preferences.
+    set(textH,'String', 'Loading MetaStageManager'); drawnow;
+    handles.Managers.MetaStage = MetaStageManager(handles);
     
     set(textH,'String', 'Loading Database Modules'); drawnow;
     handles.Managers.DB = DBManager(handles);

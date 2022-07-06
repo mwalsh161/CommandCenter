@@ -533,6 +533,12 @@ classdef MetaStageManager < Base.Manager
 %             delta(index) = mult*instr(index);
 %             obj.jog(delta)
 %         end
+        function manualSavePrefs(obj)
+            obj.savePrefs;
+        end
+        function manualLoadPrefs(obj)
+            obj.loadPrefs;
+        end
     end
     methods(Access=protected)
         function savePrefs(obj)
