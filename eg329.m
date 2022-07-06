@@ -1,5 +1,5 @@
-function eg347(ms, managers)
-    folder = 'Z:\Experiments\Diamond\EG347\2022_06_21_RoMi\';
+function eg329(ms, managers)
+    folder = 'Z:\Experiments\Diamond\EG329\2022_06_24 RoMi\';
 
     % Disable inactivity!
     timerH = managers.handles.inactivity_timer;
@@ -8,12 +8,14 @@ function eg347(ms, managers)
         stop(timerH);
     end
 
-    xsweep = 0:52;
-    ysweep = 0:52;
+    xsweep = 0:70;
+    ysweep = 0:70;
+%     xsweep = 0;
+%     ysweep = 0;
     
     ard =   Drivers.ArduinoServo.instance('localhost', 3);
     red =   Sources.WhiteLight.instance();
-    green = Sources.Laser532_nidaq_PB.instance();
+    green = Sources.Laser532_nidaq_nidaq.instance();
 
     f = figure('Name', 'Data', 'NumberTitle', 'off', 'Menubar', 'none', 'Toolbar', 'none');
     f.Position(2) = f.Position(2) - f.Position(3) + f.Position(4);
@@ -27,17 +29,14 @@ function eg347(ms, managers)
     red.on();
     green.off();
     
-    baseX = 19; %round(ms.image.X - ms.offset);
-    baseY = 19; %round(ms.image.Y - ms.offset);
+    baseX = 10; %round(ms.image.X - ms.offset);
+    baseY = 10; %round(ms.image.Y - ms.offset);
 %     ms.navigateTarget(baseX + ms.offset, baseY + ms.offset);
-    
-    %N = 81*16 - 16;
     
     n = 1;
 
     for ii = 1:length(xsweep)
         for jj = 1:length(ysweep)
-            %if n > N
             if true
                 dX = xsweep(ii);
                 dY = ysweep(jj);
@@ -72,9 +71,9 @@ function eg347(ms, managers)
     
 
     function measure(fname)
-        angles = [0 0 180 0];
-%         names = {'wl', 'g_550LP_640LP'};
-        names = {'longpass_red_pre', 'longpass_green', 'SnV_filter', 'longpass_red_post'};
+        angles = [0 0:60:180 0];
+%         names = {'wl', 'g_550LP', 'g_550LP_SiVZPL', 'g_550LP_GeVZPL', 'g_550LP_640LP'};
+        names = {'wlpre', 'g_550LP_640LP', 'g_550LP_SiVZPL', 'g_550LP_GeVZPL', 'g_550LP_SnVZPL', 'wlpost'};
         
         fin.coarse_x = ms.coarse_x.read();
         fin.coarse_y = ms.coarse_y.read();
@@ -104,15 +103,14 @@ function eg347(ms, managers)
             if kk == length(angles)  % The first frame is wl, while the rest use green.
                 red.on();
                 green.off();
-                pause(0.5)
             end
             
             img0 = uint32(ms.image.image.snapImage());
-            %if kk == 4
-            %    for ll = 1:(ceil(fin.g_exposure_SiV/fin.wl_exposure)-1)
-            %        img0 = img0 + uint32(ms.image.image.snapImage());
-            %    end
-            if kk ~= 1 && kk ~= length(angles)
+            if kk == 2
+                for ll = 1:(ceil(fin.g_exposure_SiV/fin.wl_exposure)-1)
+                    img0 = img0 + uint32(ms.image.image.snapImage());
+                end
+            elseif kk ~= 1 && kk ~= length(angles)
                 for ll = 1:(ceil(fin.g_exposure/fin.wl_exposure)-1)
                     img0 = img0 +uint32( ms.image.image.snapImage());
                 end

@@ -34,7 +34,8 @@ classdef Laser532_nidaq_nidaq < Modules.Source
             delete(obj.listeners)
         end
         function val = set_source_on(obj, val, ~)
-            obj.ni.WriteDOLines('532 Laser AOM', val)
+            % obj.ni.WriteDOLines('532 Laser AOM', val)
+            obj.ni.WriteDOLines('532 Laser', val)
         end
         function val = set_armed(obj, val, ~)
             obj.ni.WriteDOLines('532 Laser', val)

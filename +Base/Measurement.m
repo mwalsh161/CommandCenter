@@ -612,6 +612,8 @@ classdef (HandleCompatible) Measurement
             u = obj.getUnits();
             
             sd = obj.subdata();
+            
+            l = []
 
             for ii = 1:length(sd)
                 if isempty(u.(sd{ii}))
