@@ -149,7 +149,7 @@ classdef MetaStageManager < Base.Manager
     end
     methods(Access=protected)
         function active_module_changed(obj, varargin)
-            obj.active_module
+            % obj.active_module
             obj.X = obj.active_module.get_meta_pref('X');
             obj.Y = obj.active_module.get_meta_pref('Y');
             obj.Z = obj.active_module.get_meta_pref('Z');
@@ -465,8 +465,6 @@ classdef MetaStageManager < Base.Manager
                     name = '';
                 end
             end
-            
-            obj.modules{end+1} = Modules.MetaStage.instance(name);
         end
         function new(obj, name)
             present_names = cell(1, numel(obj.modules));
@@ -492,8 +490,8 @@ classdef MetaStageManager < Base.Manager
                     end
                 end
             end
-            obj.joystatus.Enable = 'off';
             obj.modules{end+1} = Modules.MetaStage.instance(name, obj); % set metastage.parent = obj to visit manager from references
+            obj.joystatus.Enable = 'off';
         end
         % Callbacks for GUI button press
 %         function set_num(obj,hObject,varargin)
@@ -572,7 +570,7 @@ classdef MetaStageManager < Base.Manager
                 % obj.modules = obj.load_module_str(class_strs);
                 try
                     for i = 1:numel(modules_bak)
-                        obj.modules{i} = Modules.MetaStage.instance(modules_bak{i}.name);
+                        obj.modules{i} = Modules.MetaStage.instance(modules_bak{i}.name, obj);
                         for k = 1:numel(modules_bak{i}.prefs)
                             try
                                 mp = obj.modules{i}.get_meta_pref(modules_bak{i}.prefs{k});

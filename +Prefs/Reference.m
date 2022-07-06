@@ -105,7 +105,12 @@ classdef Reference < Base.Pref
                     src.Value = false;
 
                 else % No optimization process has been started yet.
-
+                    if isempty(obj.parent.get_meta_pref('Target').reference)
+                        warning("Reference 'Target' is not set properly. Please set a target to start optimization.");
+                        optimizing = "";
+                        src.Value = false;
+                        return;
+                    end
                     if strcmp(ms.get_meta_pref('Target').reference.name, 'count')
                         counter = ms.get_meta_pref('Target').reference.parent;
                         running = counter.running;
@@ -135,7 +140,7 @@ classdef Reference < Base.Pref
                     min_step = 0.1*base_step; % Optimization will stop if the current step is too short and there is no improvement.
                     
                     fixed_pos = obj.read;
-                    sweep_num = 3;
+                    sweep_num = 0;
                     % Sweep [-5:5]*base_step to find a starting point of optimization
                     for k = -sweep_num:sweep_num
                         temp_pos = fixed_pos + k*base_step;

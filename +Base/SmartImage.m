@@ -160,7 +160,7 @@ classdef SmartImage < handle
             % Add listeners
             obj.listeners(2) = addlistener(imager,'ROI','PostSet',@obj.updateROI);
             obj.listeners(3) = addlistener(stage,'newPosition',@obj.updatePos);
-            obj.listeners(9) = addlistener(metastage, 'updated', @obj.updatePos);
+            obj.listeners(4) = addlistener(metastage, 'updated', @obj.updatePos);
             % Set up remaining contextmenus (note obj.contextmenu = axes, parent = imrect stuff)
             obj.ROIMenu = uimenu(obj.contextmenu,'Label','ROI Visible','Callback',@obj.visCallback,'checked','on','UserData','ROI','tag','smartimage');
             obj.crosshairMenu = uimenu(obj.contextmenu,'Label','CrossHair Visible','Callback',@obj.visCallback,'checked','on','UserData','crosshair','tag','smartimage');
@@ -179,12 +179,12 @@ classdef SmartImage < handle
             uimenu(parent,'Label','Use image''s ROI','Callback',@obj.useROI,'tag','smartimage');
             uimenu(parent,'label','Delete SmartImage feature','callback',@obj.DeleteObjs,'tag','smartimage');
             % Double click
-            obj.listeners(4) = addlistener(fig,'WindowMousePress',@obj.clicked);
+            obj.listeners(5) = addlistener(fig,'WindowMousePress',@obj.clicked);
             % Closing listeners
-            obj.listeners(5) = addlistener(fig,'Close',@obj.delete);
-            obj.listeners(6) = addlistener(stage,'ObjectBeingDestroyed',@obj.DeleteObjs);
-            obj.listeners(7) = addlistener(imager,'ObjectBeingDestroyed',@obj.DeleteObjs);
-            obj.listeners(8) = addlistener(metastage,'ObjectBeingDestroyed',@obj.DeleteObjs);
+            obj.listeners(6) = addlistener(fig,'Close',@obj.delete);
+            obj.listeners(7) = addlistener(stage,'ObjectBeingDestroyed',@obj.DeleteObjs);
+            obj.listeners(8) = addlistener(imager,'ObjectBeingDestroyed',@obj.DeleteObjs);
+            obj.listeners(9) = addlistener(metastage,'ObjectBeingDestroyed',@obj.DeleteObjs);
         end
         function useROI(obj,h,eventdata)
             obj.imager.setROI(obj.info.ROI);
