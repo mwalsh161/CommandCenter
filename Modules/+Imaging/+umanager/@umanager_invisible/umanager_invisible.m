@@ -173,12 +173,7 @@ classdef umanager_invisible < Modules.Imaging
             end
             % Take Image
             obj.mmc('snapImage');
-            dat = obj.mmc('getImage');
-            width = obj.mmc('getImageWidth');
-            height = obj.mmc('getImageHeight');
-            dat = typecast(dat, obj.pixelType);
-            dat = reshape(dat, [width, height]);
-            im = transpose(dat);  % make column-major order for MATLAB
+            im = obj.get_image();
             if wasRunning
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end
@@ -187,6 +182,20 @@ classdef umanager_invisible < Modules.Imaging
             % This function calls snapImage and applies to hImage.
             im = obj.snapImage;
             set(hImage,'cdata',im)
+        end
+        function snap_only(obj)
+            % Sends command to snap image to camera; useful for e.g.
+            % triggered snapping in experiments
+            obj.mmc('snapImage')
+        end
+        function im = get_image(obj)
+            % Function to get image from camera and post-process for MATLAB
+            dat = obj.mmc('getImage');
+            width = obj.mmc('getImageWidth');
+            height = obj.mmc('getImageHeight');
+            dat = typecast(dat, obj.pixelType);
+            dat = reshape(dat, [width, height]);
+            im = transpose(dat);  % make column-major order for MATLAB
         end
         function startVideo(obj,hImage)
             obj.continuous = true;

@@ -11,7 +11,7 @@ classdef Camera < Imaging.umanager.umanager_invisible
             'help_text','Toggle this to reload core.')
     end
     
-    methods(Access=private)
+    methods(Access=protected)
         function obj = Camera()
             obj.prefs = [obj.prefs, {'dev','config_file','reload'}];
             obj.loadPrefs('config_file','dev');
