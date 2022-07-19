@@ -1,0 +1,102 @@
+classdef Widefield_Invisible < Modules.Experiment
+%CW_ODMR Description of experiment
+    % Useful to list any dependencies here too
+
+    properties(GetObservable,SetObservable,AbortSet)
+        averages = Prefs.Integer(2,'min', 1, 'help_text', 'Number of averages to perform');
+        Laser = Prefs.ModuleInstance('help_text','PulseBlaster enabled laser');
+        Camera = Prefs.ModuleInstance('help_text','Camera used to take ODMR images');
+
+        Pixel_of_Interest_x = Prefs.String('', 'help_text', 'x-coordinate of pixel of interest to plot during experiment', 'set','set_x_pixel', 'custom_validate','validate_pixel');
+        Pixel_of_Interest_y = Prefs.String('', 'help_text', 'y-coordinate of pixel of interest to plot during experiment', 'set','set_y_pixel', 'custom_validate','validate_pixel');
+        ROI = Prefs.DoubleArray([NaN NaN; NaN NaN],'units','pixel','min',1,'allow_nan',true,'help_text','region of interest to save');
+    end
+    properties
+        prefs = {'averages','ROI','Pixel_of_Interest_x','Pixel_of_Interest_y','Laser','SignalGenerator','Camera'};
+    end
+    properties(SetAccess=protected,Hidden)
+        % Internal properties that should not be accessible by command line
+        pixel_x = linspace(2.85,2.91,101)*1e9; % Internal, set using Pixel_of_Interest_y
+        pixel_y = linspace(2.85,2.91,101)*1e9; % Internal, set using Pixel_of_Interest_y
+        data = [] % Useful for saving data from run method
+        meta = [] % Useful to store meta data in run method
+        abort_request = false; % Flag that will be set to true upon abort. Use in run method!
+    end
+
+    methods(Static)
+        % Static instance method is how to call this experiment
+        % This is a separate file
+        obj = instance()
+
+        function [ax_im, ax_data, panel] = setup_image(ax, initial_im, pixels_of_interest, ROI)
+            % Plot camera image
+            obj.Laser.on;
+            img_size = size(initial_im);
+            
+            % Plot image
+            panel = ax.Parent;
+            ax_im = subplot(1,2,1,'parent',panel);
+            hold(ax_im, 'on')
+            imagesc(  initial_im, 'parent', ax_im)
+            set(ax_im,'dataAspectRatio',[1 1 1])
+            hold(ax_im,'on');
+            cs = lines(n_pts);
+
+            % Show pixels of interest
+            n_pix = size(pixels_of_interest, 2);
+            for i = 1:n_pix
+                plot( pixels_of_interest(1,i), pixels_of_interest(2,i),'o')
+            end
+            
+            % Show ROI
+            rectangle('pos',[min(ROI,[],2)' diff(ROI,1,2)'],'EdgeColor','r','LineWidth',2, 'parent', ax_im)
+            
+            % Plot data axis
+            ax_data = subplot(1,2,2,'parent',panel);
+        end
+
+    end
+    methods(Access=private)
+        function obj = Widefield_Invisible()
+            % Constructor (should not be accessible to command line!)
+            obj.loadPrefs; % Load prefs specified as obj.prefs
+        end
+    end
+
+    methods
+        run(obj,status,managers,ax) % Main run method in separate file
+
+        function abort(obj)
+            % Callback for when user presses abort in CC
+            obj.abort_request = true;
+        end
+
+        function dat = GetData(obj,stageManager,imagingManager)
+            % Callback for saving methods
+            dat.data = obj.data;
+            dat.meta = obj.meta;
+        end
+
+        function setup_run(obj)
+            assert(length(obj.pixel_x)==length(obj.pixel_y), 'Length of x and y coordinates of pixels of interest are not the same')
+
+            % Edit this to include meta data for this experimental run (saved in obj.GetData)
+            obj.meta.prefs = obj.prefs2struct;
+            obj.meta.freq_list = obj.freq_list;
+            obj.meta.pixels_of_interest = [obj.pixel_x; obj.pixel_y];
+            obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
+        end
+
+        % Set methods allow validating property/pref set values
+        function val = set_x_pixel(obj,val,pref)
+            obj.pixel_x = str2num(val);
+        end
+        function val = set_y_pixel(obj,val,pref)
+            obj.pixel_y = str2num(val);
+        end
+        function validate_pixel(obj,val,pref)
+            val = str2num(val);
+            assert( isempty(val) || isrow(val), 'Pixel must be empty or a row vector')
+        end
+    end
+end
