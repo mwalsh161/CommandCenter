@@ -1,6 +1,5 @@
-classdef Widefield_Invisible < Modules.Experiment
-%CW_ODMR Description of experiment
-    % Useful to list any dependencies here too
+classdef Widefield_invisible < Modules.Experiment
+%Widefield_invisible Invisible superclass for widefield microwave experiments
 
     properties(GetObservable,SetObservable,AbortSet)
         averages = Prefs.Integer(2,'min', 1, 'help_text', 'Number of averages to perform');
@@ -12,7 +11,7 @@ classdef Widefield_Invisible < Modules.Experiment
         ROI = Prefs.DoubleArray([NaN NaN; NaN NaN],'units','pixel','min',1,'allow_nan',true,'help_text','region of interest to save');
     end
     properties
-        prefs = {'averages','ROI','Pixel_of_Interest_x','Pixel_of_Interest_y','Laser','SignalGenerator','Camera'};
+        prefs = {'averages','ROI','Pixel_of_Interest_x','Pixel_of_Interest_y','Laser','Camera'};
     end
     properties(SetAccess=protected,Hidden)
         % Internal properties that should not be accessible by command line
@@ -28,11 +27,7 @@ classdef Widefield_Invisible < Modules.Experiment
         % This is a separate file
         obj = instance()
 
-        function [ax_im, ax_data, panel] = setup_image(ax, initial_im, pixels_of_interest, ROI)
-            % Plot camera image
-            obj.Laser.on;
-            img_size = size(initial_im);
-            
+        function [ax_im, ax_data, panel] = setup_image(ax, initial_im, pixels_of_interest, ROI)            
             % Plot image
             panel = ax.Parent;
             ax_im = subplot(1,2,1,'parent',panel);
@@ -40,24 +35,28 @@ classdef Widefield_Invisible < Modules.Experiment
             imagesc(  initial_im, 'parent', ax_im)
             set(ax_im,'dataAspectRatio',[1 1 1])
             hold(ax_im,'on');
-            cs = lines(n_pts);
 
             % Show pixels of interest
             n_pix = size(pixels_of_interest, 2);
             for i = 1:n_pix
-                plot( pixels_of_interest(1,i), pixels_of_interest(2,i),'o')
+                plot( pixels_of_interest(1,i), pixels_of_interest(2,i), 'o', 'parent', ax_im)
             end
             
             % Show ROI
             rectangle('pos',[min(ROI,[],2)' diff(ROI,1,2)'],'EdgeColor','r','LineWidth',2, 'parent', ax_im)
+            hold(ax_im,'off');
+            
+            size_initial_im = size(initial_im);
+            ax_im.XLim = [1 size_initial_im(1)];
+            ax_im.YLim = [1 size_initial_im(2)];
             
             % Plot data axis
             ax_data = subplot(1,2,2,'parent',panel);
         end
 
     end
-    methods(Access=private)
-        function obj = Widefield_Invisible()
+    methods(Access=protected)
+        function obj = Widefield_invisible()
             % Constructor (should not be accessible to command line!)
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
@@ -71,18 +70,17 @@ classdef Widefield_Invisible < Modules.Experiment
             obj.abort_request = true;
         end
 
-        function dat = GetData(obj,stageManager,imagingManager)
+        function dat = GetData(obj,~,~)
             % Callback for saving methods
             dat.data = obj.data;
             dat.meta = obj.meta;
         end
 
-        function setup_run(obj)
+        function setup_run(obj,managers)
             assert(length(obj.pixel_x)==length(obj.pixel_y), 'Length of x and y coordinates of pixels of interest are not the same')
 
             % Edit this to include meta data for this experimental run (saved in obj.GetData)
             obj.meta.prefs = obj.prefs2struct;
-            obj.meta.freq_list = obj.freq_list;
             obj.meta.pixels_of_interest = [obj.pixel_x; obj.pixel_y];
             obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
         end

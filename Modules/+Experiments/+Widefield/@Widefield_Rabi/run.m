@@ -5,25 +5,25 @@ function run( obj,status,managers,ax )
     drawnow;
 
     % Edit this to include meta data for this experimental run (saved in obj.GetData)
-    obj.meta.prefs = obj.prefs2struct;
-    obj.meta.freq_list = obj.freq_list;
-    obj.meta.position = managers.Stages.position; % Save current stage position (x,y,z);
-
-    % Setup run & graphics
-    obj.setup_run()
-
+    obj.setup_run(managers)
+    obj.meta.MW_Times = obj.MW_Times_vals;
 
     % Set up signal generator
     obj.SignalGenerator.MWPower = obj.MW_Power;
-    obj.SignalGenerator.MWFrequency = obj.MW_freq;
+    obj.SignalGenerator.MWFrequency = obj.MW_freq*1e6;
     obj.SignalGenerator.on();
 
     % Set camera to accept capture on external trigger
-    old_trigger = obj.Camera.trigger;
+    status.String = 'Camera loading';
+    drawnow;
+    if ~obj.Camera.initialized % Ensure camera is loaded
+        obj.Camera.reload_toggle();
+    end
     old_exposure = obj.Camera.exposure;
+    old_trigger = obj.Camera.trigger;
     obj.Camera.trigger = 'External';
-    MW_time = obj.MW_Times_vals(1); % Initialise to first value    
-    obj.Camera.exposure = (2*obj.MW_Pad + MW_time + obj.Laser_Time)*obj.samples;
+    MW_time = max(obj.MW_Times_vals); % Initialise to largest value    
+    obj.Camera.exposure = (obj.camera_trig_time + 2*obj.camera_trig_delay + (2*obj.MW_Pad + MW_time + obj.Laser_Time)*obj.samples)/1000; % Exposure in ms
 
     % Set up laser
     obj.Laser.arm();
@@ -33,16 +33,16 @@ function run( obj,status,managers,ax )
 
     % Pre-allocate obj.data
     n_MW_times = numel(obj.MW_Times_vals);
-    ROI_size = [obj.ROI(1,2)-obj.ROI(1,1), obj.ROI(2,2)-obj.ROI(2,1)];
+    ROI_size = [obj.ROI(1,2)-obj.ROI(1,1), obj.ROI(2,2)-obj.ROI(2,1)] + 1;
     cam_ROI_size = [obj.Camera.ROI(1,2)-obj.Camera.ROI(1,1), obj.Camera.ROI(2,2)-obj.Camera.ROI(2,1)];
     obj.data = NaN(obj.averages, n_MW_times, ROI_size(1), ROI_size(2), 2);
     n_pixels_of_interest = numel(obj.pixel_x);
     pixels_of_interest = NaN(obj.averages, n_MW_times, n_pixels_of_interest, 2);
 
     % Setup graphics
-    [ax_im, ~, panel] = obj.setup_image(ax, NaN(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
+    [ax_im, ~, panel] = obj.setup_image(ax, zeros(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
 
-    [plotH, ax_rabi, ax_intensity] = obj.setup_plotting(panel, obj.MW_Times_vals, n_pixels_of_interest);
+    [plotH, ~, ~] = obj.setup_plotting(panel, obj.MW_Times_vals, n_pixels_of_interest);
 
     try
         % EXPERIMENT CODE %
@@ -51,8 +51,9 @@ function run( obj,status,managers,ax )
                 
                 % Setup camera and pulse sequence
                 MW_time = obj.MW_Times_vals(j);
-                exposure = (2*obj.MW_Pad + MW_time + obj.Laser_Time)*obj.samples;
-                obj.Camera.exposure = exposure;
+                
+                status.String = sprintf('MW Time %0.3f us (%i/%i)\nAverage %i/%i', MW_time, j, n_MW_times, i, obj.averages);
+                drawnow;
 
                 % Load pulse sequence to pulse blaster
                 pulseSeq = obj.BuildPulseSequence(MW_time, 0);
@@ -62,10 +63,11 @@ function run( obj,status,managers,ax )
                 obj.pbH.load(program);
                 obj.Camera.snap_only;
                 obj.pbH.start;
+                pause(obj.Camera.exposure/1000)
                 im = obj.Camera.get_image;
 
                 % Allocate data
-                obj.data(i,j,:,:,1) = im;
+                obj.data(i,j,:,:,1) = im(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2));
 
                 % Pixels of interest
                 for k = 1:n_pixels_of_interest
@@ -85,7 +87,7 @@ function run( obj,status,managers,ax )
                     im = obj.Camera.get_image;
 
                     % Allocate data
-                    obj.data(i,j,:,:,2) = im;
+                    obj.data(i,j,:,:,2) = im(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2));
 
                     % Pixels of interest
                     for k = 1:n_pixels_of_interest
@@ -98,7 +100,8 @@ function run( obj,status,managers,ax )
                 end
 
                 % Update data
-                obj.update_graphics
+                obj.update_graphics(ax_im, plotH, obj.data, pixels_of_interest, im);
+                drawnow; assert(~obj.abort_request,'User aborted.');
             end
         end
     catch err
@@ -107,6 +110,7 @@ function run( obj,status,managers,ax )
     obj.Camera.trigger = old_trigger;
     obj.Camera.exposure = old_exposure;
     obj.SignalGenerator.off();
+    obj.pbH.close();
 
     if exist('err','var')
         % HANDLE ERROR CODE %

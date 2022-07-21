@@ -1,8 +1,7 @@
-classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
-    %Widefield_Rabi Description of experiment
-    % Useful to list any dependencies here too
+classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
+    %Widefield_Rabi Performs widefield Rabi experiment using a triggered camera
 
-    properties(SetObservable,AbortSet)
+    properties(GetObservable,SetObservable,AbortSet)
         SignalGenerator = Prefs.ModuleInstance('help_text','Signal generator used to produce ODMR MW frequency');
         MW_freq = Prefs.Double(2870, 'help_text','MW frequency used for Rabi experiment', 'units','MHz');
         MW_Power = Prefs.Double(-30, 'help_text', 'Signal generator MW power', 'units', 'dBm');
@@ -19,7 +18,7 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
     end
     properties
         MW_Times_vals = linspace(0,100,101); % Internal, set using MW_Times
-        camera_trig_delay = 1; % us, Internal delay between start of PB sequence and camera trigger
+        camera_trig_delay = 10; % us, Internal delay between start of PB sequence and camera trigger
         camera_trig_time = 10; % us, Time camera trigger is on
     end
     properties(SetAccess=protected,Hidden)
@@ -31,19 +30,19 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
         % This is a separate file
         obj = instance()
         
-        function [plotH, ax_rabi, ax_intensity] = obj.setup_plotting(panel, times, n_pix)
+        function [plotH, ax_rabi, ax_intensity] = setup_plotting(panel, times, n_pix)
             % Given a panel and microwave times, set up plots of Rabi
 
-            n_MW_times = numel(obj.MW_Times_vals);
+            n_MW_times = numel(times);
             y = NaN(1, n_MW_times);
 
             % Plot rabi for weighted average and pixels of interest
             ax_rabi = subplot(2,2,2, 'parent', panel);
             hold(ax_rabi, 'on');
             for i = 1:n_pix
-                plotH{1,i} = errorbar(obj.MW_Times_vals, y, y, '.', 'parent', ax_rabi, 'MarkerSize', 10);
+                plotH{1,i} = errorbar(times, y, y, '.', 'parent', ax_rabi, 'MarkerSize', 10);
             end
-            plotH{1,n_pix+1}  = errorbar(obj.MW_Times_vals, y, y, '.k' 'parent', ax_rabi, 'MarkerSize', 15);
+            plotH{1,n_pix+1}  = errorbar(times, y, y, '.k', 'parent', ax_rabi, 'MarkerSize', 15);
             ylabel(ax_rabi, 'Rabi (normalized)')
             hold(ax_rabi, 'off');
         
@@ -54,22 +53,22 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
             ylabel(ax_intensity, 'Pixel of Interest (arb.)')
         
             for i = 1:n_pix
-                plotH{2,i} = plot(obj.MW_Times_vals, y, 'parent', ax_intensity, 'MarkerSize', 10);
-                plotH{3,i} = plot(obj.MW_Times_vals, y, '--', 'parent', ax_intensity, 'MarkerSize', 10);
+                plotH{2,i} = plot(times, y, 'parent', ax_intensity, 'MarkerSize', 10);
+                plotH{3,i} = plot(times, y, '--', 'parent', ax_intensity, 'MarkerSize', 10);
             end
         
             yyaxis(ax_intensity, 'left')
             ylabel(ax_intensity, 'Weighted Average (arb.)')
         
-            plotH{2,n_pix+1}  = plot(obj.MW_Times_vals, y, 'k', 'parent', ax_intensity, 'LineWidth', 2);
-            plotH{3,n_pix+1}  = plot(obj.MW_Times_vals, y, '--k', 'parent', ax_intensity, 'LineWidth', 2);
+            plotH{2,n_pix+1}  = plot(times, y, 'k', 'parent', ax_intensity, 'LineWidth', 2);
+            plotH{3,n_pix+1}  = plot(times, y, '--k', 'parent', ax_intensity, 'LineWidth', 2);
         
             xlabel(ax_intensity, 'MW Time (\mu s)')
             hold(ax_intensity,'off')
         end
 
         
-        function update_graphics(ax_im, plotH, data, pixels_of_interest)
+        function update_graphics(ax_im, plotH, data, pixels_of_interest, im)
             
             % Calculate Rabi for ROI
             intensity = squeeze(data(:,:,:,:,2));
@@ -88,13 +87,13 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
             n_pix = n_pix(3);
 
             % Update image
-            ax_im.CData = squeeze(mean(intensity, [1 2], 'omitnan'));
+            set(ax_im.Children(4), 'CData', im);
 
             for i = 1:n_pix
                 % Update Rabi plot
                 plotH{1,i}.YData = rabi_pix(:,i);
-                plotH{1,i}.YPositiveData = rabi_pix_err(:,i);
-                plotH{1,i}.YNegativeData = rabi_pix_err(:,i);
+                plotH{1,i}.YPositiveDelta = rabi_pix_err(:,i);
+                plotH{1,i}.YNegativeDelta = rabi_pix_err(:,i);
 
                 % Update intensity plot
                 plotH{2,i}.YData = squeeze(mean(pixels_of_interest(:,:,i,1),1,'omitnan'));
@@ -103,8 +102,8 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
 
             % Update average Rabi plot
             plotH{1,n_pix+1}.YData = rabi;
-            plotH{1,n_pix+1}.YPositiveData = rabi_err;
-            plotH{1,n_pix+1}.YNegativeData = rabi_err;
+            plotH{1,n_pix+1}.YPositiveDelta = rabi_err;
+            plotH{1,n_pix+1}.YNegativeDelta = rabi_err;
 
             % Update average intensity plot
             plotH{2,n_pix+1}.YData = squeeze(mean(data(:,:,:,:,1),[1,3,4],'omitnan'));
@@ -113,7 +112,7 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
     end
     methods(Access=private)
         function obj = Widefield_Rabi()
-            obj.prefs = [{'MW_Times','MW_freq','MW_Power','Laser_Time','MW_Pad', 'samples', 'normalisation'}, obj.prefs, {'Cam_Trig_Line','SignalGenerator','pb_IP'}]
+            obj.prefs = [{'MW_Times','MW_freq','MW_Power','Laser_Time','MW_Pad', 'samples', 'normalisation'}, obj.prefs, {'Cam_Trig_Line','SignalGenerator','pb_IP'}];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -121,14 +120,14 @@ classdef Widefield_Rabi < Modules.Experiment.Widefield_Invisible
     methods
         run(obj,status,managers,ax) % Main run method in separate file
 
-        pulseSeq = BuildPulseSequence(obj,tauIndex) %Defined in separate file
+        pulseSeq = BuildPulseSequence(obj,MW_Time_us,normalisation) %Defined in separate file
 
         function abort(obj)
             % Callback for when user presses abort in CC
             obj.abort_request = true;
         end
 
-        function dat = GetData(obj,stageManager,imagingManager)
+        function dat = GetData(obj,stageManager,~)
             % Callback for saving methods
             meta = stageManager.position;
             dat.data = obj.data;
