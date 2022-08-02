@@ -26,49 +26,17 @@ function run( obj,status,managers,ax )
     obj.Camera.exposure = obj.Exposure;
     % Pre-allocate obj.data
     n = length(obj.freq_list);
-    n_pts = length(obj.pixel_x);
+    n_pixels_of_interest = length(obj.pixel_x);
+    ROI_size = [obj.ROI(1,2)-obj.ROI(1,1), obj.ROI(2,2)-obj.ROI(2,1)] + 1;
+    cam_ROI_size = [obj.Camera.ROI(1,2)-obj.Camera.ROI(1,1), obj.Camera.ROI(2,2)-obj.Camera.ROI(2,1)];
+    obj.data = NaN(obj.averages,n,2,ROI_size(1),ROI_size(2)); % Data aranged with indices (average #)x(frequency)x(normalisation/data)x(x pixel)x(y pixel)
+    pixels_of_interest = NaN(obj.averages, n_MW_times, n_pixels_of_interest, 2);
 
     % Setup graphics
     % Plot camera image
-    obj.Laser.on;
-    initial_im = obj.Camera.snapImage(1);
-    img_size = size(initial_im);
-    
-    panel = ax.Parent;
-    ax_im = subplot(1,2,1,'parent',panel);
-    imagesc(  initial_im, 'parent', ax_im)
-    set(ax_im,'dataAspectRatio',[1 1 1])
-    hold(ax_im,'on');
-    cs = lines(n_pts);
-    
-    obj.data = NaN(obj.averages,n,2,img_size(1),img_size(2)); % Data aranged with indices (average #)x(frequency)x(normalisation/data)x(x pixel)x(y pixel)
+    [ax_im, ~, panel] = obj.setup_image(ax, zeros(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
+    [plotH, ax_data, ax_intensity] = setup_plotting(panel, obj.freq_list, n_pixels_of_interest)
 
-    % Plot data
-    y = NaN(1,n);
-    ax_data = subplot(1,2,2,'parent',panel);
-    hold(ax_data,'on');
-    plotH(1) = plot(obj.freq_list/1e9, y, 'Linewidth', 3, 'color', 'k','parent',ax_data);
-    current_freqH = plot(ax_data,NaN,NaN,'--r');
-    ylabel(ax_data,'ODMR (normalized)');
-    yyaxis(ax_data, 'right')
-    plotH(2) = plot(obj.freq_list/1e9, y,...
-        'color', 'k','linestyle','--','parent',ax_data);
-    plotH(3) = plot(obj.freq_list/1e9, y,...
-        'color', 'k','linestyle',':','parent',ax_data);
-    legend([plotH(1), plotH(2), plotH(3)],{'Normalized (left)','Signal (right)','Normalization (right)'}, 'AutoUpdate','off');
-    ylabel(ax_data,'Counts (cps)');
-    xlabel(ax_data,'Frequency (GHz)');
-    yyaxis(ax_data, 'left');
-
-    % Plot points of interest
-    for i = 1:n_pts
-        plotH(1+3*i) = plot(obj.freq_list/1e9, y, '-', 'Linewidth', 3, 'color',cs(i,:), 'parent',ax_data);
-        yyaxis(ax_data, 'right');
-        plotH(2+3*i) = plot(obj.freq_list/1e9, y,':', 'color',cs(i,:), 'parent',ax_data);
-        plotH(3+3*i) = plot(obj.freq_list/1e9,y,'--', 'color',cs(i,:), 'parent',ax_data);
-        yyaxis(ax_data, 'left');
-        plot(obj.pixel_x(i), obj.pixel_y(i), 'o', 'color', cs(i,:), 'parent', ax_im)
-    end
     try
         obj.SignalGenerator.on;
         for j = 1:obj.averages
@@ -81,29 +49,21 @@ function run( obj,status,managers,ax )
                 % Normalization
                 if obj.MW_freq_norm > 0
                     obj.SignalGenerator.MWFrequency = obj.MW_freq_norm*1e9;
-                    obj.data(j,i,1,:,:) = obj.Camera.snapImage(1);
+                    im_norm = obj.Camera.snapImage(1);
+                    obj.data(j,i,1,:,:) = im_norm(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2))
                 else
                     obj.SignalGenerator.off;
-                    obj.data(j,i,1,:,:) = obj.Camera.snapImage(1);
+                    im_norm = obj.Camera.snapImage(1);
+                    obj.data(j,i,1,:,:) = im_norm(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2))
                     obj.SignalGenerator.on;
                 end
                 % Signal
                 obj.SignalGenerator.MWFrequency = obj.freq_list(i);
-                obj.data(j,i,2,:,:) = obj.Camera.snapImage(1);
+                im = obj.Camera.snapImage(1);
+                obj.data(j,i,2,:,:) = im(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2))
 
                 % Update plot
-                averagedData = squeeze(nanmean(obj.data,1));
-                norm   = squeeze(averagedData(:, 1,:,:));
-                signal = squeeze(averagedData(:, 2,:,:));
-                data = 2 * signal ./ (signal + norm);
-                plotH(1).YData = nanmean(data, [2 3]);
-                plotH(2).YData = nanmean(signal, [2 3]);
-                plotH(3).YData = nanmean(norm, [2 3]);
-                for k = 1:n_pts
-                    plotH(1+3*k).YData = data(:, obj.pixel_x(k), obj.pixel_y(k));
-                    plotH(2+3*k).YData = signal(:, obj.pixel_x(k), obj.pixel_y(k));
-                    plotH(3+3*k).YData = norm(:, obj.pixel_x(k), obj.pixel_y(k));
-                end
+                update_graphics(ax_im, plotH, obj.data, pixels_of_interest, im_norm)
             end
         end
     catch err
