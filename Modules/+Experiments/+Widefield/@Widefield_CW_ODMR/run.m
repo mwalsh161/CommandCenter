@@ -24,46 +24,59 @@ function run( obj,status,managers,ax )
     obj.SignalGenerator.MWPower = obj.MW_Power;
     obj.SignalGenerator.MWFrequency = obj.freq_list(1); % Just init to first point even though redundant
     obj.Camera.exposure = obj.Exposure;
+    
     % Pre-allocate obj.data
     n = length(obj.freq_list);
     n_pixels_of_interest = length(obj.pixel_x);
     ROI_size = [obj.ROI(1,2)-obj.ROI(1,1), obj.ROI(2,2)-obj.ROI(2,1)] + 1;
     cam_ROI_size = [obj.Camera.ROI(1,2)-obj.Camera.ROI(1,1), obj.Camera.ROI(2,2)-obj.Camera.ROI(2,1)];
     obj.data = NaN(obj.averages,n,2,ROI_size(1),ROI_size(2)); % Data aranged with indices (average #)x(frequency)x(normalisation/data)x(x pixel)x(y pixel)
-    pixels_of_interest = NaN(obj.averages, n_MW_times, n_pixels_of_interest, 2);
+    pixels_of_interest = NaN(obj.averages, n, n_pixels_of_interest, 2);
 
     % Setup graphics
     % Plot camera image
     [ax_im, ~, panel] = obj.setup_image(ax, zeros(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
-    [plotH, ax_data, ax_intensity] = setup_plotting(panel, obj.freq_list, n_pixels_of_interest)
-
+    [plotH, ax_data] = obj.setup_plotting(panel, ax_im, obj.freq_list, obj.pixel_x, obj.pixel_y);
+    current_freqH = plot(ax_data,NaN,NaN,'--r'); % Line to track current frequency
+    
     try
         obj.SignalGenerator.on;
         for j = 1:obj.averages
-            status.String = sprintf('Experiment started\nAverage %i',j);
             for i = 1:n
+                status.String = sprintf('Experiment started\nFrequency %0.3f GHz (%i/%i)\nAverage %i/%i', obj.freq_list(i)/1e9, i, n, j, obj.averages);
+                
+                % Update line for current frequency
                 current_freqH.XData = [1 1]*obj.freq_list(i)/1e9;
                 current_freqH.YData = NaN(1,2); % To allow ylim to be calculated
                 current_freqH.YData = get(ax_data,'ylim');
+                
                 drawnow; assert(~obj.abort_request,'User aborted.');
+                
                 % Normalization
                 if obj.MW_freq_norm > 0
                     obj.SignalGenerator.MWFrequency = obj.MW_freq_norm*1e9;
                     im_norm = obj.Camera.snapImage(1);
-                    obj.data(j,i,1,:,:) = im_norm(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2))
+                    obj.data(j,i,1,:,:) = im_norm(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2));
                 else
                     obj.SignalGenerator.off;
                     im_norm = obj.Camera.snapImage(1);
-                    obj.data(j,i,1,:,:) = im_norm(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2))
+                    obj.data(j,i,1,:,:) = im_norm(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2));
                     obj.SignalGenerator.on;
                 end
+                
                 % Signal
                 obj.SignalGenerator.MWFrequency = obj.freq_list(i);
                 im = obj.Camera.snapImage(1);
-                obj.data(j,i,2,:,:) = im(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2))
-
+                obj.data(j,i,2,:,:) = im(obj.ROI(1,1):obj.ROI(1,2),obj.ROI(2,1):obj.ROI(2,2));
+                
+                % Update pixes of interest
+                for k = 1:n_pixels_of_interest
+                    pixels_of_interest(j, i, k, 1) = im_norm(obj.pixel_x(k), obj.pixel_y(k));
+                    pixels_of_interest(j, i, k, 2) = im(obj.pixel_x(k), obj.pixel_y(k));
+                end
+                
                 % Update plot
-                update_graphics(ax_im, plotH, obj.data, pixels_of_interest, im_norm)
+                obj.update_graphics(ax_im, plotH, obj.data, im_norm, pixels_of_interest)
             end
         end
     catch err

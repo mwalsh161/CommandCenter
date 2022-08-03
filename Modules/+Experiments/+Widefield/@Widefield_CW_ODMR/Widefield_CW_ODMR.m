@@ -20,14 +20,13 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
         % This is a separate file
         obj = instance()
 
-        function [plotH, ax_data, ax_intensity] = setup_plotting(panel, freq_list, n_pix)
+        function [plotH, ax_data] = setup_plotting(panel, ax_im, freq_list, pixel_x, pixel_y)
             % Given a panel and frequencies, set up plots of ODMR
             n = numel(freq_list);
             y = NaN(1,n);
             ax_data = subplot(1,2,2,'parent',panel);
             hold(ax_data,'on');
-            plotH(1) = plot(freq_list/1e9, y, 'Linewidth', 3, 'color', 'k','parent',ax_data);
-            current_freqH = plot(ax_data,NaN,NaN,'--r');
+            plotH(1) = errorbar(freq_list/1e9, y, y, 'Linewidth', 3, 'color', 'k','parent',ax_data);
             ylabel(ax_data,'ODMR (normalized)');
             yyaxis(ax_data, 'right')
             plotH(2) = plot(freq_list/1e9, y,...
@@ -38,8 +37,11 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             ylabel(ax_data,'Counts (cps)');
             xlabel(ax_data,'Frequency (GHz)');
             yyaxis(ax_data, 'left');
-
+            
             % Plot points of interest
+            n_pixels_of_interest = numel(pixel_x);
+            cs = lines(n_pixels_of_interest);
+            hold(ax_im, 'on')
             for i = 1:n_pixels_of_interest
                 plotH(1+3*i) = plot(freq_list/1e9, y, '-', 'Linewidth', 3, 'color',cs(i,:), 'parent',ax_data);
                 yyaxis(ax_data, 'right');
@@ -48,28 +50,43 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
                 yyaxis(ax_data, 'left');
                 plot(pixel_x(i), pixel_y(i), 'o', 'color', cs(i,:), 'parent', ax_im)
             end
+            hold(ax_im, 'off')
         end
 
-        function update_graphics(ax_im, plotH, data, pixels_of_interest, im)
-
-            averagedData = squeeze(nanmean(obj.data,1));
-            norm   = squeeze(averagedData(:, 1,:,:));
-            signal = squeeze(averagedData(:, 2,:,:));
-            data = 2 * signal ./ (signal + norm);
-            plotH(1).YData = nanmean(data, [2 3]);
-            plotH(2).YData = nanmean(signal, [2 3]);
-            plotH(3).YData = nanmean(norm, [2 3]);
+        function update_graphics(ax_im, plotH, data, im, pixels_of_interest)
+            % Update graphics
+            
+            % Intensity-weighted average of odmr signal
+            norm = squeeze( data(:,:,1,:,:) );
+            signal = squeeze( data(:,:,2,:,:) );
+            odmr = signal ./ norm;
+            odmr = sum( norm .* odmr, [3 4], 'omitnan' ) ./ sum( norm, [3 4], 'omitnan');
+            odmr_err = squeeze( std( odmr, [], 1, 'omitnan') );
+            odmr = squeeze( mean( odmr, 1, 'omitnan') );
+            norm   = squeeze(mean( data(:,:,1,:,:), [1 4 5], 'omitnan'));
+            signal = squeeze(mean( data(:,:,2,:,:), [1 4 5], 'omitnan'));
+            
+            plotH(1).YData = odmr;
+            plotH(1).YPositiveDelta = odmr_err;
+            plotH(1).YNegativeDelta = odmr_err;
+            plotH(2).YData = signal;
+            plotH(3).YData = norm;
+            
+            n_pixels_of_interest = size(pixels_of_interest, 3);
             for k = 1:n_pixels_of_interest
-                plotH(1+3*k).YData = data(:, obj.pixel_x(k), obj.pixel_y(k));
-                plotH(2+3*k).YData = signal(:, obj.pixel_x(k), obj.pixel_y(k));
-                plotH(3+3*k).YData = norm(:, obj.pixel_x(k), obj.pixel_y(k));
+                plotH(1+3*k).YData = squeeze(mean( pixels_of_interest(:,:,k,2) ./ pixels_of_interest(:,:,k,1), 1, 'omitnan'));
+                plotH(2+3*k).YData = squeeze(mean( pixels_of_interest(:,:,k,2), 1, 'omitnan'));
+                plotH(3+3*k).YData = squeeze(mean( pixels_of_interest(:,:,k,1), 1, 'omitnan'));
             end
+            
+            % Update image
+            set(ax_im.Children(end), 'CData', im);
         end
     end
     methods(Access=private)
         function obj = Widefield_CW_ODMR()
             % Constructor (should not be accessible to command line!)
-            obj.prefs = [{'MW_freqs_GHz','MW_freq_norm','MW_Power','Exposure'}, obj.prefs, {'SignalGenerator'}]
+            obj.prefs = [{'MW_freqs_GHz','MW_freq_norm','MW_Power','Exposure'}, obj.prefs, {'SignalGenerator'}];
             obj.loadPrefs; % Load prefs specified as obj.prefs
         end
     end
@@ -82,14 +99,14 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             obj.abort_request = true;
         end
 
-        function dat = GetData(obj,stageManager,imagingManager)
+        function dat = GetData(obj,~,~)
             % Callback for saving methods
             dat.data = obj.data;
             dat.meta = obj.meta;
         end
 
         % Set methods allow validating property/pref set values
-        function val = set_MW_freqs_GHz(obj,val,pref)
+        function val = set_MW_freqs_GHz(obj,val,~)
             obj.freq_list = str2num(val)*1e9;
         end
     end
