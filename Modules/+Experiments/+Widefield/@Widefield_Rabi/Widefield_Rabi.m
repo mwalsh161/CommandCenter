@@ -51,10 +51,11 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
             hold(ax_intensity,'on')
             yyaxis(ax_intensity, 'right')
             ylabel(ax_intensity, 'Pixel of Interest (arb.)')
-        
+            
+            cs = lines(n_pix);
             for i = 1:n_pix
-                plotH{2,i} = plot(times, y, 'parent', ax_intensity, 'MarkerSize', 10);
-                plotH{3,i} = plot(times, y, '--', 'parent', ax_intensity, 'MarkerSize', 10);
+                plotH{2,i} = plot(times, y, 'parent', ax_intensity, 'Color', cs(i,:));
+                plotH{3,i} = plot(times, y, '--', 'parent', ax_intensity, 'Color', cs(i,:));
             end
         
             yyaxis(ax_intensity, 'left')
@@ -87,8 +88,7 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
             n_pix = n_pix(3);
 
             % Update image
-            set(ax_im.Children(4), 'CData', im);
-
+            set(ax_im.Children(end), 'CData', im);
             for i = 1:n_pix
                 % Update Rabi plot
                 plotH{1,i}.YData = rabi_pix(:,i);

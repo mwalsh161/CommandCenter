@@ -42,7 +42,10 @@ function run( obj,status,managers,ax )
     % Setup graphics
     [ax_im, ~, panel] = obj.setup_image(ax, zeros(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
 
-    [plotH, ~, ~] = obj.setup_plotting(panel, obj.MW_Times_vals, n_pixels_of_interest);
+    [plotH, ax_rabi, ~] = obj.setup_plotting(panel, obj.MW_Times_vals, n_pixels_of_interest);
+    hold(ax_rabi, 'on')
+    current_freqH = plot(ax_rabi,NaN,NaN,'--r'); % Line to track current MW time
+    hold(ax_rabi, 'off')
 
     try
         % EXPERIMENT CODE %
@@ -51,6 +54,12 @@ function run( obj,status,managers,ax )
                 
                 % Setup camera and pulse sequence
                 MW_time = obj.MW_Times_vals(j);
+                
+                % Update line for current frequency
+                current_freqH.XData = [1 1]*MW_time;
+                current_freqH.YData = NaN(1,2); % To allow ylim to be calculated
+                current_freqH.YData = get(ax_rabi,'ylim');
+                
                 
                 status.String = sprintf('MW Time %0.3f us (%i/%i)\nAverage %i/%i', MW_time, j, n_MW_times, i, obj.averages);
                 drawnow;
