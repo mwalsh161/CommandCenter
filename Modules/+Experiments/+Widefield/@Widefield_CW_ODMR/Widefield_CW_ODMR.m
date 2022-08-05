@@ -37,8 +37,8 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             % plotH: plot objects
 
             if nargin>2
-                pixel_x = varargin{3};
-                pixel_y = varargin{4};
+                pixel_x = varargin{1};
+                pixel_y = varargin{2};
                 n_pixels_of_interest = numel(pixel_x);
             else
                 n_pixels_of_interest = 0;
@@ -63,21 +63,20 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             
             % Plot points of interest
             cs = lines(n_pixels_of_interest);
-            hold(ax_data, 'on')
             for i = 1:n_pixels_of_interest
+                hold(ax_data, 'on')
                 plotH(1+3*i) = plot(freq_list/1e9, y, '-', 'Linewidth', 3, 'color',cs(i,:), 'parent',ax_data);
                 yyaxis(ax_data, 'right');
                 plotH(2+3*i) = plot(freq_list/1e9, y,':', 'color',cs(i,:), 'parent',ax_data);
                 plotH(3+3*i) = plot(freq_list/1e9,y,'--', 'color',cs(i,:), 'parent',ax_data);
                 yyaxis(ax_data, 'left');
-                plot(pixel_x(i), pixel_y(i), 'o', 'color', cs(i,:), 'parent', ax_im)
             end
             hold(ax_data, 'off')
         end
 
         function update_graphics(ax_im, plotH, data, im, varargin)
             % Plot data
-            % update_graphics(ax_im, plotH, data, im, pixels_of_interest)
+            % update_graphics(ax_im, plotH, data, im)
             % update_graphics(ax_im, plotH, data, im, pixels_of_interest)
             % ======
             % Inputs
@@ -89,7 +88,7 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             % pixels_of_interest: data from pixels of interest
 
             if nargin>4
-                pixels_of_interest = varargin{5};
+                pixels_of_interest = varargin{1};
                 n_pixels_of_interest = size(pixels_of_interest, 3);
             else
                 n_pixels_of_interest = 0;

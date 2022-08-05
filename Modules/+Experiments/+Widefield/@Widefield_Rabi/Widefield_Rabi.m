@@ -48,7 +48,7 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
             % ax_intensity: ax for intensities
 
             if nargin>2
-                n_pix = varargin{3};
+                n_pix = varargin{1};
             else
                 n_pix = 0;
             end
@@ -103,7 +103,7 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
             % pixels_of_interest: data from pixels of interest
 
             if nargin>4
-                pixels_of_interest = varargin{5};
+                pixels_of_interest = varargin{1};
                 n_pix = size(pixels_of_interest,3);
             else
                 n_pix = 0;

@@ -47,11 +47,13 @@ classdef Widefield_invisible < Modules.Experiment
             % panel: panel for plot
 
             if nargin>3
-                pixels_of_interest = varargin{4};
-            end
-
-            if nargin>4
-                ROI = varargin{5};
+                pixels_of_interest = varargin{1};
+                n_pix = size(pixels_of_interest, 2);
+                if numel(varargin)>1
+                    ROI = varargin{2};
+                end
+            else
+                n_pix = 0;
             end
 
             % Plot image
@@ -63,13 +65,14 @@ classdef Widefield_invisible < Modules.Experiment
             hold(ax_im,'on');
 
             % Show pixels of interest
-            n_pix = size(pixels_of_interest, 2);
             for i = 1:n_pix
                 plot( pixels_of_interest(1,i), pixels_of_interest(2,i), 'o', 'parent', ax_im)
             end
             
             % Show ROI
-            rectangle('pos',[min(ROI,[],2)' diff(ROI,1,2)'],'EdgeColor','r','LineWidth',2, 'parent', ax_im)
+            if nargin>3 && numel(varargin)>1
+                rectangle('pos',[min(ROI,[],2)' diff(ROI,1,2)'],'EdgeColor','r','LineWidth',2, 'parent', ax_im)
+            end
             hold(ax_im,'off');
             
             size_initial_im = size(initial_im);
