@@ -136,8 +136,10 @@ classdef umanager_invisible < Modules.Imaging
                     for j = 1:nvals
                         vals_cell{j} = char(vals.get(j-1));
                     end
-                    values.(prop) = char(obj.mmc('getProperty',obj.dev,prop));
-                    options.(prop) = vals_cell;
+                    valprop = erase(prop, ["|", "-", "(", ")"]);
+                    valprop = strrep(valprop, " ", "_"); % Clean up props so they are valid fields
+                    values.(valprop) = char(obj.mmc('getProperty',obj.dev,prop));
+                    options.(valprop) = vals_cell;
                 end
             end
         end
