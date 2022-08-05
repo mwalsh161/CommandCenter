@@ -109,7 +109,7 @@ function run( obj,status,managers,ax )
                 end
 
                 % Update data
-                obj.update_graphics(ax_im, plotH, obj.data, pixels_of_interest, im);
+                obj.update_graphics(ax_im, plotH, obj.data, im, pixels_of_interest);
                 drawnow; assert(~obj.abort_request,'User aborted.');
             end
         end

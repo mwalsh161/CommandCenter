@@ -30,8 +30,28 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
         % This is a separate file
         obj = instance()
         
-        function [plotH, ax_rabi, ax_intensity] = setup_plotting(panel, times, n_pix)
+        function [plotH, ax_rabi, ax_intensity] = setup_plotting(panel, times, varargin)
             % Given a panel and microwave times, set up plots of Rabi
+            % [plotH, ax_rabi, ax_intensity] = setup_plotting(panel, times)
+            % [plotH, ax_rabi, ax_intensity] = setup_plotting(panel, times, n_pix)
+            % ======
+            % Inputs
+            % ======
+            % panel: panel for plot
+            % times: list of times used for the Rabi
+            % n_pix: number of pixels of interest (default is 0 is not included)
+            % =======
+            % Outputs
+            % =======
+            % plotH: plot objects
+            % ax_rabi: ax for Rabi
+            % ax_intensity: ax for intensities
+
+            if nargin>2
+                n_pix = varargin{3};
+            else
+                n_pix = 0;
+            end
 
             n_MW_times = numel(times);
             y = NaN(1, n_MW_times);
@@ -69,8 +89,27 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
         end
 
         
-        function update_graphics(ax_im, plotH, data, pixels_of_interest, im)
-            
+        function update_graphics(ax_im, plotH, data, im, varargin)
+            % Plot data
+            % update_graphics(ax_im, plotH, data, im)
+            % update_graphics(ax_im, plotH, data, im, pixels_of_interest)
+            % ======
+            % Inputs
+            % ======
+            % ax_im: ax for widefield image
+            % plotH: plot objects
+            % data: data to plot
+            % im: image to use
+            % pixels_of_interest: data from pixels of interest
+
+            if nargin>4
+                pixels_of_interest = varargin{5};
+                n_pix = size(pixels_of_interest,3);
+            else
+                n_pix = 0;
+            end
+
+
             % Calculate Rabi for ROI
             intensity = squeeze(data(:,:,:,:,2));
 
@@ -79,13 +118,12 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
             rabi_err = squeeze( std( rabi, [], 1, 'omitnan') );
             rabi = squeeze( mean( rabi, 1, 'omitnan' ) );
 
-            % Calculate Rabi for pixels of interest
-            rabi_pix = pixels_of_interest(:,:,:,1) ./ pixels_of_interest(:,:,:,2);
-            rabi_pix_err = squeeze( std( rabi_pix, [], 1, 'omitnan') );
-            rabi_pix = squeeze( mean( rabi_pix, 1, 'omitnan' ) );
-
-            n_pix = size(pixels_of_interest);
-            n_pix = n_pix(3);
+            if n_pix>0
+                % Calculate Rabi for pixels of interest
+                rabi_pix = pixels_of_interest(:,:,:,1) ./ pixels_of_interest(:,:,:,2);
+                rabi_pix_err = squeeze( std( rabi_pix, [], 1, 'omitnan') );
+                rabi_pix = squeeze( mean( rabi_pix, 1, 'omitnan' ) );
+            end
 
             % Update image
             set(ax_im.Children(end), 'CData', im);

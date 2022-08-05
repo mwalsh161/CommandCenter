@@ -27,7 +27,33 @@ classdef Widefield_invisible < Modules.Experiment
         % This is a separate file
         obj = instance()
 
-        function [ax_im, ax_data, panel] = setup_image(ax, initial_im, pixels_of_interest, ROI)            
+        function [ax_im, ax_data, panel] = setup_image(ax, initial_im, varargin)
+            % Setup display of widefield image
+            % [ax_im, ax_data, panel] = setup_image(ax, initial_im)
+            % [ax_im, ax_data, panel] = setup_image(ax, initial_im, pixels_of_interest)
+            % [ax_im, ax_data, panel] = setup_image(ax, initial_im, pixels_of_interest, ROI)
+            % ======
+            % Inputs
+            % ======
+            % ax: initial axis to use
+            % initial_im: initial image to use
+            % pixels_of_interest: 2xN list of pixels of interest
+            % ROI: ROI from data will be saved
+            % =======
+            % Outputs
+            % =======
+            % ax_im: ax for widefield image
+            % ax_data: ax for data
+            % panel: panel for plot
+
+            if nargin>3
+                pixels_of_interest = varargin{4};
+            end
+
+            if nargin>4
+                ROI = varargin{5};
+            end
+
             % Plot image
             panel = ax.Parent;
             ax_im = subplot(1,2,1,'parent',panel);

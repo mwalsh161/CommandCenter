@@ -20,7 +20,30 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
         % This is a separate file
         obj = instance()
 
-        function [plotH, ax_data] = setup_plotting(panel, ax_im, freq_list, pixel_x, pixel_y)
+        function [plotH, ax_data] = setup_plotting(panel, freq_list, varargin)
+            % Setup display of plotting
+            % [plotH, ax_data] = setup_plotting(panel, ax_im, freq_list)
+            % [plotH, ax_data] = setup_plotting(panel, ax_im, freq_list, pixel_x, pixel_y)
+            % ======
+            % Inputs
+            % ======
+            % panel: panel for plot
+            % freq_list: list of frequencies used for the CW ODMR
+            % pixel_x, pixel_y: x and y coordinates of pixels of interest
+            % =======
+            % Outputs
+            % =======
+            % ax_data: ax for data
+            % plotH: plot objects
+
+            if nargin>2
+                pixel_x = varargin{3};
+                pixel_y = varargin{4};
+                n_pixels_of_interest = numel(pixel_x);
+            else
+                n_pixels_of_interest = 0;
+            end
+
             % Given a panel and frequencies, set up plots of ODMR
             n = numel(freq_list);
             y = NaN(1,n);
@@ -39,9 +62,8 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             yyaxis(ax_data, 'left');
             
             % Plot points of interest
-            n_pixels_of_interest = numel(pixel_x);
             cs = lines(n_pixels_of_interest);
-            hold(ax_im, 'on')
+            hold(ax_data, 'on')
             for i = 1:n_pixels_of_interest
                 plotH(1+3*i) = plot(freq_list/1e9, y, '-', 'Linewidth', 3, 'color',cs(i,:), 'parent',ax_data);
                 yyaxis(ax_data, 'right');
@@ -50,11 +72,29 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
                 yyaxis(ax_data, 'left');
                 plot(pixel_x(i), pixel_y(i), 'o', 'color', cs(i,:), 'parent', ax_im)
             end
-            hold(ax_im, 'off')
+            hold(ax_data, 'off')
         end
 
-        function update_graphics(ax_im, plotH, data, im, pixels_of_interest)
-            % Update graphics
+        function update_graphics(ax_im, plotH, data, im, varargin)
+            % Plot data
+            % update_graphics(ax_im, plotH, data, im, pixels_of_interest)
+            % update_graphics(ax_im, plotH, data, im, pixels_of_interest)
+            % ======
+            % Inputs
+            % ======
+            % ax_im: ax for widefield image
+            % plotH: plot objects
+            % data: data to plot
+            % im: image to use
+            % pixels_of_interest: data from pixels of interest
+
+            if nargin>4
+                pixels_of_interest = varargin{5};
+                n_pixels_of_interest = size(pixels_of_interest, 3);
+            else
+                n_pixels_of_interest = 0;
+            end
+                
             
             % Intensity-weighted average of odmr signal
             norm = squeeze( data(:,:,1,:,:) );
@@ -72,7 +112,6 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             plotH(2).YData = signal;
             plotH(3).YData = norm;
             
-            n_pixels_of_interest = size(pixels_of_interest, 3);
             for k = 1:n_pixels_of_interest
                 plotH(1+3*k).YData = squeeze(mean( pixels_of_interest(:,:,k,2) ./ pixels_of_interest(:,:,k,1), 1, 'omitnan'));
                 plotH(2+3*k).YData = squeeze(mean( pixels_of_interest(:,:,k,2), 1, 'omitnan'));
