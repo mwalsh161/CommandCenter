@@ -7,7 +7,7 @@ classdef Camera < Imaging.umanager.umanager_invisible
         dev = Prefs.String('help_text',...
             'This is the Device label for the Camera from the config file.');
         config_file = Prefs.String('help_text','Path to the .cfg file.');
-        reload = Prefs.Boolean(false,'set','reload_toggle',...
+        reload = Prefs.Button('Reload','set','reload_toggle',...
             'help_text','Toggle this to reload core.')
     end
     
@@ -28,10 +28,8 @@ classdef Camera < Imaging.umanager.umanager_invisible
         end
     end
     methods
-        function val = reload_toggle(obj,~,~)
-            % TODO: replace with a Prefs.Button
-            % Pretends to be a button from a boolean pref
-            val = false; % Swap back to false
+        function val = reload_toggle(obj,val,~)
+            % Reload camera
             obj.init;
             obj.loadPrefs('-config_file','-dev');
         end
