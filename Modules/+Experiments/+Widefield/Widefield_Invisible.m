@@ -6,12 +6,13 @@ classdef Widefield_invisible < Modules.Experiment
         Laser = Prefs.ModuleInstance('help_text','PulseBlaster enabled laser');
         Camera = Prefs.ModuleInstance('help_text','Camera used to take ODMR images');
 
-        Pixel_of_Interest_x = Prefs.String('', 'help_text', 'x-coordinate of pixel of interest to plot during experiment', 'set','set_x_pixel', 'custom_validate','validate_pixel');
-        Pixel_of_Interest_y = Prefs.String('', 'help_text', 'y-coordinate of pixel of interest to plot during experiment', 'set','set_y_pixel', 'custom_validate','validate_pixel');
-        ROI = Prefs.DoubleArray([NaN NaN; NaN NaN],'units','pixel','min',1,'allow_nan',true,'help_text','region of interest to save');
+        update = Prefs.Button('Update', 'help_text', 'Update ROI and pixels of interest', 'set', 'set_update');
+        Pixel_of_Interest_x = Prefs.String('', 'help_text', 'x-coordinate of pixel of interest to plot during experiment', 'readonly',true);
+        Pixel_of_Interest_y = Prefs.String('', 'help_text', 'y-coordinate of pixel of interest to plot during experiment', 'readonly',true);
+        ROI = Prefs.DoubleArray( [1 1; 1 1], 'units','pixel','min',1,'allow_nan',true,'help_text','region of interest to save','readonly',true);
     end
     properties
-        prefs = {'averages','ROI','Pixel_of_Interest_x','Pixel_of_Interest_y','Laser','Camera'};
+        prefs = {'averages','update','ROI','Pixel_of_Interest_x','Pixel_of_Interest_y','Laser','Camera'};
     end
     properties(SetAccess=protected,Hidden)
         % Internal properties that should not be accessible by command line
@@ -115,15 +116,67 @@ classdef Widefield_invisible < Modules.Experiment
         end
 
         % Set methods allow validating property/pref set values
-        function val = set_x_pixel(obj,val,pref)
-            obj.pixel_x = str2num(val);
-        end
-        function val = set_y_pixel(obj,val,pref)
-            obj.pixel_y = str2num(val);
-        end
-        function validate_pixel(obj,val,pref)
-            val = str2num(val);
-            assert( isempty(val) || isrow(val), 'Pixel must be empty or a row vector')
+        function val = set_update(obj,val,~)
+            fig = figure;
+            ax = subplot(1, 1, 1, 'parent', fig);
+            hold(ax, 'on')
+            current_im = managers.Imaging.current_image;
+            imagesc(current_im.image, 'parent', ax);
+            set(ax_im,'dataAspectRatio',[1 1 1])
+
+            % Update ROI
+            title('Left mouse to select ROI\nRight mouse to exit and keep current ROI')
+            keep_looping = true;
+            new_ROI = zeros(2,2);
+            while keep_looping
+                old_ROI = rectangle('pos',[min(obj.ROI,[],2)' diff(obj.ROI,1,2)'],'EdgeColor','r','LineWidth',2, 'parent', ax_im);
+
+                [x, y, button] = ginput(1);
+                if button == 3
+                    break
+                end
+
+                pt = plot( x, y, '+', 'MarkerSize', 10, 'Parent', ax_im);
+                new_ROI(:,1) = [x y];
+
+                [x, y, button] = ginput(1);
+                if button == 3
+                    break
+                end
+                new_ROI(:,2) = [x y];
+                delete(pt)
+                delete(old_ROI)
+                obj.ROI = new_ROI;
+            end
+            
+            % Update pixels of interest
+            title('Left mouse to select pixel of interest\nRight mouse to exit\nSpace to reset')
+            keep_looping = true;
+            obj.pixel_x = [];
+            obj.pixel_y = [];
+            pt = [];
+            cs = lines;
+            i = 0;
+            while keep_looping
+                i = i + 1;
+                [x, y, button] = ginput(1);
+                if button == 3
+                    break
+                elseif button == 32
+                    delete(pt)
+                    obj.pixel_x = [];
+                    obj.pixel_y = [];
+                    pt = [];
+                else
+                    pt(end+1) = plot( x, y, 'o', 'Color', cs(mod(i,64),:), 'Parent', ax_im);
+                    obj.pixel_x(end+1) = x;
+                    obj.pixel_y(end+1) = y;
+                end
+            end
+            
+            obj.Pixel_of_Interest_x = num2str(obj.pixel_x);
+            obj.Pixel_of_Interest_y = num2str(obj.pixel_y);
+            delete(fig)
         end
     end
 end
