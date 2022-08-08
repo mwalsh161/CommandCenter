@@ -9,7 +9,6 @@ classdef Camera < Imaging.umanager.umanager_invisible
         config_file = Prefs.String('help_text','Path to the .cfg file.');
         reload = Prefs.Button('Reload','set','reload_toggle',...
             'help_text','Toggle this to reload core.')
-        reloading = Prefs.Boolean(false,'readonly',true,'help_text','Is camera reloading?');
     end
     
     methods(Access=protected)
@@ -31,10 +30,8 @@ classdef Camera < Imaging.umanager.umanager_invisible
     methods
         function val = reload_toggle(obj,val,~)
             % Reload camera
-            obj.reloading = true;
             obj.init;
             obj.loadPrefs('-config_file','-dev');
-            obj.reloading = false;
         end
     end
     methods(Static)
