@@ -29,6 +29,7 @@ classdef umanager_invisible < Modules.Imaging
     
     properties
         buffer_images = 2 % Size of buffer (images): buffer_images*core.getImageBufferSize
+        buffered_image = [];
         maxROI           % Set in constructor
         prefs = {'binning','exposure','autofocus_range','autofocus_step_size'};
         focusThresh = 0; % Threshold when focusing. This is updated everytime.
@@ -176,6 +177,7 @@ classdef umanager_invisible < Modules.Imaging
             % Take Image
             obj.mmc('snapImage');
             im = obj.get_image();
+            obj.buffered_image = im;
             if wasRunning
                 obj.mmc('startContinuousSequenceAcquisition',100);
             end
