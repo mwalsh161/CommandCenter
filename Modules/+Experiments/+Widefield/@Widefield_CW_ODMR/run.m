@@ -34,8 +34,8 @@ function run( obj,status,managers,ax )
     pixels_of_interest = NaN(obj.averages, n, n_pixels_of_interest, 2);
 
     % Setup graphics
-    % Plot camera image
-    [ax_im, ~, panel] = obj.setup_image(ax, zeros(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
+    obj.meta.image = obj.Camera.buffered_image;
+    [ax_im, ~, panel] = obj.setup_image(ax, obj.meta.image, obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
     [plotH, ax_data] = obj.setup_plotting(panel, obj.freq_list, obj.pixel_x, obj.pixel_y);
     hold(ax_data, 'on')
     current_freqH = plot(ax_data,NaN,NaN,'--r'); % Line to track current frequency

@@ -40,8 +40,8 @@ function run( obj,status,managers,ax )
     pixels_of_interest = NaN(obj.averages, n_MW_times, n_pixels_of_interest, 2);
 
     % Setup graphics
-    [ax_im, ~, panel] = obj.setup_image(ax, zeros(cam_ROI_size(1), cam_ROI_size(2)), obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
-
+    obj.meta.image = obj.Camera.buffered_image;
+    [ax_im, ~, panel] = obj.setup_image(ax, obj.meta.image, obj.meta.pixels_of_interest, obj.ROI); % Plot camera image
     [plotH, ax_rabi, ~] = obj.setup_plotting(panel, obj.MW_Times_vals, n_pixels_of_interest);
     hold(ax_rabi, 'on')
     current_freqH = plot(ax_rabi,NaN,NaN,'--r'); % Line to track current MW time
