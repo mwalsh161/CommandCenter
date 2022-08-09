@@ -16,8 +16,8 @@ classdef Widefield_invisible < Modules.Experiment
     end
     properties(SetAccess=protected,Hidden)
         % Internal properties that should not be accessible by command line
-        pixel_x = linspace(2.85,2.91,101)*1e9; % Internal, set using Pixel_of_Interest_y
-        pixel_y = linspace(2.85,2.91,101)*1e9; % Internal, set using Pixel_of_Interest_y
+        pixel_x = []; % Internal, set using Pixel_of_Interest_y
+        pixel_y = []; % Internal, set using Pixel_of_Interest_y
         data = [] % Useful for saving data from run method
         meta = [] % Useful to store meta data in run method
         abort_request = false; % Flag that will be set to true upon abort. Use in run method!
@@ -88,7 +88,7 @@ classdef Widefield_invisible < Modules.Experiment
     methods(Access=protected)
         function obj = Widefield_invisible()
             % Constructor (should not be accessible to command line!)
-            obj.loadPrefs; % Load prefs specified as obj.prefs
+            obj.loadPrefs('-update'); % Load prefs specified as obj.prefs
         end
     end
 
@@ -118,25 +118,26 @@ classdef Widefield_invisible < Modules.Experiment
         % Set methods allow validating property/pref set values
         function val = set_update(obj,val,~)
             fig = figure;
-            ax = subplot(1, 1, 1, 'parent', fig);
+            ax = axes('parent', fig);
             hold(ax, 'on')
-            current_im = managers.Imaging.current_image;
-            imagesc(current_im.image, 'parent', ax);
-            set(ax_im,'dataAspectRatio',[1 1 1])
+            current_im = obj.Camera.buffered_image;
+            imagesc(current_im, 'parent', ax);
+            set(ax,'dataAspectRatio',[1 1 1])
+            colormap(ax,'bone')
+            axis(ax, 'tight')
 
             % Update ROI
-            title('Left mouse to select ROI\nRight mouse to exit and keep current ROI')
-            keep_looping = true;
+            title(sprintf('Left mouse to select ROI\nRight mouse to exit and keep current ROI'))
             new_ROI = zeros(2,2);
-            while keep_looping
-                old_ROI = rectangle('pos',[min(obj.ROI,[],2)' diff(obj.ROI,1,2)'],'EdgeColor','r','LineWidth',2, 'parent', ax_im);
+            while 1
+                old_ROI = rectangle('pos',[min(obj.ROI,[],2)' abs(diff(obj.ROI,1,2))'],'EdgeColor','r','LineWidth',2, 'parent', ax);
 
                 [x, y, button] = ginput(1);
                 if button == 3
                     break
                 end
 
-                pt = plot( x, y, '+', 'MarkerSize', 10, 'Parent', ax_im);
+                pt = plot( x, y, 'r+', 'MarkerSize', 10, 'Parent', ax);
                 new_ROI(:,1) = [x y];
 
                 [x, y, button] = ginput(1);
@@ -146,31 +147,35 @@ classdef Widefield_invisible < Modules.Experiment
                 new_ROI(:,2) = [x y];
                 delete(pt)
                 delete(old_ROI)
-                obj.ROI = new_ROI;
+                obj.ROI = round(new_ROI);
             end
             
             % Update pixels of interest
-            title('Left mouse to select pixel of interest\nRight mouse to exit\nSpace to reset')
+            title(sprintf('Left mouse to select pixel of interest\nRight mouse to exit\nSpace to reset'))
             keep_looping = true;
             obj.pixel_x = [];
             obj.pixel_y = [];
             pt = [];
             cs = lines;
             i = 0;
-            while keep_looping
+            while 1
                 i = i + 1;
                 [x, y, button] = ginput(1);
                 if button == 3
+                    % if right click end selection
                     break
                 elseif button == 32
+                    % if space bar, reset
+                    i = 0;
                     delete(pt)
                     obj.pixel_x = [];
                     obj.pixel_y = [];
                     pt = [];
                 else
-                    pt(end+1) = plot( x, y, 'o', 'Color', cs(mod(i,64),:), 'Parent', ax_im);
-                    obj.pixel_x(end+1) = x;
-                    obj.pixel_y(end+1) = y;
+                    % Add to selection
+                    pt(end+1) = plot( x, y, 'o', 'Color', cs(mod(i,64),:), 'Parent', ax);
+                    obj.pixel_x(end+1) = round(x);
+                    obj.pixel_y(end+1) = round(y);
                 end
             end
             
