@@ -13,7 +13,7 @@ classdef Camera < Imaging.umanager.umanager_invisible
     
     methods(Access=protected)
         function obj = Camera()
-            obj.prefs = [obj.prefs, {'dev','config_file','reload','reloading'}];
+            obj.prefs = [obj.prefs, {'dev','config_file','reload'}];
             obj.loadPrefs('config_file','dev');
             if ~isempty(obj.config_file) && ~isempty(obj.dev)
                 try
