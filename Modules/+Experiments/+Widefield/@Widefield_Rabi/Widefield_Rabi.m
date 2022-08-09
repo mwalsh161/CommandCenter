@@ -151,7 +151,7 @@ classdef Widefield_Rabi < Experiments.Widefield.Widefield_invisible
     methods(Access=private)
         function obj = Widefield_Rabi()
             obj.prefs = [{'MW_Times','MW_freq','MW_Power','Laser_Time','MW_Pad', 'samples', 'normalisation'}, obj.prefs, {'Cam_Trig_Line','SignalGenerator','pb_IP'}];
-            obj.loadPrefs; % Load prefs specified as obj.prefs
+            obj.loadPrefs('-update'); % Load prefs specified as obj.prefs; don't load update ROI to avoid calling ROI update method
         end
     end
 

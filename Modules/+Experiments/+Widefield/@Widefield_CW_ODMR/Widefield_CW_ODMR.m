@@ -125,7 +125,7 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
         function obj = Widefield_CW_ODMR()
             % Constructor (should not be accessible to command line!)
             obj.prefs = [{'MW_freqs_GHz','MW_freq_norm','MW_Power','Exposure'}, obj.prefs, {'SignalGenerator'}];
-            obj.loadPrefs; % Load prefs specified as obj.prefs
+            obj.loadPrefs('-update'); % Load prefs specified as obj.prefs; don't load update ROI to avoid calling ROI update method
         end
     end
 
