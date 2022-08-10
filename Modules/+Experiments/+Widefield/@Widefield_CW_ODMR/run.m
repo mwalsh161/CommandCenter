@@ -41,6 +41,8 @@ function run( obj,status,managers,ax )
     current_freqH = plot(ax_data,NaN,NaN,'--r'); % Line to track current frequency
     hold(ax_data, 'off')
     
+    obj.Laser.on;
+
     try
         obj.SignalGenerator.on;
         for j = 1:obj.averages
