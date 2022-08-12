@@ -49,7 +49,7 @@ classdef Widefield_CW_ODMR < Experiments.Widefield.Widefield_invisible
             y = NaN(1,n);
             ax_data = subplot(1,2,2,'parent',panel);
             hold(ax_data,'on');
-            plotH(1) = errorbar(freq_list/1e9, y, y, 'Linewidth', 3, 'color', 'k','parent',ax_data);
+            plotH(1) = errorbar(freq_list/1e9, y, y, '.k', 'MarkerSize', 15, 'parent',ax_data);
             ylabel(ax_data,'ODMR (normalized)');
             yyaxis(ax_data, 'right')
             plotH(2) = plot(freq_list/1e9, y,...
