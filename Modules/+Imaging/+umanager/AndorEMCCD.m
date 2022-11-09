@@ -17,7 +17,7 @@ classdef AndorEMCCD < Imaging.umanager.Camera
     methods(Access=private)
         function obj = AndorEMCCD()
             obj.prefs = [obj.prefs{1:2}, {'trigger', 'EM_gain'}, obj.prefs{3:numel(obj.prefs)}];
-            obj.loadPrefs; % Load prefs specified as obj.prefs
+            obj.loadPrefs('trigger', 'EM_gain'); % Load prefs specified as obj.prefs
         end
     end
     methods(Static)
