@@ -36,20 +36,57 @@ classdef SuperResTest < Modules.Experiment
     
     methods
         function run( obj,status,managers,ax )
+             obj.data = [];
           imagingManager = managers.Imaging;
-             for i = 1:obj.number_scans
-            info = imagingManager.snap();
-            obj.data(i,:,:) = info.image;
-             end
+          
+          numberPoints = 3;
+          pointLocations(1,:) = [0.2,0.48];
+          pointLocations(2,:) = [0.92,-0.1];
+          pointLocations(3,:) = [0.97,-0.73];
+
+          scanRange = 0.3;
+          totalRunTime = 7200;
+          fitFWHM = [];
+          time = 0;
+          n = 1;
+          tic;
+          figure;
+          while time < totalRunTime
+              for i = 1:numberPoints
+                  ROImatrix = [pointLocations(i,1)-scanRange, pointLocations(i,1)+scanRange; pointLocations(i,2)-scanRange, pointLocations(i,2)+scanRange];
+                  imagingManager.setROI(ROImatrix);
+         
+                  info = imagingManager.snap();
+%                   obj.data.images(n,i,:,:) = info.image;
+                  obj.data.ROI(n,i,:,:) = info.ROI;
+
+                  obj.data.timestamp(n,i) = toc;
+                  [center,width,outstruct] =gaussfit2D(ROImatrix(1,:),ROImatrix(2,:),info.image);
+                  
+                  obj.data.fittedPositions(n,i,:) = [center(1), center(2)];
+                  obj.data.rsq(n,i) = outstruct.gof.rsquare;
+                  obj.data.width(n,i) = width;
+                  fitFWHM(i) = width;
+                  pointLocations(i,:) = [center(1), center(2)];
+
+                  
+                  time = toc;
+              end
+             % managers.Experiment.forceSave;
+              n = n+1;
+          hold on
+          errorbar(pointLocations(1,1),pointLocations(1,2),fitFWHM(1),'r*');
+          errorbar(pointLocations(2,1),pointLocations(2,2),fitFWHM(1),'b*');
+          errorbar(pointLocations(3,1),pointLocations(3,2),fitFWHM(1),'g*');
+          hold off
+          end
         end
         
      
         function delete(obj)
             delete(obj.listeners)
-            delete(obj.WinSpec)
         end
         function abort(obj)
-            obj.WinSpec.abort;
         end
         
         function dat = GetData(obj,~,~)

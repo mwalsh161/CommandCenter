@@ -2,7 +2,7 @@ function OvernightFastScan(managers)
     f = Imaging.FastScan.instance();
     msq = Sources.Msquared.instance(); 
     temp = imagesc(1, 1, 1, 'Parent', managers.handles.axImage, 'Tag', 'temp');
-    targetWL = 619.2345; %target in nm 
+    targetWL = 619.20466; %target in nm 
 
 %     while true
 %         f.frequencyCalibration()

@@ -1,4 +1,8 @@
 classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible
+    % Plug the 'laser' DAQ line into the REF CAV Ext Input port of the
+    % SolSTiS ICE block
+    % By default on M2, this is the AO3 line
+    % Appendix D: External reference cavity and resonator input characteristics
     
     properties(GetObservable, SetObservable, AbortSet)
 %         base_freq = Prefs.Double(470, 'unit', 'THz', 'set', 'calc_freqs',                       'help', 'The frequency that.');
@@ -37,7 +41,8 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
         end
         
         function get_scan_points(obj)
-            base_percent = obj.resLaser.GetPercent;
+            base_percent = 50; %obj.resLaser.GetPercent;
+            obj.resLaser.TunePercent(base_percent);
             
             stepTHz = obj.slow_step/1e6; % obj.slow_step is in MHz
             
@@ -101,6 +106,23 @@ classdef DAQ_invisible < Experiments.WidefieldSlowScan.WidefieldSlowScan_invisib
             
             PreRun@Experiments.WidefieldSlowScan.WidefieldSlowScan_invisible(obj, 0, managers, ax);
             
+            current = 0;
+            
+            for i = 1:length(obj.dev.OutLines)
+                if strcmp(obj.dev.OutLines(i).name, obj.DAQ_line)
+                    current = obj.dev.OutLines(i).state;
+                end
+            end
+          
+            resonator_tune_speed = .1;
+            numberSteps = floor(abs(current-obj.overshoot_voltage)/resonator_tune_speed);
+            direction = sign(obj.overshoot_voltage-current);
+            
+            for i = 1:numberSteps
+                newval = current + (i)*direction*resonator_tune_speed;
+                obj.setLaser(newval)
+                pause(.1)
+            end
             obj.setLaser(obj.overshoot_voltage)
         end
         function loadDAQ(obj)

@@ -28,7 +28,7 @@ classdef TunableLaser_invisible < handle
         range
     end
     properties(Constant,Hidden)
-        c = 299792; %speed of light in nm*Thz
+        c = 299792.458; %speed of light in nm*Thz
     end
     methods
         function trackFrequency(obj,varargin)

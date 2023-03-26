@@ -94,7 +94,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                                                                     'help_text', 'Default for whether to hold the wavelength lock. When using an external voltage or the resonator percentage to finely tune the laser, this should be *off*, lest this active feedback negates your desired tuning.');
         wavelength_lock =   Prefs.Boolean(false,                'readonly', true, 'allow_nan', true, ... 'set', 'set_wavelength_lock', ...
                                                                     'help_text', 'Whether the laser is currently using the wavemeter for closed loop locking to the setpoint. Note that this is different from the resonator lock, which is not implemented in this interface.');
-        resonator_percent = Prefs.Double(NaN,   'units', '%',   'set', 'set_resonator_percent', 'min', 0, 'max', 100,...
+        resonator_percent = Prefs.Double(NaN,   'units', '%',   'set', 'set_resonator_percent_limitrate', 'min', 0, 'max', 100,...
                                                                     'help_text', 'Apply fine tuning to the resonator in units of percent of total range (0 -> 200 V).');
         resonator_voltage = Prefs.Double(NaN,   'units', 'V',   'readonly', true, ...
                                                                     'help_text', 'The amount of fine tuning upon the resonator. Interact with this via resonator_percent.');
@@ -517,6 +517,24 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             if obj.laserOn()
                 obj.com('set_resonator_val', 'solstis', val);
             end
+        end
+        function val = set_resonator_percent_limitrate(obj, val, ~)
+            if isnan(val); return; end % Short circuit on NaN
+            
+            obj.do_wavelength_lock = false;
+            
+            % tune at a limited rate per step
+            resonator_tune_speed = 1;
+            
+            currentPercent = obj.GetPercent;
+            numberSteps = floor(abs(currentPercent-val)/resonator_tune_speed);
+            direction = sign(val-currentPercent);
+            
+            for i = 1:numberSteps
+                newval = currentPercent+(i)*direction*resonator_tune_speed;
+                obj.com('set_resonator_val', 'solstis', newval)
+            end
+            obj.com('set_resonator_val', 'solstis', val);
         end
         function val = set_do_wavelength_lock(obj, val, pref)
             if val == pref.value; return; end

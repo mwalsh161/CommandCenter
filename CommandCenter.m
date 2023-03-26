@@ -234,7 +234,7 @@ try
     handles.Managers.handles = handles;         % Give the manager container a handle to figure handles
     
     % Inactivity timer
-    handles.Managers.timeout = 30*60;  % seconds
+    handles.Managers.timeout = 24*60*60;  % seconds
     handles.inactivity_timer = timer('Executionmode','SingleShot',...
         'TimerFcn',@inactivity,'startdelay',handles.Managers.timeout+1,...
         'name','Inactivity Timer','tag',mfilename,'busymode','queue','ObjectVisibility','off');

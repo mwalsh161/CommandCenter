@@ -18,6 +18,7 @@ classdef PVCAM < Modules.Imaging
 
         gain =          Prefs.MultipleChoice(3, 'choices', {1, 2, 3},   'allow_empty', false, 'set', 'set_gain',    'help', 'EM (electron multipying) gain. Higher levels imply more gain.'); % Add description
         speed =         Prefs.MultipleChoice(0, 'choices', {0},         'allow_empty', false, 'set', 'set_speed',   'help', 'Readout mode; 0 = fast?');
+        EMgain =          Prefs.Integer(1, 'units', 'EM gain multiplier',  'help_text', 'EM gain multiplication factor', 'set', 'set_EMgain'); % EM gain setting
         
         binning =       Prefs.MultipleChoice(1, 'choices', {1, 2, 3, 4},      'allow_empty', false, 'units', 'pix',       'help_text', 'Binning N =/= 1 will cause the camera to aquire data in N x N superpixels. High N means faster readout, but also reduced resolution.');   % This is camera-dependent...
         exposure =      Prefs.Double(1000, 'min', 0, 'units', 'ms', 'help_text', 'Integration time for each frame.'); % Add better limits.
@@ -53,7 +54,6 @@ classdef PVCAM < Modules.Imaging
             end
             
             obj.camera_name = num2str(obj.h_cam);
-            
             obj.loadPrefs;
             
             obj.getParams();
@@ -62,13 +62,13 @@ classdef PVCAM < Modules.Imaging
             % some parameters
             pvcam_getpar = {'PARAM_BIT_DEPTH', 'PARAM_CHIP_NAME', ...
                 'PARAM_PAR_SIZE', 'PARAM_SER_SIZE', 'PARAM_PREMASK', 'PARAM_TEMP', 'PARAM_GAIN_INDEX',...
-                'PARAM_PIX_TIME','PARAM_EXP_RES','PARAM_PIX_TIME'};
+                'PARAM_PIX_TIME','PARAM_EXP_RES','PARAM_PIX_TIME','PARAM_GAIN_MULT_FACTOR'};
             pvcam_setpar = {'PARAM_CLEAR_MODE', 'PARAM_CLEAR_CYCLES', 'PARAM_GAIN_INDEX', ...
                 'PARAM_PMODE', 'PARAM_SHTR_OPEN_MODE', 'PARAM_SHTR_CLOSE_DELAY', 'PARAM_SHTR_OPEN_DELAY', ...
                 'PARAM_SPDTAB_INDEX', 'PARAM_TEMP_SETPOINT','PARAM_PIX_TIME'};
 
-            pvcam_para_value = {[],[],[],[],[],[],[]};
-            pvcam_para_field = {'serdim','pardim','gain','speedns','timeunit','temp','readout'};
+            pvcam_para_value = {[],[],[],[],[],[],[],[]};
+            pvcam_para_field = {'serdim','pardim','gain','speedns','timeunit','temp','readout','EMgain'};
             pvcam_par = cell2struct(pvcam_para_value, pvcam_para_field, 2);
             
             pvcam_par.serdim   = pvcamgetvalue(obj.h_cam, pvcam_getpar{4});%CCDpixelser
@@ -78,6 +78,10 @@ classdef PVCAM < Modules.Imaging
             pvcam_par.timeunit = pvcamgetvalue(obj.h_cam, pvcam_getpar{9});%CameraResolution
             pvcam_par.temp     = pvcamgetvalue(obj.h_cam, pvcam_getpar{6});%temperature
             pvcam_par.readout  = pvcamgetvalue(obj.h_cam, pvcam_getpar{10});%readout rate 50 means 20MHz, 100 means 10MHz
+            [pvcam_par.EMgain, ~, ~, gainrange2]  = pvcamgetvalue(obj.h_cam, pvcam_getpar{11});%EM gain setting
+
+            gainrange
+            gainrange2
             
             obj.width = pvcam_par.serdim;
             obj.height = pvcam_par.pardim;
@@ -87,6 +91,8 @@ classdef PVCAM < Modules.Imaging
             
             obj.gain = pvcam_par.gain;
             obj.temp = pvcam_par.temp/100;
+            
+            obj.EMgain = pvcam_par.EMgain;
             
             if ~contains(pvcam_par.timeunit, 'One Millisecond')
                  warning([datestr(datetime('now')) ':NOT in milliseconds!']);
@@ -120,6 +126,12 @@ classdef PVCAM < Modules.Imaging
                 pvcamsetvalue(obj.h_cam, 'PARAM_SPDTAB_INDEX', val);
             end
         end
+        function val = set_EMgain(obj, val, ~)
+            if ~isempty(obj.h_cam)
+                pvcamsetvalue(obj.h_cam, 'PARAM_GAIN_MULT_FACTOR', val);
+            end
+        end
+
         
         function delete(obj)
             obj.close();
