@@ -19,6 +19,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
         only_get_freq = Prefs.Boolean(false);
         save_freq_before = Prefs.Boolean(false);
         save_freq_after = Prefs.Boolean(true);
+        wl_image = Prefs.Boolean(true);
     end
     properties
         prefs = {};
@@ -54,6 +55,22 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 hw = hwserver('qplab-hwserver.mit.edu');
             end
             
+            if obj.wl_image
+                obj.wl.on
+                pause(.2)
+                obj.data.wl_before = obj.imaging.snapImage;
+                ax.UserData.CData = obj.data.wl_before;
+                drawnow
+            end
+            obj.wl.off
+            
+            if true
+                pm = false;
+            else
+                pm = Drivers.PM100.instance();
+            end
+%             pm.set_wavelength(obj.c / obj.resLaser.getFrequency());
+            
             last_freq = NaN;
 
             try
@@ -62,9 +79,13 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                     hw.com('wavemeter', 'SetSwitcherSignalStates', obj.wavemeter_channel, 1, 1);
                 end
                 
+                if pm
+                    obj.data.power_before = pm.get_power();
+                end
+                
                 for freqIndex = 1:length(obj.scan_points)
 %                     'frame'
-%                     tic
+                    tic
                     obj.data.experiment_time(freqIndex) = now;
             
                     status.String = sprintf('Progress (%i/%i pts):\n  Setting laser', freqIndex, length(obj.scan_points));
@@ -87,7 +108,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                         
                         if obj.save_freq_before
                             if obj.wavemeter_override
-                                obj.data.freqs_measured(freqIndex) = hw.com('wavemeter', 'GetWavelengthNum', obj.wavemeter_channel, 0);
+                                obj.data.freqs_measured(freqIndex) = hw.com('wavemeter', 'GetFrequencyNum', obj.wavemeter_channel, 0);
                             else
                                 obj.data.freqs_measured(freqIndex) = obj.resLaser.getFrequency();
                             end
@@ -116,16 +137,17 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                             
                             %%cropping image
                             rawImage = obj.imaging.snapImage;
-%                             croppedImaged = rawImage(200:600,250:550);
+%                             croppedImaged = rawImage(200:600,300:600);
 %                             croppedImaged = rawImage(300:700,300:600);
                             obj.data.images(:,:,freqIndex) = rawImage;
+%                             obj.data.images(:,:,freqIndex) = croppedImaged;
 %                             obj.data.images(:,:,freqIndex) = obj.imaging.snapImage;
                             ax.UserData.CData = obj.data.images(:,:,freqIndex);
                         end
                     
                         if obj.save_freq_after
                             if obj.wavemeter_override
-                                obj.data.freqs_measured_after(freqIndex) = hw.com('wavemeter', 'GetWavelengthNum', obj.wavemeter_channel, 0);
+                                obj.data.freqs_measured_after(freqIndex) = hw.com('wavemeter', 'GetFrequencyNum', obj.wavemeter_channel, 0);
                             else
                                 obj.data.freqs_measured_after(freqIndex) = obj.resLaser.getFrequency();
                             end
@@ -145,9 +167,22 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
                 warning(err.message)
             end
             
+            if pm
+                obj.data.power_after = pm.get_power();
+            end
+            
             if obj.wavemeter_override
                 hw.com('wavemeter', 'SetSwitcherSignalStates', obj.wavemeter_channel, 0, 0);
             end
+            
+            if obj.wl_image
+                obj.wl.on
+                pause(.2)
+                obj.data.wl_after = obj.imaging.snapImage;
+                ax.UserData.CData = obj.data.wl_after;
+                drawnow
+            end
+            obj.wl.off
             
             obj.PostRun();
             

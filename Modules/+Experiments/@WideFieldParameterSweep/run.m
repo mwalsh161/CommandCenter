@@ -20,7 +20,7 @@ obj.meta.position = managers.Stages.position; % Save current stage position (x,y
 numberImages = obj.numberImages;
 % ROI_x = [200:550];
 % ROI_y = [400:750];
-ROI_x = [300:700];
+ROI_x = [200:600];
 ROI_y = [300:600];
 try
     

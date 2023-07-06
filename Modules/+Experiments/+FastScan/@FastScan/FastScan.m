@@ -4,10 +4,10 @@ classdef FastScan < Modules.Experiment
 
     properties(SetObservable,AbortSet)
         % These should be preferences you want set in default settings method
-        start_V = -5;
-        stop_V = 5;
-        dwell_ms = 1;  % ms
-        total_time = 10;  % seconds
+        start_V = 0;
+        stop_V = 10;
+        dwell_ms = 50;  % ms
+        total_time = 80;  % seconds
     end
     properties
         prefs = {'start_V','stop_V','dwell_ms','total_time'};  % String representation of desired prefs

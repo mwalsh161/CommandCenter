@@ -29,7 +29,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
         statusList = {'Open Loop', 'No Wavemeter', 'Tuning', 'Closed Loop'};    % Interpretation of msquared status (see callGetWavelength).
         lockList = {'off', 'on'};                                               % Used to convert logical 0/1 to 'off'/'on' for comms with the laser.
         
-        emm_tolerance = .001 % nm                                               % If we are further away than this, assumed bad diff_wavelength estimate.
+        emm_tolerance = .005 % nm                                               % If we are further away than this, assumed bad diff_wavelength estimate.
     end
     
     properties(SetObservable,GetObservable)
@@ -74,7 +74,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                                                                     'help_text', 'Wavemeter output for the current wavelength of this msquared laser''s EMM, if an EMM is connected.');
         diff_wavelength =   Prefs.Double(1950,  'units', 'nm',  'readonly', true, ...
                                                                     'help_text', 'Calculated EMM difference wavelength that is used to target EMM wavelengths via controlling the SolsTiS via 1/EMM_wl = 1/SolsTiS_wl - 1/diff_wl. This wavelength is roughly 1950, but is calculated and updated based on wavemeter measurments to catch and compensate drift.');
-        NIR_channel =       Prefs.Integer(6,    'min', 1, 'max', 8, ...
+        NIR_channel =       Prefs.Integer(5,    'min', 1, 'max', 8, ...
                                                                     'help_text', 'Wavemeter channel for this msquared laser''s SolsTiS. Indexed from 1.');
         VIS_channel =       Prefs.Integer(7,    'min', 1, 'max', 8, ...
                                                                     'help_text', 'Wavemeter channel for this msquared laser''s EMM. Indexed from 1.');
@@ -300,13 +300,14 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             attempting = true;
             failcount = 0;
             centercount = 0;
+            failmax = 5;
 
             % Main loop
             while attempting
                 try
                     failcount = failcount + 1;
 
-                    if failcount > 5
+                    if failcount > failmax
                         attempting = false;
                     end
 %                     if centercount > 5
@@ -318,7 +319,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     out = obj.com('set_wavelength', 'solstis', nir_wavelength, 0); % last arg is timeout
 
                     if out.status == 0  % Call success
-                        obj.trackFrequency(obj.c/target, 60);   % Will block until obj.tuning = false (calling obj.getFrequency each tick).
+                        obj.trackFrequency(obj.c/target, 30);   % Will block until obj.tuning = false (calling obj.getFrequency each tick).
                         
                         if ~obj.tuning  % If we are not still tuning...
                             % If we are inside the acceptable range...
@@ -349,7 +350,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.updatingVal = false;
             
             % Failcount warning
-            if failcount > 5
+            if failcount > failmax
                 warning('Failed to set the SolsTiS wavelength five times, aborting tuning attempt.')
             end
             
@@ -359,9 +360,10 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             end
             
             % Success events
-            if ~obj.aborted && failcount <= 5
+            if ~obj.aborted && failcount <= failmax
                 warning('SolsTiS success.')
                 if strcmp(module, obj.moduleVIS) && abs(obj.VIS_wavelength - target) > obj.emm_tolerance    % If we're off with the EMM, we probably didn't initially have a good reading on the diff_wavelength.
+                    'EMM tolance fail'
                     obj.tune(target, recursion+1)    % Try tuning again.
                 end
                 
@@ -578,7 +580,8 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             obj.callGetWavelength();
             
             if obj.laserOn()
-                if strcmp(obj.active_module, obj.moduleVIS)
+%                 if strcmp(obj.active_module, obj.moduleVIS)
+                if strcmp(obj.active_module, obj.moduleNIR)
                     % Only call getWavemeterWavelength if we expect to get power from the EMM
                     if ~obj.tuning || abs(obj.NIR_wavelength - obj.solstis_setpoint) < .1
                         obj.getWavemeterWavelength();
@@ -596,6 +599,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             end
             
             freq = obj.c/obj.determineResultingWavelength();    % Not sure if this should be used; imprecise.
+            freq = obj.NIR_wavelength; % Sophia only wants to read Solstist so...
             obj.setpoint = freq;
         end
     end

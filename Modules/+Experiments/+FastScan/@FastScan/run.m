@@ -13,8 +13,7 @@ function run( obj,status,managers,ax )
     
     ni = Drivers.NIDAQ.dev.instance('Dev1');
     trigger_line = 'trigger'; % out/in
-    AO_line = 'LED'; % out
-    MeasSync = 'Widefield Lens'; % out
+    AO_line = 'laser'; % out
     SweepSync = 'sync'; % out
     APD_line = 'APD1'; % in
     % Specs from NI 6343 for single AO out
@@ -35,27 +34,19 @@ function run( obj,status,managers,ax )
     % Setup tasks (avoid calling ClearAllTasks)
     previous_tasks = ni.Tasks;
     try
-        MeasCLK = ni.CreateTask('Measurement PT');
-        MeasCLK.ConfigurePulseTrainOut(MeasSync,1/dwell,nsamples_APD);
-        MeasCLK.ConfigureStartTrigger(trigger_line);
-        
-        counter = ni.CreateTask('Counter');
-        counter.ConfigureCounterIn(APD_line,nsamples_APD,MeasCLK);
-
         SweepCLK = ni.CreateTask('Sweep PT');
         SweepCLK.ConfigurePulseTrainOut(SweepSync,max_buf/round_total_time,buf);
-        SweepCLK.ConfigureStartTrigger(trigger_line);
+
+        counter = ni.CreateTask('Counter');
+        counter.ConfigureCounterIn(APD_line,nsamples_APD,SweepCLK);
 
         sweep = ni.CreateTask('Sweep Fun');
         sweep.ConfigureVoltageOutClkTiming({AO_line},sweep_vals,SweepCLK);
         
-        % Arm tasks (CLKs will wait for trigger)
-        MeasCLK.Start; counter.Start;
-        SweepCLK.Start; sweep.Start;
-        % Trigger tasks
-        trigger = ni.CreateTask('trigger');
-        trigger.ConfigurePulseTrainOut(trigger_line,1e4,1); % 100 us pulse
-        trigger.Start;  % Start entire experiment
+        % Arm tasks
+        counter.Start;
+        sweep.Start;
+        SweepCLK.Start;
         
         % Readout counter
         ii = 0;

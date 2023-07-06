@@ -22,7 +22,9 @@ classdef PM100 < Modules.Driver
         end
         
         function obj = PM100(varargin)
-            id = findInstrument('0x8072'); % model number for the PM100 (old models; new models are 0x8076)
+%             id = findInstrument('0x8072'); % model number for the PM100 (old models; new models are 0x8076)
+%             id = findInstrument('0x8076'); % model number for the PM100 (old models; new models are 0x8076)
+            id = findInstrument('USB0::0x1313::0x8076::M00841653::INSTR');
             obj.channel = visa('ni', id);
         end
         
