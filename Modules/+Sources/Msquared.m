@@ -599,7 +599,6 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
             end
             
             freq = obj.c/obj.determineResultingWavelength();    % Not sure if this should be used; imprecise.
-            freq = obj.NIR_wavelength; % Sophia only wants to read Solstist so...
             obj.setpoint = freq;
         end
     end
