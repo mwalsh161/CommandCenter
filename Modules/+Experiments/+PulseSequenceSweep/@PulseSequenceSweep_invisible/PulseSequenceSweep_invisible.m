@@ -35,9 +35,10 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         nCounterBins
     end
     properties
-        prefs = {'averages','samples','pb_IP','NIDAQ_dev'};
+        prefs = {'draw_pulse_sequence','averages','samples','pb_IP','NIDAQ_dev'};
     end
     properties(SetObservable,GetObservable)
+        draw_pulse_sequence = Prefs.Button('help_text','Draw pulse sequence for first index', 'set', 'display_pulse_sequence')
         averages = Prefs.Integer(1,'min',1,'help_text','Number of times to perform entire sweep');
         samples = Prefs.Integer(1000,'min',1,'help_text','Number of samples at each point in sweep');
         pb_IP = Prefs.String('None Set','set','set_pb_IP','help_text','Hostname for computer running pulseblaster server');
@@ -103,6 +104,12 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         function UpdateRun(obj,varargin)
         end
         function PostRun(obj,varargin)
+        end
+        function val = display_pulse_sequence(obj,val,~)
+            indicies = cell(1, -nargin( @obj.BuildPulseSequence ) );
+            indicies{:}= 1;
+            ps = obj.BuildPulseSequence( indicies{:} );
+            ps.draw( );
         end
     end
 end
