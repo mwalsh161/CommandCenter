@@ -5,13 +5,14 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
     % update_plot(ydata) [called in UpdateRun]
     %   Given the calculated ydata, update plots generated in prep_plot
 
-    properties(SetObservable,AbortSet)
+    properties(GetObservable, SetObservable,AbortSet)
         resLaser = Modules.Source.empty(1,0); % Allow selection of source
         repumpLaser = Modules.Source.empty(1,0);
         APDline = 1;  % Indexed from 1
         repumpTime_us = 1; %us
         resOffset_us = 0.1;
         resTime_us = 0.1;
+        read_laser_power = Prefs.Boolean( false, 'help', 'Whether to read laser power off NIDAQ line laserPD');
         wavemeter_override = false;
         wavemeter_channel = 1;
         wavemeter = [];
@@ -62,6 +63,9 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
             if obj.wavemeter_override
                 obj.wavemeter = Drivers.Wavemeter.instance('qplab-hwserver.mit.edu', obj.wavemeter_channel, false);
             end
+            if obj.read_laser_power
+                obj.data.laser_PD_voltage = NaN(obj.averages,length(obj.scan_points));
+            end
             %prepare axes for plotting
             hold(ax,'off');
             %plot data
@@ -97,6 +101,12 @@ classdef SlowScan_invisible < Experiments.PulseSequenceSweep.PulseSequenceSweep_
             else
                 averagedData = obj.data.sumCounts;
                 meanError = obj.data.stdCounts*sqrt(obj.samples);
+            end
+            
+            if obj.read_laser_power
+                obj.repumpLaser.off()
+                obj.data.laser_PD_voltage(average,freqIndex) = obj.nidaqH.ReadAILine('laserPD');
+                obj.repumpLaser.on()
             end
             
             %grab handles to data from axes plotted in PreRun
