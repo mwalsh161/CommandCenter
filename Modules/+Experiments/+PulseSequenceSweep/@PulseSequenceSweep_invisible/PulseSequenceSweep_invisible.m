@@ -106,8 +106,11 @@ classdef PulseSequenceSweep_invisible < Modules.Experiment
         function PostRun(obj,varargin)
         end
         function val = display_pulse_sequence(obj,val,~)
+            % Find number of arguments that BuildPulseSequence needs
             indicies = cell(1, -nargin( @obj.BuildPulseSequence ) );
             indicies{:}= 1;
+            
+            % Display pulse sequence for first index
             ps = obj.BuildPulseSequence( indicies{:} );
             ps.draw( );
         end

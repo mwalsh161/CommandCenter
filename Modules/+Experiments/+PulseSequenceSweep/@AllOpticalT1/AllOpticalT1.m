@@ -36,15 +36,15 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
             %prepare axes for plotting
             hold(ax,'on');
             %plot data bin 1
-            plotH = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1),'color','b');
+            plotH = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,1),'color','b');
             %plot data bin 1 errors
-            plotH(2) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1)+obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
-            plotH(3) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,1,1)-obj.data.stdCounts(:,1,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
+            plotH(2) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,1)+obj.data.stdCounts(1,:,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
+            plotH(3) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,1)-obj.data.stdCounts(1,:,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
             %plot data bin 2
-            plotH(4) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,2,1),'color','b');
+            plotH(4) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2),'color','b');
             %plot data bin 2 errors
-            plotH(5) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,2,1)+obj.data.stdCounts(:,2,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
-            plotH(6) = plot(ax,obj.tauTimes,obj.data.sumCounts(:,2,1)-obj.data.stdCounts(:,2,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
+            plotH(5) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2)+obj.data.stdCounts(1,:,2),'color',[1 .5 0],'LineStyle','--'); %upper bound
+            plotH(6) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2)-obj.data.stdCounts(1,:,2),'color',[1 .5 0],'LineStyle','--'); %lower bound
             ax.UserData.plots = plotH;
             ylabel(ax,'Normalized PL');
             xlabel(ax,'Delay Time \tau (\mus)');
@@ -54,11 +54,11 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
         
         function UpdateRun(obj,~,~,ax,~,~)
             if obj.averages > 1
-                averagedData = squeeze(nanmean(obj.data.sumCounts,3));
-                meanError = squeeze(nanmean(obj.data.stdCounts,3));
+                averagedData = squeeze(nanmean(obj.data.sumCounts,1));
+                meanError = squeeze(nanmean(obj.data.stdCounts,1));
             else
-                averagedData = obj.data.sumCounts;
-                meanError = obj.data.stdCounts;
+                averagedData = squeeze(obj.data.sumCounts(1,:,:));
+                meanError = squeeze(obj.data.stdCounts(1,:,:));
             end
             
             %grab handles to data from axes plotted in PreRun
