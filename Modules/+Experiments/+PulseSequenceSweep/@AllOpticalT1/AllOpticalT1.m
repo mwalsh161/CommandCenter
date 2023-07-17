@@ -41,7 +41,7 @@ classdef AllOpticalT1 < Experiments.PulseSequenceSweep.PulseSequenceSweep_invisi
             plotH(2) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,1)+obj.data.stdCounts(1,:,1),'color',[1 .5 0],'LineStyle','--'); %upper bound
             plotH(3) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,1)-obj.data.stdCounts(1,:,1),'color',[1 .5 0],'LineStyle','--'); %lower bound
             %plot data bin 2
-            plotH(4) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2),'color','b');
+            plotH(4) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2),'color','r');
             %plot data bin 2 errors
             plotH(5) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2)+obj.data.stdCounts(1,:,2),'color',[1 .5 0],'LineStyle','--'); %upper bound
             plotH(6) = plot(ax,obj.tauTimes,obj.data.sumCounts(1,:,2)-obj.data.stdCounts(1,:,2),'color',[1 .5 0],'LineStyle','--'); %lower bound
