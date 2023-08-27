@@ -5,7 +5,7 @@ classdef PM100 < Modules.Driver
     properties
         channel;
         id;
-        unit_status = 'mW';
+        unit_status = 'MW';
     end
     
     methods(Access=private)
@@ -18,13 +18,11 @@ classdef PM100 < Modules.Driver
             if output
                 out = fscanf(obj.channel);
             end
-            pause(0.05) % Unclear why this was here.
+            pause(0.05)
         end
         
         function obj = PM100(varargin)
-%             id = findInstrument('0x8072'); % model number for the PM100 (old models; new models are 0x8076)
-%             id = findInstrument('0x8076'); % model number for the PM100 (old models; new models are 0x8076)
-            id = findInstrument('USB0::0x1313::0x8076::M00841653::INSTR');
+            id = findInstrument('0x8072'); % model number for the PM100
             obj.channel = visa('ni', id);
         end
         
@@ -89,39 +87,32 @@ classdef PM100 < Modules.Driver
             out = str2num(out);
         end
         
-        function [pow, dpow, raw] = get_power(obj, varargin)    % Drivers.PM100.get_power('units', <'mW' or 'dBm'>, 'samples', <positive integer>)
-            p = inputParser;
-            p.addParameter('units', obj.unit_status, @ischar);
-            p.addParameter('samples', 1, @(x)(isnumeric(x) && isscalar(x) && x > 0 && round(x) == x));
-            
-            parse(p,varargin{:});
-            units = p.Results.units;
-            samples = p.Results.samples;
-            
-            if ~strcmp(obj.unit_status, units)  % Move this to seperate function?
-                if strcmp(units, 'dBm')
+        function set_range(obj,auto)
+            obj.command(sprintf('CURR:RANG:AUTO %i',round(auto)));
+        end
+        
+        function out = get_range(obj)
+            out = obj.query('CURR:RANG:AUTO?');
+            out = str2num(out);
+        end
+        
+        function out = get_power(obj, units)
+            if ~strcmp(obj.unit_status, units)
+                if strcmp(units, 'DBM')
                     obj.command('SENS:POW:UNIT DBM');
-                    obj.unit_status = 'dBm';
-                elseif strcmp(units, 'mW')
+                    obj.unit_status = 'DBM';
+                elseif strcmp(units, 'MW')
                     obj.command('SENS:POW:UNIT W');
-                    obj.unit_status = 'mW';
+                    obj.unit_status = 'MW';
                 else
-                    error('PM100 get_power needs valid units "mW" or "dBm"');
+                    error('PM100 get_power needs valid units "MW" or "DBM"');
                 end
             end
             
-            raw = NaN(1, samples);
-            for ii = 1:samples
-                raw(ii) = str2double(obj.query('MEAS:POW?'));
-            end
-            
-            pow = mean(raw);
-            dpow = std(raw);
-            
-            if strcmp(units, 'mW')
-                raw = raw * 1e3;
-                pow = pow * 1e3;
-                dpow = dpow * 1e3;
+            out = obj.query('MEAS:POW?');
+            out = str2num(out);
+            if strcmp(units, 'MW')
+                out = out * 1e3;
             end
         end
     end

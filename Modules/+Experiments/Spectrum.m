@@ -128,6 +128,9 @@ classdef Spectrum < Modules.Experiment
                 dat.wavelength = obj.data.x;
                 dat.intensity = obj.data.y;
                 dat.meta = rmfield(obj.data,{'x','y'});
+%                 if ~isempty(managers.Imaging.current_image.info.image)
+%                     dat.image = managers.Imaging.current_image.info;
+%                 end
             end
         end
         

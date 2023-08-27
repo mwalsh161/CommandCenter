@@ -2,6 +2,7 @@ classdef Keithley2400 < Modules.Driver
     %KEITHLEY2400 Interfaces with the eponymous signal generator.
     
     properties (SetAccess=protected, Hidden)
+        GPIBNumber          % GPIB number
         GPIBAddr            % GPIB address
         RsrcName            % Resource name of the VISA instrument
         VisaHandle          % Handle of the VISA object
@@ -20,7 +21,7 @@ classdef Keithley2400 < Modules.Driver
     
     % Constructor functions
     methods (Static)
-        function obj = instance(GPIBAddr)
+        function obj = instance(GPIBNumber,GPIBAddr)
             mlock;
             persistent Objects
             if isempty(Objects)
@@ -32,15 +33,16 @@ classdef Keithley2400 < Modules.Driver
                     return
                 end
             end
-            obj = Drivers.Keithley2400(GPIBAddr);
+            obj = Drivers.Keithley2400(GPIBNumber,GPIBAddr);
             obj.singleton_id = GPIBAddr;
             Objects(end+1) = obj;
         end
     end
     methods (Access=private)
-        function obj = Keithley2400(GPIBAddr)
+        function obj = Keithley2400(GPIBNumber,GPIBAddr)
+            obj.GPIBNumber = GPIBNumber;
             obj.GPIBAddr = GPIBAddr;
-            obj.RsrcName = ['GPIB0::' num2str(obj.GPIBAddr) '::INSTR'];
+            obj.RsrcName = ['GPIB' num2str(obj.GPIBNumber) '::' num2str(obj.GPIBAddr) '::INSTR'];
             obj.VisaHandle = visa('ni',obj.RsrcName);
             obj.openConnection();
         end

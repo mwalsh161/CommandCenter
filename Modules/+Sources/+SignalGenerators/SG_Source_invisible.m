@@ -15,8 +15,8 @@ classdef SG_Source_invisible < Modules.Source
         PB_line =       Prefs.Integer(1, 'min', 1, 'allow_nan', false, 'set', 'set_PB_line', ...
                                     'help', 'Indexed from 1');
                                 
-%         reset_serial =  Prefs.Button('string', 'Reset', 'set', 'set_reset_serial', ...
-%                                     'help', 'Push this to kill the current comport (serial, gpib, ...) and be able to reset it upon restart. Future: make this less terrible.')
+        reset_serial =  Prefs.Button('Reset', 'set', 'set_reset_serial', ...
+                                    'help', 'Push this to kill the current comport (serial, gpib, ...) and be able to reset it upon restart. Future: make this less terrible.')
     end
     
     properties (Constant, Hidden)
@@ -116,7 +116,7 @@ classdef SG_Source_invisible < Modules.Source
             end
         end
         
-        function set_reset_serial(obj, ~, ~)
+        function obj = set_reset_serial(obj, ~, ~)
             obj.serial.comObjectInfo = [];
             obj.serial.savePrefs();
             delete(obj);    % Suicide.
