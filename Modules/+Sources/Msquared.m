@@ -222,6 +222,7 @@ classdef Msquared < Modules.Source & Sources.TunableLaser_invisible
                     
                     % Do math on the wavelengths if they are real
                     if obj.VIS_wavelength > 0 && obj.NIR_wavelength > 0
+                        obj.NIR_wavelength = obj.hwserver.com('wavemeter', 'GetWavelengthNum', obj.NIR_channel, 0);
                         diff_wavelength_ = 1/(1/obj.VIS_wavelength - 1/obj.NIR_wavelength);
 
                         if diff_wavelength_ > 1949 && diff_wavelength_ < 1951   % This range is just so a silly value isn't set. Not sure if this is a good range.

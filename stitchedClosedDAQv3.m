@@ -1,11 +1,14 @@
 function stitchedClosedDAQv3(managers)
     dthz = .015;
-    orangecenter = 484.12;
+    orangebase = 484.12;
+    orangebase = 406.7;
+    orangecenter = orangebase;
     orangewidth = 0.09;
     THZ = (orangecenter - orangewidth/2) : dthz : (orangecenter + orangewidth/2);
     
-    for extra = [1, -1, 2, -2, 3, -3, 4, -4]
-        orangecenter = 484.12 + extra * (orangewidth + dthz);
+%     for extra = [1, -1, 2, -2, 3, -3, 4, -4]
+    for extra = [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8]    % Overnight 8/13 wider
+        orangecenter = orangebase + extra * (orangewidth + dthz);
         THZ = [THZ ((orangecenter - orangewidth/2) : dthz : (orangecenter + orangewidth/2))];
     end
     

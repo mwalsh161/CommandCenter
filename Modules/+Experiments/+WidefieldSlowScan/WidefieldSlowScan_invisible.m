@@ -233,7 +233,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
 %             w = 401;
 %             h = 301;
             
-            ax.UserData = imagesc(ax, 1:w, 1:h, NaN(h, w));
+            ax.UserData = imagesc(ax, 1:h, 1:w, NaN(w, h));
             set(ax,'DataAspectRatio',[1 1 1])
             
             xlabel(ax, '$x$ [pix]', 'interpreter', 'latex');
@@ -301,7 +301,7 @@ classdef WidefieldSlowScan_invisible < Modules.Experiment
             pause(.25)
 %             [obj.data.resPowerAfter, obj.data.resPowerStdAfter] =   pm.get_power('units', 'mW', 'samples', 10);
             
-%             obj.setLaser(0);
+            obj.setLaser(0);
             obj.resLaser.off
         end
     end
